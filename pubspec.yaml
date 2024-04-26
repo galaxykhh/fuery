@@ -3,6 +3,10 @@ description: "Asynchronous state management library that helps implements the se
 version: 0.0.1
 homepage: https://github.com/galaxykhh
 repository: https://github.com/galaxykhh/fuery
+topics:
+  - react-query
+  - state-management
+  - server-state
 
 environment:
   sdk: '>=3.3.1 <4.0.0'
@@ -11,7 +15,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  fuery_core: ^0.2.0
+  fuery_core: ^0.2.2
 
 dev_dependencies:
   flutter_test:

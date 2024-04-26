@@ -3,6 +3,8 @@ import 'package:fuery_core/fuery_core.dart';
 
 typedef State<Param, Data, Err>
     = InfiniteQueryState<List<InfiniteData<Param, Data>>, Err>;
+typedef InfiniteQueryWidgetBuilder<Data, Err> = Widget Function(
+    BuildContext context, InfiniteQueryState<Data, Err> state);
 
 class InfiniteQueryBuilder<Param, Data, Err> extends StatelessWidget {
   const InfiniteQueryBuilder({
@@ -12,10 +14,7 @@ class InfiniteQueryBuilder<Param, Data, Err> extends StatelessWidget {
   });
 
   final InfiniteQueryResult<Param, Data, Err> query;
-  final Widget Function(
-    BuildContext context,
-    State<Param, Data, Err> state,
-  ) builder;
+  final InfiniteQueryWidgetBuilder builder;
 
   @override
   Widget build(BuildContext context) {
