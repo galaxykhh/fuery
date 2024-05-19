@@ -11,22 +11,29 @@ and the Flutter guide for
 [developing packages and plugins](https://flutter.dev/developing-packages).
 -->
 
+<p align="center">
+  <img src="https://github.com/galaxykhh/fuery/assets/79380337/15ad2527-a059-44ce-a8d2-51920c02596f"/>
+  <h1 align="center">Fuery</h1>
+</p>
 
-# Fuery Core
 ### Asynchronous state management library that helps implements the server side state management in Flutter
 
 ## Features
-* Async data fetching, caching, invalidation, pagination
-* Mutation with side effect
-* Widget builders and listeners
+
+- Async data fetching, caching, invalidation, pagination
+- Mutation with side effect
+- Widget builders and listeners
 
 ## Installation
+
 ```bash
 flutter pub add fuery
 ```
 
 ## Basic Usage
+
 ### Query
+
 ```dart
 int id = 2;
 
@@ -52,14 +59,16 @@ return QueryBuilder(
     }
 );
 ```
+
 ### Infinite Query
+
 ```dart
 class PageResponse<T> {
   final List<T> items;
   final int? nextCursor;
 
   ...
-  
+
   factory PageResponse.fromJson(Map<String, dynamic> map) {
     return ...;
   }
@@ -83,7 +92,7 @@ late final posts = InfiniteQuery.use<int, PageResponse<Post>, Error>(
   getNextPageParam: (lastPage, allPages) {
     print(lastPage.runtimeType) // InfiniteData<int, PageResponse<Post>>,
     print(allPages.runtimeType) // List<InfiniteData<int, PageResponse<Post>>>,
-    
+
     return lastPage.data.nextPage;
   },
 );
@@ -104,8 +113,8 @@ return InfiniteQueryBuilder(
 );
 ```
 
-
 ### Mutation
+
 ```dart
 // MutationResult<Post, Error, void Function(String), Future<Post> Function(String)>
 late final createPost = Mutation.use<String, Post, Error>(
@@ -121,6 +130,7 @@ await createPost.mutateAsync('some content');
 ```
 
 ### Mutation without parameters
+
 Sometimes you may need a Mutation without parameters. In such situations, you can use the Mutation.noParams constructor.
 
 ```dart
@@ -138,6 +148,7 @@ await createRandomPost.mutateAsync();
 ```
 
 ### MutationBuilder
+
 ```dart
 
 // Shows loading barrier when deleting todo item.
@@ -154,6 +165,7 @@ MutationBuilder(
 ```
 
 ### Fuery Client
+
 ```dart
 // invalidate.
 Fuery.invalidateQueries(queryKey: ['posts']);
@@ -164,6 +176,3 @@ Fuery.configQueryOptions(
   infiniteQuery: InfiniteQueryOptions(...),
 );
 ```
-
-## Todo
-* More complex features like query-core (from react-query)
