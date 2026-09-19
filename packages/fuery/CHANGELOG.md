@@ -1,3 +1,6 @@
+## 0.3.2
+- Read query data with pattern matching in the README and examples, instead of `state.data!`.
+
 ## 0.3.1
 - Update the package description and README, and link the documentation site at https://galaxykhh.github.io/fuery/.
 

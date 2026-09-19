@@ -33,10 +33,10 @@ class _TodoListScreenState extends State<TodoListScreen> {
   Widget build(BuildContext context) {
     return QueryBuilder(
       query: todos,
-      builder: (context, state) {
-        if (state.isPending) return const CircularProgressIndicator();
-        if (state.isError && !state.hasData) return Text('${state.error}');
-        return TodoList(state.data!);
+      builder: (context, state) => switch (state) {
+        QueryResult(:final data?) => TodoList(data),
+        QueryResult(:final error?) => Text('$error'),
+        _ => const CircularProgressIndicator(),
       },
     );
   }
@@ -45,6 +45,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
 
 ## What happens
 
+- **`data` is never null in the builder above.** `QueryResult(:final data?)` only matches when there is data, so `data` is a `List<Todo>` and needs no `!`. Data comes first, so a list that fails to refresh stays on screen, and the error shows only when there is no data yet.
 - **Creating the query doesn't fetch.** It fetches when `QueryBuilder` mounts, so the field doesn't need to be `late`. Use `late final` only when the query reads `widget` or another field, for example `queryKey: ['todo', widget.id]`.
 - **The first frame already shows loading.** There is no empty frame before the request starts.
 - **Widgets share data by key.** Another screen that uses `['todos']` gets the cached list immediately and shares the same request.

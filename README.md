@@ -7,9 +7,10 @@ final todos = Query.use(queryKey: ['todos'], queryFn: (_) => api.getTodos());
 
 QueryBuilder(
   query: todos,
-  builder: (context, state) => state.isPending
-      ? const CircularProgressIndicator()
-      : TodoList(state.data!),
+  builder: (context, state) => switch (state.data) {
+    final data? => TodoList(data),
+    null => const CircularProgressIndicator(),
+  },
 )
 ```
 

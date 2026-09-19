@@ -114,19 +114,13 @@ class _TodoListScreenState extends State<TodoListScreen> {
             body: QueryBuilder(
               query: todos,
               builder: (context, state) {
-                return switch (state.status) {
-                  QueryStatus.pending => const Center(
-                      child: CircularProgressIndicator(),
-                    ),
-                  QueryStatus.error when !state.hasData => Center(
-                      child: Text('Error: ${state.error}'),
-                    ),
-                  _ => ListView.separated(
+                return switch (state) {
+                  QueryResult(:final data?) => ListView.separated(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: state.data!.length,
+                      itemCount: data.length,
                       itemBuilder: (context, index) {
                         return TodoListItem(
-                          todo: state.data![index],
+                          todo: data[index],
                           onToggle: (todo) => toggleTodo.mutate(todo.id),
                           onDelete: (todo) => deleteTodo.mutate(todo.id),
                         );
@@ -135,6 +129,10 @@ class _TodoListScreenState extends State<TodoListScreen> {
                         return const SizedBox(height: 6);
                       },
                     ),
+                  QueryResult(:final error?) => Center(
+                      child: Text('Error: $error'),
+                    ),
+                  _ => const Center(child: CircularProgressIndicator()),
                 };
               },
             ),
