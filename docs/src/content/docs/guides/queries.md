@@ -65,15 +65,19 @@ Builders and streams receive a `QueryResult`:
 | `gcTime` | 5 minutes | How long unused data stays cached |
 | `retry` | `RetryPolicy.count(3)` | Also `.never()`, `.always()`, and `.when((count, error) => ...)` |
 | `retryDelay` | 1s, 2s, 4s, … up to 30s | A function of the failure count and error |
-| `refetchOnMount`, `refetchOnFocus`, `refetchOnReconnect` | `RefetchMode.ifStale` | `.never` or `.always` |
-| `refetchInterval` | none | Polls while a widget uses the query |
+| `refetchOnMount`, `refetchOnFocus`, `refetchOnReconnect` | `RefetchMode.ifStale` | `.never` or `.always`. `refetchOnReconnect` defaults to `.never` with `NetworkMode.always`. |
+| `refetchInterval` | none | Polls while a widget uses the query, counting from its latest change |
 | `refetchIntervalInBackground` | `false` | Keep polling while the app is in the background |
 | `refetchWhile` | none | Polls only while this returns true for the latest result |
+| `retryOnMount` | `true` | `false` doesn't retry a failed query when a widget starts using it |
 | `initialData` | none | Seeds the cache as if it had been fetched |
+| `initialDataUpdatedAt` | now | When `initialData` was fetched, in milliseconds since epoch |
 | `placeholderData` | none | Shown while pending, never cached |
 | `networkMode` | `NetworkMode.online` | See [App lifecycle and network](../lifecycle/) |
 | `structuralSharing` | `true` | Keeps unchanged data identical across refetches |
 | `persist` | none | Stores the data on the device. See [Persistence](../persistence/) |
+| `meta` | none | Any values, passed to the query function as `context.meta` |
+| `client` | `Fuery.client` | See [Providing a client](../query-client/#providing-a-client) |
 
 ## Polling
 
@@ -119,13 +123,13 @@ QueryBuilder(
 
 ## Pagination with placeholder data
 
-Switching to a new key normally shows the pending state until the new page arrives. Pass `keepPreviousData` to keep showing the previous page instead:
+Switching to a new key normally shows the pending state until the new page arrives. Keep showing the previous page instead with `placeholderData`:
 
 ```dart
-late final posts = Query.use(
+final posts = Query.use(
   queryKey: ['posts', 1],
   queryFn: (_) => api.getPosts(1),
-  placeholderData: keepPreviousData,
+  placeholderData: (previous) => previous,
 );
 
 void showPage(int page) {
@@ -136,6 +140,8 @@ void showPage(int page) {
   ));
 }
 ```
+
+`keepPreviousData` is the same function by name. Pass it where the data type is already known, as in `setOptions` above. In `Query.use`, write `(previous) => previous`: a generic function there would make Dart infer the data type as `Object` instead of taking it from `queryFn`.
 
 While the next page loads, `state.isPlaceholderData` is `true`, so you can dim the list or disable the next button. For endless scrolling, use an [infinite query](../infinite-queries/) instead.
 

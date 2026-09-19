@@ -5,9 +5,9 @@ Flutter layer over `fuery_core`. Keep logic in the core; this package only conne
 ## Structure
 
 - Every widget (`Query*`, `InfiniteQuery*`, `Mutation*` × `Builder` / `Listener` / `Consumer` / `Selector`) is a thin `StatelessWidget` over `ResultSubscriber`, or `ResultSelector` for selectors, in `lib/src/result_subscriber.dart`. New widget kinds should reuse them.
-- `FueryBinding` maps `AppLifecycleState` to `focusManager`: `resumed` is focused; `hidden`, `paused`, and `detached` are not; `inactive` is ignored.
+- `FueryBinding.ensureInitialized` initializes the Flutter binding first, so it works when called first in `main`. It maps `AppLifecycleState` to `focusManager`: `resumed` is focused; `hidden`, `paused`, and `detached` are not; `inactive` is ignored.
 - `FueryProvider` provides and mounts a `QueryClient`. `FueryProvider.of(context)` and `context.queryClient` fall back to `Fuery.client`.
-- `lib/src/devtools.dart` holds `FueryDevtools` (button and panel over the app, off when `kReleaseMode`) and `FueryDevtoolsPanel`. The panel brings its own `Localizations`, `Theme`, and `Overlay`, so it works in an app's `builder` above the navigator. It rebuilds through `client.watch`, reads the caches, and calls public `QueryClient` methods.
+- `lib/src/devtools.dart` holds `FueryDevtools` (button and panel over the app, off when `kReleaseMode`) and `FueryDevtoolsPanel`. The panel brings its own `Localizations`, `Theme`, and `Overlay`, so it works in an app's `builder` above the navigator. It rebuilds through `client.watch`, reads the caches, and calls public `QueryClient` methods. It finds a provided client with `dependOnQueryClient` (hidden from the exports), so it follows a replaced provider client. The child always stays in the same place in the tree, so toggling `enabled` keeps the app's state.
 
 ## Widget semantics
 

@@ -548,6 +548,136 @@ void main() {
     });
   });
 
+  group('races', () {
+    fakeTest('resetQueries during an async read keeps the data deleted',
+        (async) {
+      memory.entries[storageKey(['todos'])] = entry(['stored']);
+      final asyncClient = createClient(AsyncStorage(memory));
+      todos(
+        FakeFetcher(() => ['fetched'], delay: const Duration(seconds: 1)),
+        staleTime: const Duration(minutes: 5),
+        on: asyncClient,
+      );
+
+      asyncClient.resetQueries(queryKey: ['todos']);
+      async.elapse(const Duration(milliseconds: 50));
+      expect(memory.entries, isEmpty);
+      expect(asyncClient.getQueryData<List<String>>(['todos']), isNull);
+    });
+
+    fakeTest('refetchOnMount applies to data restored asynchronously', (async) {
+      memory.entries[storageKey(['fresh'])] = entry(['stored']);
+      memory.entries[storageKey(['stale'])] =
+          entry(['stored'], age: const Duration(minutes: 10));
+      final asyncClient = createClient(AsyncStorage(memory));
+      QueryObserver<List<String>> use(
+        QueryKey queryKey,
+        FakeFetcher<List<String>> fetcher,
+        RefetchMode refetchOnMount,
+      ) {
+        return Query.use(
+          queryKey: queryKey,
+          queryFn: fetcher.call,
+          staleTime: const Duration(minutes: 5),
+          refetchOnMount: refetchOnMount,
+          persist: todosPersist,
+          client: asyncClient,
+        );
+      }
+
+      final always = FakeFetcher(() => ['fetched']);
+      final never = FakeFetcher(() => ['fetched']);
+      use(['fresh'], always, RefetchMode.always).subscribe((_) {});
+      use(['stale'], never, RefetchMode.never).subscribe((_) {});
+      async.elapse(const Duration(milliseconds: 50));
+
+      expect(always.calls, 1);
+      expect(never.calls, 0);
+      expect(asyncClient.getQueryData<List<String>>(['stale']), ['stored']);
+    });
+
+    fakeTest('client.query waits for an async read and uses fresh data',
+        (async) {
+      memory.entries[storageKey(['todos'])] = entry(['stored']);
+      final asyncClient = createClient(AsyncStorage(memory));
+      final fetcher = FakeFetcher(() => ['fetched']);
+      List<String>? data;
+      asyncClient
+          .query(QueryOptions(
+            queryKey: ['todos'],
+            queryFn: fetcher.call,
+            staleTime: const Duration(minutes: 5),
+            persist: todosPersist,
+          ))
+          .then((value) => data = value);
+      async.elapse(const Duration(milliseconds: 50));
+
+      expect(data, ['stored']);
+      expect(fetcher.calls, 0);
+    });
+
+    fakeTest('an invalidation during an async read is kept', (async) {
+      memory.entries[storageKey(['todos'])] = entry(['stored']);
+      final asyncClient = createClient(AsyncStorage(memory));
+      todos(
+        FakeFetcher(() => ['fetched']),
+        staleTime: const Duration(minutes: 5),
+        on: asyncClient,
+      );
+
+      asyncClient.invalidateQueries(queryKey: ['todos']);
+      async.elapse(const Duration(milliseconds: 50));
+      final state = asyncClient.getQueryState(['todos'])!;
+      expect(state.data, ['stored']);
+      expect(state.isInvalidated, isTrue);
+    });
+
+    fakeTest('a restore() snapshot does not come back over newer data',
+        (async) {
+      memory.entries[storageKey(['todos'])] = entry(['v1']);
+      final asyncClient = createClient(AsyncStorage(memory));
+      QueryObserver<List<String>> use({Duration? gcTime}) {
+        return Query.use(
+          queryKey: ['todos'],
+          queryFn: FakeFetcher(() => ['fetched']).call,
+          staleTime: const Duration(minutes: 5),
+          gcTime: gcTime,
+          persist: todosPersist,
+          client: asyncClient,
+        );
+      }
+
+      use(gcTime: const Duration(seconds: 1));
+      async.elapse(ms10);
+      expect(asyncClient.getQueryData<List<String>>(['todos']), ['v1']);
+
+      asyncClient.restore();
+      async.elapse(ms10);
+      asyncClient.setQueryData(['todos'], ['v2']);
+      async.elapse(ms10);
+      async.elapse(const Duration(seconds: 2));
+      expect(asyncClient.getQueryState(['todos']), isNull);
+
+      use();
+      async.elapse(const Duration(milliseconds: 50));
+      expect(asyncClient.getQueryData<List<String>>(['todos']), ['v2']);
+    });
+
+    fakeTest('an observer moved by removeQueries loads instead of restoring',
+        (async) {
+      memory.entries[storageKey(['todos'])] = entry(['stored']);
+      final fetcher = FakeFetcher(() => ['fetched']);
+      final observer = todos(fetcher, staleTime: const Duration(minutes: 5));
+      observer.subscribe((_) {});
+      expect(observer.result.data, ['stored']);
+
+      client.removeQueries(queryKey: ['todos']);
+      async.elapse(ms10);
+      expect(fetcher.calls, 1);
+      expect(observer.result.data, ['fetched']);
+    });
+  });
+
   group('infinite queries', () {
     InfiniteQueryObserver<String, int> pages(QueryClient on) {
       return InfiniteQuery.use(

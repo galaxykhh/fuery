@@ -7,7 +7,7 @@ Fuery fetches, caches, and keeps your server data fresh, with request deduplicat
 - No type arguments to write. Types are inferred from your query and mutation functions, all the way to widgets and callbacks.
 - No code generation, no `BuildContext` required to create a query.
 - Queries are plain objects with a `Stream`, so blocs and cubits can use them too.
-- Refetches when the app returns to the foreground, retries failed requests, and pauses while offline.
+- Refetches when the app returns to the foreground, retries failed requests, and pauses while offline once you [report connectivity](#app-lifecycle-and-connectivity).
 
 **[Read the documentation →](https://galaxykhh.github.io/fuery/)**
 
@@ -73,7 +73,7 @@ Each key holds one data type. Using a key with a different type, for example `se
 
 **Freshness.** Data is *fresh* for `staleTime` (default: zero) and *stale* afterwards. Stale data is still shown, and it's refetched in the background when:
 
-- a new widget starts using the query,
+- a query object from `Query.use` gets its first listener, for example when the first widget using it mounts,
 - the app returns to the foreground,
 - the network reconnects,
 - it is invalidated.
@@ -85,7 +85,7 @@ Unused queries stay cached for `gcTime` (default: 5 minutes), so going back to a
 | Field | Meaning |
 |---|---|
 | `status` | `pending` (no data yet), `error`, or `success` |
-| `fetchStatus` | `fetching`, `paused` (waiting for the network), or `idle` |
+| `fetchStatus` | `fetching`, `paused` (waiting for the network, or for the app to return to the foreground to retry), or `idle` |
 | `data`, `error` | The latest data and error. `data` is kept when a refetch fails. |
 | `isLoading` | First load: pending and fetching |
 | `isRefetching` | Fetching while data is shown |
@@ -101,12 +101,12 @@ Unused queries stay cached for `gcTime` (default: 5 minutes), so going back to a
 | `gcTime` | 5 minutes | How long unused data stays cached |
 | `retry` | `RetryPolicy.count(3)` | Also `.never()`, `.always()`, `.when((count, error) => ...)` |
 | `retryDelay` | 1s, 2s, 4s, … up to 30s | |
-| `refetchOnMount`, `refetchOnFocus`, `refetchOnReconnect` | `RefetchMode.ifStale` | `.never` or `.always` |
-| `refetchInterval` | none | Polls while a widget uses the query |
+| `refetchOnMount`, `refetchOnFocus`, `refetchOnReconnect` | `RefetchMode.ifStale` | `.never` or `.always`. `refetchOnReconnect` defaults to `.never` with `NetworkMode.always`. |
+| `refetchInterval` | none | Polls while a widget uses the query, counting from its latest change |
 | `refetchWhile` | none | Polls only while this returns true for the latest result |
 | `initialData` | none | Seeds the cache |
-| `placeholderData` | none | Shown while pending, not cached. Pass `keepPreviousData` to keep the previous key's data while a new key loads. |
-| `networkMode` | `NetworkMode.online` | `.always` ignores connectivity |
+| `placeholderData` | none | Shown while pending, not cached. `(previous) => previous` keeps the previous key's data while a new key loads. |
+| `networkMode` | `NetworkMode.online` | `.always` ignores connectivity. `.offlineFirst` runs the first attempt anyway and pauses retries while offline. |
 | `structuralSharing` | `true` | Keeps unchanged data identical across refetches: the whole value if nothing changed, otherwise the unchanged list items |
 | `persist` | none | Stores the data on the device, see [Persistence](#persistence) |
 
@@ -194,12 +194,14 @@ final todo = await addTodo.mutateAsync('Buy milk'); // throws on error
 
 Returning the `invalidateQueries` future from `onSuccess` keeps the mutation pending until the list has refetched.
 
-**Optimistic updates.** Update the cache in `onMutate` and return what you need to roll back. The returned value is passed to the other callbacks as `context`:
+**Optimistic updates.** Cancel refetches of the data first, then update the cache in `onMutate` and return what you need to roll back. The returned value is passed to the other callbacks as `context`:
 
 ```dart
 final deleteTodo = Mutation.use(
   mutationFn: (int id) => api.deleteTodo(id),
-  onMutate: (id) {
+  onMutate: (id) async {
+    // Keep a refetch in flight from overwriting the optimistic update.
+    await Fuery.client.cancelQueries(queryKey: ['todos']);
     final previous = Fuery.client.getQueryData<List<Todo>>(['todos']);
     Fuery.client.updateQueryData<List<Todo>>(
       ['todos'],
@@ -240,7 +242,7 @@ InfiniteQueryBuilder(
       for (final page in state.pages) ...page.items.map(PostTile.new),
       if (state.hasNextPage)
         TextButton(
-          onPressed: state.isFetchingNextPage ? null : posts.fetchNextPage,
+          onPressed: state.isFetching ? null : posts.fetchNextPage,
           child: const Text('Load more'),
         ),
     ],
@@ -347,7 +349,7 @@ final cached = await client.query(QueryOptions( // use any cached data
 ));
 ```
 
-`client.infiniteQuery(infiniteQueryOptions(...))` does the same for infinite queries, and fetches `pages` pages when nothing is cached.
+`client.infiniteQuery(infiniteQueryOptions(...))` does the same for infinite queries. With nothing cached it loads `pages` pages (default: one); otherwise it reloads the pages already cached.
 
 **Defaults.** Configure every query, or every query under a key prefix:
 
@@ -380,7 +382,7 @@ late final todos = Query.use(
 
 ## Persistence
 
-Give the client a `QueryStorage`, and add `persist` to the queries worth keeping. When the app starts again, they show the stored data right away and refetch it if it's stale:
+Give the client a `QueryStorage`, and add `persist` to the queries worth keeping. When the app starts again, they show the stored data and refetch it if it's stale. A synchronous storage shows it on the first frame; with an asynchronous one, call `await Fuery.client.restore()` before `runApp` for the same result:
 
 ```dart
 Fuery.client = QueryClient(storage: PreferencesStorage(preferences));
@@ -442,12 +444,15 @@ testWidgets('shows todos', (tester) async {
       queries: QueryDefaults(retry: RetryPolicy.never()),
     ),
   );
-  await tester.pumpWidget(FueryProvider(client: client, child: const App()));
+  Fuery.client = client;
+  await tester.pumpWidget(const App());
   // ...
   await tester.pumpWidget(const SizedBox());
   client.clear(); // cancels cache timers so the test can end
 });
 ```
+
+Queries and mutations without a `client:` argument use `Fuery.client`. If your widgets pass `client: context.queryClient`, wrap the app in `FueryProvider(client: client, child: const App())` instead.
 
 ## Acknowledgements
 

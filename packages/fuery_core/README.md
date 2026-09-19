@@ -110,7 +110,7 @@ final data = await Fuery.client.query(
 To keep data across restarts, give the client a `QueryStorage` and add `persist` to a query:
 
 ```dart
-Fuery.client = QueryClient(storage: FileStorage(directory));
+Fuery.client = QueryClient(storage: myStorage); // your QueryStorage, see the persistence guide
 
 final todos = Query.use(
   queryKey: ['todos'],
@@ -133,11 +133,11 @@ Fuery.client.watch((client) => client.isFetching()).listen(print);
 
 A mounted client refetches when `focusManager` or `onlineManager` report that the app is focused or back online. Assigning `Fuery.client` mounts the new client; a client you pass as `client:` yourself, for example in a test, needs `client.mount()`. Pure Dart has no focus or connectivity events, so set them yourself with `setEventListener`, or call `setFocused` and `setOnline`.
 
-Cached queries keep garbage collection timers running, which keeps a Dart process alive. Call `Fuery.client.clear()` when a CLI is done.
+Cached queries keep garbage collection timers running, which keeps a Dart process alive. When a CLI is done, cancel its subscriptions, then call `Fuery.client.clear()`.
 
 ## Documentation
 
-The [`fuery` README](https://pub.dev/packages/fuery) covers every option, optimistic updates, cancellation, and defaults.
+The [`fuery` README](https://pub.dev/packages/fuery) covers the options, optimistic updates, cancellation, and defaults, and the [documentation](https://galaxykhh.github.io/fuery/) has a guide for each topic.
 
 ## Acknowledgements
 

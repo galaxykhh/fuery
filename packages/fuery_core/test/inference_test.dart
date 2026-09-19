@@ -48,6 +48,26 @@ void main() {
     expect(typed.result.data!.single.title, 'a');
   });
 
+  fakeTest('placeholderData keeps the inferred data type', (async) {
+    final posts = Query.use(
+      queryKey: ['posts', 1],
+      queryFn: (_) async => [const Todo('a')],
+      placeholderData: (previous) => previous,
+      client: client,
+    );
+    final QueryObserver<List<Todo>> typed = posts;
+
+    // Where the type is known, keepPreviousData does the same.
+    typed.setOptions(QueryOptions(
+      queryKey: ['posts', 2],
+      queryFn: (_) async => [const Todo('b')],
+      placeholderData: keepPreviousData,
+    ));
+    typed.subscribe((_) {});
+    async.flushMicrotasks();
+    expect(typed.result.data!.single.title, 'b');
+  });
+
   fakeTest('InfiniteQuery.use infers page and param types', (async) {
     final posts = InfiniteQuery.use(
       queryKey: ['posts'],
@@ -162,11 +182,30 @@ void main() {
       ),
       client: persisting,
     );
-    todos.subscribe((_) {});
-    posts.subscribe((_) {});
+    final days = InfiniteQuery.use(
+      queryKey: ['days'],
+      queryFn: (context) async => 'day ${context.pageParam.day}',
+      initialPageParam: DateTime.utc(2026, 9, 1),
+      getNextPageParam: (data) => null,
+      persist: InfiniteQueryPersist(
+        pageToJson: (page) => page,
+        pageFromJson: (json) => json! as String,
+        paramToJson: (date) => date.toIso8601String(),
+        paramFromJson: (json) => DateTime.parse(json! as String),
+      ),
+      client: persisting,
+    );
+
+    // Persisting doesn't widen the inferred data or page param types.
+    final QueryObserver<List<Todo>> typedTodos = todos;
+    final InfiniteQueryObserver<PostPage, int> typedPosts = posts;
+    final InfiniteQueryObserver<String, DateTime> typedDays = days;
+    typedTodos.subscribe((_) {});
+    typedPosts.subscribe((_) {});
+    typedDays.subscribe((_) {});
     async.flushMicrotasks();
 
-    expect(storage, hasLength(2));
+    expect(storage, hasLength(3));
     persisting.clear();
   });
 

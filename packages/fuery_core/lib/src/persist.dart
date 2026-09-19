@@ -13,7 +13,8 @@ abstract interface class QueryStorage {
 
   FutureOr<void> delete(String key);
 
-  /// Every stored entry. Used by [QueryClient.restore] and when clearing.
+  /// Every stored entry. Used by [QueryClient.restore], and to delete
+  /// entries that aren't loaded when removing, resetting, or clearing queries.
   FutureOr<Map<String, String>> readAll();
 }
 
@@ -22,7 +23,7 @@ const String persistKeyPrefix = 'fuery:';
 
 /// Persists a query's data with the client's [QueryStorage].
 ///
-/// [toJson] must return a value that `jsonEncode` accepts, and [fromJson]
+/// `toJson` must return a value that `jsonEncode` accepts, and `fromJson`
 /// must turn it back into the data.
 class QueryPersist<TData extends Object> {
   const QueryPersist({
@@ -52,7 +53,7 @@ class QueryPersist<TData extends Object> {
 /// Persists an infinite query's pages with the client's [QueryStorage].
 ///
 /// Page params are stored as they are, so they must be JSON values such as
-/// numbers, strings, or `null`, unless [paramToJson] and [paramFromJson] are
+/// numbers, strings, or `null`, unless `paramToJson` and `paramFromJson` are
 /// given.
 class InfiniteQueryPersist<TPage, TParam> {
   const InfiniteQueryPersist({
@@ -78,7 +79,12 @@ class InfiniteQueryPersist<TPage, TParam> {
   /// See [QueryPersist.maxAge].
   final Duration? maxAge;
 
-  QueryPersist<InfiniteData<TPage, TParam>> _toQueryPersist() {
+  /// Converts to a [QueryPersist] for an infinite query whose page params
+  /// are [P]. Queries accept any `InfiniteQueryPersist<TPage, Object?>`, so
+  /// a persist without param codecs doesn't affect how [P] is inferred.
+  QueryPersist<InfiniteData<TPage, P>> _toQueryPersist<P>() {
+    final paramToJson = _paramToJson;
+    final paramFromJson = _paramFromJson;
     return QueryPersist(
       version: version,
       maxAge: maxAge,
@@ -86,7 +92,7 @@ class InfiniteQueryPersist<TPage, TParam> {
         'pages': [for (final page in data.pages) _pageToJson(page)],
         'pageParams': [
           for (final param in data.pageParams)
-            _paramToJson == null ? param : _paramToJson(param),
+            paramToJson == null ? param : paramToJson(param as TParam),
         ],
       },
       fromJson: (json) {
@@ -97,7 +103,7 @@ class InfiniteQueryPersist<TPage, TParam> {
           ],
           pageParams: [
             for (final param in map['pageParams']! as List)
-              _paramFromJson == null ? param as TParam : _paramFromJson(param),
+              (paramFromJson == null ? param : paramFromJson(param)) as P,
           ],
         );
       },

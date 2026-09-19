@@ -47,12 +47,14 @@ addTodo.mutate(
 
 ## Optimistic updates
 
-Update the cache in `onMutate` and return what you need to roll back. If the request fails, `onError` receives it as `context`:
+Cancel refetches of the data first, then update the cache in `onMutate` and return what you need to roll back. If the request fails, `onError` receives it as `context`:
 
 ```dart
 final deleteTodo = Mutation.use(
   mutationFn: (int id) => api.deleteTodo(id),
-  onMutate: (id) {
+  onMutate: (id) async {
+    // Keep a refetch in flight from overwriting the optimistic update.
+    await Fuery.client.cancelQueries(queryKey: ['todos']);
     final previous = Fuery.client.getQueryData<List<Todo>>(['todos']);
     Fuery.client.updateQueryData<List<Todo>>(
       ['todos'],

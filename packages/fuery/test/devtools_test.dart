@@ -11,6 +11,25 @@ class Todo {
   Map<String, Object?> toJson() => {'title': title};
 }
 
+class _Counter extends StatefulWidget {
+  const _Counter();
+
+  @override
+  State<_Counter> createState() => _CounterState();
+}
+
+class _CounterState extends State<_Counter> {
+  var _count = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: () => setState(() => _count++),
+      child: Text('count $_count'),
+    );
+  }
+}
+
 void main() {
   late QueryClient client;
 
@@ -91,6 +110,48 @@ void main() {
     expect(openButton(), findsOneWidget);
     await tearDownApp(tester);
   });
+
+  testWidgets('turning it off keeps the app state', (tester) async {
+    final enabled = ValueNotifier(true);
+    await tester.pumpWidget(
+      FueryProvider(
+        client: client,
+        child: MaterialApp(
+          home: Scaffold(
+            body: ValueListenableBuilder(
+              valueListenable: enabled,
+              builder: (context, on, _) =>
+                  FueryDevtools(enabled: on, child: const _Counter()),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('count 0'));
+    await tester.pump();
+
+    enabled.value = false;
+    await tester.pump();
+    expect(find.text('count 1'), findsOneWidget);
+    expect(openButton(), findsNothing);
+    await tearDownApp(tester);
+  });
+
+  testWidgets(
+    'opens the text selection toolbar on iOS',
+    (tester) async {
+      client.setQueryData(['todos'], 'some data');
+      await pumpApp(tester);
+      await tester.tap(find.text('["todos"]'));
+      await tester.pump();
+
+      await tester.longPress(find.byType(SelectableText));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await tearDownApp(tester);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+  );
 
   testWidgets('lists queries as they change and filters them by key',
       (tester) async {
@@ -232,6 +293,64 @@ void main() {
 
     await tester.pumpWidget(const SizedBox());
     other.clear();
+    client.clear();
+  });
+
+  testWidgets('follows a provider whose client is replaced', (tester) async {
+    final other = QueryClient();
+    other.setQueryData(['other'], 'data');
+    client.setQueryData(['mine'], 'data');
+    final current = ValueNotifier(client);
+    await tester.pumpWidget(
+      ValueListenableBuilder(
+        valueListenable: current,
+        builder: (context, client, _) => FueryProvider(
+          client: client,
+          child: const MaterialApp(home: Scaffold(body: FueryDevtoolsPanel())),
+        ),
+      ),
+    );
+    expect(find.text('["mine"]'), findsOneWidget);
+
+    current.value = other;
+    await tester.pump();
+    expect(find.text('["other"]'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+    other.clear();
+    client.clear();
+  });
+
+  testWidgets('shows Fuery.client without a provider', (tester) async {
+    Fuery.client = client;
+    client.setQueryData(['global'], 'data');
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: FueryDevtoolsPanel())),
+    );
+    expect(find.text('["global"]'), findsOneWidget);
+    await tearDownApp(tester);
+  });
+
+  testWidgets('labels disabled queries and unobserved paused fetches',
+      (tester) async {
+    final disabled = Query.use(
+      queryKey: ['off'],
+      queryFn: (_) async => 'data',
+      enabled: false,
+      client: client,
+    )..subscribe((_) {});
+    onlineManager.setOnline(false);
+    client
+        .query(QueryOptions(queryKey: ['prefetch'], queryFn: (_) async => 'x'))
+        .ignore();
+    await tester.pump();
+
+    Query<Object> find(QueryKey queryKey) =>
+        client.queryCache.find(QueryFilters(queryKey: queryKey))!;
+    expect(queryStatusLabel(find(['off'])), 'disabled');
+    expect(queryStatusLabel(find(['prefetch'])), 'paused');
+
+    disabled.destroy();
     client.clear();
   });
 

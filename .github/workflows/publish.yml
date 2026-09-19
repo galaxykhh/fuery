@@ -1,8 +1,9 @@
 name: Publish
 
-# Push a tag like v0.3.0 to publish both packages. Their versions must match
-# the tag, and each package on pub.dev must allow automated publishing from
-# this repository with the tag pattern v{{version}}.
+# Push a tag like v0.3.0 to publish both packages and create a GitHub release
+# from their CHANGELOG entries. Their versions must match the tag, and each
+# package on pub.dev must allow automated publishing from this repository with
+# the tag pattern v{{version}}.
 on:
   push:
     tags:
@@ -31,3 +32,42 @@ jobs:
         working-directory: packages/fuery_core
       - run: flutter pub publish --force
         working-directory: packages/fuery
+
+  release:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # the previous tag is needed for the compare link
+      # Builds the notes from the "## X.Y.Z" entries of both changelogs.
+      - name: Write release notes
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          section() {
+            awk -v heading="## $version" '
+              $0 == heading { found = 1; next }
+              found && /^## / { exit }
+              found && NF { print }
+            ' "$1"
+          }
+          previous=$(git describe --tags --abbrev=0 --match 'v*' "$GITHUB_REF_NAME^" 2>/dev/null || true)
+          {
+            echo "## fuery"
+            section packages/fuery/CHANGELOG.md
+            echo
+            echo "## fuery_core"
+            section packages/fuery_core/CHANGELOG.md
+            echo
+            echo "**pub.dev:** [fuery $version](https://pub.dev/packages/fuery/versions/$version) · [fuery_core $version](https://pub.dev/packages/fuery_core/versions/$version)"
+            echo "**Docs:** https://galaxykhh.github.io/fuery/"
+            if [ -n "$previous" ]; then
+              echo
+              echo "**Full changelog:** https://github.com/$GITHUB_REPOSITORY/compare/$previous...$GITHUB_REF_NAME"
+            fi
+          } > notes.md
+      - run: gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --notes-file notes.md
+        env:
+          GH_TOKEN: ${{ github.token }}

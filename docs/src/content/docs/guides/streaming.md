@@ -63,8 +63,8 @@ When the last widget stops using the query, the stream keeps running by default 
 
 ```dart
 stream: (context) {
-  final request = api.ask(question);
+  final request = api.startAnswer(question); // a request you can cancel
   context.signal.onAbort(request.cancel);
-  return request.stream;
+  return request.tokens;
 },
 ```

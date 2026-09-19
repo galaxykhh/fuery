@@ -31,6 +31,387 @@ void main() {
     client.clear();
   });
 
+  fakeTest('client.query keeps its retry default out of later refetches',
+      (async) {
+    var attempts = 0;
+    Future<String> fetch(QueryFunctionContext _) async {
+      attempts++;
+      throw StateError('down');
+    }
+
+    final observer = Query.use(
+      queryKey: ['a'],
+      queryFn: fetch,
+      retryDelay: (_, __) => ms10,
+      client: client,
+    );
+    final unsubscribe = observer.subscribe((_) {});
+    async.elapse(const Duration(seconds: 1));
+    client.query(QueryOptions(queryKey: ['a'], queryFn: fetch)).ignore();
+    async.elapse(const Duration(seconds: 1));
+
+    attempts = 0;
+    client.invalidateQueries(queryKey: ['a']);
+    async.elapse(const Duration(seconds: 1));
+    expect(attempts, 4);
+    unsubscribe();
+  });
+
+  fakeTest('resetting an unused query still garbage collects it', (async) {
+    client.setQueryData(['a'], 'a');
+    client.resetQueries(queryKey: ['a']);
+    async.elapse(const Duration(minutes: 6));
+    expect(client.getQueryState(['a']), isNull);
+  });
+
+  group('removing queries', () {
+    fakeTest('observers follow their key after clear()', (async) {
+      var user = 'alice';
+      final me = Query.use(
+        queryKey: ['me'],
+        queryFn: (_) async => user,
+        client: client,
+      );
+      me.subscribe((_) {});
+      async.flushMicrotasks();
+      expect(me.result.data, 'alice');
+
+      // Log out and in as someone else.
+      user = 'bob';
+      client.clear();
+      expect(me.result.isLoading, isTrue);
+      async.flushMicrotasks();
+      expect(me.result.data, 'bob');
+
+      client.setQueryData(['me'], 'carol');
+      async.flushMicrotasks();
+      expect(me.result.data, 'carol');
+    });
+
+    fakeTest('invalidating and focus reach observers after removeQueries',
+        (async) {
+      final fetcher = FakeFetcher(() => 'me');
+      Query.use(queryKey: ['me'], queryFn: fetcher.call, client: client)
+          .subscribe((_) {});
+      async.elapse(ms10);
+
+      client.removeQueries(queryKey: ['me']);
+      async.elapse(ms10);
+      expect(fetcher.calls, 2);
+
+      client.invalidateQueries(queryKey: ['me']);
+      async.elapse(ms10);
+      expect(fetcher.calls, 3);
+    });
+  });
+
+  group('cancelling', () {
+    fakeTest('a cancelled fetch leaves the fetch that replaced it alone',
+        (async) {
+      final fetcher = FakeFetcher(() => 'data');
+      final observer =
+          Query.use(queryKey: ['a'], queryFn: fetcher.call, client: client);
+      observer.subscribe((_) {});
+      async.elapse(ms10);
+
+      observer.refetch();
+      async.flushMicrotasks();
+      client.cancelQueries(queryKey: ['a'], revert: false);
+      observer.refetch();
+      async.flushMicrotasks();
+      expect(observer.result.isFetching, isTrue);
+
+      observer.refetch(cancelRefetch: false);
+      async.elapse(ms10);
+      expect(fetcher.calls, 3);
+      expect(observer.result.data, 'data');
+    });
+
+    fakeTest('a write right after cancelQueries(revert: false) stays', (async) {
+      final errors = <Object>[];
+      final reporting = QueryClient(
+        queryCache: QueryCache(
+          config: QueryCacheConfig(onError: (error, _) => errors.add(error)),
+        ),
+      );
+      final todos = Query.use(
+        queryKey: ['todos'],
+        queryFn: FakeFetcher(() => ['a']).call,
+        client: reporting,
+      );
+      todos.subscribe((_) {});
+      async.elapse(ms10);
+      todos.refetch();
+      async.flushMicrotasks();
+
+      reporting.cancelQueries(queryKey: ['todos'], revert: false);
+      reporting.setQueryData(['todos'], ['a', 'b']);
+      async.elapse(ms10);
+
+      expect(todos.result.data, ['a', 'b']);
+      expect(todos.result.isError, isFalse);
+      expect(errors, isEmpty, reason: 'cancelling is not an error to report');
+      reporting.clear();
+    });
+
+    fakeTest('cancelQueries(silent: true) ends the fetch', (async) {
+      final observer = Query.use(
+        queryKey: ['a'],
+        queryFn: FakeFetcher(() => 'data').call,
+        client: client,
+      );
+      final unsubscribe = observer.subscribe((_) {});
+      async.elapse(ms10);
+      observer.refetch();
+      async.flushMicrotasks();
+
+      client.cancelQueries(queryKey: ['a'], revert: false, silent: true);
+      async.flushMicrotasks();
+      expect(observer.result.isFetching, isFalse);
+      expect(client.isFetching(), 0);
+
+      unsubscribe();
+      async.elapse(const Duration(minutes: 10));
+      expect(client.getQueryState(['a']), isNull);
+    });
+  });
+
+  group('retry timers', () {
+    fakeTest('clear() cancels a query waiting to retry', (async) {
+      final observer = Query.use(
+        queryKey: ['a'],
+        queryFn: (_) async => throw StateError('boom'),
+        retryDelay: (_, __) => const Duration(seconds: 30),
+        client: client,
+      );
+      final unsubscribe = observer.subscribe((_) {});
+      async.flushMicrotasks();
+      expect(observer.result.failureCount, 1);
+
+      unsubscribe();
+      client.clear();
+      async.flushMicrotasks();
+      expect(async.pendingTimers, isEmpty);
+    });
+
+    fakeTest('clear() stops a mutation waiting to retry', (async) {
+      final mutation = Mutation.use(
+        mutationFn: (int x) async => throw StateError('boom'),
+        retry: const RetryPolicy.count(1),
+        retryDelay: (_, __) => const Duration(seconds: 30),
+        client: client,
+      );
+      Object? error;
+      mutation.mutateAsync(1).then((_) {}, onError: (Object e) {
+        error = e;
+      });
+      async.flushMicrotasks();
+
+      client.clear();
+      async.flushMicrotasks();
+      expect(async.pendingTimers, isEmpty);
+      expect(error, isA<StateError>());
+    });
+  });
+
+  fakeTest('resetQueries refetches an active static query', (async) {
+    var calls = 0;
+    final config = Query.use(
+      queryKey: ['config'],
+      queryFn: (_) async => 'config ${++calls}',
+      staleTime: staticStaleTime,
+      client: client,
+    );
+    config.subscribe((_) {});
+    async.flushMicrotasks();
+
+    client.resetQueries();
+    async.flushMicrotasks();
+    expect(config.result.data, 'config 2');
+  });
+
+  fakeTest('a new listener first gets the current result during a fetch',
+      (async) {
+    final fetcher = FakeFetcher(() => 'todos');
+    final first =
+        Query.use(queryKey: ['todos'], queryFn: fetcher.call, client: client);
+    // Created before there is any data, for example by a bloc at startup.
+    final second =
+        Query.use(queryKey: ['todos'], queryFn: fetcher.call, client: client);
+
+    first.subscribe((_) {});
+    async.elapse(ms10);
+    first.refetch();
+    async.flushMicrotasks();
+
+    final results = <QueryResult<String>>[];
+    second.stream.listen(results.add);
+    async.flushMicrotasks();
+    expect(fetcher.calls, 2);
+    expect(results.first.data, 'todos');
+    expect(results.first.isRefetching, isTrue);
+  });
+
+  fakeTest('a widget mounting at the stale boundary keeps others updated',
+      (async) {
+    final todos = Query.use(
+      queryKey: ['todos'],
+      queryFn: FakeFetcher(() => 'todos').call,
+      staleTime: const Duration(milliseconds: 100),
+      client: client,
+    );
+    final stale = <bool>[];
+    todos.subscribe((result) => stale.add(result.isStale));
+    async.elapse(ms10);
+    async.elapse(const Duration(milliseconds: 100));
+
+    // A second widget reads the first frame just before the stale timer.
+    expect(todos.getOptimisticResult().isStale, isTrue);
+    async.elapse(const Duration(seconds: 1));
+    expect(stale.last, isTrue);
+  });
+
+  group('infinite queries', () {
+    Future<String> fetchPage(InfiniteQueryFunctionContext<int> context) async =>
+        'page ${context.pageParam}';
+    int? next(InfiniteData<String, int> data) => data.lastPageParam + 1;
+
+    fakeTest('pages only applies when nothing is cached', (async) {
+      final posts = InfiniteQuery.use(
+        queryKey: ['posts'],
+        queryFn: fetchPage,
+        initialPageParam: 1,
+        getNextPageParam: next,
+        client: client,
+      );
+      posts.subscribe((_) {});
+      async.flushMicrotasks();
+      posts.fetchNextPage();
+      async.flushMicrotasks();
+      posts.fetchNextPage();
+      async.flushMicrotasks();
+
+      final prefetch = infiniteQueryOptions(
+        queryKey: ['posts'],
+        queryFn: fetchPage,
+        initialPageParam: 1,
+        getNextPageParam: next,
+        pages: 1,
+      );
+      client.infiniteQuery(prefetch).ignore();
+      async.flushMicrotasks();
+      expect(posts.result.pages, ['page 1', 'page 2', 'page 3']);
+
+      final observer = InfiniteQueryObserver(client, prefetch);
+      observer.subscribe((_) {});
+      observer.refetch();
+      async.flushMicrotasks();
+      expect(observer.result.pages, ['page 1', 'page 2', 'page 3']);
+    });
+
+    fakeTest('the first frame of a mount refetch is not a next-page fetch',
+        (async) {
+      InfiniteQueryObserver<String, int> use() => InfiniteQuery.use(
+            queryKey: ['posts'],
+            queryFn: fetchPage,
+            initialPageParam: 1,
+            getNextPageParam: next,
+            client: client,
+          );
+      final first = use();
+      final unsubscribe = first.subscribe((_) {});
+      async.flushMicrotasks();
+      first.fetchNextPage();
+      async.flushMicrotasks();
+      unsubscribe();
+
+      final optimistic = use().getOptimisticResult();
+      expect(optimistic.isRefetching, isTrue);
+      expect(optimistic.isFetchingNextPage, isFalse);
+    });
+  });
+
+  group('mutations', () {
+    fakeTest('a mutation run with mutateAsync is garbage collected', (async) {
+      final addTodo = Mutation.use(
+        mutationFn: (String title) async => title,
+        gcTime: const Duration(seconds: 1),
+        client: client,
+      );
+      addTodo.mutateAsync('Buy milk').ignore();
+      async.elapse(ms10);
+      expect(addTodo.result.data, 'Buy milk');
+
+      async.elapse(const Duration(seconds: 2));
+      expect(client.mutationCache.getAll(), isEmpty);
+    });
+
+    fakeTest('result is current while nothing listens', (async) {
+      final save = Mutation.use(
+        mutationFn: (String title) async {
+          await Future<void>.delayed(ms10);
+          return title;
+        },
+        client: client,
+      );
+      final unsubscribe = save.subscribe((_) {});
+      save.mutate('a');
+      async.flushMicrotasks();
+      unsubscribe();
+
+      async.elapse(ms10);
+      expect(save.result.isSuccess, isTrue);
+    });
+
+    fakeTest('a pending mutation without observers waits to be collected',
+        (async) {
+      final save = Mutation.use(
+        mutationFn: (int x) async {
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+          return x;
+        },
+        gcTime: Duration.zero,
+        client: client,
+      );
+      final unsubscribe = save.subscribe((_) {});
+      save.mutate(1);
+      unsubscribe();
+      async.elapse(const Duration(milliseconds: 100));
+      // No garbage collection timer runs over and over while it is pending.
+      expect(async.pendingTimers, hasLength(1));
+
+      async.elapse(const Duration(milliseconds: 200));
+      expect(client.mutationCache.getAll(), isEmpty);
+    });
+
+    fakeTest('a scoped mutation is not paused while it runs', (async) {
+      Future<String> run(String value) async {
+        await Future<void>.delayed(ms10);
+        return value;
+      }
+
+      final first = Mutation.use(
+        mutationFn: run,
+        scope: const MutationScope('s'),
+        client: client,
+      );
+      final second = Mutation.use(
+        mutationFn: run,
+        onMutate: (_) async {
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+          return null;
+        },
+        scope: const MutationScope('s'),
+        client: client,
+      );
+      first.mutate('a');
+      second.mutate('b');
+      async.elapse(const Duration(milliseconds: 25));
+      expect(second.result.isPending, isTrue);
+      expect(second.result.isPaused, isFalse);
+    });
+  });
+
   fakeTest('a failing scoped mutation only reports to its caller', (async) {
     Future<String> run(String value) async {
       await Future<void>.delayed(ms10);
@@ -251,6 +632,11 @@ void main() {
     unsubscribeMutation();
     async.flushMicrotasks();
 
+    // The subscribed observer moved to a new query, which is collected later.
+    // The removed query and mutation keep no timers.
+    expect(client.queryCache.getAll(), hasLength(1));
+    expect(async.pendingTimers, hasLength(1));
+    client.clear();
     expect(async.pendingTimers, isEmpty);
   });
 }

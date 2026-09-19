@@ -9,7 +9,7 @@ import 'result_subscriber.dart';
 /// Create the query once, for example in a `State` field, not in `build`.
 ///
 /// ```dart
-/// late final todos = Query.use(
+/// final todos = Query.use(
 ///   queryKey: ['todos'],
 ///   queryFn: (_) => api.getTodos(),
 /// );

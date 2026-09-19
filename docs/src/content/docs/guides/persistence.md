@@ -96,7 +96,7 @@ Page params are stored as they are, so they must be JSON values like numbers, st
 
 Stored data is discarded, and the query fetches as if nothing was stored, when:
 
-- it is older than the client's `persistMaxAge` (default: one day), or the query's own `maxAge`,
+- it is older than the query's `maxAge`, or, when the query doesn't set one, the client's `persistMaxAge` (default: one day),
 - its `version` differs from the query's `version`. Increase `version` when the JSON format changes,
 - it can't be decoded.
 
