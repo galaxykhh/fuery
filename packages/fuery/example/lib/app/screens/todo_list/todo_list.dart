@@ -47,8 +47,10 @@ class _TodoListScreenState extends State<TodoListScreen> {
   // server call fails.
   final deleteTodo = Mutation.use(
     mutationFn: (int id) => TodoApi().delete(id),
-    onMutate: (id) {
+    onMutate: (id) async {
       final client = Fuery.client;
+      // A refetch in flight would bring the todo back.
+      await client.cancelQueries(queryKey: todosKey);
       final previous = client.getQueryData<List<Todo>>(todosKey);
       client.updateQueryData<List<Todo>>(
         todosKey,

@@ -30,6 +30,10 @@ final List<Todo> _todos = [
   ),
 ];
 
+// Ids keep counting up after the mock todos, even when every todo is
+// deleted.
+var _nextId = 6;
+
 class TodoApi {
   Future<List<Todo>> getList() async {
     await Future.delayed(const Duration(milliseconds: 500));
@@ -39,7 +43,7 @@ class TodoApi {
   Future<Todo> add(String title, String description) async {
     await Future.delayed(const Duration(milliseconds: 250));
     final todo = Todo(
-      id: _todos.last.id + 1,
+      id: _nextId++,
       title: title,
       description: description,
       isCompleted: false,
