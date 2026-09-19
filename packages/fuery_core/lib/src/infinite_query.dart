@@ -195,6 +195,7 @@ class InfiniteQueryOptions<TPage, TParam>
     GetPreviousPageParam<TPage, TParam>? getPreviousPageParam,
     int? maxPages,
     int? pages,
+    bool Function(InfiniteQueryResult<TPage, TParam> result)? refetchWhile,
     super.enabled,
     super.staleTime,
     super.gcTime,
@@ -213,6 +214,12 @@ class InfiniteQueryOptions<TPage, TParam>
     super.structuralSharing,
     super.meta,
   }) : super(
+          // Infinite observers always report InfiniteQueryResults.
+          refetchWhile: refetchWhile == null
+              ? null
+              : (result) => refetchWhile(
+                    result as InfiniteQueryResult<TPage, TParam>,
+                  ),
           behavior: InfiniteQueryBehavior<TPage, TParam>(
             queryFn: queryFn,
             initialPageParam: initialPageParam,
@@ -406,6 +413,7 @@ InfiniteQueryOptions<TPage, TParam> infiniteQueryOptions<TPage, TParam,
   Duration? gcTime,
   Duration? refetchInterval,
   bool? refetchIntervalInBackground,
+  bool Function(InfiniteQueryResult<TPage, TParam> result)? refetchWhile,
   RefetchMode? refetchOnMount,
   RefetchMode? refetchOnFocus,
   RefetchMode? refetchOnReconnect,
@@ -432,6 +440,7 @@ InfiniteQueryOptions<TPage, TParam> infiniteQueryOptions<TPage, TParam,
     gcTime: gcTime,
     refetchInterval: refetchInterval,
     refetchIntervalInBackground: refetchIntervalInBackground,
+    refetchWhile: refetchWhile,
     refetchOnMount: refetchOnMount,
     refetchOnFocus: refetchOnFocus,
     refetchOnReconnect: refetchOnReconnect,
@@ -480,6 +489,7 @@ abstract final class InfiniteQuery {
     Duration? gcTime,
     Duration? refetchInterval,
     bool? refetchIntervalInBackground,
+    bool Function(InfiniteQueryResult<TPage, TParam> result)? refetchWhile,
     RefetchMode? refetchOnMount,
     RefetchMode? refetchOnFocus,
     RefetchMode? refetchOnReconnect,
@@ -508,6 +518,7 @@ abstract final class InfiniteQuery {
         gcTime: gcTime,
         refetchInterval: refetchInterval,
         refetchIntervalInBackground: refetchIntervalInBackground,
+        refetchWhile: refetchWhile,
         refetchOnMount: refetchOnMount,
         refetchOnFocus: refetchOnFocus,
         refetchOnReconnect: refetchOnReconnect,

@@ -101,6 +101,65 @@ class QueryClient {
         .length;
   }
 
+  /// Watches a value computed from the client, such as a count or cached
+  /// data.
+  ///
+  /// Each listener first receives `selector(client)`, then a new value
+  /// whenever a query or mutation changes and the value is different. Lists,
+  /// maps, and sets are compared by content, other values with `==`. Watching
+  /// doesn't fetch anything.
+  ///
+  /// ```dart
+  /// client.watch((client) => client.isFetching() > 0);
+  /// client.watch((client) => client.isMutating(mutationKey: ['todos']));
+  /// client.watch((client) => client.getQueryData<List<Todo>>(['todos']));
+  /// ```
+  Stream<T> watch<T>(T Function(QueryClient client) selector) {
+    return Stream.multi(
+      (controller) {
+        var hasValue = false;
+        late T value;
+        var scheduled = false;
+
+        void update() {
+          scheduled = false;
+          final T next;
+          try {
+            next = selector(this);
+          } catch (error, stackTrace) {
+            controller.addError(error, stackTrace);
+            return;
+          }
+          if (hasValue) {
+            final shared = replaceData(value, next, structuralSharing: true);
+            if (identical(shared, value)) return;
+            value = shared;
+          } else {
+            value = next;
+            hasValue = true;
+          }
+          controller.add(value);
+        }
+
+        // Many changes can arrive in one batch; compute once after it.
+        void onChange(Object _) {
+          if (scheduled) return;
+          scheduled = true;
+          notifyManager.schedule(update);
+        }
+
+        final unsubscribeQueries = queryCache.subscribe(onChange);
+        final unsubscribeMutations = mutationCache.subscribe(onChange);
+        update();
+        controller.onCancel = () {
+          unsubscribeQueries();
+          unsubscribeMutations();
+        };
+      },
+      isBroadcast: true,
+    );
+  }
+
   /// The cached data for [queryKey], or `null`.
   TData? getQueryData<TData extends Object>(QueryKey queryKey) {
     return queryCache.get(hashKey(queryKey))?.state.data as TData?;
