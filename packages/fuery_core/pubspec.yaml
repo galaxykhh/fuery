@@ -1,0 +1,19 @@
+name: fuery_core
+description: "Asynchronous state management core library that helps implements the server side state management"
+version: 0.2.2
+homepage: https://github.com/galaxykhh
+repository: https://github.com/galaxykhh/fuery_core
+topics:
+  - react-query
+  - state-management
+  - server-state
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  rxdart: ^0.27.7
+
+dev_dependencies:
+  mocktail: ^1.0.3
+  test: ^1.25.2
