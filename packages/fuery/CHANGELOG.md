@@ -1,3 +1,6 @@
+## 0.7.0
+- Includes `fuery_core` 0.7.0, which keeps cache internals private. `QueryClient.watch` replaces cache event subscriptions.
+
 ## 0.6.0
 - Add `FueryDevtools` and `FueryDevtoolsPanel` to inspect queries and mutations in debug and profile builds.
 - Includes `fuery_core` 0.6.0: `Fuery.client`, which mounts the client when assigned.

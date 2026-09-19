@@ -1,3 +1,8 @@
+## 0.7.0
+- **Breaking:** the public API only covers what apps use. Queries and mutations in the caches are read-only: change them through `QueryClient`, and watch them with `QueryClient.watch`.
+- **Breaking:** removed the cache events and `QueryCache.subscribe` / `MutationCache.subscribe`. Use `QueryClient.watch`.
+- **Breaking:** made internal types and members private, including the state action classes, `FetchOptions`, `FetchMeta`, `QueryState.fetchMeta`, `partialMatchKey`, and methods like `Query.fetch`, `Query.setState`, `QueryCache.build`, and `MutationCache.runNext`.
+
 ## 0.6.0
 - **Breaking:** `Fuery.instance` is renamed to `Fuery.client`. Assigning it mounts the new client and unmounts the previous one.
 - Fix: removed queries and mutations no longer start garbage collection timers, which kept Dart processes alive and failed widget tests after `clear()`.
