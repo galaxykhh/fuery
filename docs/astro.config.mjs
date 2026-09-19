@@ -9,6 +9,10 @@ export default defineConfig({
 		starlight({
 			title: 'Fuery',
 			description: 'Server state for Flutter, with widgets that work like flutter_bloc.',
+			head: [
+				{ tag: 'meta', attrs: { property: 'og:image', content: 'https://galaxykhh.github.io/fuery/og.png' } },
+				{ tag: 'meta', attrs: { property: 'og:image:alt', content: 'Fuery: server state for Flutter' } },
+			],
 			logo: {
 				light: './src/assets/mark.svg',
 				dark: './src/assets/mark-dark.svg',
