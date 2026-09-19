@@ -3,6 +3,7 @@ description: "Server state caching for Dart: queries, infinite queries, and muta
 version: 0.3.0
 homepage: https://github.com/galaxykhh
 repository: https://github.com/galaxykhh/fuery/tree/main/packages/fuery_core
+documentation: https://galaxykhh.github.io/fuery/
 topics:
   - react-query
   - state-management

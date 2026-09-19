@@ -8,6 +8,8 @@ Fuery fetches, caches, and keeps your server data fresh, with request deduplicat
 - Queries are plain objects with a `Stream`, so blocs and cubits can use them too.
 - Refetches when the app returns to the foreground, retries failed requests, and pauses while offline.
 
+**[Read the documentation →](https://galaxykhh.github.io/fuery/)**
+
 ## Install
 
 ```bash

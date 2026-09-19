@@ -5,8 +5,9 @@ Server state caching for Flutter, with widgets that work like `flutter_bloc`. Th
 - `packages/fuery_core`: pure Dart core (queries, infinite queries, mutations, cache, retries). No Flutter imports.
 - `packages/fuery`: Flutter widgets, app lifecycle binding, and `FueryProvider`. Re-exports `fuery_core`.
 - `packages/fuery/example`: todo app built with Fuery widgets and a cubit, with widget tests.
+- `docs`: the documentation site (Astro Starlight), deployed to https://galaxykhh.github.io/fuery/
 
-Each package has its own `AGENTS.md` with package-specific rules.
+Each package and `docs/` has its own `AGENTS.md` with package-specific rules.
 
 ## Commands
 
@@ -30,7 +31,7 @@ Coverage (both packages are at 100% line coverage):
 
 `coverage/` is gitignored.
 
-CI (`.github/workflows/ci.yml`) runs format, analyze, and all three test suites on the latest stable Flutter for every pull request and every push to `main`.
+CI (`.github/workflows/ci.yml`) runs format, analyze, and all three test suites on the latest stable Flutter for every pull request and every push to `main`. `.github/workflows/docs.yml` builds the docs site on pull requests that touch `docs/` and deploys it to GitHub Pages from `main`.
 
 ## Rules for every change
 
@@ -41,14 +42,14 @@ CI (`.github/workflows/ci.yml`) runs format, analyze, and all three test suites 
 - Fetch outside widgets with `client.query` and `client.infiniteQuery`. Don't add `fetchQuery`, `prefetchQuery`, or `ensureQueryData`-style methods.
 - `fuery` and `fuery_core` are released together with the same version. Breaking changes are allowed before 1.0.
 - To release, bump both versions and add a short CHANGELOG entry to each, merge to `main`, then push a tag `vX.Y.Z`. `.github/workflows/publish.yml` tests and publishes `fuery_core`, then `fuery`. Don't publish by hand.
-- Update the READMEs when public behavior changes, and make sure every code snippet in them compiles.
+- Update the READMEs and the docs site when public behavior changes, and make sure every code snippet compiles.
 
 ## Writing docs
 
 - The logo, README banner, GitHub social preview, and icon live in `assets/brand/`. Edit the SVGs, then run `python3 assets/brand/render.py` to regenerate the PNGs. Palette: violet `#6B4EFF`, lime `#C6F542`, lavender `#C9BEFF`, ink `#14112B`.
 - Describe Fuery on its own terms: what it does and how it fits Flutter and bloc. Don't compare it with other libraries or call it a port.
 - Keep README examples short and runnable against the real API.
-- READMEs describe the current API only. Don't add upgrade or migration guides.
+- READMEs and the docs site describe the current API only. Don't add upgrade or migration guides.
 
 ## Commits
 

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Fuery">
+  <!-- Fuery mark for dark backgrounds. Same geometry and colours as mark.svg; only the ghost slot is stronger. -->
+  <rect x="40" y="40" width="132" height="432" rx="34" fill="#6B4EFF"/>
+  <rect x="190" y="40" width="282" height="132" rx="34" fill="#6B4EFF"/>
+  <rect x="190" y="190" width="132" height="132" rx="34" fill="#6B4EFF" opacity="0.4"/>
+  <rect x="274" y="190" width="132" height="132" rx="34" fill="#C6F542"/>
+</svg>
