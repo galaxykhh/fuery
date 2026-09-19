@@ -1,3 +1,7 @@
+## 0.6.0
+- Add `FueryDevtools` and `FueryDevtoolsPanel` to inspect queries and mutations in debug and profile builds.
+- Includes `fuery_core` 0.6.0: `Fuery.client`, which mounts the client when assigned.
+
 ## 0.5.0
 - Includes `fuery_core` 0.5.0: persisting query data with `QueryStorage` and `QueryPersist`.
 

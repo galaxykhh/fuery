@@ -1,3 +1,7 @@
+## 0.6.0
+- **Breaking:** `Fuery.instance` is renamed to `Fuery.client`. Assigning it mounts the new client and unmounts the previous one.
+- Fix: removed queries and mutations no longer start garbage collection timers, which kept Dart processes alive and failed widget tests after `clear()`.
+
 ## 0.5.0
 - Add persistence: give `QueryClient` a `QueryStorage`, and add `persist: QueryPersist(...)` (or `InfiniteQueryPersist`) to queries whose data should survive restarts.
 - Add `QueryClient.restore` to read persisted data ahead of time.
