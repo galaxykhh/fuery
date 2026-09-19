@@ -20,6 +20,7 @@ Pure Dart. Never import Flutter. Runtime dependencies are limited to `clock`, `c
 - Cancel every `Timer` in the matching destroy/clear path. Leftover timers keep Dart processes alive and fail Flutter widget tests.
 - Generics are covariant. Don't read function-typed fields that take `TData` (such as `placeholderData`) through a widened type like `Query<Object>`; do it inside the generic class. `QueryCache.build` compares data types exactly and throws a `StateError` on a mismatch.
 - Put options that need a new type variable for inference on generic functions (see `InfiniteQuery.use` and `infiniteQueryOptions`), not only on constructors.
+- Persistence (`persist.dart`, plus `Query` and `QueryClient`): storage calls may be synchronous or asynchronous, and their errors are ignored. Reads and writes wait for asynchronous deletions in flight, so deleted data is never restored or overwritten out of order. Garbage collection never deletes stored data; `removeQueries`, `resetQueries`, and `clear` do.
 
 ## Tests
 

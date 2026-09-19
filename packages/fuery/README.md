@@ -107,6 +107,7 @@ Unused queries stay cached for `gcTime` (default: 5 minutes), so going back to a
 | `placeholderData` | none | Shown while pending, not cached. Pass `keepPreviousData` to keep the previous key's data while a new key loads. |
 | `networkMode` | `NetworkMode.online` | `.always` ignores connectivity |
 | `structuralSharing` | `true` | Keeps unchanged data identical across refetches: the whole value if nothing changed, otherwise the unchanged list items |
+| `persist` | none | Stores the data on the device, see [Persistence](#persistence) |
 
 **Polling until done.** `refetchWhile` is checked on every change, so polling stops when it returns false and resumes when it returns true again:
 
@@ -375,6 +376,28 @@ late final todos = Query.use(
 ```
 
 `context.queryClient` returns `Fuery.instance` when there is no provider.
+
+## Persistence
+
+Give the client a `QueryStorage`, and add `persist` to the queries worth keeping. When the app starts again, they show the stored data right away and refetch it if it's stale:
+
+```dart
+Fuery.instance = QueryClient(storage: PreferencesStorage(preferences))..mount();
+
+final todos = Query.use(
+  queryKey: ['todos'],
+  queryFn: (_) => api.getTodos(),
+  persist: QueryPersist(
+    toJson: (todos) => [for (final todo in todos) todo.toJson()],
+    fromJson: (json) => [
+      for (final item in json! as List)
+        Todo.fromJson(item as Map<String, Object?>),
+    ],
+  ),
+);
+```
+
+`QueryStorage` has `read`, `write`, `delete`, and `readAll`, and can be synchronous or asynchronous. Stored data expires after the client's `persistMaxAge` (default: one day), and `version` discards data in an old format. `clear()` deletes all stored data, for example on logout. The [persistence guide](https://galaxykhh.github.io/fuery/guides/persistence/) has a `shared_preferences` storage, infinite queries, and `restore()`.
 
 ## App lifecycle and connectivity
 

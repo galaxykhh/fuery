@@ -107,6 +107,25 @@ final data = await client.query(
 );
 ```
 
+To keep data across restarts, give the client a `QueryStorage` and add `persist` to a query:
+
+```dart
+final client = QueryClient(storage: FileStorage(directory));
+
+final todos = Query.use(
+  queryKey: ['todos'],
+  queryFn: (_) => api.getTodos(),
+  persist: QueryPersist(
+    toJson: (todos) => [for (final todo in todos) todo.toJson()],
+    fromJson: (json) => [
+      for (final item in json! as List)
+        Todo.fromJson(item as Map<String, Object?>),
+    ],
+  ),
+  client: client,
+);
+```
+
 `client.watch` turns any value computed from the client into a `Stream`, without fetching anything:
 
 ```dart
