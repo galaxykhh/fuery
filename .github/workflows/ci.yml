@@ -8,15 +8,28 @@ on:
 
 jobs:
   test:
+    name: test (${{ matrix.name }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: latest stable
+            version: ''
+          # The oldest versions the pubspecs allow: Flutter 3.27 with Dart 3.6.
+          - name: oldest supported
+            version: '3.27.0'
     steps:
       - uses: actions/checkout@v7
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: ${{ matrix.version }}
           cache: true
       - run: flutter pub get
-      - run: dart format --output=none --set-exit-if-changed packages
+      # Formatting can differ between Dart versions; check it on the latest.
+      - if: matrix.version == ''
+        run: dart format --output=none --set-exit-if-changed packages
       - run: flutter analyze packages
       - run: dart test
         working-directory: packages/fuery_core
