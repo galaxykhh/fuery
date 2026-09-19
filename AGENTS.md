@@ -4,7 +4,7 @@ Server state caching for Flutter, with widgets that work like `flutter_bloc`. Th
 
 - `packages/fuery_core`: pure Dart core (queries, infinite queries, mutations, cache, retries). No Flutter imports.
 - `packages/fuery`: Flutter widgets, app lifecycle binding, and `FueryProvider`. Re-exports `fuery_core`.
-- `packages/fuery/example`: todo app with a widget test.
+- `packages/fuery/example`: todo app built with Fuery widgets and a cubit, with widget tests.
 
 Each package has its own `AGENTS.md` with package-specific rules.
 

@@ -6,8 +6,9 @@ A todo app that shows how the pieces fit together:
 - `Mutation.use` to add todos, invalidating the list on success.
 - An optimistic delete that removes the todo immediately and rolls back if the request fails.
 - `MutationBuilder` for a loading barrier and `MutationListener` for an error snackbar.
+- A stats screen whose `Cubit` listens to the same todo query, so completing a todo on the list updates the stats.
 
-The screen is in [`lib/app/screens/todo_list/todo_list.dart`](lib/app/screens/todo_list/todo_list.dart), and [`test/todo_list_test.dart`](test/todo_list_test.dart) exercises it.
+The screens are in [`lib/app/screens/`](lib/app/screens/), the shared query is in [`lib/app/data/todo_queries.dart`](lib/app/data/todo_queries.dart), and the tests are in [`test/`](test/).
 
 ```bash
 flutter run

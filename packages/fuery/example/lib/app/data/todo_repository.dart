@@ -49,6 +49,15 @@ class TodoApi {
     return todo;
   }
 
+  Future<Todo> toggle(int id) async {
+    await Future.delayed(const Duration(milliseconds: 250));
+    final index = _todos.indexWhere((t) => t.id == id);
+    final todo =
+        _todos[index].copyWith(isCompleted: !_todos[index].isCompleted);
+    _todos[index] = todo;
+    return todo;
+  }
+
   Future<void> delete(int id) async {
     await Future.delayed(const Duration(milliseconds: 3000));
     _todos.removeWhere((t) => t.id == id);

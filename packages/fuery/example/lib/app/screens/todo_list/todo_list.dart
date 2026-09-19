@@ -1,12 +1,12 @@
 import 'package:example/app/data/payloads/add_todo_payload.dart';
 import 'package:example/app/data/todo.dart';
+import 'package:example/app/data/todo_queries.dart';
 import 'package:example/app/data/todo_repository.dart';
 import 'package:example/app/screens/todo_list/widgets/add_todo_dialog.dart';
 import 'package:example/app/screens/todo_list/widgets/todo_list_item.dart';
+import 'package:example/app/screens/todo_stats/todo_stats.dart';
 import 'package:flutter/material.dart';
 import 'package:fuery/fuery.dart';
-
-const todosKey = ['todos', 'list'];
 
 class TodoListScreen extends StatefulWidget {
   const TodoListScreen({super.key});
@@ -25,16 +25,20 @@ class TodoListScreen extends StatefulWidget {
 }
 
 class _TodoListScreenState extends State<TodoListScreen> {
-  final todos = Query.use(
-    queryKey: todosKey,
-    queryFn: (_) => TodoApi().getList(),
-  );
+  final todos = todosQuery();
 
   final addTodo = Mutation.use(
     mutationFn: (AddTodoPayload payload) {
       return TodoApi().add(payload.title, payload.description);
     },
     onSuccess: (todo, payload, _) {
+      return Fuery.instance.invalidateQueries(queryKey: todosKey);
+    },
+  );
+
+  final toggleTodo = Mutation.use(
+    mutationFn: (int id) => TodoApi().toggle(id),
+    onSuccess: (_, id, __) {
       return Fuery.instance.invalidateQueries(queryKey: todosKey);
     },
   );
@@ -88,6 +92,13 @@ class _TodoListScreenState extends State<TodoListScreen> {
               ),
               actions: [
                 IconButton.outlined(
+                  onPressed: () => Navigator.push(
+                    context,
+                    TodoStatsScreen.route(),
+                  ),
+                  icon: const Icon(Icons.insights),
+                ),
+                IconButton.outlined(
                   onPressed: () => AddTodoDialog.show(
                     context,
                     onSubmit: addTodo.mutate,
@@ -116,7 +127,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
                       itemBuilder: (context, index) {
                         return TodoListItem(
                           todo: state.data![index],
-                          onToggle: (todo) {},
+                          onToggle: (todo) => toggleTodo.mutate(todo.id),
                           onDelete: (todo) => deleteTodo.mutate(todo.id),
                         );
                       },

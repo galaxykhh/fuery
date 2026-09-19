@@ -22,4 +22,5 @@ These match `flutter_bloc` and are covered by tests; keep them:
 
 - Give each test a fresh `QueryClient` with `QueryDefaults(retry: RetryPolicy.never())`, wrapped in `FueryProvider`.
 - End each test with `await tester.pumpWidget(const SizedBox())` and `client.clear()`. Otherwise cache timers are still pending and the test fails.
-- Keep the example app's test (`example/test/todo_list_test.dart`) passing when the API changes.
+- Keep the example app's tests (`example/test/`) passing when the API changes.
+- In a cubit or bloc, call `subscription.cancel()` in `close()` without awaiting it. Its future never completes under `testWidgets`, so awaiting it hangs the test.
