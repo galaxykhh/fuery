@@ -1,5 +1,5 @@
-/// Server state caching for Flutter, with widgets that work like
-/// `flutter_bloc`.
+/// Server state caching for Flutter: queries, infinite queries, and
+/// mutations, with builder and listener widgets.
 library;
 
 export 'package:fuery_core/fuery_core.dart';

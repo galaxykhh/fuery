@@ -1,6 +1,6 @@
 <img src="assets/brand/banner.png" alt="Fuery: server state for Flutter" width="100%">
 
-Server state for Flutter, with widgets that work like `flutter_bloc`.
+Fetch, cache, and keep server data fresh in Flutter.
 
 ```dart
 final todos = Query.use(queryKey: ['todos'], queryFn: (_) => api.getTodos());
@@ -13,7 +13,7 @@ QueryBuilder(
 )
 ```
 
-Fuery caches server data, deduplicates requests, retries failures, paginates, and refetches stale data in the background. Its widgets (`Builder`, `Listener`, and `Consumer`, with `buildWhen` and `listenWhen`) feel like `flutter_bloc`, and queries are plain objects with a `Stream`, so they work inside blocs and cubits as well.
+Fuery caches server data, deduplicates requests, retries failures, paginates, and refetches stale data in the background. Builder, listener, and consumer widgets turn queries into UI and side effects, and queries are plain objects with a `Stream`, so blocs, cubits, and services can use them as well.
 
 **[Read the documentation →](https://galaxykhh.github.io/fuery/)**
 

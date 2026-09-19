@@ -13,7 +13,7 @@ Each kind of query has a builder, a listener, and a consumer:
 
 Mounting any of them subscribes to the query, which fetches if needed. Unmounting unsubscribes.
 
-## They behave like flutter_bloc
+## How they update
 
 - `buildWhen(previous, current)` compares with the last built result.
 - `listenWhen(previous, current)` compares with the previous result.

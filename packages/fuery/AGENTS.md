@@ -10,7 +10,7 @@ Flutter layer over `fuery_core`. Keep logic in the core; this package only conne
 
 ## Widget semantics
 
-These match `flutter_bloc` and are covered by tests; keep them:
+These are covered by tests; keep them:
 
 - `buildWhen(previous, current)` compares against the last built result.
 - `listenWhen(previous, current)` compares against the previously received result.
