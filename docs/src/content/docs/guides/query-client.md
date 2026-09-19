@@ -82,7 +82,7 @@ client.query(todosQuery).ignore(); // prefetch: ignore the result and errors
 
 To use whatever is cached, however old, set `staleTime: staticStaleTime`. This is handy in route guards and startup code.
 
-`client.infiniteQuery(infiniteQueryOptions(...))` does the same for infinite queries, and fetches `pages` pages when nothing is cached.
+`client.infiniteQuery(infiniteQueryOptions(...))` does the same for infinite queries. With nothing cached it loads `pages` pages (default: one); otherwise it reloads the pages already cached.
 
 ## Defaults
 

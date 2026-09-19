@@ -50,12 +50,12 @@ class _TodoListScreenState extends State<TodoListScreen> {
 - **Creating the query doesn't fetch.** It fetches when `QueryBuilder` mounts, so the field doesn't need to be `late`. Use `late final` only when the query reads `widget` or another field, for example `queryKey: ['todo', widget.id]`.
 - **The first frame already shows loading.** There is no empty frame before the request starts.
 - **Widgets share data by key.** Another screen that uses `['todos']` gets the cached list immediately and shares the same request.
-- **Data stays fresh.** When the screen comes back, when the app returns to the foreground, or when the network reconnects, stale data refetches in the background while the old data stays on screen.
+- **Data stays fresh.** When another screen starts using the query, when the app returns to the foreground, or (once you [report connectivity](../guides/lifecycle/#network)) when the network reconnects, stale data refetches in the background while the old data stays on screen.
 - **Unused data is cleaned up.** Five minutes after the last widget stops using `['todos']`, the cache entry is removed.
 
 ## Next steps
 
-- [Queries](../guides/queries/): keys, freshness, and every option.
+- [Queries](../guides/queries/): keys, freshness, and options.
 - [Widgets](../guides/widgets/): builders, listeners, and consumers.
 - [Mutations](../guides/mutations/): changing server data and optimistic updates.
 - [Using with bloc](../guides/bloc/): the same queries inside cubits and blocs.

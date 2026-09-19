@@ -65,15 +65,19 @@ Builders and streams receive a `QueryResult`:
 | `gcTime` | 5 minutes | How long unused data stays cached |
 | `retry` | `RetryPolicy.count(3)` | Also `.never()`, `.always()`, and `.when((count, error) => ...)` |
 | `retryDelay` | 1s, 2s, 4s, … up to 30s | A function of the failure count and error |
-| `refetchOnMount`, `refetchOnFocus`, `refetchOnReconnect` | `RefetchMode.ifStale` | `.never` or `.always` |
-| `refetchInterval` | none | Polls while a widget uses the query |
+| `refetchOnMount`, `refetchOnFocus`, `refetchOnReconnect` | `RefetchMode.ifStale` | `.never` or `.always`. `refetchOnReconnect` defaults to `.never` with `NetworkMode.always`. |
+| `refetchInterval` | none | Polls while a widget uses the query, counting from its latest change |
 | `refetchIntervalInBackground` | `false` | Keep polling while the app is in the background |
 | `refetchWhile` | none | Polls only while this returns true for the latest result |
+| `retryOnMount` | `true` | `false` doesn't retry a failed query when a widget starts using it |
 | `initialData` | none | Seeds the cache as if it had been fetched |
+| `initialDataUpdatedAt` | now | When `initialData` was fetched, in milliseconds since epoch |
 | `placeholderData` | none | Shown while pending, never cached |
 | `networkMode` | `NetworkMode.online` | See [App lifecycle and network](../lifecycle/) |
 | `structuralSharing` | `true` | Keeps unchanged data identical across refetches |
 | `persist` | none | Stores the data on the device. See [Persistence](../persistence/) |
+| `meta` | none | Any values, passed to the query function as `context.meta` |
+| `client` | `Fuery.client` | See [Providing a client](../query-client/#providing-a-client) |
 
 ## Polling
 

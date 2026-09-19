@@ -27,7 +27,7 @@ InfiniteQueryBuilder(
       for (final page in state.pages) ...page.items.map(PostTile.new),
       if (state.hasNextPage)
         TextButton(
-          onPressed: state.isFetchingNextPage ? null : posts.fetchNextPage,
+          onPressed: state.isFetching ? null : posts.fetchNextPage,
           child: const Text('Load more'),
         ),
     ],
@@ -35,7 +35,7 @@ InfiniteQueryBuilder(
 )
 ```
 
-`fetchNextPage()` restarts a fetch that is already running, so check `isFetchingNextPage` first, as above, or pass `cancelRefetch: false`.
+`fetchNextPage()` restarts a fetch that is already running, including a background refetch of every page, so check `isFetching` first, as above, or pass `cancelRefetch: false`.
 
 ## The data object
 

@@ -14,7 +14,8 @@ testWidgets('shows todos', (tester) async {
       queries: QueryDefaults(retry: RetryPolicy.never()),
     ),
   );
-  await tester.pumpWidget(FueryProvider(client: client, child: const App()));
+  Fuery.client = client;
+  await tester.pumpWidget(const App());
   await tester.pump(const Duration(milliseconds: 500));
   expect(find.text('Buy milk'), findsOneWidget);
 
@@ -25,7 +26,7 @@ testWidgets('shows todos', (tester) async {
 
 - Pump the time your fake API takes, or `await tester.pump()` for instant fakes.
 - End each test by unmounting the widgets and calling `client.clear()`. Otherwise cache timers are still pending and the test fails.
-- Queries must use the provided client, for example with `client: context.queryClient`.
+- Queries and mutations without a `client:` argument use `Fuery.client`. If your widgets pass `client: context.queryClient`, wrap the app in `FueryProvider(client: client, child: const App())` instead.
 
 ## Testing without widgets
 
