@@ -1,31 +1,25 @@
-library fuery_core;
+/// Server state caching for Dart: queries, infinite queries, and mutations.
+library;
 
-// types
-export 'src/base/typedefs.dart';
-// client
-export 'src/fuery_client.dart';
-
-// base
-export 'src/base/query_state.dart' show QueryStatus, FetchStatus;
-export 'src/base/mutation_state.dart' show MutationStatus;
-
-// query
-export 'src/query.dart';
-export 'src/query_options.dart';
-export 'src/query_state.dart';
-export 'src/query_result.dart';
-
-// infinite query
-export 'src/infinite_query.dart' show InfiniteQuery;
-export 'src/infinite_data.dart';
-export 'src/infinite_query_state.dart';
-export 'src/infinite_query_result.dart';
-
-// mutation
-export 'src/mutation.dart' show Mutation;
-export 'src/mutation_options.dart';
-export 'src/mutation_state.dart';
-export 'src/mutation_result.dart';
-
-// exception
-export 'src/error/fuery_exception.dart';
+export 'src/abort.dart' show AbortSignal, AbortController, AbortedException;
+export 'src/core.dart' hide FetchContext, QueryBehavior, InfiniteQueryBehavior;
+export 'src/focus_manager.dart';
+export 'src/notify_manager.dart';
+export 'src/online_manager.dart';
+export 'src/retryer.dart'
+    show
+        CancelledError,
+        NetworkMode,
+        RetryPolicy,
+        RetryDelay,
+        defaultRetryDelay;
+export 'src/utils.dart'
+    show
+        MutationKey,
+        QueryKey,
+        hashKey,
+        infiniteDuration,
+        staticStaleTime,
+        keepPreviousData,
+        partialMatchKey,
+        replaceEqualDeep;

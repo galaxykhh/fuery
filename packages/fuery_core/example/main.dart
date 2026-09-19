@@ -1,69 +1,73 @@
+// ignore_for_file: avoid_print
+
 import 'package:fuery_core/fuery_core.dart';
 
-class PageResponse<T> {
-  final List<T> items;
+class Page {
+  const Page({required this.items, this.nextCursor});
+
+  final List<String> items;
   final int? nextCursor;
-
-  PageResponse({
-    required this.items,
-    this.nextCursor,
-  });
-
-  factory PageResponse.fromJson(Map<String, dynamic> map) {
-    return PageResponse(
-      items: map['items'],
-      nextCursor: map['nextCursor'],
-    );
-  }
 }
 
 class NameRepository {
-  Future<String> getOne(int id) async {
-    return 'Name $id';
-  }
+  Future<String> getOne(int id) async => 'Name $id';
 
-  Future<PageResponse<String>> getPage(int page) async {
-    return PageResponse(
-      items: [
-        'Name $page-1',
-        'Name $page-2',
-        'Name $page-3',
-        'Name $page-4',
-        'Name $page-5',
-      ],
-      nextCursor: page + 1,
+  Future<Page> getPage(int page) async {
+    return Page(
+      items: [for (var i = 1; i <= 3; i++) 'Name $page-$i'],
+      nextCursor: page < 3 ? page + 1 : null,
     );
   }
 
-  Future<String> create(String name) async {
-    return name;
-  }
+  Future<String> create(String name) async => name;
 
-  Future<void> removeAll() async {
-    // ...
-  }
+  Future<void> removeAll() async {}
 }
 
-final nameRepository = NameRepository();
+final repository = NameRepository();
 
-late final name = Query.use(
-  queryKey: ['names', 1],
-  queryFn: () => nameRepository.getOne(1),
-);
+Future<void> main() async {
+  // A query fetches when its observer gets the first listener.
+  final name = Query.use(
+    queryKey: ['names', 1],
+    queryFn: (_) => repository.getOne(1),
+  );
+  final subscription = name.stream.listen((result) {
+    print('name: ${result.status.name} ${result.data}');
+  });
 
-late final names = InfiniteQuery.use(
-  queryKey: ['names', 'list'],
-  queryFn: (int page) => nameRepository.getPage(page),
-  initialPageParam: 1,
-  getNextPageParam: (lastPage, _) => lastPage.data.nextCursor,
-);
+  // An infinite query loads pages on demand.
+  final names = InfiniteQuery.use(
+    queryKey: ['names', 'list'],
+    queryFn: (context) => repository.getPage(context.pageParam),
+    initialPageParam: 1,
+    getNextPageParam: (data) => data.lastPage.nextCursor,
+  );
+  names.subscribe((_) {});
+  await Future<void>.delayed(Duration.zero);
+  while (names.result.hasNextPage) {
+    await names.fetchNextPage();
+  }
+  print('pages: ${names.result.pages.length}');
 
-late final createName = Mutation.use(
-  mutationFn: (String name) => nameRepository.create(name),
-  onSuccess: (_, data) => print('$data created'),
-);
+  // A mutation invalidates the queries it affects.
+  final createName = Mutation.use(
+    mutationFn: (String name) => repository.create(name),
+    onSuccess: (data, name, _) async {
+      print('$data created');
+      await Fuery.instance.invalidateQueries(queryKey: ['names']);
+    },
+  );
+  await createName.mutateAsync('New name');
 
-late final removeAll = Mutation.noParam(
-  mutationFn: () => nameRepository.removeAll(),
-  onSuccess: (_) => print('all names removed'),
-);
+  final removeAll = Mutation.noParam(
+    mutationFn: () => repository.removeAll(),
+    onSuccess: (_, __) => print('all names removed'),
+  );
+  removeAll.mutate();
+
+  await subscription.cancel();
+
+  // Stop garbage collection timers so the program can exit.
+  Fuery.instance.clear();
+}
