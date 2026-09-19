@@ -51,6 +51,7 @@ class Query<TData extends Object> extends Removable {
     int? initialDataUpdatedAt,
     PlaceholderDataFn<TData>? placeholderData,
     bool? structuralSharing,
+    QueryPersist<TData>? persist,
     Map<String, Object?>? meta,
     QueryClient? client,
   }) {
@@ -76,6 +77,7 @@ class Query<TData extends Object> extends Removable {
         initialDataUpdatedAt: initialDataUpdatedAt,
         placeholderData: placeholderData,
         structuralSharing: structuralSharing,
+        persist: persist,
         meta: meta,
       ),
     );
@@ -93,6 +95,9 @@ class Query<TData extends Object> extends Removable {
   Retryer<TData>? _retryer;
   final List<QueryObserver<TData>> _observers = [];
   bool _abortSignalConsumed = false;
+  bool _restoreAttempted = false;
+  Future<void>? _restoring;
+  bool _persistScheduled = false;
 
   QueryOptions<TData> get options => _options;
 
@@ -127,6 +132,7 @@ class Query<TData extends Object> extends Removable {
         _initialState = defaultState;
       }
     }
+    if (state != null) _maybeRestore();
   }
 
   @override
@@ -269,6 +275,18 @@ class Query<TData extends Object> extends Removable {
     QueryOptions<TData>? options,
     FetchOptions? fetchOptions,
   ]) async {
+    final restoring = _restoring;
+    if (restoring != null) {
+      await restoring;
+      final data = state.data;
+      // Fresh restored data doesn't need a fetch, unless one was asked for.
+      if (data != null &&
+          !(fetchOptions?.cancelRefetch ?? false) &&
+          !isStaleByTime((options ?? _options).staleTime)) {
+        return data;
+      }
+    }
+
     final current = _retryer;
     if (state.fetchStatus != FetchStatus.idle &&
         current != null &&
@@ -384,6 +402,9 @@ class Query<TData extends Object> extends Removable {
 
   void _dispatch(QueryAction action) {
     _state = _reduce(state, action);
+    if (action is QuerySuccessAction && state.fetchStatus == FetchStatus.idle) {
+      _schedulePersist();
+    }
 
     notifyManager.batch(() {
       for (final observer in _observers.toList()) {
@@ -454,6 +475,116 @@ class Query<TData extends Object> extends Removable {
       case QuerySuccessAction() || QuerySetStateAction():
         throw StateError('Action data type does not match query $queryHash');
       // coverage:ignore-end
+    }
+  }
+
+  String get _storageKey => '$persistKeyPrefix$queryHash';
+
+  /// Restores persisted data the first time the query has a [QueryPersist]
+  /// and no data. Synchronous storage restores right away; otherwise [fetch]
+  /// waits for the restore.
+  void _maybeRestore() {
+    final storage = _client.storage;
+    if (_restoreAttempted ||
+        storage == null ||
+        _options.persist == null ||
+        state.data != null) {
+      return;
+    }
+    _restoreAttempted = true;
+
+    final preloaded = _client._takePreloaded(queryHash);
+    if (preloaded != null) return _applyRestored(preloaded);
+
+    final deletions = _client._deletionsDone();
+    final FutureOr<String?> value;
+    try {
+      value = deletions == null
+          ? storage.read(_storageKey)
+          : deletions.then((_) => storage.read(_storageKey));
+    } catch (_) {
+      return; // A failing storage is treated as empty.
+    }
+    if (value is Future<String?>) {
+      _restoring = value
+          .then(_applyRestored, onError: (Object _) {})
+          .whenComplete(() => _restoring = null);
+    } else {
+      _applyRestored(value);
+    }
+  }
+
+  /// Restores data that [QueryClient.restore] read ahead of time.
+  void _restoreFromPreload() {
+    if (_options.persist == null || state.data != null) return;
+    final preloaded = _client._takePreloaded(queryHash);
+    if (preloaded != null) _applyRestored(preloaded);
+  }
+
+  void _applyRestored(String? raw) {
+    final persist = _options.persist;
+    if (raw == null || persist == null || state.data != null) return;
+    try {
+      final entry = jsonDecode(raw) as Map<String, Object?>;
+      final updatedAt = entry['t']! as int;
+      final maxAge = persist.maxAge ?? _client.persistMaxAge;
+      if (entry['v'] != persist.version ||
+          now() - updatedAt > maxAge.inMilliseconds) {
+        return _client._deleteStored(_storageKey);
+      }
+      setState(state.copyWith(
+        data: persist._decode(entry['d']),
+        dataUpdatedAt: updatedAt,
+        error: null,
+        isInvalidated: false,
+        status: QueryStatus.success,
+      ));
+    } catch (_) {
+      // Stored data that can't be read is discarded.
+      _client._deleteStored(_storageKey);
+    }
+  }
+
+  /// Writes the data once the current batch of updates is done.
+  void _schedulePersist() {
+    if (_persistScheduled ||
+        _client.storage == null ||
+        _options.persist == null) {
+      return;
+    }
+    _persistScheduled = true;
+    notifyManager.schedule(() {
+      _persistScheduled = false;
+      _writeStored();
+    });
+  }
+
+  void _writeStored() {
+    final storage = _client.storage!;
+    final persist = _options.persist;
+    final data = state.data;
+    // A removed query must not write back what was just deleted.
+    if (persist == null ||
+        data == null ||
+        !identical(_cache.get(queryHash), this)) {
+      return;
+    }
+    final String value;
+    try {
+      value = jsonEncode({
+        'v': persist.version,
+        't': state.dataUpdatedAt,
+        'd': persist._encode(data),
+      });
+    } catch (_) {
+      return; // Data that can't be encoded isn't stored.
+    }
+    // Write after deletions in flight, so they can't remove the new data.
+    final deletions = _client._deletionsDone();
+    if (deletions == null) {
+      _ignoreErrors(() => storage.write(_storageKey, value));
+    } else {
+      deletions.then((_) => storage.write(_storageKey, value)).ignore();
     }
   }
 

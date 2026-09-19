@@ -24,12 +24,33 @@ class QueryClient {
     QueryCache? queryCache,
     MutationCache? mutationCache,
     this.defaultOptions = const DefaultOptions(),
+    this.storage,
+    this.persistMaxAge = const Duration(days: 1),
   })  : queryCache = queryCache ?? QueryCache(),
         mutationCache = mutationCache ?? MutationCache();
 
   final QueryCache queryCache;
   final MutationCache mutationCache;
   DefaultOptions defaultOptions;
+
+  /// Where queries with a [QueryPersist] store their data. Without a storage,
+  /// `persist` options do nothing.
+  final QueryStorage? storage;
+
+  /// How long persisted data can be restored, unless [QueryPersist.maxAge]
+  /// says otherwise.
+  final Duration persistMaxAge;
+
+  /// Entries read by [restore], by query hash, until a query uses them.
+  Map<String, String>? _preloaded;
+
+  /// Asynchronous deletions in flight. Reads wait for them, so deleted data
+  /// is never restored.
+  final Set<Future<void>> _deletions = {};
+
+  /// Changes whenever persisted data is deleted, so a [restore] that was
+  /// reading at the time drops what it read.
+  int _deletionEpoch = 0;
   final Map<String, (QueryKey, QueryDefaults)> _queryDefaults = {};
   final Map<String, (MutationKey, MutationDefaults)> _mutationDefaults = {};
   int _mountCount = 0;
@@ -99,6 +120,123 @@ class QueryClient {
           predicate: predicate,
         ))
         .length;
+  }
+
+  /// Reads every persisted query ahead of time, so queries created afterwards
+  /// restore their data right away, even with a storage that reads
+  /// asynchronously. Optional: without it, each query restores when it's
+  /// first used.
+  ///
+  /// ```dart
+  /// await Fuery.instance.restore();
+  /// runApp(const App());
+  /// ```
+  Future<void> restore() async {
+    final storage = this.storage;
+    if (storage == null) return;
+    await _deletionsDone();
+    final epoch = _deletionEpoch;
+    final Map<String, String> entries;
+    try {
+      entries = await storage.readAll();
+    } catch (_) {
+      return; // A failing storage is treated as empty.
+    }
+    // Something was deleted while reading; queries read on their own instead.
+    if (epoch != _deletionEpoch) return;
+    _preloaded = {
+      for (final MapEntry(:key, :value) in entries.entries)
+        if (key.startsWith(persistKeyPrefix))
+          key.substring(persistKeyPrefix.length): value,
+    };
+    notifyManager.batch(() {
+      for (final query in queryCache.getAll()) {
+        query._restoreFromPreload();
+      }
+    });
+  }
+
+  String? _takePreloaded(String queryHash) => _preloaded?.remove(queryHash);
+
+  void _deleteStored(String storageKey) {
+    final storage = this.storage;
+    if (storage != null) _trackDeletion(() => storage.delete(storageKey));
+  }
+
+  /// Runs [delete], and tracks it until done if it is asynchronous.
+  void _trackDeletion(FutureOr<void> Function() delete) {
+    _deletionEpoch++;
+    final FutureOr<void> result;
+    try {
+      result = delete();
+    } catch (_) {
+      return; // A failing storage is ignored.
+    }
+    if (result is Future<void>) {
+      late final Future<void> tracked;
+      tracked = result
+          .catchError((Object _) {})
+          .whenComplete(() => _deletions.remove(tracked));
+      _deletions.add(tracked);
+    }
+  }
+
+  /// Completes when the deletions in flight are done, or returns null when
+  /// there are none.
+  Future<void>? _deletionsDone() {
+    if (_deletions.isEmpty) return null;
+    return Future.wait(_deletions.toList());
+  }
+
+  /// Deletes the persisted data of [queries]. When [filters] only select by
+  /// key, persisted queries that aren't loaded are deleted as well.
+  void _forgetStored(QueryFilters filters, Iterable<Query<Object>> queries) {
+    final storage = this.storage;
+    if (storage == null) return;
+
+    for (final query in queries) {
+      _preloaded?.remove(query.queryHash);
+      _deleteStored(query._storageKey);
+    }
+
+    final byKeyOnly = filters.type == QueryTypeFilter.all &&
+        filters.stale == null &&
+        filters.fetchStatus == null &&
+        filters.predicate == null;
+    if (!byKeyOnly) return;
+
+    // Queries loaded now were handled above, and may get new data before an
+    // asynchronous storage lists its entries.
+    final loaded = {for (final query in queryCache.getAll()) query.queryHash};
+
+    bool matches(String queryHash) {
+      if (loaded.contains(queryHash)) return false;
+      final queryKey = filters.queryKey;
+      if (queryKey == null) return true;
+      if (filters.exact) return queryHash == hashKey(queryKey);
+      return partialMatchKey(jsonDecode(queryHash) as List<Object?>, queryKey);
+    }
+
+    _preloaded?.removeWhere((queryHash, _) => matches(queryHash));
+    _trackDeletion(() {
+      // Reads synchronously when the storage does, so a query created right
+      // after this call can't see the deleted entries.
+      FutureOr<void> deleteMatching(Map<String, String> entries) {
+        final deletions = [
+          for (final key in entries.keys)
+            if (key.startsWith(persistKeyPrefix) &&
+                matches(key.substring(persistKeyPrefix.length)))
+              Future<void>.sync(() => storage.delete(key)),
+        ];
+        return Future.wait(deletions).then((_) {}, onError: (Object _) {});
+      }
+
+      final entries = storage.readAll();
+      if (entries is Future<Map<String, String>>) {
+        return entries.then(deleteMatching);
+      }
+      deleteMatching(entries);
+    });
   }
 
   /// Watches a value computed from the client, such as a count or cached
@@ -266,9 +404,11 @@ class QueryClient {
       predicate: predicate,
     );
     notifyManager.batch(() {
-      for (final query in queryCache.findAll(filters)) {
+      final queries = queryCache.findAll(filters);
+      for (final query in queries) {
         queryCache.remove(query);
       }
+      _forgetStored(filters, queries);
     });
   }
 
@@ -296,6 +436,7 @@ class QueryClient {
       for (final query in matched) {
         query.reset();
       }
+      _forgetStored(filters, matched);
       return _refetch(
         QueryFilters(
           type: QueryTypeFilter.active,
@@ -483,8 +624,10 @@ class QueryClient {
   }
 
   /// Removes every query and mutation.
+  /// Removes every query and mutation, and deletes all persisted data.
   void clear() {
     queryCache.clear();
     mutationCache.clear();
+    _forgetStored(const QueryFilters(), const []);
   }
 }

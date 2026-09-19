@@ -154,6 +154,7 @@ class QueryCache extends Subscribable<QueryCacheEvent> {
       state: state,
     );
     add(query);
+    query._maybeRestore();
     return query;
   }
 

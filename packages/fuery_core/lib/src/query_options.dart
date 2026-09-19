@@ -165,6 +165,7 @@ class QueryOptions<TData extends Object> {
     this.initialDataUpdatedAt,
     this.placeholderData,
     this.structuralSharing,
+    this.persist,
     this.meta,
     this.behavior,
   })  : queryHash = null,
@@ -191,6 +192,7 @@ class QueryOptions<TData extends Object> {
     required this.initialDataUpdatedAt,
     required this.placeholderData,
     required this.structuralSharing,
+    required this.persist,
     required this.meta,
     required this.behavior,
   }) : _defaulted = true;
@@ -250,6 +252,10 @@ class QueryOptions<TData extends Object> {
   /// data. Defaults to true.
   final bool? structuralSharing;
 
+  /// Stores the data with the client's [QueryStorage] and restores it when
+  /// the query is used again, even after the app restarts.
+  final QueryPersist<TData>? persist;
+
   final Map<String, Object?>? meta;
 
   final QueryBehavior<TData>? behavior;
@@ -287,6 +293,7 @@ class QueryOptions<TData extends Object> {
       initialDataUpdatedAt: initialDataUpdatedAt,
       placeholderData: placeholderData,
       structuralSharing: structuralSharing ?? defaults.structuralSharing,
+      persist: persist,
       meta: meta ?? defaults.meta,
       behavior: behavior,
     );
@@ -313,6 +320,7 @@ class QueryOptions<TData extends Object> {
         initialDataUpdatedAt == other.initialDataUpdatedAt &&
         placeholderData == other.placeholderData &&
         structuralSharing == other.structuralSharing &&
+        persist == other.persist &&
         meta == other.meta &&
         behavior == other.behavior;
   }
@@ -339,6 +347,7 @@ class QueryOptions<TData extends Object> {
       initialDataUpdatedAt: initialDataUpdatedAt,
       placeholderData: placeholderData,
       structuralSharing: structuralSharing,
+      persist: persist,
       meta: meta,
       behavior: behavior,
     );

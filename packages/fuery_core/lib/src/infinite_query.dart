@@ -212,8 +212,10 @@ class InfiniteQueryOptions<TPage, TParam>
     super.initialDataUpdatedAt,
     super.placeholderData,
     super.structuralSharing,
+    InfiniteQueryPersist<TPage, TParam>? persist,
     super.meta,
   }) : super(
+          persist: persist?._toQueryPersist(),
           // Infinite observers always report InfiniteQueryResults.
           refetchWhile: refetchWhile == null
               ? null
@@ -425,6 +427,7 @@ InfiniteQueryOptions<TPage, TParam> infiniteQueryOptions<TPage, TParam,
   int? initialDataUpdatedAt,
   PlaceholderDataFn<InfiniteData<TPage, TParam>>? placeholderData,
   bool? structuralSharing,
+  InfiniteQueryPersist<TPage, TParam>? persist,
   Map<String, Object?>? meta,
 }) {
   return InfiniteQueryOptions<TPage, TParam>(
@@ -452,6 +455,7 @@ InfiniteQueryOptions<TPage, TParam> infiniteQueryOptions<TPage, TParam,
     initialDataUpdatedAt: initialDataUpdatedAt,
     placeholderData: placeholderData,
     structuralSharing: structuralSharing,
+    persist: persist,
     meta: meta,
   );
 }
@@ -501,6 +505,7 @@ abstract final class InfiniteQuery {
     int? initialDataUpdatedAt,
     PlaceholderDataFn<InfiniteData<TPage, TParam>>? placeholderData,
     bool? structuralSharing,
+    InfiniteQueryPersist<TPage, TParam>? persist,
     Map<String, Object?>? meta,
     QueryClient? client,
   }) {
@@ -530,6 +535,7 @@ abstract final class InfiniteQuery {
         initialDataUpdatedAt: initialDataUpdatedAt,
         placeholderData: placeholderData,
         structuralSharing: structuralSharing,
+        persist: persist,
         meta: meta,
       ),
     );

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
@@ -20,6 +21,7 @@ part 'query_result.dart';
 part 'query_observer.dart';
 part 'infinite_query.dart';
 part 'streamed_query.dart';
+part 'persist.dart';
 part 'mutation_state.dart';
 part 'mutation.dart';
 part 'mutation_cache.dart';
