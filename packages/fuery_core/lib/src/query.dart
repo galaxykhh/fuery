@@ -95,6 +95,7 @@ class Query<TData extends Object> extends Removable {
   Retryer<TData>? _retryer;
   final List<QueryObserver<TData>> _observers = [];
   bool _abortSignalConsumed = false;
+  bool _removed = false;
   bool _restoreAttempted = false;
   Future<void>? _restoring;
   bool _persistScheduled = false;
@@ -133,6 +134,14 @@ class Query<TData extends Object> extends Removable {
       }
     }
     if (state != null) _maybeRestore();
+  }
+
+  @override
+  @protected
+  void scheduleGc() {
+    // Once removed from the cache, there is nothing left to collect, and a
+    // timer would outlive the query.
+    if (!_removed) super.scheduleGc();
   }
 
   @override

@@ -107,6 +107,7 @@ class Mutation<TData, TVariables, TContext> extends Removable {
   }
 
   final int mutationId;
+  bool _removed = false;
   final MutationCache _mutationCache;
   final List<MutationObserver<TData, TVariables, TContext>> _observers = [];
   late MutationOptions<TData, TVariables, TContext> _options;
@@ -135,6 +136,13 @@ class Mutation<TData, TVariables, TContext> extends Removable {
     _observers.remove(observer);
     scheduleGc();
     _mutationCache.notify(MutationObserverRemovedEvent(this, observer));
+  }
+
+  @override
+  @protected
+  void scheduleGc() {
+    // Once removed from the cache, there is nothing left to collect.
+    if (!_removed) super.scheduleGc();
   }
 
   @override
