@@ -1,3 +1,6 @@
+## 0.3.2
+- No changes. Released together with `fuery` 0.3.2.
+
 ## 0.3.1
 - Link the documentation site at https://galaxykhh.github.io/fuery/.
 
