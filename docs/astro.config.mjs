@@ -8,7 +8,7 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'Fuery',
-			description: 'Server state for Flutter, with widgets that work like flutter_bloc.',
+			description: 'Fetch, cache, and keep server data fresh in Flutter.',
 			head: [
 				{ tag: 'meta', attrs: { property: 'og:image', content: 'https://galaxykhh.github.io/fuery/og.png' } },
 				{ tag: 'meta', attrs: { property: 'og:image:alt', content: 'Fuery: server state for Flutter' } },

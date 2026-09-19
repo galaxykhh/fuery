@@ -12,11 +12,10 @@ typedef ResultWidgetListener<R> = void Function(BuildContext context, R result);
 /// notify.
 typedef ResultCondition<R> = bool Function(R previous, R current);
 
-/// Subscribes to an observer and builds and/or listens like `BlocConsumer`.
+/// Subscribes to an observer and builds, listens, or both.
 ///
 /// [buildWhen] compares against the result that was last built, and
-/// [listenWhen] against the result that was last received, matching
-/// `flutter_bloc`.
+/// [listenWhen] against the result that was last received.
 class ResultSubscriber<S, R> extends StatefulWidget {
   const ResultSubscriber({
     super.key,

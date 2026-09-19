@@ -1,8 +1,8 @@
 <img src="https://raw.githubusercontent.com/galaxykhh/fuery/main/assets/brand/banner.png" alt="Fuery: server state for Flutter" width="100%">
 
-Server state for Flutter, with widgets that work like `flutter_bloc`.
+Fetch, cache, and keep server data fresh in Flutter.
 
-Fuery fetches, caches, and keeps your server data fresh, with request deduplication, stale-while-revalidate caching, retries, pagination, and optimistic updates. The widgets follow `flutter_bloc` conventions (`Builder`, `Listener`, `Consumer`, `buildWhen`, `listenWhen`), so they fit next to the blocs you already have.
+Fuery fetches, caches, and keeps your server data fresh, with request deduplication, stale-while-revalidate caching, retries, pagination, and optimistic updates. Builder, listener, and consumer widgets, with `buildWhen` and `listenWhen`, turn queries into UI and side effects.
 
 - No code generation, no `BuildContext` required to create a query.
 - Queries are plain objects with a `Stream`, so blocs and cubits can use them too.
@@ -127,7 +127,7 @@ Each kind of query has a builder, a listener, and a consumer:
 | Infinite query | `InfiniteQueryBuilder` | `InfiniteQueryListener` | `InfiniteQueryConsumer` |
 | Mutation | `MutationBuilder` | `MutationListener` | `MutationConsumer` |
 
-They behave like their `flutter_bloc` counterparts:
+How they update:
 
 - `buildWhen(previous, current)` compares with the last built result.
 - `listenWhen(previous, current)` compares with the previous result.
