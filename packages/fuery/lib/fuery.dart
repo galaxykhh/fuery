@@ -1,7 +1,13 @@
-library fuery;
+/// Server state caching for Flutter, with widgets that work like
+/// `flutter_bloc`.
+library;
 
 export 'package:fuery_core/fuery_core.dart';
-export 'src/query_builder.dart';
-export 'src/query_listener.dart';
-export 'src/infinite_query_builder.dart' hide State;
-export 'src/mutation_builder.dart';
+
+export 'src/fuery_binding.dart';
+export 'src/fuery_provider.dart';
+export 'src/infinite_query_widgets.dart';
+export 'src/mutation_widgets.dart';
+export 'src/query_widgets.dart';
+export 'src/result_subscriber.dart'
+    show ResultCondition, ResultWidgetBuilder, ResultWidgetListener;

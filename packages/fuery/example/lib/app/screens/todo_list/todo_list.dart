@@ -6,6 +6,8 @@ import 'package:example/app/screens/todo_list/widgets/todo_list_item.dart';
 import 'package:flutter/material.dart';
 import 'package:fuery/fuery.dart';
 
+const todosKey = ['todos', 'list'];
+
 class TodoListScreen extends StatefulWidget {
   const TodoListScreen({super.key});
 
@@ -23,85 +25,94 @@ class TodoListScreen extends StatefulWidget {
 }
 
 class _TodoListScreenState extends State<TodoListScreen> {
-  late final todos = Query.use(
-    queryKey: ['todos', 'list'],
-    queryFn: () => TodoApi().getList(),
+  final todos = Query.use(
+    queryKey: todosKey,
+    queryFn: (_) => TodoApi().getList(),
   );
 
-  late final addTodo = Mutation.use(
-    mutationFn: (AddTodoPayload payload) => TodoApi().add(
-      payload.title,
-      payload.description,
-    ),
-    onSuccess: (_, newTodo) {
-      Fuery.instance.invalidateQueries(queryKey: ['todos', 'list']);
+  final addTodo = Mutation.use(
+    mutationFn: (AddTodoPayload payload) {
+      return TodoApi().add(payload.title, payload.description);
+    },
+    onSuccess: (todo, payload, _) {
+      return Fuery.instance.invalidateQueries(queryKey: todosKey);
     },
   );
 
-  late final deleteTodo = Mutation.use(
+  // Removes the todo from the list right away, and puts it back if the
+  // server call fails.
+  final deleteTodo = Mutation.use(
     mutationFn: (int id) => TodoApi().delete(id),
     onMutate: (id) {
-      final todos = Fuery.instance.getQueryData<List<Todo>>(['todos', 'list']);
-
-      // has cached todos
-      if (todos != null) {
-        Fuery.instance.setQueryData(
-          ['todos', 'list'],
-          todos.where((t) => t.id != id).toList(),
-        );
-      }
+      final client = Fuery.instance;
+      final previous = client.getQueryData<List<Todo>>(todosKey);
+      client.updateQueryData<List<Todo>>(
+        todosKey,
+        (todos) => todos?.where((todo) => todo.id != id).toList(),
+      );
+      return previous;
     },
-    onSuccess: (_, __) {
-      Fuery.instance.invalidateQueries(queryKey: ['todos', 'list']);
+    onError: (error, id, previous) {
+      if (previous != null) Fuery.instance.setQueryData(todosKey, previous);
+    },
+    onSuccess: (_, id, __) {
+      return Fuery.instance.invalidateQueries(queryKey: todosKey);
     },
   );
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Scaffold(
-          appBar: AppBar(
-            title: const Text('Todos'),
-            actions: [
-              IconButton.outlined(
-                onPressed: () => AddTodoDialog.show(
-                  context,
-                  onSubmit: (payload) => addTodo.mutate(payload),
+    return MutationListener(
+      mutation: deleteTodo,
+      listenWhen: (previous, current) => current.isError,
+      listener: (context, state) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not delete: ${state.error}')),
+        );
+      },
+      child: Stack(
+        children: [
+          Scaffold(
+            appBar: AppBar(
+              title: const Text('Todos'),
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(2),
+                child: QueryBuilder(
+                  query: todos,
+                  buildWhen: (previous, current) =>
+                      previous.isRefetching != current.isRefetching,
+                  builder: (context, state) => state.isRefetching
+                      ? const LinearProgressIndicator(minHeight: 2)
+                      : const SizedBox(height: 2),
                 ),
-                icon: const Icon(Icons.add),
               ),
-              IconButton.outlined(
-                onPressed: todos.refetch,
-                icon: const Icon(Icons.refresh),
-              )
-            ],
-          ),
-          body: QueryListener(
-            query: todos,
-            listenWhen: (prev, curr) => prev.fetchStatus != curr.fetchStatus,
-            listener: (context, data) {
-              print('FETCH STATUS');
-            },
-            child: QueryBuilder(
+              actions: [
+                IconButton.outlined(
+                  onPressed: () => AddTodoDialog.show(
+                    context,
+                    onSubmit: addTodo.mutate,
+                  ),
+                  icon: const Icon(Icons.add),
+                ),
+                IconButton.outlined(
+                  onPressed: todos.refetch,
+                  icon: const Icon(Icons.refresh),
+                ),
+              ],
+            ),
+            body: QueryBuilder(
               query: todos,
               builder: (context, state) {
-                switch (state.status) {
-                  case QueryStatus.idle:
-                  case QueryStatus.pending:
-                    return const Center(
+                return switch (state.status) {
+                  QueryStatus.pending => const Center(
                       child: CircularProgressIndicator(),
-                    );
-
-                  case QueryStatus.failure:
-                    return const Center(
-                      child: Text('ERROR'),
-                    );
-
-                  case QueryStatus.success:
-                    return ListView.separated(
+                    ),
+                  QueryStatus.error when !state.hasData => Center(
+                      child: Text('Error: ${state.error}'),
+                    ),
+                  _ => ListView.separated(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: state.data?.length ?? 0,
+                      itemCount: state.data!.length,
                       itemBuilder: (context, index) {
                         return TodoListItem(
                           todo: state.data![index],
@@ -109,31 +120,30 @@ class _TodoListScreenState extends State<TodoListScreen> {
                           onDelete: (todo) => deleteTodo.mutate(todo.id),
                         );
                       },
-                      separatorBuilder: (BuildContext context, int index) {
+                      separatorBuilder: (context, index) {
                         return const SizedBox(height: 6);
                       },
-                    );
-                }
+                    ),
+                };
               },
             ),
           ),
-        ),
-        MutationBuilder(
-          mutation: deleteTodo,
-          builder: (context, state) {
-            if (state.status.isPending) {
+          MutationBuilder(
+            mutation: deleteTodo,
+            builder: (context, state) {
+              if (!state.isPending) return const SizedBox();
               return const Stack(
                 children: [
                   ModalBarrier(color: Colors.black54),
-                  Center(child: CircularProgressIndicator(color: Colors.white)),
+                  Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  ),
                 ],
               );
-            }
-
-            return const SizedBox();
-          },
-        ),
-      ],
+            },
+          ),
+        ],
+      ),
     );
   }
 }

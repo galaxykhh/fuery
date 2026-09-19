@@ -18,7 +18,7 @@ class TodoListItem extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const ColorScheme.light().background,
+        color: const ColorScheme.light().surface,
       ),
       child: Row(
         children: [
@@ -45,7 +45,7 @@ class TodoListItem extends StatelessWidget {
                   todo.isCompleted ? 'Done' : 'In Progress',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: todo.isCompleted
-                            ? const ColorScheme.light().onBackground
+                            ? const ColorScheme.light().onSurface
                             : const ColorScheme.light().primary,
                       ),
                 ),
