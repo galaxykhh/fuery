@@ -6,7 +6,7 @@ import 'result_subscriber.dart';
 typedef _Observer<TPage, TParam> = InfiniteQueryObserver<TPage, TParam>;
 typedef _Result<TPage, TParam> = InfiniteQueryResult<TPage, TParam>;
 
-/// Builds UI from an infinite query, like `BlocBuilder`.
+/// Builds UI from an infinite query.
 ///
 /// ```dart
 /// InfiniteQueryBuilder(
@@ -47,7 +47,7 @@ class InfiniteQueryBuilder<TPage, TParam> extends StatelessWidget {
   }
 }
 
-/// Runs side effects when an infinite query changes, like `BlocListener`.
+/// Runs side effects when an infinite query changes.
 class InfiniteQueryListener<TPage, TParam> extends StatelessWidget {
   const InfiniteQueryListener({
     super.key,
@@ -75,8 +75,7 @@ class InfiniteQueryListener<TPage, TParam> extends StatelessWidget {
   }
 }
 
-/// An [InfiniteQueryBuilder] and [InfiniteQueryListener] in one, like
-/// `BlocConsumer`.
+/// An [InfiniteQueryBuilder] and [InfiniteQueryListener] in one.
 class InfiniteQueryConsumer<TPage, TParam> extends StatelessWidget {
   const InfiniteQueryConsumer({
     super.key,
@@ -103,6 +102,40 @@ class InfiniteQueryConsumer<TPage, TParam> extends StatelessWidget {
       buildWhen: buildWhen,
       listener: listener,
       listenWhen: listenWhen,
+    );
+  }
+}
+
+/// Builds UI from a value selected from an infinite query's results, and
+/// rebuilds only when that value changes.
+///
+/// ```dart
+/// InfiniteQuerySelector(
+///   query: posts,
+///   selector: (state) => state.pages.fold(0, (n, page) => n + page.items.length),
+///   builder: (context, count) => Text('$count posts'),
+/// )
+/// ```
+class InfiniteQuerySelector<TPage, TParam, T> extends StatelessWidget {
+  const InfiniteQuerySelector({
+    super.key,
+    required this.query,
+    required this.selector,
+    required this.builder,
+  });
+
+  final InfiniteQueryObserver<TPage, TParam> query;
+  final T Function(InfiniteQueryResult<TPage, TParam> state) selector;
+  final ResultWidgetBuilder<T> builder;
+
+  @override
+  Widget build(BuildContext context) {
+    return ResultSelector<_Observer<TPage, TParam>, _Result<TPage, TParam>, T>(
+      source: query,
+      initialResult: _initialResult,
+      subscribe: _subscribe,
+      selector: selector,
+      builder: builder,
     );
   }
 }

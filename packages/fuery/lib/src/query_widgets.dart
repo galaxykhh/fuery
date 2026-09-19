@@ -3,7 +3,7 @@ import 'package:fuery_core/fuery_core.dart';
 
 import 'result_subscriber.dart';
 
-/// Builds UI from a query, like `BlocBuilder`.
+/// Builds UI from a query.
 ///
 /// Mounting the builder subscribes to [query], which fetches if needed.
 /// Create the query once, for example in a `State` field, not in `build`.
@@ -50,7 +50,7 @@ class QueryBuilder<TData extends Object> extends StatelessWidget {
   }
 }
 
-/// Runs side effects when a query changes, like `BlocListener`. Not called for
+/// Runs side effects when a query changes. Not called for
 /// the result the query already had when the listener mounted.
 ///
 /// ```dart
@@ -91,7 +91,7 @@ class QueryListener<TData extends Object> extends StatelessWidget {
   }
 }
 
-/// A [QueryBuilder] and [QueryListener] in one, like `BlocConsumer`.
+/// A [QueryBuilder] and [QueryListener] in one.
 class QueryConsumer<TData extends Object> extends StatelessWidget {
   const QueryConsumer({
     super.key,
@@ -118,6 +118,42 @@ class QueryConsumer<TData extends Object> extends StatelessWidget {
       buildWhen: buildWhen,
       listener: listener,
       listenWhen: listenWhen,
+    );
+  }
+}
+
+/// Builds UI from a value selected from a query's results, and rebuilds only
+/// when that value changes.
+///
+/// Lists, maps, and sets are compared by content, other values with `==`.
+///
+/// ```dart
+/// QuerySelector(
+///   query: todos,
+///   selector: (state) => state.data?.where((todo) => todo.done).length ?? 0,
+///   builder: (context, doneCount) => Text('$doneCount done'),
+/// )
+/// ```
+class QuerySelector<TData extends Object, T> extends StatelessWidget {
+  const QuerySelector({
+    super.key,
+    required this.query,
+    required this.selector,
+    required this.builder,
+  });
+
+  final QueryObserver<TData> query;
+  final T Function(QueryResult<TData> state) selector;
+  final ResultWidgetBuilder<T> builder;
+
+  @override
+  Widget build(BuildContext context) {
+    return ResultSelector<QueryObserver<TData>, QueryResult<TData>, T>(
+      source: query,
+      initialResult: _initialResult,
+      subscribe: _subscribe,
+      selector: selector,
+      builder: builder,
     );
   }
 }

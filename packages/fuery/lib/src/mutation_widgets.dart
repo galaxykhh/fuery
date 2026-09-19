@@ -8,7 +8,7 @@ typedef _Observer<TData, TVariables, TContext>
 typedef _State<TData, TVariables, TContext>
     = MutationState<TData, TVariables, TContext>;
 
-/// Builds UI from a mutation, like `BlocBuilder`.
+/// Builds UI from a mutation.
 ///
 /// ```dart
 /// MutationBuilder(
@@ -42,7 +42,7 @@ class MutationBuilder<TData, TVariables, TContext> extends StatelessWidget {
   }
 }
 
-/// Runs side effects when a mutation changes, like `BlocListener`.
+/// Runs side effects when a mutation changes.
 ///
 /// ```dart
 /// MutationListener(
@@ -81,7 +81,7 @@ class MutationListener<TData, TVariables, TContext> extends StatelessWidget {
   }
 }
 
-/// A [MutationBuilder] and [MutationListener] in one, like `BlocConsumer`.
+/// A [MutationBuilder] and [MutationListener] in one.
 class MutationConsumer<TData, TVariables, TContext> extends StatelessWidget {
   const MutationConsumer({
     super.key,
@@ -110,6 +110,44 @@ class MutationConsumer<TData, TVariables, TContext> extends StatelessWidget {
       buildWhen: buildWhen,
       listener: listener,
       listenWhen: listenWhen,
+    );
+  }
+}
+
+/// Builds UI from a value selected from a mutation's state, and rebuilds only
+/// when that value changes.
+///
+/// ```dart
+/// MutationSelector(
+///   mutation: addTodo,
+///   selector: (state) => state.isPending,
+///   builder: (context, saving) => FilledButton(
+///     onPressed: saving ? null : save,
+///     child: const Text('Save'),
+///   ),
+/// )
+/// ```
+class MutationSelector<TData, TVariables, TContext, T> extends StatelessWidget {
+  const MutationSelector({
+    super.key,
+    required this.mutation,
+    required this.selector,
+    required this.builder,
+  });
+
+  final MutationObserver<TData, TVariables, TContext> mutation;
+  final T Function(MutationState<TData, TVariables, TContext> state) selector;
+  final ResultWidgetBuilder<T> builder;
+
+  @override
+  Widget build(BuildContext context) {
+    return ResultSelector<_Observer<TData, TVariables, TContext>,
+        _State<TData, TVariables, TContext>, T>(
+      source: mutation,
+      initialResult: _initialResult,
+      subscribe: _subscribe,
+      selector: selector,
+      builder: builder,
     );
   }
 }
