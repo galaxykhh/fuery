@@ -399,6 +399,19 @@ final todos = Query.use(
 
 `QueryStorage` has `read`, `write`, `delete`, and `readAll`, and can be synchronous or asynchronous. Stored data expires after the client's `persistMaxAge` (default: one day), and `version` discards data in an old format. `clear()` deletes all stored data, for example on logout. The [persistence guide](https://galaxykhh.github.io/fuery/guides/persistence/) has a `shared_preferences` storage, infinite queries, and `restore()`.
 
+## Devtools
+
+`FueryDevtools` adds a button over your app that opens a panel with every query and mutation: their status and data, and buttons to refetch, invalidate, reset, or remove a query. It only appears in debug and profile builds.
+
+```dart
+MaterialApp(
+  builder: (context, child) => FueryDevtools(child: child!),
+  home: const HomeScreen(),
+)
+```
+
+`FueryDevtoolsPanel` is the panel on its own, for a debug screen of your own.
+
 ## App lifecycle and connectivity
 
 Fuery widgets connect the app lifecycle automatically:

@@ -22,7 +22,7 @@ Fuery caches server data, deduplicates requests, retries failures, paginates, an
 
 | Package | |
 |---|---|
-| [`fuery`](packages/fuery) | Flutter widgets, app lifecycle integration, and `FueryProvider`. Re-exports `fuery_core`. |
+| [`fuery`](packages/fuery) | Flutter widgets, app lifecycle integration, `FueryProvider`, and devtools. Re-exports `fuery_core`. |
 | [`fuery_core`](packages/fuery_core) | Pure Dart core: `QueryClient`, queries, infinite queries, mutations, cache, and retries. |
 
 ## Development

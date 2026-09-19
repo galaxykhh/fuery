@@ -58,3 +58,4 @@ class _TodoListScreenState extends State<TodoListScreen> {
 - [Widgets](../guides/widgets/): builders, listeners, and consumers.
 - [Mutations](../guides/mutations/): changing server data and optimistic updates.
 - [Using with bloc](../guides/bloc/): the same queries inside cubits and blocs.
+- [Devtools](../guides/devtools/): see every query and mutation while you develop.
