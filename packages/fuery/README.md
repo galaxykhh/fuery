@@ -1,7 +1,4 @@
-<p align="center">
-  <img src="https://github.com/galaxykhh/fuery/assets/79380337/15ad2527-a059-44ce-a8d2-51920c02596f"/>
-  <h1 align="center">Fuery</h1>
-</p>
+<img src="https://raw.githubusercontent.com/galaxykhh/fuery/main/assets/brand/banner.png" alt="Fuery: server state for Flutter" width="100%">
 
 Server state for Flutter, with widgets that work like `flutter_bloc`.
 

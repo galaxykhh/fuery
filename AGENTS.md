@@ -45,6 +45,7 @@ CI (`.github/workflows/ci.yml`) runs format, analyze, and all three test suites 
 
 ## Writing docs
 
+- The logo, README banner, GitHub social preview, and icon live in `assets/brand/`. Edit the SVGs, then run `python3 assets/brand/render.py` to regenerate the PNGs. Palette: violet `#6B4EFF`, lime `#C6F542`, lavender `#C9BEFF`, ink `#14112B`.
 - Describe Fuery on its own terms: what it does and how it fits Flutter and bloc. Don't compare it with other libraries or call it a port.
 - Keep README examples short and runnable against the real API.
 - READMEs describe the current API only. Don't add upgrade or migration guides.

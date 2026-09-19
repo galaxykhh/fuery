@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/galaxykhh/fuery/main/assets/brand/banner.png" alt="Fuery: server state for Flutter" width="100%">
+
 # Fuery Core
 
 Server state caching for Dart: queries, infinite queries, and mutations.

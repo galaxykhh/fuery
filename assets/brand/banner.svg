@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 400" width="1280" height="400" role="img" aria-label="Fuery - Server state for Flutter">
+  <!-- README header. -->
+  <defs>
+    <clipPath id="frame"><rect width="1280" height="400" rx="28"/></clipPath>
+  </defs>
+  <g clip-path="url(#frame)">
+    <rect width="1280" height="400" fill="#14112B"/>
+    <g fill="#6B4EFF" opacity="0.08">
+      <rect x="1000" y="-70" width="132" height="132" rx="34"/>
+      <rect x="1150" y="-70" width="132" height="132" rx="34"/>
+      <rect x="1150" y="80" width="132" height="132" rx="34"/>
+      <rect x="-2" y="338" width="132" height="132" rx="34"/>
+      <rect x="148" y="338" width="132" height="132" rx="34"/>
+    </g>
+    <g transform="translate(300 100) scale(0.390625)">
+      <rect x="40" y="40" width="132" height="432" rx="34" fill="#6B4EFF"/>
+      <rect x="190" y="40" width="282" height="132" rx="34" fill="#6B4EFF"/>
+      <rect x="190" y="190" width="132" height="132" rx="34" fill="#6B4EFF" opacity="0.4"/>
+      <rect x="274" y="190" width="132" height="132" rx="34" fill="#C6F542"/>
+    </g>
+    <g font-family="Inter, 'Helvetica Neue', Arial, sans-serif">
+      <text x="520" y="214" font-size="112" font-weight="700" letter-spacing="-4" fill="#FFFFFF">Fuery</text>
+      <text x="525" y="272" font-size="34" font-weight="500" fill="#C9BEFF">Server state for Flutter</text>
+    </g>
+  </g>
+</svg>
