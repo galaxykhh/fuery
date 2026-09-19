@@ -30,6 +30,8 @@ Coverage (both packages are at 100% line coverage):
 
 `coverage/` is gitignored.
 
+CI (`.github/workflows/ci.yml`) runs format, analyze, and all three test suites on the latest stable Flutter for every pull request and every push to `main`.
+
 ## Rules for every change
 
 - Keep `flutter analyze packages` at zero issues and `dart format` clean.
