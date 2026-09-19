@@ -1,3 +1,7 @@
+## 0.4.0
+- Add `QuerySelector`, `InfiniteQuerySelector`, and `MutationSelector`, which rebuild only when a selected value changes.
+- Includes `fuery_core` 0.4.0: `refetchWhile`, `QueryClient.watch`, and `streamedQuery`.
+
 ## 0.3.2
 - Read query data with pattern matching in the README and examples, instead of `state.data!`.
 
