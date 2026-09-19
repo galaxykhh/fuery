@@ -17,7 +17,7 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
   /// Creates an observer for a mutation that takes [TVariables].
   ///
   /// ```dart
-  /// late final addTodo = Mutation.use(
+  /// final addTodo = Mutation.use(
   ///   mutationFn: (String title) => api.addTodo(title),
   ///   onSuccess: (todo, title, context) {
   ///     Fuery.client.invalidateQueries(queryKey: ['todos']);
@@ -137,6 +137,13 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
   }
 
   @override
+  void _destroy() {
+    super._destroy();
+    // A removed mutation doesn't wait to retry; the current attempt finishes.
+    _retryer?.stopRetrying();
+  }
+
+  @override
   void _scheduleGc() {
     // Once removed from the cache, there is nothing left to collect.
     if (!_removed) super._scheduleGc();
@@ -144,12 +151,11 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
 
   @override
   void _optionalRemove() {
-    if (_observers.isNotEmpty) return;
-    if (_state.status == MutationStatus.pending) {
-      _scheduleGc();
-    } else {
-      _mutationCache._remove(this);
+    // A pending mutation is collected once it settles, see _execute.
+    if (_observers.isNotEmpty || _state.status == MutationStatus.pending) {
+      return;
     }
+    _mutationCache._remove(this);
   }
 
   /// Resumes a paused mutation.
@@ -193,6 +199,10 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
         ));
       }
 
+      // The scope or network may have freed up during onMutate.
+      if (_state.isPaused && retryer.canStart()) {
+        _dispatch(const _MutationContinueAction());
+      }
       final data = await retryer.start();
 
       await cacheConfig.onSuccess?.call(data, variables, _state.context, this);
@@ -228,6 +238,7 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
       Error.throwWithStackTrace(error, stackTrace);
     } finally {
       if (identical(_retryer, retryer)) _retryer = null;
+      if (_observers.isEmpty) _scheduleGc();
       _mutationCache._runNext(this);
     }
   }

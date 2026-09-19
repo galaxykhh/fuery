@@ -33,7 +33,7 @@ final class RetryPolicy {
       : _count = null,
         _predicate = null;
 
-  /// Retry while [predicate] returns true. [failureCount] starts at 0 for the
+  /// Retry while [predicate] returns true. `failureCount` starts at 0 for the
   /// first failure.
   const RetryPolicy.when(
       bool Function(int failureCount, Object error) predicate)
@@ -115,6 +115,11 @@ class Retryer<TData> {
   int _failureCount = 0;
   void Function()? _continueFn;
 
+  /// Waits for the delay before the next attempt, with the error that
+  /// caused it.
+  Timer? _retryTimer;
+  (Object, StackTrace)? _retryError;
+
   Future<TData> get future => _completer.future;
 
   RetryerStatus get status => _status;
@@ -130,6 +135,14 @@ class Retryer<TData> {
 
   /// Stops retrying after the current attempt.
   void cancelRetry() => _isRetryCancelled = true;
+
+  /// Stops retrying now. A retry that is waiting for its delay fails right
+  /// away with the last error.
+  void stopRetrying() {
+    cancelRetry();
+    final retryError = _retryError;
+    if (retryError != null) _reject(retryError.$1, retryError.$2);
+  }
 
   /// Allows retries again after [cancelRetry].
   void continueRetry() => _isRetryCancelled = false;
@@ -159,6 +172,7 @@ class Retryer<TData> {
 
   void _resolve(TData value) {
     if (_isResolved) return;
+    _clearRetryTimer();
     _status = RetryerStatus.resolved;
     _continueFn?.call();
     _completer.complete(value);
@@ -166,9 +180,16 @@ class Retryer<TData> {
 
   void _reject(Object error, StackTrace stackTrace) {
     if (_isResolved) return;
+    _clearRetryTimer();
     _status = RetryerStatus.rejected;
     _continueFn?.call();
     _completer.completeError(error, stackTrace);
+  }
+
+  void _clearRetryTimer() {
+    _retryTimer?.cancel();
+    _retryTimer = null;
+    _retryError = null;
   }
 
   Future<void> _pause() {
@@ -205,14 +226,17 @@ class Retryer<TData> {
       _failureCount++;
       onFail?.call(_failureCount, error);
 
-      Future<void>.delayed(delay)
-          .then((_) => _canContinue() ? null : _pause())
-          .then((_) {
-        if (_isRetryCancelled) {
-          _reject(error, st);
-        } else {
-          _run();
-        }
+      _retryError = (error, st);
+      _retryTimer = Timer(delay, () {
+        _retryTimer = null;
+        _retryError = null;
+        (_canContinue() ? Future<void>.value() : _pause()).then((_) {
+          if (_isRetryCancelled) {
+            _reject(error, st);
+          } else {
+            _run();
+          }
+        });
       });
     });
   }

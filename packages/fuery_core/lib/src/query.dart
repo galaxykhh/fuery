@@ -25,7 +25,7 @@ class Query<TData extends Object> extends _Removable {
   /// when a `QueryBuilder` mounts or a bloc listens to [QueryObserver.stream].
   ///
   /// ```dart
-  /// late final todos = Query.use(
+  /// final todos = Query.use(
   ///   queryKey: ['todos'],
   ///   queryFn: (_) => api.getTodos(),
   /// );
@@ -97,6 +97,9 @@ class Query<TData extends Object> extends _Removable {
   bool _removed = false;
   bool _restoreAttempted = false;
   Future<void>? _restoring;
+
+  /// Increased by a reset, so a read that started before it is dropped.
+  int _restoreGeneration = 0;
   bool _persistScheduled = false;
 
   QueryOptions<TData> get options => _options;
@@ -186,8 +189,10 @@ class Query<TData extends Object> extends _Removable {
 
   /// Resets the query to its initial state.
   void _reset() {
+    _restoreGeneration++;
     _destroy();
     _setState(_initialState);
+    if (_observers.isEmpty) _scheduleGc();
   }
 
   /// Whether at least one observer is enabled.
@@ -273,6 +278,12 @@ class Query<TData extends Object> extends _Removable {
     if (!state.isInvalidated) _dispatch(const _QueryInvalidateAction());
   }
 
+  /// Refetches with the options of an observer when there is one, so options
+  /// passed to [QueryClient.query], like its retry default, don't stick.
+  Future<TData> _refetch(_FetchOptions fetchOptions) {
+    return _fetch(_observers.firstOrNull?.options, fetchOptions);
+  }
+
   /// Runs the query function and updates the state with the result.
   ///
   /// Returns the in-flight fetch if one is running, unless
@@ -356,9 +367,13 @@ class Query<TData extends Object> extends _Removable {
     final retryer = _retryer = Retryer<TData>(
       fn: context.fetchFn,
       onCancel: (error) {
+        // Update the state right away, so a write or fetch that follows the
+        // cancel isn't overwritten when the cancelled fetch settles.
         final revertState = _revertState;
         if (error.revert && revertState != null) {
           _setState(revertState.copyWith(fetchStatus: FetchStatus.idle));
+        } else if (!error.silent) {
+          _dispatch(_QueryErrorAction(error));
         }
         abortController.abort(error);
       },
@@ -381,15 +396,21 @@ class Query<TData extends Object> extends _Removable {
       return data;
     } on CancelledError catch (error) {
       if (error.silent) {
-        // A new fetch replaced this one; follow it.
-        return (_retryer ?? retryer).future;
+        // Follow the fetch that replaced this one, if any.
+        final current = _retryer;
+        if (current != null && !identical(current, retryer)) {
+          return current.future;
+        }
+        if (state.fetchStatus != FetchStatus.idle) {
+          _setState(state.copyWith(fetchStatus: FetchStatus.idle));
+        }
+        rethrow;
       }
       if (error.revert) {
         final data = state.data;
         if (data == null) rethrow;
         return data;
       }
-      _onFetchError(error);
       rethrow;
     } catch (error) {
       _onFetchError(error);
@@ -487,7 +508,7 @@ class Query<TData extends Object> extends _Removable {
   String get _storageKey => '$persistKeyPrefix$queryHash';
 
   /// Restores persisted data the first time the query has a [QueryPersist]
-  /// and no data. Synchronous storage restores right away; otherwise [fetch]
+  /// and no data. Synchronous storage restores right away; otherwise [_fetch]
   /// waits for the restore.
   void _maybeRestore() {
     final storage = _client.storage;
@@ -512,9 +533,13 @@ class Query<TData extends Object> extends _Removable {
       return; // A failing storage is treated as empty.
     }
     if (value is Future<String?>) {
-      _restoring = value
-          .then(_applyRestored, onError: (Object _) {})
-          .whenComplete(() => _restoring = null);
+      final generation = _restoreGeneration;
+      _restoring = value.then(
+        (raw) {
+          if (generation == _restoreGeneration) _applyRestored(raw);
+        },
+        onError: (Object _) {},
+      ).whenComplete(() => _restoring = null);
     } else {
       _applyRestored(value);
     }
@@ -522,7 +547,8 @@ class Query<TData extends Object> extends _Removable {
 
   /// Restores data that [QueryClient.restore] read ahead of time.
   void _restoreFromPreload() {
-    if (_options.persist == null || state.data != null) return;
+    // Take the entry either way: a query that already has data must not
+    // restore this snapshot after it's garbage collected.
     final preloaded = _client._takePreloaded(queryHash);
     if (preloaded != null) _applyRestored(preloaded);
   }
@@ -542,7 +568,6 @@ class Query<TData extends Object> extends _Removable {
         data: persist._decode(entry['d']),
         dataUpdatedAt: updatedAt,
         error: null,
-        isInvalidated: false,
         status: QueryStatus.success,
       ));
     } catch (_) {
@@ -585,6 +610,8 @@ class Query<TData extends Object> extends _Removable {
     } catch (_) {
       return; // Data that can't be encoded isn't stored.
     }
+    // A snapshot read by restore() is older than this data now.
+    _client._takePreloaded(queryHash);
     // Write after deletions in flight, so they can't remove the new data.
     final deletions = _client._deletionsDone();
     if (deletions == null) {

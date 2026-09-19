@@ -266,6 +266,8 @@ class QueryClient {
           try {
             next = selector(this);
           } catch (error, stackTrace) {
+            // The next value is emitted even if it equals the one before.
+            hasValue = false;
             controller.addError(error, stackTrace);
             return;
           }
@@ -381,8 +383,9 @@ class QueryClient {
     return query.state.data!;
   }
 
-  /// Like [query], for infinite queries. Fetches `pages` pages when there is
-  /// no cached data.
+  /// Like [query], for infinite queries. With nothing cached it loads the
+  /// `pages` passed to [infiniteQueryOptions] (default: one); otherwise it
+  /// reloads the pages already cached.
   Future<InfiniteData<TPage, TParam>> infiniteQuery<TPage, TParam>(
     InfiniteQueryOptions<TPage, TParam> options,
   ) {
@@ -410,7 +413,19 @@ class QueryClient {
         queryCache._remove(query);
       }
       _forgetStored(filters, queries);
+      _moveObservers(queries);
     });
+  }
+
+  /// Moves observers still subscribed to [removed] queries to new ones, which
+  /// load again. Runs after stored data is deleted, so the new queries don't
+  /// restore it.
+  void _moveObservers(Iterable<Query<Object>> removed) {
+    for (final query in removed) {
+      for (final observer in query._observers.toList()) {
+        observer._onQueryRemoved();
+      }
+    }
   }
 
   /// Resets matching queries to their initial state and refetches the active
@@ -552,9 +567,12 @@ class QueryClient {
     final futures = notifyManager.batch(() {
       return queryCache
           .findAll(filters)
-          .where((query) => !query.isDisabled() && !query.isStatic())
+          // A static query is only skipped while it has data.
+          .where((query) =>
+              !query.isDisabled() &&
+              !(query.isStatic() && query.state.data != null))
           .map((query) {
-        var future = query._fetch(null, fetchOptions).then<void>((_) {});
+        var future = query._refetch(fetchOptions).then<void>((_) {});
         if (!throwOnError) {
           future = future.then<void>((_) {}, onError: (Object _) {});
         }
@@ -624,11 +642,14 @@ class QueryClient {
     return options._withDefaults(defaults);
   }
 
-  /// Removes every query and mutation.
   /// Removes every query and mutation, and deletes all persisted data.
   void clear() {
-    queryCache._clear();
-    mutationCache._clear();
-    _forgetStored(const QueryFilters(), const []);
+    notifyManager.batch(() {
+      final queries = queryCache.getAll();
+      queryCache._clear();
+      mutationCache._clear();
+      _forgetStored(const QueryFilters(), const []);
+      _moveObservers(queries);
+    });
   }
 }

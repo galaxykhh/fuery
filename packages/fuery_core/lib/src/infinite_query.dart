@@ -79,8 +79,8 @@ class _InfiniteQueryBehavior<TPage, TParam>
   /// Keep at most this many pages. Older pages are dropped from the other end.
   final int? maxPages;
 
-  /// How many pages to fetch on the initial load. Defaults to the number of
-  /// pages already loaded, or one.
+  /// How many pages to load when nothing is cached. Defaults to one. With
+  /// cached pages, a full fetch reloads all of them.
   final int? pages;
 
   @override
@@ -144,7 +144,7 @@ class _InfiniteQueryBehavior<TPage, TParam>
         return fetchPage(oldData, param, previous: previous);
       }
 
-      final remainingPages = pages ?? oldPages.length;
+      final remainingPages = oldPages.isEmpty ? pages ?? 1 : oldPages.length;
       var result = InfiniteData<TPage, TParam>(pages: [], pageParams: []);
       var currentPage = 0;
 
@@ -212,10 +212,10 @@ class InfiniteQueryOptions<TPage, TParam>
     super.initialDataUpdatedAt,
     super.placeholderData,
     super.structuralSharing,
-    InfiniteQueryPersist<TPage, TParam>? persist,
+    InfiniteQueryPersist<TPage, Object?>? persist,
     super.meta,
   }) : super._withBehavior(
-          persist: persist?._toQueryPersist(),
+          persist: persist?._toQueryPersist<TParam>(),
           // Infinite observers always report InfiniteQueryResults.
           refetchWhile: refetchWhile == null
               ? null
@@ -374,14 +374,14 @@ class InfiniteQueryObserver<TPage, TParam>
 
   @override
   QueryResult<InfiniteData<TPage, TParam>> _buildResult(
-    Query<InfiniteData<TPage, TParam>> query,
+    QueryState<InfiniteData<TPage, TParam>> state,
     QueryOptions<InfiniteData<TPage, TParam>> options,
     QueryResult<InfiniteData<TPage, TParam>> base,
   ) {
     final behavior =
         options._behavior! as _InfiniteQueryBehavior<TPage, TParam>;
-    final data = query.state.data;
-    final direction = query.state._fetchDirection;
+    final data = state.data;
+    final direction = state._fetchDirection;
     final forward = direction == _FetchDirection.forward;
     final backward = direction == _FetchDirection.backward;
 
@@ -402,8 +402,10 @@ class InfiniteQueryObserver<TPage, TParam>
 ///
 /// Prefer this over the [InfiniteQueryOptions] constructor, which needs
 /// explicit type arguments. See [InfiniteQuery.use] for the parameters.
+/// [pages] sets how many pages to load when nothing is cached, for example
+/// to prefetch several pages with [QueryClient.infiniteQuery].
 InfiniteQueryOptions<TPage, TParam> infiniteQueryOptions<TPage, TParam,
-    TNext extends TParam?, TPrev extends TParam?>({
+    TNext extends TParam?, TPrev extends TParam?, TPersistParam>({
   required QueryKey queryKey,
   required InfiniteQueryFn<TPage, TParam> queryFn,
   required TParam initialPageParam,
@@ -428,7 +430,7 @@ InfiniteQueryOptions<TPage, TParam> infiniteQueryOptions<TPage, TParam,
   int? initialDataUpdatedAt,
   PlaceholderDataFn<InfiniteData<TPage, TParam>>? placeholderData,
   bool? structuralSharing,
-  InfiniteQueryPersist<TPage, TParam>? persist,
+  InfiniteQueryPersist<TPage, TPersistParam>? persist,
   Map<String, Object?>? meta,
 }) {
   return InfiniteQueryOptions<TPage, TParam>(
@@ -470,7 +472,7 @@ abstract final class InfiniteQuery {
   /// inferred from [queryFn] and [initialPageParam].
   ///
   /// ```dart
-  /// late final posts = InfiniteQuery.use(
+  /// final posts = InfiniteQuery.use(
   ///   queryKey: ['posts'],
   ///   queryFn: (context) => api.getPosts(page: context.pageParam),
   ///   initialPageParam: 1,
@@ -481,8 +483,8 @@ abstract final class InfiniteQuery {
   ///
   /// When the first page has no param, give `null` its type so the param type
   /// can be inferred: `initialPageParam: null as String?`.
-  static InfiniteQueryObserver<TPage, TParam>
-      use<TPage, TParam, TNext extends TParam?, TPrev extends TParam?>({
+  static InfiniteQueryObserver<TPage, TParam> use<TPage, TParam,
+      TNext extends TParam?, TPrev extends TParam?, TPersistParam>({
     required QueryKey queryKey,
     required InfiniteQueryFn<TPage, TParam> queryFn,
     required TParam initialPageParam,
@@ -506,7 +508,7 @@ abstract final class InfiniteQuery {
     int? initialDataUpdatedAt,
     PlaceholderDataFn<InfiniteData<TPage, TParam>>? placeholderData,
     bool? structuralSharing,
-    InfiniteQueryPersist<TPage, TParam>? persist,
+    InfiniteQueryPersist<TPage, TPersistParam>? persist,
     Map<String, Object?>? meta,
     QueryClient? client,
   }) {

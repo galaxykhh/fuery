@@ -114,6 +114,27 @@ void main() {
     expect(values, [1]);
   });
 
+  fakeTest('emits a value equal to the last one after an error', (async) {
+    final values = <int>[];
+    final errors = <Object>[];
+    var fail = false;
+    client.watch((client) {
+      if (fail) throw StateError('not ready');
+      return 1;
+    }).listen(values.add, onError: errors.add);
+    async.flushMicrotasks();
+
+    fail = true;
+    client.setQueryData(['a'], 'a');
+    async.flushMicrotasks();
+    fail = false;
+    client.setQueryData(['a'], 'b');
+    async.flushMicrotasks();
+
+    expect(errors, hasLength(1));
+    expect(values, [1, 1]);
+  });
+
   fakeTest('stops listening to the client when cancelled', (async) {
     var reads = 0;
     final subscription = client.watch((client) {

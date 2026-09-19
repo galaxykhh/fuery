@@ -20,19 +20,33 @@ class QueryResult<TData extends Object> {
     required this.isEnabled,
   });
 
+  /// Whether there is data ([QueryStatus.success]), an error with no data
+  /// ([QueryStatus.error]), or neither yet ([QueryStatus.pending]).
   final QueryStatus status;
+
+  /// Whether the query function is running, paused, or idle.
   final FetchStatus fetchStatus;
 
   /// The data, or `null` if there is none yet.
   final TData? data;
 
+  /// When [data] was last updated, in milliseconds since epoch. `0` if
+  /// never.
   final int dataUpdatedAt;
+
+  /// The error of the last fetch, or `null`. Cleared when a fetch succeeds.
   final Object? error;
+
+  /// When [error] was last set, in milliseconds since epoch. `0` if never.
   final int errorUpdatedAt;
+
+  /// How many times the query resolved with an error.
   final int errorUpdateCount;
 
   /// Failures during the current fetch, including retries.
   final int failureCount;
+
+  /// The latest failure during the current fetch, including retries.
   final Object? failureReason;
 
   /// Whether the query has resolved at least once.
@@ -44,7 +58,12 @@ class QueryResult<TData extends Object> {
   /// Whether [data] comes from `placeholderData`.
   final bool isPlaceholderData;
 
+  /// Whether the data is older than `staleTime`, invalidated, or missing.
+  /// Always false for a disabled query. Stale data refetches on mount,
+  /// focus, and reconnect.
   final bool isStale;
+
+  /// Whether the query fetches automatically (`enabled` isn't `false`).
   final bool isEnabled;
 
   /// No data yet.

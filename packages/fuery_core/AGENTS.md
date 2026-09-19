@@ -20,11 +20,15 @@ Pure Dart. Never import Flutter. Runtime dependencies are limited to `clock`, `c
 - Cancel every `Timer` in the matching destroy/clear path. Leftover timers keep Dart processes alive and fail Flutter widget tests.
 - Generics are covariant. Don't read function-typed fields that take `TData` (such as `placeholderData`) through a widened type like `Query<Object>`; do it inside the generic class. `QueryCache._build` compares data types exactly and throws a `StateError` on a mismatch.
 - Put options that need a new type variable for inference on generic functions (see `InfiniteQuery.use` and `infiniteQueryOptions`), not only on constructors.
+- `removeQueries` and `clear` move observers that are still subscribed to a new query for the key, which loads again. They do it after deleting stored data, so the new query can't restore it.
+- A cancel updates the state when it happens (revert, or an error for `revert: false`); a silent cancel that nothing replaces returns the query to idle. Cancel errors never reach the cache callbacks, and a settling fetch never overwrites a fetch or write that came after it.
+- Observers decide whether to fetch on mount after an asynchronous restore finishes, so `refetchOnMount` applies to restored data.
+- `MutationObserver.result` is computed when read. `mutateAsync` only attaches the observer to the mutation when it has listeners; a mutation is collected `gcTime` after it settles with no observers.
 - Persistence (`persist.dart`, plus `Query` and `QueryClient`): storage calls may be synchronous or asynchronous, and their errors are ignored. Reads and writes wait for asynchronous deletions in flight, so deleted data is never restored or overwritten out of order. Garbage collection never deletes stored data; `removeQueries`, `resetQueries`, and `clear` do.
 
 ## Tests
 
-- Use `fakeTest` from `test/helpers.dart` for anything involving time, retries, or microtasks. Call `resetManagers()` in `setUp`, and `client.unmount()` plus `client.clear()` in `tearDown`.
+- Use `fakeTest` from `test/helpers.dart` for anything involving time, retries, or microtasks. Call `resetManagers()` in `setUp`, and `client.unmount()` plus `client.clear()` in `tearDown`. Unsubscribe observers before `clear()` when a test checks timers: `clear()` moves subscribed observers to new queries, which fetch.
 - Use `FakeFetcher` for query functions that count calls and resolve after a delay.
 - Tests for fixed edge cases go in `test/regression_test.dart`.
 - Checks for inference go in `test/inference_test.dart`, without explicit type arguments.

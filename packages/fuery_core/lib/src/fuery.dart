@@ -13,7 +13,7 @@ abstract final class Fuery {
   /// reconnect, and the previous one is unmounted.
   ///
   /// ```dart
-  /// Fuery.client = QueryClient(storage: PreferencesStorage(preferences));
+  /// Fuery.client = QueryClient(storage: myStorage); // your QueryStorage
   /// ```
   static set client(QueryClient client) {
     final previous = _client;

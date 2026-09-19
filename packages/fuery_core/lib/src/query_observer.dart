@@ -58,11 +58,10 @@ class QueryObserver<TData extends Object>
     _updateQuery();
     currentQuery._addObserver(this);
 
-    if (_shouldFetchOnMount(currentQuery, options)) {
-      _executeFetch();
-    } else {
-      _updateResult();
-    }
+    _fetchOnMount();
+    // A fetch that joins one already running doesn't dispatch, so update the
+    // result either way.
+    _updateResult();
 
     _updateTimers();
   }
@@ -70,6 +69,33 @@ class QueryObserver<TData extends Object>
   @override
   void onUnsubscribe() {
     if (!hasListeners()) destroy();
+  }
+
+  /// Follows the key to a new query after the old one was removed from the
+  /// cache, and loads it like a new subscriber would.
+  void _onQueryRemoved() {
+    _updateQuery();
+    _fetchOnMount();
+    _updateResult();
+    _updateTimers();
+  }
+
+  /// Fetches as a new subscriber should, deciding after stored data is
+  /// restored so [QueryOptions.refetchOnMount] applies to it.
+  void _fetchOnMount() {
+    final query = currentQuery;
+    final restoring = query._restoring;
+    if (restoring == null) {
+      if (_shouldFetchOnMount(query, options)) _executeFetch();
+      return;
+    }
+    restoring.then((_) {
+      if (hasListeners() &&
+          identical(query, currentQuery) &&
+          _shouldFetchOnMount(query, options)) {
+        _executeFetch();
+      }
+    });
   }
 
   bool _shouldFetchOnReconnect() {
@@ -143,18 +169,25 @@ class QueryObserver<TData extends Object>
   /// first build of a widget.
   QueryResult<TData> getOptimisticResult() {
     final query = _client.queryCache._build<TData>(_client, options);
-    final result = _createResult(query, options, optimistic: true);
-    if (result != _currentResult) {
-      _currentResult = result;
+    if (hasListeners()) {
+      // Already subscribed: nothing will fetch on subscribe, and a changed
+      // result must reach the other listeners too.
+      _updateResult();
+      return result;
+    }
+    final optimistic = _createResult(query, options, optimistic: true);
+    if (optimistic != _currentResult) {
+      _currentResult = optimistic;
       _currentResultOptions = options;
       _currentResultState = query.state;
     }
-    return result;
+    return optimistic;
   }
 
   /// Refetches the query.
   ///
-  /// With [cancelRefetch], an in-flight fetch is cancelled and restarted.
+  /// With [cancelRefetch], an in-flight fetch is cancelled and restarted if
+  /// the query already has data; otherwise the in-flight fetch is reused.
   /// Errors are reported in the result, unless [throwOnError] is true.
   Future<QueryResult<TData>> refetch({
     bool cancelRefetch = true,
@@ -247,7 +280,6 @@ class QueryObserver<TData extends Object>
     bool optimistic = false,
   }) {
     final prevQuery = _query;
-    final prevOptions = _options;
     final prevResult = _currentResult;
     final prevResultOptions = _currentResultOptions;
     final queryChanged = !identical(query, prevQuery);
@@ -256,14 +288,12 @@ class QueryObserver<TData extends Object>
 
     var state = query.state;
 
-    if (optimistic) {
-      final mounted = hasListeners();
-      final fetchOnMount = !mounted && _shouldFetchOnMount(query, options);
-      final fetchOptionally = mounted &&
-          _shouldFetchOptionally(query, prevQuery, options, prevOptions);
-      if (fetchOnMount || fetchOptionally) {
-        state = _fetchState(state, query.options.networkMode);
-      }
+    // Only observers without listeners compute an optimistic result: show
+    // the fetch that subscribing will start. It reloads everything, never a
+    // single page.
+    if (optimistic && _shouldFetchOnMount(query, options)) {
+      state = _fetchState(state, query.options.networkMode)
+          ._withFetchDirection(null);
     }
 
     var status = state.status;
@@ -293,7 +323,7 @@ class QueryObserver<TData extends Object>
     }
 
     return _buildResult(
-      query,
+      state,
       options,
       QueryResult<TData>(
         status: status,
@@ -318,7 +348,7 @@ class QueryObserver<TData extends Object>
 
   /// Lets subclasses extend the base result.
   QueryResult<TData> _buildResult(
-    Query<TData> query,
+    QueryState<TData> state,
     QueryOptions<TData> options,
     QueryResult<TData> base,
   ) {

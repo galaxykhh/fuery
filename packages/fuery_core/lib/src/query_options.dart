@@ -237,13 +237,14 @@ class QueryOptions<TData extends Object> {
   final bool? enabled;
 
   /// How long data stays fresh. Fresh data is not refetched on mount, focus,
-  /// or reconnect. Use [infiniteDuration] to never go stale.
+  /// or reconnect. Use [infiniteDuration] to stay fresh until invalidated.
   final Duration? staleTime;
 
   /// How long an unused query stays in the cache.
   final Duration? gcTime;
 
-  /// Refetch on this interval while observed.
+  /// Refetch when this much time has passed since the query last changed,
+  /// while observed.
   final Duration? refetchInterval;
 
   /// Keep polling with [refetchInterval] while the app is in the background.

@@ -19,8 +19,12 @@ class MutationObserver<TData, TVariables, TContext>
 
   MutationOptions<TData, TVariables, TContext> get options => _options!;
 
-  /// The state of the latest mutation, or idle if none ran yet.
-  MutationState<TData, TVariables, TContext> get result => _currentResult;
+  /// The state of the latest mutation, or idle if none ran yet. Up to date
+  /// even while nothing listens.
+  MutationState<TData, TVariables, TContext> get result {
+    _updateResult();
+    return _currentResult;
+  }
 
   /// States as a stream. Each listener first receives the current state, then
   /// every change.
@@ -100,7 +104,9 @@ class MutationObserver<TData, TVariables, TContext>
       _client,
       this.options,
     );
-    mutation._addObserver(this);
+    // Without listeners there is nobody to notify, and attaching would keep
+    // the mutation from being garbage collected. onSubscribe attaches later.
+    if (hasListeners()) mutation._addObserver(this);
 
     return mutation._execute(variables);
   }
