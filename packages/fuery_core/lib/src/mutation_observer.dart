@@ -46,9 +46,7 @@ class MutationObserver<TData, TVariables, TContext>
     _options = _client.defaultMutationOptions(options);
 
     if (!this.options._sameAs(prevOptions)) {
-      _client.mutationCache.notify(
-        MutationObserverOptionsUpdatedEvent(_currentMutation, this),
-      );
+      _client.mutationCache._notify();
     }
 
     final prevKey = prevOptions?.mutationKey;
@@ -58,7 +56,7 @@ class MutationObserver<TData, TVariables, TContext>
         hashKey(prevKey) != hashKey(nextKey)) {
       reset();
     } else if (_currentMutation?.state.status == MutationStatus.pending) {
-      _currentMutation?.setOptions(this.options);
+      _currentMutation?._setOptions(this.options);
     }
   }
 
@@ -76,7 +74,7 @@ class MutationObserver<TData, TVariables, TContext>
     if (!hasListeners()) _currentMutation?._removeObserver(this);
   }
 
-  void _onMutationUpdate(MutationAction action) {
+  void _onMutationUpdate(_MutationAction action) {
     _updateResult();
     _notify(action);
   }
@@ -98,13 +96,13 @@ class MutationObserver<TData, TVariables, TContext>
     _currentMutation?._removeObserver(this);
 
     final mutation = _currentMutation =
-        _client.mutationCache.build<TData, TVariables, TContext>(
+        _client.mutationCache._build<TData, TVariables, TContext>(
       _client,
       this.options,
     );
     mutation._addObserver(this);
 
-    return mutation.execute(variables);
+    return mutation._execute(variables);
   }
 
   /// Runs the mutation without waiting for it. Errors are reported in
@@ -121,7 +119,7 @@ class MutationObserver<TData, TVariables, TContext>
         _currentMutation?.state ?? MutationState<TData, TVariables, TContext>();
   }
 
-  void _notify([MutationAction? action]) {
+  void _notify([_MutationAction? action]) {
     notifyManager.batch(() {
       final mutateOptions = _mutateOptions;
       if (mutateOptions != null && hasListeners()) {
@@ -129,7 +127,7 @@ class MutationObserver<TData, TVariables, TContext>
         TVariables variables() => _currentResult.variables as TVariables;
 
         switch (action) {
-          case MutationSuccessAction(:final data):
+          case _MutationSuccessAction(:final data):
             _guardSync(
               () => mutateOptions.onSuccess?.call(
                 data as TData,
@@ -145,7 +143,7 @@ class MutationObserver<TData, TVariables, TContext>
                 context,
               ),
             );
-          case MutationErrorAction(:final error):
+          case _MutationErrorAction(:final error):
             _guardSync(
               () => mutateOptions.onError?.call(error, variables(), context),
             );

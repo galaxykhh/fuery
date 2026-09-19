@@ -4,16 +4,14 @@ part of 'core.dart';
 ///
 /// Application code usually works with a [MutationObserver] from
 /// [Mutation.use].
-class Mutation<TData, TVariables, TContext> extends Removable {
+class Mutation<TData, TVariables, TContext> extends _Removable {
   Mutation._({
     required MutationCache mutationCache,
     required this.mutationId,
     required MutationOptions<TData, TVariables, TContext> options,
-    MutationState<TData, TVariables, TContext>? state,
-  })  : _mutationCache = mutationCache,
-        _state = state ?? MutationState<TData, TVariables, TContext>() {
-    setOptions(options);
-    scheduleGc();
+  }) : _mutationCache = mutationCache {
+    _setOptions(options);
+    _scheduleGc();
   }
 
   /// Creates an observer for a mutation that takes [TVariables].
@@ -111,7 +109,7 @@ class Mutation<TData, TVariables, TContext> extends Removable {
   final MutationCache _mutationCache;
   final List<MutationObserver<TData, TVariables, TContext>> _observers = [];
   late MutationOptions<TData, TVariables, TContext> _options;
-  MutationState<TData, TVariables, TContext> _state;
+  var _state = MutationState<TData, TVariables, TContext>();
   Retryer<TData>? _retryer;
 
   MutationOptions<TData, TVariables, TContext> get options => _options;
@@ -120,55 +118,44 @@ class Mutation<TData, TVariables, TContext> extends Removable {
 
   Map<String, Object?>? get meta => _options.meta;
 
-  void setOptions(MutationOptions<TData, TVariables, TContext> options) {
+  void _setOptions(MutationOptions<TData, TVariables, TContext> options) {
     _options = options;
-    updateGcTime(_options.gcTime);
+    _updateGcTime(_options.gcTime);
   }
 
   void _addObserver(MutationObserver<TData, TVariables, TContext> observer) {
     if (_observers.contains(observer)) return;
     _observers.add(observer);
-    clearGcTimeout();
-    _mutationCache.notify(MutationObserverAddedEvent(this, observer));
+    _clearGcTimeout();
+    _mutationCache._notify();
   }
 
   void _removeObserver(MutationObserver<TData, TVariables, TContext> observer) {
     _observers.remove(observer);
-    scheduleGc();
-    _mutationCache.notify(MutationObserverRemovedEvent(this, observer));
+    _scheduleGc();
+    _mutationCache._notify();
   }
 
   @override
-  @protected
-  void scheduleGc() {
+  void _scheduleGc() {
     // Once removed from the cache, there is nothing left to collect.
-    if (!_removed) super.scheduleGc();
+    if (!_removed) super._scheduleGc();
   }
 
   @override
-  @protected
-  void optionalRemove() {
+  void _optionalRemove() {
     if (_observers.isNotEmpty) return;
     if (_state.status == MutationStatus.pending) {
-      scheduleGc();
+      _scheduleGc();
     } else {
-      _mutationCache.remove(this);
+      _mutationCache._remove(this);
     }
   }
 
   /// Resumes a paused mutation.
-  Future<Object?> resume() {
-    final retryer = _retryer;
-    if (retryer != null) return retryer.resume();
-    if (_state.status == MutationStatus.pending) {
-      return execute(_state.variables as TVariables);
-    }
-    return Future.value();
-  }
+  Future<Object?> _resume() => _retryer?.resume() ?? Future.value();
 
-  Future<TData> execute(TVariables variables) async {
-    void onContinue() => _dispatch(const MutationContinueAction());
-
+  Future<TData> _execute(TVariables variables) async {
     final retryer = _retryer = Retryer<TData>(
       fn: () {
         final mutationFn = _options.mutationFn;
@@ -178,37 +165,32 @@ class Mutation<TData, TVariables, TContext> extends Removable {
         return mutationFn(variables);
       },
       onFail: (failureCount, error) {
-        _dispatch(MutationFailedAction(failureCount, error));
+        _dispatch(_MutationFailedAction(failureCount, error));
       },
-      onPause: () => _dispatch(const MutationPauseAction()),
-      onContinue: onContinue,
+      onPause: () => _dispatch(const _MutationPauseAction()),
+      onContinue: () => _dispatch(const _MutationContinueAction()),
       retry: _options.retry ?? const RetryPolicy.never(),
       retryDelay: _options.retryDelay,
       networkMode: _options.networkMode,
-      canRun: () => _mutationCache.canRun(this),
+      canRun: () => _mutationCache._canRun(this),
     );
 
-    final restored = _state.status == MutationStatus.pending;
     final isPaused = !retryer.canStart();
     final cacheConfig = _mutationCache.config;
 
     try {
-      if (restored) {
-        onContinue();
-      } else {
-        _dispatch(MutationPendingAction(
+      _dispatch(_MutationPendingAction(
+        isPaused: isPaused,
+        variables: variables,
+      ));
+      await cacheConfig.onMutate?.call(variables, this);
+      final context = await _options.onMutate?.call(variables);
+      if (context != _state.context) {
+        _dispatch(_MutationPendingAction(
           isPaused: isPaused,
           variables: variables,
+          context: context,
         ));
-        await cacheConfig.onMutate?.call(variables, this);
-        final context = await _options.onMutate?.call(variables);
-        if (context != _state.context) {
-          _dispatch(MutationPendingAction(
-            isPaused: isPaused,
-            variables: variables,
-            context: context,
-          ));
-        }
       }
 
       final data = await retryer.start();
@@ -219,7 +201,7 @@ class Mutation<TData, TVariables, TContext> extends Removable {
           ?.call(data, null, _state.variables, _state.context, this);
       await _options.onSettled?.call(data, null, variables, _state.context);
 
-      _dispatch(MutationSuccessAction(data));
+      _dispatch(_MutationSuccessAction(data));
       return data;
     } catch (error, stackTrace) {
       // Errors thrown by the error callbacks must not hide the mutation error.
@@ -242,21 +224,21 @@ class Mutation<TData, TVariables, TContext> extends Removable {
         () => _options.onSettled?.call(null, error, variables, _state.context),
       );
 
-      _dispatch(MutationErrorAction(error));
+      _dispatch(_MutationErrorAction(error));
       Error.throwWithStackTrace(error, stackTrace);
     } finally {
       if (identical(_retryer, retryer)) _retryer = null;
-      _mutationCache.runNext(this);
+      _mutationCache._runNext(this);
     }
   }
 
-  void _dispatch(MutationAction action) {
+  void _dispatch(_MutationAction action) {
     _state = switch (action) {
-      MutationFailedAction(:final failureCount, :final error) =>
+      _MutationFailedAction(:final failureCount, :final error) =>
         _state.copyWith(failureCount: failureCount, failureReason: error),
-      MutationPauseAction() => _state.copyWith(isPaused: true),
-      MutationContinueAction() => _state.copyWith(isPaused: false),
-      MutationPendingAction(
+      _MutationPauseAction() => _state.copyWith(isPaused: true),
+      _MutationContinueAction() => _state.copyWith(isPaused: false),
+      _MutationPendingAction(
         :final isPaused,
         :final variables,
         :final context
@@ -272,7 +254,7 @@ class Mutation<TData, TVariables, TContext> extends Removable {
           variables: variables,
           submittedAt: now(),
         ),
-      MutationSuccessAction(:final data) => _state.copyWith(
+      _MutationSuccessAction(:final data) => _state.copyWith(
           data: data,
           failureCount: 0,
           failureReason: null,
@@ -280,7 +262,7 @@ class Mutation<TData, TVariables, TContext> extends Removable {
           status: MutationStatus.success,
           isPaused: false,
         ),
-      MutationErrorAction(:final error) => _state.copyWith(
+      _MutationErrorAction(:final error) => _state.copyWith(
           data: null,
           error: error,
           failureCount: _state.failureCount + 1,
@@ -294,7 +276,7 @@ class Mutation<TData, TVariables, TContext> extends Removable {
       for (final observer in _observers.toList()) {
         observer._onMutationUpdate(action);
       }
-      _mutationCache.notify(MutationUpdatedEvent(this, action));
+      _mutationCache._notify();
     });
   }
 

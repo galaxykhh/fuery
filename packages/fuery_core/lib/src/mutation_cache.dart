@@ -38,54 +38,6 @@ class MutationFilters {
   }
 }
 
-sealed class MutationCacheEvent {
-  const MutationCacheEvent();
-
-  /// The mutation the event is about. Only [MutationObserverOptionsUpdatedEvent]
-  /// can have none, when its observer has not run a mutation yet.
-  AnyMutation? get mutation;
-}
-
-final class MutationAddedEvent extends MutationCacheEvent {
-  const MutationAddedEvent(this.mutation);
-  @override
-  final AnyMutation mutation;
-}
-
-final class MutationRemovedEvent extends MutationCacheEvent {
-  const MutationRemovedEvent(this.mutation);
-  @override
-  final AnyMutation mutation;
-}
-
-final class MutationUpdatedEvent extends MutationCacheEvent {
-  const MutationUpdatedEvent(this.mutation, this.action);
-  @override
-  final AnyMutation mutation;
-  final MutationAction action;
-}
-
-final class MutationObserverAddedEvent extends MutationCacheEvent {
-  const MutationObserverAddedEvent(this.mutation, this.observer);
-  @override
-  final AnyMutation mutation;
-  final MutationObserver<Object?, Object?, Object?> observer;
-}
-
-final class MutationObserverRemovedEvent extends MutationCacheEvent {
-  const MutationObserverRemovedEvent(this.mutation, this.observer);
-  @override
-  final AnyMutation mutation;
-  final MutationObserver<Object?, Object?, Object?> observer;
-}
-
-final class MutationObserverOptionsUpdatedEvent extends MutationCacheEvent {
-  const MutationObserverOptionsUpdatedEvent(this.mutation, this.observer);
-  @override
-  final AnyMutation? mutation;
-  final MutationObserver<Object?, Object?, Object?> observer;
-}
-
 /// Global callbacks for every mutation in a cache.
 @immutable
 class MutationCacheConfig {
@@ -119,41 +71,44 @@ class MutationCacheConfig {
   )? onSettled;
 }
 
-class MutationCache extends Subscribable<MutationCacheEvent> {
+/// Holds the mutations of a [QueryClient].
+///
+/// Read mutations with [find] and [findAll], and watch them with
+/// [QueryClient.watch].
+class MutationCache {
   MutationCache({this.config = const MutationCacheConfig()});
 
   final MutationCacheConfig config;
   final Set<AnyMutation> _mutations = {};
   final Map<String, List<AnyMutation>> _scopes = {};
+  final Set<void Function()> _listeners = {};
   int _mutationId = 0;
 
-  Mutation<TData, TVariables, TContext> build<TData, TVariables, TContext>(
+  Mutation<TData, TVariables, TContext> _build<TData, TVariables, TContext>(
     QueryClient client,
-    MutationOptions<TData, TVariables, TContext> options, [
-    MutationState<TData, TVariables, TContext>? state,
-  ]) {
+    MutationOptions<TData, TVariables, TContext> options,
+  ) {
     final mutation = Mutation<TData, TVariables, TContext>._(
       mutationCache: this,
       mutationId: ++_mutationId,
       options: client.defaultMutationOptions(options),
-      state: state,
     );
-    add(mutation);
+    _add(mutation);
     return mutation;
   }
 
-  void add(AnyMutation mutation) {
+  void _add(AnyMutation mutation) {
     _mutations.add(mutation);
     final scope = mutation.options.scope?.id;
     if (scope != null) {
       (_scopes[scope] ??= []).add(mutation);
     }
-    notify(MutationAddedEvent(mutation));
+    _notify();
   }
 
-  void remove(AnyMutation mutation) {
+  void _remove(AnyMutation mutation) {
     mutation._removed = true;
-    mutation.destroy();
+    mutation._destroy();
     if (_mutations.remove(mutation)) {
       final scope = mutation.options.scope?.id;
       if (scope != null) {
@@ -162,12 +117,12 @@ class MutationCache extends Subscribable<MutationCacheEvent> {
         if (scoped != null && scoped.isEmpty) _scopes.remove(scope);
       }
     }
-    notify(MutationRemovedEvent(mutation));
+    _notify();
   }
 
   /// Whether [mutation] may run now. In a scope, only the first pending
   /// mutation runs.
-  bool canRun(AnyMutation mutation) {
+  bool _canRun(AnyMutation mutation) {
     final scope = mutation.options.scope?.id;
     if (scope == null) return true;
     final firstPending = _scopes[scope]
@@ -177,25 +132,23 @@ class MutationCache extends Subscribable<MutationCacheEvent> {
 
   /// Starts the next paused mutation in the scope of [mutation]. Its result
   /// and errors go to whoever started it, so they are not reported here.
-  Future<void> runNext(AnyMutation mutation) {
+  Future<void> _runNext(AnyMutation mutation) {
     final scope = mutation.options.scope?.id;
     if (scope == null) return Future.value();
     final next = _scopes[scope]
         ?.firstWhereOrNull((m) => !identical(m, mutation) && m.state.isPaused);
     if (next == null) return Future.value();
-    return next.resume().then<void>((_) {}, onError: (Object _) {});
+    return next._resume().then<void>((_) {}, onError: (Object _) {});
   }
 
-  void clear() {
-    notifyManager.batch(() {
-      for (final mutation in _mutations.toList()) {
-        mutation._removed = true;
-        mutation.destroy();
-        notify(MutationRemovedEvent(mutation));
-      }
-      _mutations.clear();
-      _scopes.clear();
-    });
+  void _clear() {
+    for (final mutation in _mutations) {
+      mutation._removed = true;
+      mutation._destroy();
+    }
+    _mutations.clear();
+    _scopes.clear();
+    _notify();
   }
 
   List<AnyMutation> getAll() => _mutations.toList();
@@ -216,20 +169,26 @@ class MutationCache extends Subscribable<MutationCacheEvent> {
     return getAll().where(filters.matches).toList();
   }
 
-  void notify(MutationCacheEvent event) {
+  /// Calls [listener] whenever a mutation or its observers change.
+  void Function() _subscribe(void Function() listener) {
+    _listeners.add(listener);
+    return () => _listeners.remove(listener);
+  }
+
+  void _notify() {
     notifyManager.batch(() {
-      for (final listener in listeners.toList()) {
-        listener(event);
+      for (final listener in _listeners.toList()) {
+        listener();
       }
     });
   }
 
   /// Resumes every paused mutation.
-  Future<void> resumePausedMutations() {
+  Future<void> _resumePausedMutations() {
     final paused = getAll().where((m) => m.state.isPaused).toList();
     return notifyManager.batch(() {
       return Future.wait(
-        paused.map((m) => m.resume().then<void>((_) {}, onError: (_) {})),
+        paused.map((m) => m._resume().then<void>((_) {}, onError: (_) {})),
       );
     });
   }

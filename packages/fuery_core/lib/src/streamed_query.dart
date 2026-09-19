@@ -49,7 +49,7 @@ QueryFn<TData> streamedQuery<TChunk, TData extends Object>({
     final replace = hasData && refetchMode == StreamRefetchMode.replace;
 
     if (hasData && refetchMode == StreamRefetchMode.reset) {
-      query!.setState(query.state.copyWith(
+      query!._setState(query.state.copyWith(
         data: null,
         error: null,
         status: QueryStatus.pending,

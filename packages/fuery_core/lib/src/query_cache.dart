@@ -69,43 +69,6 @@ class QueryFilters {
   }
 }
 
-sealed class QueryCacheEvent {
-  const QueryCacheEvent(this.query);
-  final Query<Object> query;
-}
-
-final class QueryAddedEvent extends QueryCacheEvent {
-  const QueryAddedEvent(super.query);
-}
-
-final class QueryRemovedEvent extends QueryCacheEvent {
-  const QueryRemovedEvent(super.query);
-}
-
-final class QueryUpdatedEvent extends QueryCacheEvent {
-  const QueryUpdatedEvent(super.query, this.action);
-  final QueryAction action;
-}
-
-final class QueryObserverAddedEvent extends QueryCacheEvent {
-  const QueryObserverAddedEvent(super.query, this.observer);
-  final QueryObserver<Object> observer;
-}
-
-final class QueryObserverRemovedEvent extends QueryCacheEvent {
-  const QueryObserverRemovedEvent(super.query, this.observer);
-  final QueryObserver<Object> observer;
-}
-
-final class QueryObserverResultsUpdatedEvent extends QueryCacheEvent {
-  const QueryObserverResultsUpdatedEvent(super.query);
-}
-
-final class QueryObserverOptionsUpdatedEvent extends QueryCacheEvent {
-  const QueryObserverOptionsUpdatedEvent(super.query, this.observer);
-  final QueryObserver<Object> observer;
-}
-
 /// Global callbacks for every query in a cache, for example to show an error
 /// toast whenever any query fails.
 @immutable
@@ -118,18 +81,22 @@ class QueryCacheConfig {
       onSettled;
 }
 
-class QueryCache extends Subscribable<QueryCacheEvent> {
+/// Holds the queries of a [QueryClient].
+///
+/// Read queries with [find] and [findAll]. Change them through the
+/// [QueryClient], and watch them with [QueryClient.watch].
+class QueryCache {
   QueryCache({this.config = const QueryCacheConfig()});
 
   final QueryCacheConfig config;
   final Map<String, Query<Object>> _queries = {};
+  final Set<void Function()> _listeners = {};
 
   /// Returns the query for [options], creating it if needed.
-  Query<TData> build<TData extends Object>(
+  Query<TData> _build<TData extends Object>(
     QueryClient client,
-    QueryOptions<TData> options, [
-    QueryState<TData>? state,
-  ]) {
+    QueryOptions<TData> options,
+  ) {
     final defaulted = client.defaultQueryOptions(options);
     final queryHash = defaulted.queryHash!;
     final existing = _queries[queryHash];
@@ -151,31 +118,29 @@ class QueryCache extends Subscribable<QueryCacheEvent> {
       queryKey: defaulted.queryKey,
       queryHash: queryHash,
       options: defaulted,
-      state: state,
     );
-    add(query);
+    _add(query);
     query._maybeRestore();
     return query;
   }
 
-  void add(Query<Object> query) {
-    if (_queries.containsKey(query.queryHash)) return;
+  void _add(Query<Object> query) {
     _queries[query.queryHash] = query;
-    notify(QueryAddedEvent(query));
+    _notify();
   }
 
-  void remove(Query<Object> query) {
+  void _remove(Query<Object> query) {
     if (!identical(_queries[query.queryHash], query)) return;
     query._removed = true;
-    query.destroy();
+    query._destroy();
     _queries.remove(query.queryHash);
-    notify(QueryRemovedEvent(query));
+    _notify();
   }
 
-  void clear() {
+  void _clear() {
     notifyManager.batch(() {
       for (final query in getAll()) {
-        remove(query);
+        _remove(query);
       }
     });
   }
@@ -194,15 +159,21 @@ class QueryCache extends Subscribable<QueryCacheEvent> {
     return getAll().where(filters.matches).toList();
   }
 
-  void notify(QueryCacheEvent event) {
+  /// Calls [listener] whenever a query or its observers change.
+  void Function() _subscribe(void Function() listener) {
+    _listeners.add(listener);
+    return () => _listeners.remove(listener);
+  }
+
+  void _notify() {
     notifyManager.batch(() {
-      for (final listener in listeners.toList()) {
-        listener(event);
+      for (final listener in _listeners.toList()) {
+        listener();
       }
     });
   }
 
-  void onFocus() {
+  void _onFocus() {
     notifyManager.batch(() {
       for (final query in getAll()) {
         query._onFocus();
@@ -210,7 +181,7 @@ class QueryCache extends Subscribable<QueryCacheEvent> {
     });
   }
 
-  void onOnline() {
+  void _onOnline() {
     notifyManager.batch(() {
       for (final query in getAll()) {
         query._onOnline();

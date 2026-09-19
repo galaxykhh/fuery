@@ -1,4 +1,5 @@
 // Regression tests for cache, refetch, and mutation edge cases.
+import 'package:fake_async/fake_async.dart';
 import 'package:fuery_core/fuery_core.dart';
 import 'package:test/test.dart';
 
@@ -179,47 +180,53 @@ void main() {
     expect(identical(after[2], before[2]), isFalse);
   });
 
-  fakeTest('emits option events only when options change', (async) {
-    final events = <Type>[];
-    final stop = client.queryCache.subscribe((e) => events.add(e.runtimeType));
-    addTearDown(stop);
+  // Counts how often the client reports a change, through a watcher whose
+  // value changes on every read.
+  int Function() countChanges(FakeAsync async) {
+    var reads = 0;
+    final subscription = client.watch((_) => reads++).listen((_) {});
+    addTearDown(subscription.cancel);
+    async.flushMicrotasks();
+    return () {
+      async.flushMicrotasks();
+      return reads - 1;
+    };
+  }
+
+  fakeTest('query observers report only real option changes', (async) {
     Future<String> fetch(QueryFunctionContext _) async => 'a';
     final options = QueryOptions(queryKey: ['a'], queryFn: fetch);
     final observer = QueryObserver<String>(client, options);
+    final changes = countChanges(async);
 
-    events.clear();
     observer.setOptions(QueryOptions(queryKey: ['a'], queryFn: fetch));
-    expect(events, isNot(contains(QueryObserverOptionsUpdatedEvent)));
+    expect(changes(), 0);
 
     observer.setOptions(QueryOptions(
       queryKey: ['a'],
       queryFn: fetch,
       staleTime: const Duration(seconds: 1),
     ));
-    expect(events, contains(QueryObserverOptionsUpdatedEvent));
+    expect(changes(), 1);
   });
 
-  fakeTest('mutation observers report option changes', (async) {
-    final events = <Type>[];
-    final stop =
-        client.mutationCache.subscribe((e) => events.add(e.runtimeType));
-    addTearDown(stop);
+  fakeTest('mutation observers report only real option changes', (async) {
     Future<int> run(int x) async => x;
     final observer = MutationObserver<int, int, void>(
       client,
       MutationOptions(mutationFn: run, mutationKey: ['add']),
     );
+    final changes = countChanges(async);
 
-    events.clear();
     observer.setOptions(MutationOptions(mutationFn: run, mutationKey: ['add']));
-    expect(events, isEmpty);
+    expect(changes(), 0);
 
     observer.setOptions(MutationOptions(
       mutationFn: run,
       mutationKey: ['add'],
       gcTime: ms10,
     ));
-    expect(events, [MutationObserverOptionsUpdatedEvent]);
+    expect(changes(), 1);
   });
 
   fakeTest('removed queries and mutations keep no garbage collection timer',

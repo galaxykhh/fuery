@@ -45,21 +45,23 @@ class QueryFunctionContext {
 }
 
 @immutable
-class FetchOptions {
-  const FetchOptions({this.cancelRefetch = false, this.meta});
+class _FetchOptions {
+  const _FetchOptions({this.cancelRefetch = false, this.direction});
 
   /// Cancel an in-flight fetch and start a new one, instead of reusing it.
   final bool cancelRefetch;
-  final FetchMeta? meta;
+
+  /// Which page an infinite query fetches, or null to refetch every page.
+  final _FetchDirection? direction;
 }
 
 /// Hooks into how a [Query] fetches. Used by infinite queries to fetch pages.
-abstract interface class QueryBehavior<TData extends Object> {
-  void onFetch(FetchContext<TData> context, Query<TData> query);
+abstract interface class _QueryBehavior<TData extends Object> {
+  void onFetch(_FetchContext<TData> context, Query<TData> query);
 }
 
-class FetchContext<TData extends Object> {
-  FetchContext._({
+class _FetchContext<TData extends Object> {
+  _FetchContext._({
     required this.fetchFn,
     required this.fetchOptions,
     required this.options,
@@ -71,7 +73,7 @@ class FetchContext<TData extends Object> {
 
   /// The function the retryer runs. Behaviors replace it.
   Future<TData> Function() fetchFn;
-  final FetchOptions? fetchOptions;
+  final _FetchOptions? fetchOptions;
   final QueryOptions<TData> options;
   final QueryClient client;
   final QueryKey queryKey;
@@ -167,8 +169,36 @@ class QueryOptions<TData extends Object> {
     this.structuralSharing,
     this.persist,
     this.meta,
-    this.behavior,
   })  : queryHash = null,
+        _behavior = null,
+        _defaulted = false;
+
+  /// Used by [InfiniteQueryOptions], which fetch pages through [behavior].
+  const QueryOptions._withBehavior({
+    required this.queryKey,
+    required _QueryBehavior<TData> behavior,
+    this.enabled,
+    this.staleTime,
+    this.gcTime,
+    this.refetchInterval,
+    this.refetchIntervalInBackground,
+    this.refetchWhile,
+    this.refetchOnMount,
+    this.refetchOnFocus,
+    this.refetchOnReconnect,
+    this.retryOnMount,
+    this.retry,
+    this.retryDelay,
+    this.networkMode,
+    this.initialData,
+    this.initialDataUpdatedAt,
+    this.placeholderData,
+    this.structuralSharing,
+    this.persist,
+    this.meta,
+  })  : queryFn = null,
+        queryHash = null,
+        _behavior = behavior,
         _defaulted = false;
 
   const QueryOptions._defaulted({
@@ -194,8 +224,9 @@ class QueryOptions<TData extends Object> {
     required this.structuralSharing,
     required this.persist,
     required this.meta,
-    required this.behavior,
-  }) : _defaulted = true;
+    required _QueryBehavior<TData>? behavior,
+  })  : _behavior = behavior,
+        _defaulted = true;
 
   final QueryKey queryKey;
 
@@ -258,7 +289,7 @@ class QueryOptions<TData extends Object> {
 
   final Map<String, Object?>? meta;
 
-  final QueryBehavior<TData>? behavior;
+  final _QueryBehavior<TData>? _behavior;
 
   /// Hash of [queryKey]. Set once the options are defaulted by a client.
   final String? queryHash;
@@ -295,7 +326,7 @@ class QueryOptions<TData extends Object> {
       structuralSharing: structuralSharing ?? defaults.structuralSharing,
       persist: persist,
       meta: meta ?? defaults.meta,
-      behavior: behavior,
+      behavior: _behavior,
     );
   }
 
@@ -322,7 +353,7 @@ class QueryOptions<TData extends Object> {
         structuralSharing == other.structuralSharing &&
         persist == other.persist &&
         meta == other.meta &&
-        behavior == other.behavior;
+        _behavior == other._behavior;
   }
 
   QueryOptions<TData> _withRetry(RetryPolicy retry) {
@@ -349,7 +380,7 @@ class QueryOptions<TData extends Object> {
       structuralSharing: structuralSharing,
       persist: persist,
       meta: meta,
-      behavior: behavior,
+      behavior: _behavior,
     );
   }
 }

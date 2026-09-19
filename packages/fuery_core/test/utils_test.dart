@@ -1,4 +1,5 @@
 import 'package:fuery_core/fuery_core.dart';
+import 'package:fuery_core/src/utils.dart' show partialMatchKey;
 import 'package:test/test.dart';
 
 enum Filter { done, todo }

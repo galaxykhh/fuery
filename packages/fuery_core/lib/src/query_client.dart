@@ -66,13 +66,13 @@ class QueryClient {
     _unsubscribeFocus = focusManager.subscribe((focused) async {
       if (focused) {
         await resumePausedMutations();
-        queryCache.onFocus();
+        queryCache._onFocus();
       }
     });
     _unsubscribeOnline = onlineManager.subscribe((online) async {
       if (online) {
         await resumePausedMutations();
-        queryCache.onOnline();
+        queryCache._onOnline();
       }
     });
   }
@@ -281,14 +281,14 @@ class QueryClient {
         }
 
         // Many changes can arrive in one batch; compute once after it.
-        void onChange(Object _) {
+        void onChange() {
           if (scheduled) return;
           scheduled = true;
           notifyManager.schedule(update);
         }
 
-        final unsubscribeQueries = queryCache.subscribe(onChange);
-        final unsubscribeMutations = mutationCache.subscribe(onChange);
+        final unsubscribeQueries = queryCache._subscribe(onChange);
+        final unsubscribeMutations = mutationCache._subscribe(onChange);
         update();
         controller.onCancel = () {
           unsubscribeQueries();
@@ -333,7 +333,7 @@ class QueryClient {
     TData data, {
     int? updatedAt,
   }) {
-    final query = queryCache.build<TData>(
+    final query = queryCache._build<TData>(
       this,
       QueryOptions<TData>(queryKey: queryKey),
     );
@@ -374,9 +374,9 @@ class QueryClient {
       defaulted = defaulted._withRetry(const RetryPolicy.never());
     }
 
-    final query = queryCache.build<TData>(this, defaulted);
+    final query = queryCache._build<TData>(this, defaulted);
     if (query.isStaleByTime(defaulted.staleTime)) {
-      return query.fetch(defaulted);
+      return query._fetch(defaulted);
     }
     return query.state.data!;
   }
@@ -407,7 +407,7 @@ class QueryClient {
     notifyManager.batch(() {
       final queries = queryCache.findAll(filters);
       for (final query in queries) {
-        queryCache.remove(query);
+        queryCache._remove(query);
       }
       _forgetStored(filters, queries);
     });
@@ -435,7 +435,7 @@ class QueryClient {
     return notifyManager.batch(() {
       final matched = queryCache.findAll(filters).toSet();
       for (final query in matched) {
-        query.reset();
+        query._reset();
       }
       _forgetStored(filters, matched);
       return _refetch(
@@ -470,7 +470,7 @@ class QueryClient {
     final futures = notifyManager.batch(() {
       return queryCache
           .findAll(filters)
-          .map((query) => query.cancel(revert: revert, silent: silent))
+          .map((query) => query._cancel(revert: revert, silent: silent))
           .toList();
     });
     await Future.wait(futures);
@@ -500,7 +500,7 @@ class QueryClient {
 
     return notifyManager.batch(() {
       for (final query in queryCache.findAll(filters)) {
-        query.invalidate();
+        query._invalidate();
       }
 
       if (refetchType == RefetchType.none) return Future.value();
@@ -548,13 +548,13 @@ class QueryClient {
     required bool cancelRefetch,
     required bool throwOnError,
   }) async {
-    final fetchOptions = FetchOptions(cancelRefetch: cancelRefetch);
+    final fetchOptions = _FetchOptions(cancelRefetch: cancelRefetch);
     final futures = notifyManager.batch(() {
       return queryCache
           .findAll(filters)
           .where((query) => !query.isDisabled() && !query.isStatic())
           .map((query) {
-        var future = query.fetch(null, fetchOptions).then<void>((_) {});
+        var future = query._fetch(null, fetchOptions).then<void>((_) {});
         if (!throwOnError) {
           future = future.then<void>((_) {}, onError: (Object _) {});
         }
@@ -571,7 +571,7 @@ class QueryClient {
 
   /// Resumes mutations that were paused while offline.
   Future<void> resumePausedMutations() {
-    if (onlineManager.isOnline()) return mutationCache.resumePausedMutations();
+    if (onlineManager.isOnline()) return mutationCache._resumePausedMutations();
     return Future.value();
   }
 
@@ -627,8 +627,8 @@ class QueryClient {
   /// Removes every query and mutation.
   /// Removes every query and mutation, and deletes all persisted data.
   void clear() {
-    queryCache.clear();
-    mutationCache.clear();
+    queryCache._clear();
+    mutationCache._clear();
     _forgetStored(const QueryFilters(), const []);
   }
 }

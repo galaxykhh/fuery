@@ -274,18 +274,18 @@ class MutateOptions<TData, TVariables, TContext> {
   final MutationOnSettled<TData, TVariables, TContext>? onSettled;
 }
 
-sealed class MutationAction {
-  const MutationAction();
+sealed class _MutationAction {
+  const _MutationAction();
 }
 
-final class MutationFailedAction extends MutationAction {
-  const MutationFailedAction(this.failureCount, this.error);
+final class _MutationFailedAction extends _MutationAction {
+  const _MutationFailedAction(this.failureCount, this.error);
   final int failureCount;
   final Object error;
 }
 
-final class MutationPendingAction extends MutationAction {
-  const MutationPendingAction({
+final class _MutationPendingAction extends _MutationAction {
+  const _MutationPendingAction({
     required this.isPaused,
     required this.variables,
     this.context,
@@ -295,20 +295,20 @@ final class MutationPendingAction extends MutationAction {
   final Object? context;
 }
 
-final class MutationSuccessAction extends MutationAction {
-  const MutationSuccessAction(this.data);
+final class _MutationSuccessAction extends _MutationAction {
+  const _MutationSuccessAction(this.data);
   final Object? data;
 }
 
-final class MutationErrorAction extends MutationAction {
-  const MutationErrorAction(this.error);
+final class _MutationErrorAction extends _MutationAction {
+  const _MutationErrorAction(this.error);
   final Object error;
 }
 
-final class MutationPauseAction extends MutationAction {
-  const MutationPauseAction();
+final class _MutationPauseAction extends _MutationAction {
+  const _MutationPauseAction();
 }
 
-final class MutationContinueAction extends MutationAction {
-  const MutationContinueAction();
+final class _MutationContinueAction extends _MutationAction {
+  const _MutationContinueAction();
 }

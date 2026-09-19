@@ -5,19 +5,18 @@ part of 'core.dart';
 ///
 /// Queries are created and owned by the [QueryCache]. Application code usually
 /// works with a [QueryObserver] from [Query.use], or with [QueryClient].
-class Query<TData extends Object> extends Removable {
+class Query<TData extends Object> extends _Removable {
   Query._({
     required QueryClient client,
     required this.queryKey,
     required this.queryHash,
     required QueryOptions<TData> options,
-    QueryState<TData>? state,
   })  : _client = client,
         _cache = client.queryCache {
     _setOptions(options);
     _initialState = _defaultState(_options);
-    _state = state ?? _initialState;
-    scheduleGc();
+    _state = _initialState;
+    _scheduleGc();
   }
 
   /// Watches the query for [queryKey] and returns an observer for it.
@@ -116,14 +115,14 @@ class Query<TData extends Object> extends Removable {
   void _setOptions(QueryOptions<TData> options) {
     _options =
         options._defaulted ? options : _client.defaultQueryOptions(options);
-    updateGcTime(_options.gcTime);
+    _updateGcTime(_options.gcTime);
 
     final state = _state;
     if (state != null && state.data == null) {
       final defaultState = _defaultState(_options);
       final initialData = defaultState.data;
       if (initialData != null) {
-        setState(state.copyWith(
+        _setState(state.copyWith(
           data: initialData,
           dataUpdatedAt: defaultState.dataUpdatedAt,
           error: null,
@@ -137,18 +136,16 @@ class Query<TData extends Object> extends Removable {
   }
 
   @override
-  @protected
-  void scheduleGc() {
+  void _scheduleGc() {
     // Once removed from the cache, there is nothing left to collect, and a
     // timer would outlive the query.
-    if (!_removed) super.scheduleGc();
+    if (!_removed) super._scheduleGc();
   }
 
   @override
-  @protected
-  void optionalRemove() {
+  void _optionalRemove() {
     if (_observers.isEmpty && state.fetchStatus == FetchStatus.idle) {
-      _cache.remove(this);
+      _cache._remove(this);
     }
   }
 
@@ -158,7 +155,7 @@ class Query<TData extends Object> extends Removable {
       newData,
       structuralSharing: _options.structuralSharing ?? true,
     );
-    _dispatch(QuerySuccessAction<TData>(
+    _dispatch(_QuerySuccessAction<TData>(
       data: data,
       dataUpdatedAt: updatedAt,
       manual: manual,
@@ -167,14 +164,14 @@ class Query<TData extends Object> extends Removable {
   }
 
   /// Replaces the query state and notifies observers.
-  void setState(QueryState<TData> state) {
-    _dispatch(QuerySetStateAction<TData>(state));
+  void _setState(QueryState<TData> state) {
+    _dispatch(_QuerySetStateAction<TData>(state));
   }
 
   /// Cancels the in-flight fetch, if any.
   ///
   /// With [revert], the state goes back to what it was before the fetch.
-  Future<void> cancel({bool revert = false, bool silent = false}) {
+  Future<void> _cancel({bool revert = false, bool silent = false}) {
     final future = _retryer?.future;
     _retryer?.cancel(revert: revert, silent: silent);
     if (future == null) return Future.value();
@@ -182,15 +179,15 @@ class Query<TData extends Object> extends Removable {
   }
 
   @override
-  void destroy() {
-    super.destroy();
-    cancel(silent: true);
+  void _destroy() {
+    super._destroy();
+    _cancel(silent: true);
   }
 
   /// Resets the query to its initial state.
-  void reset() {
-    destroy();
-    setState(_initialState);
+  void _reset() {
+    _destroy();
+    _setState(_initialState);
   }
 
   /// Whether at least one observer is enabled.
@@ -243,8 +240,8 @@ class Query<TData extends Object> extends Removable {
   void _addObserver(QueryObserver<TData> observer) {
     if (_observers.contains(observer)) return;
     _observers.add(observer);
-    clearGcTimeout();
-    _cache.notify(QueryObserverAddedEvent(this, observer));
+    _clearGcTimeout();
+    _cache._notify();
   }
 
   void _removeObserver(QueryObserver<TData> observer) {
@@ -263,26 +260,26 @@ class Query<TData extends Object> extends Removable {
           retryer.cancelRetry();
         }
       }
-      scheduleGc();
+      _scheduleGc();
     }
 
-    _cache.notify(QueryObserverRemovedEvent(this, observer));
+    _cache._notify();
   }
 
   int get observersCount => _observers.length;
 
   /// Marks the query as stale. Does not refetch by itself.
-  void invalidate() {
-    if (!state.isInvalidated) _dispatch(const QueryInvalidateAction());
+  void _invalidate() {
+    if (!state.isInvalidated) _dispatch(const _QueryInvalidateAction());
   }
 
   /// Runs the query function and updates the state with the result.
   ///
   /// Returns the in-flight fetch if one is running, unless
-  /// [FetchOptions.cancelRefetch] is set and the query already has data.
-  Future<TData> fetch([
+  /// [_FetchOptions.cancelRefetch] is set and the query already has data.
+  Future<TData> _fetch([
     QueryOptions<TData>? options,
-    FetchOptions? fetchOptions,
+    _FetchOptions? fetchOptions,
   ]) async {
     final restoring = _restoring;
     if (restoring != null) {
@@ -301,7 +298,7 @@ class Query<TData extends Object> extends Removable {
         current != null &&
         current.status != RetryerStatus.rejected) {
       if (state.data != null && (fetchOptions?.cancelRefetch ?? false)) {
-        cancel(silent: true);
+        _cancel(silent: true);
       } else {
         current.continueRetry();
         return current.future;
@@ -311,9 +308,9 @@ class Query<TData extends Object> extends Removable {
     if (options != null) _setOptions(options);
 
     // Queries created by setQueryData have no query function yet.
-    if (_options.queryFn == null && _options.behavior == null) {
+    if (_options.queryFn == null && _options._behavior == null) {
       final observer = _observers.firstWhereOrNull(
-        (o) => o.options.queryFn != null || o.options.behavior != null,
+        (o) => o.options.queryFn != null || o.options._behavior != null,
       );
       if (observer != null) _setOptions(observer.options);
     }
@@ -339,7 +336,7 @@ class Query<TData extends Object> extends Removable {
       ));
     }
 
-    final context = FetchContext<TData>._(
+    final context = _FetchContext<TData>._(
       fetchFn: fetchFn,
       fetchOptions: fetchOptions,
       options: _options,
@@ -348,28 +345,28 @@ class Query<TData extends Object> extends Removable {
       state: state,
       signal: consumeSignal,
     );
-    _options.behavior?.onFetch(context, this);
+    _options._behavior?.onFetch(context, this);
 
     _revertState = state;
 
     // A new retryer starts here, so reset the failure count and fetch status
     // even if a paused or cancelled fetch left the query non-idle.
-    _dispatch(QueryFetchAction(fetchOptions?.meta));
+    _dispatch(_QueryFetchAction(fetchOptions?.direction));
 
     final retryer = _retryer = Retryer<TData>(
       fn: context.fetchFn,
       onCancel: (error) {
         final revertState = _revertState;
         if (error.revert && revertState != null) {
-          setState(revertState.copyWith(fetchStatus: FetchStatus.idle));
+          _setState(revertState.copyWith(fetchStatus: FetchStatus.idle));
         }
         abortController.abort(error);
       },
       onFail: (failureCount, error) {
-        _dispatch(QueryFailedAction(failureCount, error));
+        _dispatch(_QueryFailedAction(failureCount, error));
       },
-      onPause: () => _dispatch(const QueryPauseAction()),
-      onContinue: () => _dispatch(const QueryContinueAction()),
+      onPause: () => _dispatch(const _QueryPauseAction()),
+      onContinue: () => _dispatch(const _QueryContinueAction()),
       retry: context.options.retry,
       retryDelay: context.options.retryDelay,
       networkMode: context.options.networkMode,
@@ -399,19 +396,20 @@ class Query<TData extends Object> extends Removable {
       rethrow;
     } finally {
       if (identical(_retryer, retryer)) _retryer = null;
-      scheduleGc();
+      _scheduleGc();
     }
   }
 
   void _onFetchError(Object error) {
-    _dispatch(QueryErrorAction(error));
+    _dispatch(_QueryErrorAction(error));
     _cache.config.onError?.call(error, this);
     _cache.config.onSettled?.call(state.data, error, this);
   }
 
-  void _dispatch(QueryAction action) {
+  void _dispatch(_QueryAction action) {
     _state = _reduce(state, action);
-    if (action is QuerySuccessAction && state.fetchStatus == FetchStatus.idle) {
+    if (action is _QuerySuccessAction &&
+        state.fetchStatus == FetchStatus.idle) {
       _schedulePersist();
     }
 
@@ -419,26 +417,25 @@ class Query<TData extends Object> extends Removable {
       for (final observer in _observers.toList()) {
         observer._onQueryUpdate();
       }
-      _cache.notify(QueryUpdatedEvent(this, action));
+      _cache._notify();
     });
   }
 
-  QueryState<TData> _reduce(QueryState<TData> state, QueryAction action) {
+  QueryState<TData> _reduce(QueryState<TData> state, _QueryAction action) {
     switch (action) {
-      case QueryFailedAction(:final failureCount, :final error):
+      case _QueryFailedAction(:final failureCount, :final error):
         return state.copyWith(
           fetchFailureCount: failureCount,
           fetchFailureReason: error,
         );
-      case QueryPauseAction():
+      case _QueryPauseAction():
         return state.copyWith(fetchStatus: FetchStatus.paused);
-      case QueryContinueAction():
+      case _QueryContinueAction():
         return state.copyWith(fetchStatus: FetchStatus.fetching);
-      case QueryFetchAction(:final meta):
-        return _fetchState(state, _options.networkMode).copyWith(
-          fetchMeta: meta,
-        );
-      case QuerySuccessAction<TData>(
+      case _QueryFetchAction(:final direction):
+        return _fetchState(state, _options.networkMode)
+            ._withFetchDirection(direction);
+      case _QuerySuccessAction<TData>(
           :final data,
           :final dataUpdatedAt,
           :final manual,
@@ -462,7 +459,7 @@ class Query<TData extends Object> extends Removable {
         // manual update, a cancelled fetch should revert to this new data.
         _revertState = manual ? next : null;
         return next;
-      case QueryErrorAction(:final error):
+      case _QueryErrorAction(:final error):
         return state.copyWith(
           error: error,
           errorUpdateCount: state.errorUpdateCount + 1,
@@ -474,14 +471,14 @@ class Query<TData extends Object> extends Removable {
           // A background error means the existing data should be refetched.
           isInvalidated: true,
         );
-      case QueryInvalidateAction():
+      case _QueryInvalidateAction():
         return state.copyWith(isInvalidated: true);
-      case QuerySetStateAction<TData>(state: final newState):
+      case _QuerySetStateAction<TData>(state: final newState):
         return newState;
       // Actions are created by this query with its own TData, so this only
       // exists to make the switch exhaustive.
       // coverage:ignore-start
-      case QuerySuccessAction() || QuerySetStateAction():
+      case _QuerySuccessAction() || _QuerySetStateAction():
         throw StateError('Action data type does not match query $queryHash');
       // coverage:ignore-end
     }
@@ -541,7 +538,7 @@ class Query<TData extends Object> extends Removable {
           now() - updatedAt > maxAge.inMilliseconds) {
         return _client._deleteStored(_storageKey);
       }
-      setState(state.copyWith(
+      _setState(state.copyWith(
         data: persist._decode(entry['d']),
         dataUpdatedAt: updatedAt,
         error: null,

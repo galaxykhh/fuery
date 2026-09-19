@@ -40,6 +40,10 @@ void main() {
     expect(statuses, [MutationStatus.pending, MutationStatus.success]);
     expect(observer.result.data, 'a');
     expect(observer.result.variables, 'a');
+    expect(
+      client.mutationCache.getAll().single.toString(),
+      contains('success'),
+    );
   });
 
   fakeTest('runs onMutate before the mutation function', (async) {
@@ -371,30 +375,6 @@ void main() {
       client.clear();
     });
 
-    fakeTest('resumes a restored pending mutation', (async) {
-      final mutation = client.mutationCache.build(
-        client,
-        MutationOptions<int, int, void>(mutationFn: (x) async => x * 2),
-        const MutationState(
-          status: MutationStatus.pending,
-          variables: 21,
-          isPaused: true,
-        ),
-      );
-
-      client.resumePausedMutations();
-      async.flushMicrotasks();
-
-      expect(mutation.state.data, 42);
-      expect(mutation.state.isSuccess, isTrue);
-
-      // Resuming a settled mutation does nothing.
-      mutation.resume();
-      async.flushMicrotasks();
-      expect(mutation.state.data, 42);
-      expect(mutation.toString(), contains('success'));
-    });
-
     fakeTest('keeps a pending mutation past gcTime until it settles', (async) {
       final observer = Mutation.use(
         mutationFn: (int x) async {
@@ -550,8 +530,6 @@ void main() {
     });
 
     fakeTest('scoped mutations leave the scope when removed', (async) {
-      final events = <Type>[];
-      client.mutationCache.subscribe((event) => events.add(event.runtimeType));
       final observer = Mutation.use(
         mutationFn: (int x) async => x,
         scope: const MutationScope('todos'),
@@ -565,7 +543,6 @@ void main() {
       async.elapse(const Duration(milliseconds: 20));
 
       expect(client.mutationCache.getAll(), isEmpty);
-      expect(events, contains(MutationRemovedEvent));
 
       observer.mutate(2);
       async.flushMicrotasks();
