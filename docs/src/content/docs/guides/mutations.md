@@ -9,7 +9,7 @@ Mutations change server data:
 final addTodo = Mutation.use(
   mutationFn: (String title) => api.addTodo(title),
   onSuccess: (todo, title, context) {
-    return Fuery.instance.invalidateQueries(queryKey: ['todos']);
+    return Fuery.client.invalidateQueries(queryKey: ['todos']);
   },
 );
 ```
@@ -53,18 +53,18 @@ Update the cache in `onMutate` and return what you need to roll back. If the req
 final deleteTodo = Mutation.use(
   mutationFn: (int id) => api.deleteTodo(id),
   onMutate: (id) {
-    final previous = Fuery.instance.getQueryData<List<Todo>>(['todos']);
-    Fuery.instance.updateQueryData<List<Todo>>(
+    final previous = Fuery.client.getQueryData<List<Todo>>(['todos']);
+    Fuery.client.updateQueryData<List<Todo>>(
       ['todos'],
       (todos) => todos?.where((todo) => todo.id != id).toList(),
     );
     return previous;
   },
   onError: (error, id, previous) {
-    if (previous != null) Fuery.instance.setQueryData(['todos'], previous);
+    if (previous != null) Fuery.client.setQueryData(['todos'], previous);
   },
   onSettled: (_, __, ___, ____) {
-    return Fuery.instance.invalidateQueries(queryKey: ['todos']);
+    return Fuery.client.invalidateQueries(queryKey: ['todos']);
   },
 );
 ```

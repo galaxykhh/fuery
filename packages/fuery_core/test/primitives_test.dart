@@ -188,25 +188,53 @@ void main() {
     });
   });
 
-  group('Fuery.instance', () {
+  group('Fuery.client', () {
     test('is created lazily and can be replaced', () {
-      final original = Fuery.instance;
-      expect(Fuery.instance, same(original));
+      final original = Fuery.client;
+      expect(Fuery.client, same(original));
 
       final replacement = QueryClient();
-      Fuery.instance = replacement;
-      expect(Fuery.instance, same(replacement));
+      Fuery.client = replacement;
+      expect(Fuery.client, same(replacement));
 
-      Fuery.instance = original;
+      Fuery.client = original;
+    });
+
+    fakeTest('mounts the new client and unmounts the previous one', (async) {
+      final original = Fuery.client;
+      final first = QueryClient();
+      final second = QueryClient();
+      addTearDown(() {
+        first.clear();
+        second.clear();
+        Fuery.client = original;
+      });
+      final onFirst = FakeFetcher(() => 'a');
+      final onSecond = FakeFetcher(() => 'b');
+      Query.use(queryKey: ['a'], queryFn: onFirst.call, client: first)
+          .subscribe((_) {});
+      Query.use(queryKey: ['b'], queryFn: onSecond.call, client: second)
+          .subscribe((_) {});
+      async.elapse(ms10);
+
+      Fuery.client = first;
+      Fuery.client = second;
+      Fuery.client = second;
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+      async.elapse(ms10);
+
+      expect(onFirst.calls, 1);
+      expect(onSecond.calls, 2);
     });
 
     fakeTest('is used by the entry points when no client is given', (async) {
-      final original = Fuery.instance;
+      final original = Fuery.client;
       final client = QueryClient();
-      Fuery.instance = client;
+      Fuery.client = client;
       addTearDown(() {
         client.clear();
-        Fuery.instance = original;
+        Fuery.client = original;
       });
 
       final query = Query.use(queryKey: ['a'], queryFn: (_) async => 'a');

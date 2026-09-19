@@ -183,7 +183,7 @@ Mutations create, update, or delete server data:
 final addTodo = Mutation.use(
   mutationFn: (String title) => api.addTodo(title),
   onSuccess: (todo, title, context) {
-    return Fuery.instance.invalidateQueries(queryKey: ['todos']);
+    return Fuery.client.invalidateQueries(queryKey: ['todos']);
   },
 );
 
@@ -199,15 +199,15 @@ Returning the `invalidateQueries` future from `onSuccess` keeps the mutation pen
 final deleteTodo = Mutation.use(
   mutationFn: (int id) => api.deleteTodo(id),
   onMutate: (id) {
-    final previous = Fuery.instance.getQueryData<List<Todo>>(['todos']);
-    Fuery.instance.updateQueryData<List<Todo>>(
+    final previous = Fuery.client.getQueryData<List<Todo>>(['todos']);
+    Fuery.client.updateQueryData<List<Todo>>(
       ['todos'],
       (todos) => todos?.where((todo) => todo.id != id).toList(),
     );
     return previous;
   },
   onError: (error, id, previous) {
-    if (previous != null) Fuery.instance.setQueryData(['todos'], previous);
+    if (previous != null) Fuery.client.setQueryData(['todos'], previous);
   },
 );
 ```
@@ -304,10 +304,10 @@ In a `Bloc`, use `emit.forEach(todos.stream, onData: ...)`. The example app's [s
 
 ## QueryClient
 
-`Fuery.instance` is the default client. Use it to read, write, and invalidate cached data:
+`Fuery.client` is the default client. Use it to read, write, and invalidate cached data:
 
 ```dart
-final client = Fuery.instance;
+final client = Fuery.client;
 
 client.invalidateQueries(queryKey: ['todos']);          // prefix match
 client.invalidateQueries(queryKey: ['todos'], exact: true);
@@ -323,7 +323,7 @@ client.removeQueries(queryKey: ['todos']);
 **Watching the cache.** `client.watch` turns any value computed from the client into a `Stream`. It emits the current value, then a new value whenever queries or mutations change it. Watching doesn't fetch anything:
 
 ```dart
-late final fetching = Fuery.instance.watch((client) => client.isFetching() > 0);
+late final fetching = Fuery.client.watch((client) => client.isFetching() > 0);
 
 StreamBuilder(
   stream: fetching,
@@ -351,13 +351,13 @@ final cached = await client.query(QueryOptions( // use any cached data
 **Defaults.** Configure every query, or every query under a key prefix:
 
 ```dart
-Fuery.instance = QueryClient(
+Fuery.client = QueryClient(
   defaultOptions: const DefaultOptions(
     queries: QueryDefaults(staleTime: Duration(seconds: 30)),
   ),
-)..mount();
+);
 
-Fuery.instance.setQueryDefaults(
+Fuery.client.setQueryDefaults(
   ['settings'],
   const QueryDefaults(staleTime: infiniteDuration),
 );
@@ -375,14 +375,14 @@ late final todos = Query.use(
 );
 ```
 
-`context.queryClient` returns `Fuery.instance` when there is no provider.
+`context.queryClient` returns `Fuery.client` when there is no provider.
 
 ## Persistence
 
 Give the client a `QueryStorage`, and add `persist` to the queries worth keeping. When the app starts again, they show the stored data right away and refetch it if it's stale:
 
 ```dart
-Fuery.instance = QueryClient(storage: PreferencesStorage(preferences))..mount();
+Fuery.client = QueryClient(storage: PreferencesStorage(preferences));
 
 final todos = Query.use(
   queryKey: ['todos'],

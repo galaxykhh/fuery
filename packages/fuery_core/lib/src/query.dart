@@ -56,7 +56,7 @@ class Query<TData extends Object> extends Removable {
     QueryClient? client,
   }) {
     return QueryObserver<TData>(
-      client ?? Fuery.instance,
+      client ?? Fuery.client,
       QueryOptions<TData>(
         queryKey: queryKey,
         queryFn: queryFn,

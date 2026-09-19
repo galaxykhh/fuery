@@ -67,7 +67,7 @@ final answer = Query.use(
 final addTodo = Mutation.use(
   mutationFn: (String title) => api.addTodo(title),
   onSuccess: (todo, title, context) =>
-      Fuery.instance.invalidateQueries(queryKey: ['todos']),
+      Fuery.client.invalidateQueries(queryKey: ['todos']),
 );
 
 final todo = await addTodo.mutateAsync('Buy milk'); // throws on error
@@ -91,18 +91,18 @@ await posts.fetchNextPage();
 
 ## QueryClient
 
-`Fuery.instance` is the default `QueryClient`, used whenever no `client:` is passed. Create your own to change defaults or to isolate tests:
+`Fuery.client` is the default `QueryClient`, used whenever no `client:` is passed. Assign your own to change defaults:
 
 ```dart
-final client = QueryClient(
+Fuery.client = QueryClient(
   defaultOptions: const DefaultOptions(
     queries: QueryDefaults(staleTime: Duration(seconds: 30)),
   ),
-)..mount();
+);
 
-client.invalidateQueries(queryKey: ['todos']);
-client.setQueryData(['todos', 1], todo);
-final data = await client.query(
+Fuery.client.invalidateQueries(queryKey: ['todos']);
+Fuery.client.setQueryData(['todos', 1], todo);
+final data = await Fuery.client.query(
   QueryOptions(queryKey: ['todos'], queryFn: (_) => api.getTodos()),
 );
 ```
@@ -110,7 +110,7 @@ final data = await client.query(
 To keep data across restarts, give the client a `QueryStorage` and add `persist` to a query:
 
 ```dart
-final client = QueryClient(storage: FileStorage(directory));
+Fuery.client = QueryClient(storage: FileStorage(directory));
 
 final todos = Query.use(
   queryKey: ['todos'],
@@ -122,19 +122,18 @@ final todos = Query.use(
         Todo.fromJson(item as Map<String, Object?>),
     ],
   ),
-  client: client,
 );
 ```
 
-`client.watch` turns any value computed from the client into a `Stream`, without fetching anything:
+`Fuery.client.watch` turns any value computed from the client into a `Stream`, without fetching anything:
 
 ```dart
-client.watch((client) => client.isFetching()).listen(print);
+Fuery.client.watch((client) => client.isFetching()).listen(print);
 ```
 
-`mount()` makes the client refetch when `focusManager` or `onlineManager` report that the app is focused or back online. Pure Dart has no focus or connectivity events, so set them yourself with `setEventListener`, or call `setFocused` and `setOnline`.
+A mounted client refetches when `focusManager` or `onlineManager` report that the app is focused or back online. Assigning `Fuery.client` mounts the new client; a client you pass as `client:` yourself, for example in a test, needs `client.mount()`. Pure Dart has no focus or connectivity events, so set them yourself with `setEventListener`, or call `setFocused` and `setOnline`.
 
-Cached queries keep garbage collection timers running, which keeps a Dart process alive. Call `client.clear()` when a CLI is done.
+Cached queries keep garbage collection timers running, which keeps a Dart process alive. Call `Fuery.client.clear()` when a CLI is done.
 
 ## Documentation
 

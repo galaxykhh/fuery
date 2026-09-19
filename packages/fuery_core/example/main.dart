@@ -55,7 +55,7 @@ Future<void> main() async {
     mutationFn: (String name) => repository.create(name),
     onSuccess: (data, name, _) async {
       print('$data created');
-      await Fuery.instance.invalidateQueries(queryKey: ['names']);
+      await Fuery.client.invalidateQueries(queryKey: ['names']);
     },
   );
   await createName.mutateAsync('New name');
@@ -69,5 +69,5 @@ Future<void> main() async {
   await subscription.cancel();
 
   // Stop garbage collection timers so the program can exit.
-  Fuery.instance.clear();
+  Fuery.client.clear();
 }

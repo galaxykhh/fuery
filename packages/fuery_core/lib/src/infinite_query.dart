@@ -510,7 +510,7 @@ abstract final class InfiniteQuery {
     QueryClient? client,
   }) {
     return InfiniteQueryObserver<TPage, TParam>(
-      client ?? Fuery.instance,
+      client ?? Fuery.client,
       infiniteQueryOptions(
         queryKey: queryKey,
         queryFn: queryFn,

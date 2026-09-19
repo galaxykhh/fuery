@@ -5,7 +5,7 @@ import 'fuery_binding.dart';
 
 /// Provides a [QueryClient] to the widgets below and keeps it mounted.
 ///
-/// Optional: without a provider, [FueryProvider.of] returns [Fuery.instance].
+/// Optional: without a provider, [FueryProvider.of] returns [Fuery.client].
 /// Use it to configure a client, or to give each widget test its own client.
 ///
 /// ```dart
@@ -24,11 +24,11 @@ class FueryProvider extends StatefulWidget {
   final QueryClient client;
   final Widget child;
 
-  /// The nearest provided client, or [Fuery.instance]. Safe to call in
+  /// The nearest provided client, or [Fuery.client]. Safe to call in
   /// `initState` and in `late final` field initializers.
   static QueryClient of(BuildContext context) {
     return context.getInheritedWidgetOfExactType<_FueryScope>()?.client ??
-        Fuery.instance;
+        Fuery.client;
   }
 
   @override
@@ -74,6 +74,6 @@ class _FueryScope extends InheritedWidget {
 }
 
 extension FueryBuildContext on BuildContext {
-  /// The nearest provided [QueryClient], or [Fuery.instance].
+  /// The nearest provided [QueryClient], or [Fuery.client].
   QueryClient get queryClient => FueryProvider.of(this);
 }

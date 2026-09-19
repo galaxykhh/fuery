@@ -41,8 +41,7 @@ Future<void> main() async {
   final preferences = await SharedPreferencesWithCache.create(
     cacheOptions: const SharedPreferencesWithCacheOptions(),
   );
-  Fuery.instance = QueryClient(storage: PreferencesStorage(preferences))
-    ..mount();
+  Fuery.client = QueryClient(storage: PreferencesStorage(preferences));
   runApp(const App());
 }
 ```
@@ -118,7 +117,7 @@ persist: QueryPersist(
 With a storage that reads asynchronously, a query shows loading until its data has been read. To have the data on the first frame instead, read everything before the app starts:
 
 ```dart
-await Fuery.instance.restore();
+await Fuery.client.restore();
 runApp(const App());
 ```
 

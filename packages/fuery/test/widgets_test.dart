@@ -523,7 +523,7 @@ void main() {
   });
 
   group('FueryProvider', () {
-    testWidgets('provides its client and falls back to Fuery.instance',
+    testWidgets('provides its client and falls back to Fuery.client',
         (tester) async {
       QueryClient? provided;
       QueryClient? fallback;
@@ -546,7 +546,7 @@ void main() {
       );
 
       expect(provided, same(client));
-      expect(fallback, same(Fuery.instance));
+      expect(fallback, same(Fuery.client));
       await tearDownApp(tester);
     });
 

@@ -22,7 +22,7 @@ class Mutation<TData, TVariables, TContext> extends Removable {
   /// late final addTodo = Mutation.use(
   ///   mutationFn: (String title) => api.addTodo(title),
   ///   onSuccess: (todo, title, context) {
-  ///     Fuery.instance.invalidateQueries(queryKey: ['todos']);
+  ///     Fuery.client.invalidateQueries(queryKey: ['todos']);
   ///   },
   /// );
   ///
@@ -45,7 +45,7 @@ class Mutation<TData, TVariables, TContext> extends Removable {
     QueryClient? client,
   }) {
     return MutationObserver<TData, TVariables, TContext>(
-      client ?? Fuery.instance,
+      client ?? Fuery.client,
       MutationOptions<TData, TVariables, TContext>(
         mutationFn: mutationFn,
         mutationKey: mutationKey,
@@ -82,7 +82,7 @@ class Mutation<TData, TVariables, TContext> extends Removable {
     QueryClient? client,
   }) {
     return NoParamMutationObserver<TData, TContext>(
-      client ?? Fuery.instance,
+      client ?? Fuery.client,
       MutationOptions<TData, void, TContext>(
         mutationFn: (_) => mutationFn(),
         mutationKey: mutationKey,

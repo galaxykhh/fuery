@@ -16,7 +16,7 @@ void main() {
 
     await cubit.close();
     expect(cubit.isClosed, isTrue);
-    Fuery.instance.clear();
+    Fuery.client.clear();
   });
 
   testWidgets('the stats screen shares the list screen\'s cache',
@@ -41,6 +41,6 @@ void main() {
     expect(find.text('1 of 5 completed'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox());
-    Fuery.instance.clear();
+    Fuery.client.clear();
   });
 }
