@@ -33,6 +33,7 @@ export default defineConfig({
 						'guides/infinite-queries',
 						'guides/streaming',
 						'guides/query-client',
+						'guides/persistence',
 						'guides/organizing-queries',
 						'guides/bloc',
 						'guides/lifecycle',

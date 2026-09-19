@@ -73,6 +73,7 @@ Builders and streams receive a `QueryResult`:
 | `placeholderData` | none | Shown while pending, never cached |
 | `networkMode` | `NetworkMode.online` | See [App lifecycle and network](../lifecycle/) |
 | `structuralSharing` | `true` | Keeps unchanged data identical across refetches |
+| `persist` | none | Stores the data on the device. See [Persistence](../persistence/) |
 
 ## Polling
 

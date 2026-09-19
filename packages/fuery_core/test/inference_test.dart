@@ -138,6 +138,38 @@ void main() {
     expect(typed.result.data, 'ab');
   });
 
+  fakeTest('persist codecs infer their data types', (async) {
+    final storage = <String, String>{};
+    final persisting = QueryClient(storage: _MapStorage(storage));
+    final todos = Query.use(
+      queryKey: ['todos'],
+      queryFn: (_) async => [const Todo('a')],
+      persist: QueryPersist(
+        toJson: (todos) => [for (final todo in todos) todo.title],
+        fromJson: (json) => [for (final t in json! as List) Todo(t as String)],
+      ),
+      client: persisting,
+    );
+    final posts = InfiniteQuery.use(
+      queryKey: ['posts'],
+      queryFn: (context) async => const PostPage(['p'], hasMore: false),
+      initialPageParam: 1,
+      getNextPageParam: (data) => null,
+      persist: InfiniteQueryPersist(
+        pageToJson: (page) => page.titles,
+        pageFromJson: (json) =>
+            PostPage(List<String>.from(json! as List), hasMore: false),
+      ),
+      client: persisting,
+    );
+    todos.subscribe((_) {});
+    posts.subscribe((_) {});
+    async.flushMicrotasks();
+
+    expect(storage, hasLength(2));
+    persisting.clear();
+  });
+
   fakeTest('watch infers the selected type', (async) {
     final values = <int>[];
     final Stream<int> fetching = client.watch((client) => client.isFetching());
@@ -176,4 +208,22 @@ void main() {
     final NoParamMutationObserver<int, Object?> typed = refresh;
     expect(typed.result.data, 42);
   });
+}
+
+class _MapStorage implements QueryStorage {
+  _MapStorage(this.entries);
+
+  final Map<String, String> entries;
+
+  @override
+  String? read(String key) => entries[key];
+
+  @override
+  void write(String key, String value) => entries[key] = value;
+
+  @override
+  void delete(String key) => entries.remove(key);
+
+  @override
+  Map<String, String> readAll() => Map.of(entries);
 }
