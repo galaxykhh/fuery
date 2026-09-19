@@ -19,7 +19,9 @@ abstract final class FueryBinding {
           switch (state) {
             case AppLifecycleState.resumed:
               setFocused(true);
-            case AppLifecycleState.hidden || AppLifecycleState.paused || AppLifecycleState.detached:
+            case AppLifecycleState.hidden:
+            case AppLifecycleState.paused:
+            case AppLifecycleState.detached:
               setFocused(false);
             case AppLifecycleState.inactive:
               // Brief interruptions, such as a system dialog, are not a
