@@ -17,9 +17,9 @@ import 'result_subscriber.dart';
 /// QueryBuilder(
 ///   query: todos,
 ///   builder: (context, state) => switch (state) {
-///     QueryResult(isPending: true) => const CircularProgressIndicator(),
-///     QueryResult(isError: true, :final error) => Text('$error'),
-///     QueryResult(:final data) => TodoList(data!),
+///     QueryResult(:final data?) => TodoList(data),
+///     QueryResult(:final error?) => Text('$error'),
+///     _ => const CircularProgressIndicator(),
 ///   },
 /// )
 /// ```

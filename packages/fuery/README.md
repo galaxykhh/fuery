@@ -38,15 +38,17 @@ class _TodoListScreenState extends State<TodoListScreen> {
   Widget build(BuildContext context) {
     return QueryBuilder(
       query: todos,
-      builder: (context, state) {
-        if (state.isPending) return const CircularProgressIndicator();
-        if (state.isError && !state.hasData) return Text('${state.error}');
-        return TodoList(state.data!);
+      builder: (context, state) => switch (state) {
+        QueryResult(:final data?) => TodoList(data),
+        QueryResult(:final error?) => Text('$error'),
+        _ => const CircularProgressIndicator(),
       },
     );
   }
 }
 ```
+
+`QueryResult(:final data?)` matches only when there is data, so `data` is a non-null `List<Todo>` without `!`. Data comes first, so a list that fails to refresh stays on screen, and the error shows only when there is no data yet.
 
 The query fetches when `QueryBuilder` mounts. Every widget that uses the key `['todos']` shares one cache entry and one request.
 
