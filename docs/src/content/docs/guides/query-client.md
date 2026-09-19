@@ -30,6 +30,45 @@ Queries that widgets are using refetch right away. The others refetch the next t
 
 The other operations take the same filters: `refetchQueries`, `cancelQueries`, `resetQueries`, and `removeQueries`.
 
+## Watching the cache
+
+`client.watch` turns any value computed from the client into a `Stream`. Each listener gets the current value first, then a new value whenever queries or mutations change it. Watching doesn't fetch anything, and values are compared like in [selectors](../widgets/#select-part-of-the-state).
+
+```dart
+client.watch((client) => client.isFetching() > 0);                 // any fetch running
+client.watch((client) => client.isMutating(mutationKey: ['todos'])); // saves in progress
+client.watch((client) => client.getQueryData<List<Todo>>(['todos'])); // cached data
+```
+
+A global loading bar, for example, is a `StreamBuilder` over a stream created once:
+
+```dart
+class LoadingBar extends StatefulWidget {
+  const LoadingBar({super.key});
+
+  @override
+  State<LoadingBar> createState() => _LoadingBarState();
+}
+
+class _LoadingBarState extends State<LoadingBar> {
+  late final fetching = context.queryClient.watch(
+    (client) => client.isFetching() > 0,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder(
+      stream: fetching,
+      builder: (context, snapshot) => snapshot.data == true
+          ? const LinearProgressIndicator()
+          : const SizedBox.shrink(),
+    );
+  }
+}
+```
+
+In a bloc, listen to the stream like any other.
+
 ## Fetching outside widgets
 
 `client.query` returns cached data if it's fresh, and fetches otherwise. It throws on failure and doesn't retry unless you set `retry`:

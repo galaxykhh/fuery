@@ -94,6 +94,59 @@ void main() {
     expect(typed.result.hasNextPage, isFalse);
   });
 
+  fakeTest('refetchWhile gets the typed result', (async) {
+    final todo = Query.use(
+      queryKey: ['todo'],
+      queryFn: (_) async => const Todo('done'),
+      refetchInterval: const Duration(seconds: 1),
+      refetchWhile: (state) => state.data?.title != 'done',
+      client: client,
+    );
+    final posts = InfiniteQuery.use(
+      queryKey: ['posts'],
+      queryFn: (context) async => const PostPage([], hasMore: false),
+      initialPageParam: 1,
+      getNextPageParam: (data) => null,
+      refetchInterval: const Duration(seconds: 1),
+      refetchWhile: (state) => state.hasNextPage,
+      client: client,
+    );
+    todo.subscribe((_) {});
+    posts.subscribe((_) {});
+    async.elapse(const Duration(seconds: 3));
+
+    final QueryObserver<Todo> typedTodo = todo;
+    final InfiniteQueryObserver<PostPage, int> typedPosts = posts;
+    expect(typedTodo.result.data!.title, 'done');
+    expect(typedPosts.result.pages, hasLength(1));
+  });
+
+  fakeTest('streamedQuery infers the chunk and data types', (async) {
+    final answer = Query.use(
+      queryKey: ['answer'],
+      queryFn: streamedQuery(
+        stream: (context) => Stream.fromIterable(['a', 'b']),
+        initialValue: '',
+        combine: (text, token) => text + token,
+      ),
+      client: client,
+    );
+    answer.subscribe((_) {});
+    async.flushMicrotasks();
+
+    final QueryObserver<String> typed = answer;
+    expect(typed.result.data, 'ab');
+  });
+
+  fakeTest('watch infers the selected type', (async) {
+    final values = <int>[];
+    final Stream<int> fetching = client.watch((client) => client.isFetching());
+    fetching.listen(values.add);
+    async.flushMicrotasks();
+
+    expect(values, [0]);
+  });
+
   fakeTest('Mutation.use infers data, variables, and context', (async) {
     client.setQueryData(['todos'], [const Todo('a')]);
 

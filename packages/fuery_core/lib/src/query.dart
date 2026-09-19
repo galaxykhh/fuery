@@ -39,6 +39,7 @@ class Query<TData extends Object> extends Removable {
     Duration? gcTime,
     Duration? refetchInterval,
     bool? refetchIntervalInBackground,
+    bool Function(QueryResult<TData> result)? refetchWhile,
     RefetchMode? refetchOnMount,
     RefetchMode? refetchOnFocus,
     RefetchMode? refetchOnReconnect,
@@ -63,6 +64,7 @@ class Query<TData extends Object> extends Removable {
         gcTime: gcTime,
         refetchInterval: refetchInterval,
         refetchIntervalInBackground: refetchIntervalInBackground,
+        refetchWhile: refetchWhile,
         refetchOnMount: refetchOnMount,
         refetchOnFocus: refetchOnFocus,
         refetchOnReconnect: refetchOnReconnect,
@@ -306,6 +308,7 @@ class Query<TData extends Object> extends Removable {
         queryKey: queryKey,
         meta: meta,
         signal: consumeSignal,
+        peekSignal: () => abortController.signal,
       ));
     }
 

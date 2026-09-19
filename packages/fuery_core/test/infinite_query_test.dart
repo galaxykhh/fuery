@@ -72,6 +72,34 @@ void main() {
     expect(observer.result.hasNextPage, isFalse);
   });
 
+  fakeTest('polls only while refetchWhile returns true', (async) {
+    var status = 'running';
+    var calls = 0;
+    final observer = InfiniteQuery.use(
+      queryKey: ['job'],
+      queryFn: (context) async {
+        calls++;
+        await Future<void>.delayed(ms10);
+        return status;
+      },
+      initialPageParam: 1,
+      getNextPageParam: (data) => null,
+      refetchInterval: const Duration(seconds: 1),
+      refetchWhile: (state) => !state.pages.contains('done'),
+      client: client,
+    );
+
+    observer.subscribe((_) {});
+    async.elapse(const Duration(milliseconds: 1500));
+    expect(calls, 2);
+
+    status = 'done';
+    async.elapse(const Duration(seconds: 1));
+    expect(calls, 3);
+    async.elapse(const Duration(seconds: 5));
+    expect(calls, 3);
+  });
+
   fakeTest('fetches the previous page before the first one', (async) {
     final observer = observe(initialPage: 3);
     observer.subscribe((_) {});

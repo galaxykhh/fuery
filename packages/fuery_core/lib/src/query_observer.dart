@@ -203,7 +203,12 @@ class QueryObserver<TData extends Object>
     });
   }
 
-  Duration? _computeRefetchInterval() => options.refetchInterval;
+  Duration? _computeRefetchInterval() {
+    final interval = options.refetchInterval;
+    final refetchWhile = options.refetchWhile;
+    if (interval == null || refetchWhile == null) return interval;
+    return refetchWhile(result) ? interval : null;
+  }
 
   void _updateRefetchInterval(Duration? nextInterval) {
     _clearRefetchInterval();

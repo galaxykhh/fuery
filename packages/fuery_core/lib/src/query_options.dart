@@ -27,12 +27,17 @@ class QueryFunctionContext {
     required this.queryKey,
     required this.meta,
     required AbortSignal Function() signal,
-  }) : _signal = signal;
+    AbortSignal Function()? peekSignal,
+  })  : _signal = signal,
+        _peekSignal = peekSignal;
 
   final QueryClient client;
   final QueryKey queryKey;
   final Map<String, Object?>? meta;
   final AbortSignal Function() _signal;
+
+  /// Reads the signal without marking the query function as cancellable.
+  final AbortSignal Function()? _peekSignal;
 
   /// Aborted when the fetch is cancelled. Reading it marks the query function
   /// as cancellable.
@@ -148,6 +153,7 @@ class QueryOptions<TData extends Object> {
     this.gcTime,
     this.refetchInterval,
     this.refetchIntervalInBackground,
+    this.refetchWhile,
     this.refetchOnMount,
     this.refetchOnFocus,
     this.refetchOnReconnect,
@@ -173,6 +179,7 @@ class QueryOptions<TData extends Object> {
     required this.gcTime,
     required this.refetchInterval,
     required this.refetchIntervalInBackground,
+    required this.refetchWhile,
     required this.refetchOnMount,
     required this.refetchOnFocus,
     required this.refetchOnReconnect,
@@ -208,6 +215,11 @@ class QueryOptions<TData extends Object> {
 
   /// Keep polling with [refetchInterval] while the app is in the background.
   final bool? refetchIntervalInBackground;
+
+  /// Polls with [refetchInterval] only while this returns true for the latest
+  /// result, for example until a job finishes. It is checked on every change,
+  /// so polling resumes when it returns true again.
+  final bool Function(QueryResult<TData> result)? refetchWhile;
 
   final RefetchMode? refetchOnMount;
 
@@ -259,6 +271,7 @@ class QueryOptions<TData extends Object> {
       refetchInterval: refetchInterval ?? defaults.refetchInterval,
       refetchIntervalInBackground:
           refetchIntervalInBackground ?? defaults.refetchIntervalInBackground,
+      refetchWhile: refetchWhile,
       refetchOnMount: refetchOnMount ?? defaults.refetchOnMount,
       refetchOnFocus: refetchOnFocus ?? defaults.refetchOnFocus,
       refetchOnReconnect: refetchOnReconnect ??
@@ -288,6 +301,7 @@ class QueryOptions<TData extends Object> {
         gcTime == other.gcTime &&
         refetchInterval == other.refetchInterval &&
         refetchIntervalInBackground == other.refetchIntervalInBackground &&
+        refetchWhile == other.refetchWhile &&
         refetchOnMount == other.refetchOnMount &&
         refetchOnFocus == other.refetchOnFocus &&
         refetchOnReconnect == other.refetchOnReconnect &&
@@ -313,6 +327,7 @@ class QueryOptions<TData extends Object> {
       gcTime: gcTime,
       refetchInterval: refetchInterval,
       refetchIntervalInBackground: refetchIntervalInBackground,
+      refetchWhile: refetchWhile,
       refetchOnMount: refetchOnMount,
       refetchOnFocus: refetchOnFocus,
       refetchOnReconnect: refetchOnReconnect,

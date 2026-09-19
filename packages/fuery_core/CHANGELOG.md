@@ -1,3 +1,8 @@
+## 0.4.0
+- Add `refetchWhile` to poll with `refetchInterval` only while a condition holds.
+- Add `QueryClient.watch` to watch any value computed from the client as a `Stream`.
+- Add `streamedQuery` to fold a `Stream` into query data as it arrives.
+
 ## 0.3.2
 - No changes. Released together with `fuery` 0.3.2.
 

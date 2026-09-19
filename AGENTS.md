@@ -38,7 +38,7 @@ CI (`.github/workflows/ci.yml`) runs format, analyze, and all three test suites 
 - Keep `flutter analyze packages` at zero issues and `dart format` clean.
 - Keep 100% line coverage in both packages. Mark truly unreachable defensive code with `// coverage:ignore-start` / `// coverage:ignore-end` and a comment explaining why it can't run.
 - For a bug fix, write the failing test first and confirm it fails before fixing.
-- Public entry points (`Query.use`, `InfiniteQuery.use`, `Mutation.use`, `Mutation.noParam`, `infiniteQueryOptions`) must work without explicit type arguments. `packages/fuery_core/test/inference_test.dart` stops compiling if inference breaks; extend it for new entry points.
+- Public entry points (`Query.use`, `InfiniteQuery.use`, `Mutation.use`, `Mutation.noParam`, `infiniteQueryOptions`, `streamedQuery`, `QueryClient.watch`, and the widgets) must work without explicit type arguments. `packages/fuery_core/test/inference_test.dart` stops compiling if inference breaks; extend it for new entry points.
 - Fetch outside widgets with `client.query` and `client.infiniteQuery`. Don't add `fetchQuery`, `prefetchQuery`, or `ensureQueryData`-style methods.
 - `fuery` and `fuery_core` are released together with the same version. Breaking changes are allowed before 1.0.
 - To release, bump both versions and add a short CHANGELOG entry to each, merge to `main`, then push a tag `vX.Y.Z`. `.github/workflows/publish.yml` tests and publishes `fuery_core`, then `fuery`. Don't publish by hand.

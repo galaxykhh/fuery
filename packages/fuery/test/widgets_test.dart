@@ -385,6 +385,143 @@ void main() {
     await tearDownApp(tester);
   });
 
+  group('Selectors', () {
+    testWidgets('QuerySelector rebuilds only when the value changes',
+        (tester) async {
+      final fetcher = Fetcher('a');
+      final query = todos(fetcher);
+      final built = <int>[];
+      await pumpApp(
+        tester,
+        QuerySelector(
+          query: query,
+          selector: (state) => state.data?.length ?? 0,
+          builder: (context, length) {
+            built.add(length);
+            return Text('$length');
+          },
+        ),
+      );
+      await tester.pump(ms10);
+
+      fetcher.value = 'b';
+      query.refetch();
+      await tester.pump(ms10);
+
+      fetcher.value = 'abc';
+      query.refetch();
+      await tester.pump(ms10);
+
+      expect(built, [0, 1, 3]);
+      await tearDownApp(tester);
+    });
+
+    testWidgets('compares selected lists by content', (tester) async {
+      final query = todos(Fetcher('ab'));
+      final built = <List<String>>[];
+      await pumpApp(
+        tester,
+        QuerySelector(
+          query: query,
+          selector: (state) => state.data?.split('') ?? const <String>[],
+          builder: (context, letters) {
+            built.add(letters);
+            return Text(letters.join());
+          },
+        ),
+      );
+      await tester.pump(ms10);
+
+      query.refetch();
+      await tester.pump(ms10);
+
+      expect(built, [
+        <String>[],
+        ['a', 'b'],
+      ]);
+      await tearDownApp(tester);
+    });
+
+    testWidgets('selects again when the parent rebuilds or the query changes',
+        (tester) async {
+      final query = todos(Fetcher('a'));
+      Widget selector(QueryObserver<String> query, String suffix) {
+        return QuerySelector(
+          query: query,
+          selector: (state) => '${state.data}$suffix',
+          builder: (context, value) => Text(value),
+        );
+      }
+
+      await pumpApp(tester, selector(query, '1'));
+      await tester.pump(ms10);
+      expect(find.text('a1'), findsOneWidget);
+
+      await pumpApp(tester, selector(query, '2'));
+      expect(find.text('a2'), findsOneWidget);
+
+      final other = Query.use(
+        queryKey: ['other'],
+        queryFn: Fetcher('b').call,
+        client: client,
+      );
+      await pumpApp(tester, selector(other, '2'));
+      await tester.pump(ms10);
+      expect(find.text('b2'), findsOneWidget);
+      await tearDownApp(tester);
+    });
+
+    testWidgets('InfiniteQuerySelector and MutationSelector', (tester) async {
+      final posts = InfiniteQuery.use(
+        queryKey: ['posts'],
+        queryFn: (context) async {
+          await Future<void>.delayed(ms10);
+          return 'page ${context.pageParam}';
+        },
+        initialPageParam: 1,
+        getNextPageParam: (data) =>
+            data.lastPageParam < 2 ? data.lastPageParam + 1 : null,
+        client: client,
+      );
+      final addTodo = Mutation.use(
+        mutationFn: (String title) async {
+          await Future<void>.delayed(ms10);
+          return title;
+        },
+        client: client,
+      );
+      await pumpApp(
+        tester,
+        Column(
+          children: [
+            InfiniteQuerySelector(
+              query: posts,
+              selector: (state) => state.pages.length,
+              builder: (context, count) => Text('$count pages'),
+            ),
+            MutationSelector(
+              mutation: addTodo,
+              selector: (state) => state.isPending,
+              builder: (context, saving) => Text(saving ? 'saving' : 'idle'),
+            ),
+          ],
+        ),
+      );
+      await tester.pump(ms10);
+      expect(find.text('1 pages'), findsOneWidget);
+
+      posts.fetchNextPage();
+      addTodo.mutate('a');
+      await tester.pump(Duration.zero);
+      expect(find.text('saving'), findsOneWidget);
+
+      await tester.pump(ms10);
+      expect(find.text('2 pages'), findsOneWidget);
+      expect(find.text('idle'), findsOneWidget);
+      await tearDownApp(tester);
+    });
+  });
+
   group('FueryProvider', () {
     testWidgets('provides its client and falls back to Fuery.instance',
         (tester) async {

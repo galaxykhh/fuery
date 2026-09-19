@@ -37,6 +37,30 @@ await subscription.cancel(); // stops observing; the cache is freed after gcTime
 
 The stream sends the current `QueryResult` first, then every change. You can also read `todos.result` at any time, or use `subscribe(listener)`, which returns an unsubscribe function.
 
+To poll until something finishes, combine `refetchInterval` with `refetchWhile`:
+
+```dart
+final job = Query.use(
+  queryKey: ['jobs', id],
+  queryFn: (_) => api.getJob(id),
+  refetchInterval: const Duration(seconds: 2),
+  refetchWhile: (state) => state.data?.isDone != true,
+);
+```
+
+`streamedQuery` folds a `Stream` that ends into the query data, and the query succeeds with the first chunk:
+
+```dart
+final answer = Query.use(
+  queryKey: ['answer', question],
+  queryFn: streamedQuery(
+    stream: (context) => api.ask(question),
+    initialValue: '',
+    combine: (text, token) => text + token,
+  ),
+);
+```
+
 ## Mutations
 
 ```dart
@@ -81,6 +105,12 @@ client.setQueryData(['todos', 1], todo);
 final data = await client.query(
   QueryOptions(queryKey: ['todos'], queryFn: (_) => api.getTodos()),
 );
+```
+
+`client.watch` turns any value computed from the client into a `Stream`, without fetching anything:
+
+```dart
+client.watch((client) => client.isFetching()).listen(print);
 ```
 
 `mount()` makes the client refetch when `focusManager` or `onlineManager` report that the app is focused or back online. Pure Dart has no focus or connectivity events, so set them yourself with `setEventListener`, or call `setFocused` and `setOnline`.

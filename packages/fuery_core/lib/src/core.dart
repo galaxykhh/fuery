@@ -19,6 +19,7 @@ part 'query_cache.dart';
 part 'query_result.dart';
 part 'query_observer.dart';
 part 'infinite_query.dart';
+part 'streamed_query.dart';
 part 'mutation_state.dart';
 part 'mutation.dart';
 part 'mutation_cache.dart';

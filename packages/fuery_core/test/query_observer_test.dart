@@ -317,6 +317,37 @@ void main() {
     expect(fetcher.calls, 4);
   });
 
+  fakeTest('polls only while refetchWhile returns true', (async) {
+    var status = 'running';
+    final fetcher = FakeFetcher(() => status);
+    final observer = Query.use(
+      queryKey: ['job'],
+      queryFn: fetcher.call,
+      refetchInterval: const Duration(seconds: 1),
+      refetchWhile: (state) => state.data != 'done',
+      retry: const RetryPolicy.never(),
+      client: client,
+    );
+
+    observer.subscribe((_) {});
+    async.elapse(const Duration(milliseconds: 2500));
+    expect(fetcher.calls, 3);
+
+    status = 'done';
+    async.elapse(const Duration(seconds: 1));
+    expect(fetcher.calls, 4);
+    async.elapse(const Duration(seconds: 5));
+    expect(fetcher.calls, 4);
+
+    // Polling resumes once the condition is true again.
+    status = 'running';
+    observer.refetch();
+    async.elapse(ms10);
+    expect(fetcher.calls, 5);
+    async.elapse(const Duration(seconds: 2));
+    expect(fetcher.calls, 6);
+  });
+
   fakeTest('refetches stale queries when the app regains focus', (async) {
     final stale = FakeFetcher(() => 'stale');
     final fresh = FakeFetcher(() => 'fresh');
