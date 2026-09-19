@@ -15,7 +15,7 @@ QueryBuilder(
 
 Fuery caches server data, deduplicates requests, retries failures, paginates, and refetches stale data in the background. Its widgets (`Builder`, `Listener`, and `Consumer`, with `buildWhen` and `listenWhen`) feel like `flutter_bloc`, and queries are plain objects with a `Stream`, so they work inside blocs and cubits as well.
 
-**[Read the documentation →](packages/fuery/README.md)**
+**[Read the documentation →](https://galaxykhh.github.io/fuery/)**
 
 ## Packages
 
@@ -35,6 +35,8 @@ flutter analyze packages
 (cd packages/fuery && flutter test)
 (cd packages/fuery/example && flutter test)
 ```
+
+The documentation site lives in [`docs/`](docs) and is built with Astro Starlight.
 
 The example app in [`packages/fuery/example`](packages/fuery/example) shows queries, mutations with optimistic updates, and the widgets together.
 

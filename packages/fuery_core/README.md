@@ -6,6 +6,8 @@ Server state caching for Dart: queries, infinite queries, and mutations.
 
 This is the pure Dart core. **For Flutter apps, use [`fuery`](https://pub.dev/packages/fuery)**, which re-exports this package and adds widgets. Use `fuery_core` directly for Dart servers, CLIs, or packages that shouldn't depend on Flutter.
 
+**[Read the documentation →](https://galaxykhh.github.io/fuery/)**
+
 ## Install
 
 ```bash

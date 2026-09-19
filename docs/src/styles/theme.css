@@ -1,0 +1,47 @@
+/* Fuery palette: violet #6B4EFF, lime #C6F542, lavender #C9BEFF, ink #14112B. */
+
+/* Dark theme (Starlight's default). Grays lean toward the brand ink. */
+:root {
+	--sl-font: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+	--sl-color-accent-low: #2a2266;
+	--sl-color-accent: #8b73ff;
+	--sl-color-accent-high: #d9d1ff;
+
+	--sl-color-white: #ffffff;
+	--sl-color-gray-1: #ebe8fa;
+	--sl-color-gray-2: #c3bee0;
+	--sl-color-gray-3: #8c86b0;
+	--sl-color-gray-4: #58527e;
+	--sl-color-gray-5: #37315c;
+	--sl-color-gray-6: #221d45;
+	--sl-color-black: #14112b;
+
+	--fuery-lime: #c6f542;
+}
+
+:root[data-theme='light'] {
+	--sl-color-accent-low: #e6e0ff;
+	--sl-color-accent: #5b3ff0;
+	--sl-color-accent-high: #2d1f8f;
+
+	--sl-color-white: #14112b;
+	--sl-color-gray-1: #221d45;
+	--sl-color-gray-2: #37315c;
+	--sl-color-gray-3: #58527e;
+	--sl-color-gray-4: #8c86b0;
+	--sl-color-gray-5: #c3bee0;
+	--sl-color-gray-6: #ebe8fa;
+	--sl-color-gray-7: #f6f4ff;
+	--sl-color-black: #ffffff;
+}
+
+/* The lime tile in the logo, echoed once in the hero. */
+.hero .tagline strong {
+	color: var(--sl-color-white);
+	box-shadow: inset 0 -0.35em 0 color-mix(in srgb, var(--fuery-lime) 70%, transparent);
+}
+
+.site-title img {
+	height: 1.6rem;
+}

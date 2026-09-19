@@ -1,0 +1,58 @@
+---
+title: Fuery
+description: Server state for Flutter, with widgets that work like flutter_bloc.
+template: splash
+hero:
+  tagline: Server state for Flutter, with widgets that work like <strong>flutter_bloc</strong>.
+  image:
+    alt: The Fuery logo, three rounded tiles forming an F
+    light: ../../assets/mark.svg
+    dark: ../../assets/mark-dark.svg
+  actions:
+    - text: Get started
+      link: getting-started/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/galaxykhh/fuery
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+```dart
+final todos = Query.use(
+  queryKey: ['todos'],
+  queryFn: (_) => api.getTodos(),
+);
+
+QueryBuilder(
+  query: todos,
+  builder: (context, state) => state.isPending
+      ? const CircularProgressIndicator()
+      : TodoList(state.data!),
+)
+```
+
+<CardGrid>
+	<Card title="Cached and fresh" icon="database">
+		Every widget that uses a key shares one cache entry and one request. Stale
+		data stays on screen while it refetches in the background.
+	</Card>
+	<Card title="Widgets like flutter_bloc" icon="puzzle">
+		`Builder`, `Listener`, and `Consumer` widgets for queries and mutations, with
+		`buildWhen` and `listenWhen`.
+	</Card>
+	<Card title="Works inside blocs" icon="code-branch">
+		Queries are plain objects with a `Stream`, so cubits and blocs can listen to
+		them too.
+	</Card>
+	<Card title="Built for real networks" icon="rocket">
+		Retries with backoff, pauses while offline, refetches when the app resumes,
+		and cancels requests nobody needs anymore.
+	</Card>
+</CardGrid>
+
+<p style="margin-top: 3rem; font-size: var(--sl-text-sm); color: var(--sl-color-gray-3);">
+	Fuery's caching and refetching model is inspired by <a href="https://tanstack.com/query">TanStack Query</a>.
+</p>
