@@ -42,7 +42,7 @@ CI (`.github/workflows/ci.yml`) runs format, analyze, and all three test suites 
 - Keep the public API to what apps and `fuery` use. Making something public later is not breaking, but hiding it is. Apps change the caches through `QueryClient` and observe them with `QueryClient.watch`; don't add public cache events or cache-mutating methods.
 - Fetch outside widgets with `client.query` and `client.infiniteQuery`. Don't add `fetchQuery`, `prefetchQuery`, or `ensureQueryData`-style methods.
 - `fuery` and `fuery_core` are released together with the same version. Breaking changes are allowed before 1.0.
-- To release, bump both versions and add a short CHANGELOG entry to each, merge to `main`, then push a tag `vX.Y.Z`. `.github/workflows/publish.yml` tests and publishes `fuery_core`, then `fuery`. Don't publish by hand.
+- To release, bump both versions and add a short CHANGELOG entry to each, merge to `main`, then push a tag `vX.Y.Z`. `.github/workflows/publish.yml` tests and publishes `fuery_core`, then `fuery`, and creates a GitHub release from both `## X.Y.Z` CHANGELOG entries. Don't publish or create releases by hand.
 - Update the READMEs and the docs site when public behavior changes, and make sure every code snippet compiles.
 
 ## Writing docs
