@@ -1,3 +1,8 @@
+## 0.5.0
+- Add persistence: give `QueryClient` a `QueryStorage`, and add `persist: QueryPersist(...)` (or `InfiniteQueryPersist`) to queries whose data should survive restarts.
+- Add `QueryClient.restore` to read persisted data ahead of time.
+- `removeQueries`, `resetQueries`, and `clear` also delete persisted data.
+
 ## 0.4.0
 - Add `refetchWhile` to poll with `refetchInterval` only while a condition holds.
 - Add `QueryClient.watch` to watch any value computed from the client as a `Stream`.

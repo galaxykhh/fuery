@@ -1,3 +1,6 @@
+## 0.5.0
+- Includes `fuery_core` 0.5.0: persisting query data with `QueryStorage` and `QueryPersist`.
+
 ## 0.4.0
 - Add `QuerySelector`, `InfiniteQuerySelector`, and `MutationSelector`, which rebuild only when a selected value changes.
 - Includes `fuery_core` 0.4.0: `refetchWhile`, `QueryClient.watch`, and `streamedQuery`.
