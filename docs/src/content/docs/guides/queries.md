@@ -123,13 +123,13 @@ QueryBuilder(
 
 ## Pagination with placeholder data
 
-Switching to a new key normally shows the pending state until the new page arrives. Pass `keepPreviousData` to keep showing the previous page instead:
+Switching to a new key normally shows the pending state until the new page arrives. Keep showing the previous page instead with `placeholderData`:
 
 ```dart
-late final posts = Query.use(
+final posts = Query.use(
   queryKey: ['posts', 1],
   queryFn: (_) => api.getPosts(1),
-  placeholderData: keepPreviousData,
+  placeholderData: (previous) => previous,
 );
 
 void showPage(int page) {
@@ -140,6 +140,8 @@ void showPage(int page) {
   ));
 }
 ```
+
+`keepPreviousData` is the same function by name. Pass it where the data type is already known, as in `setOptions` above. In `Query.use`, write `(previous) => previous`: a generic function there would make Dart infer the data type as `Object` instead of taking it from `queryFn`.
 
 While the next page loads, `state.isPlaceholderData` is `true`, so you can dim the list or disable the next button. For endless scrolling, use an [infinite query](../infinite-queries/) instead.
 

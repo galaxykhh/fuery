@@ -105,7 +105,7 @@ Unused queries stay cached for `gcTime` (default: 5 minutes), so going back to a
 | `refetchInterval` | none | Polls while a widget uses the query, counting from its latest change |
 | `refetchWhile` | none | Polls only while this returns true for the latest result |
 | `initialData` | none | Seeds the cache |
-| `placeholderData` | none | Shown while pending, not cached. Pass `keepPreviousData` to keep the previous key's data while a new key loads. |
+| `placeholderData` | none | Shown while pending, not cached. `(previous) => previous` keeps the previous key's data while a new key loads. |
 | `networkMode` | `NetworkMode.online` | `.always` ignores connectivity. `.offlineFirst` runs the first attempt anyway and pauses retries while offline. |
 | `structuralSharing` | `true` | Keeps unchanged data identical across refetches: the whole value if nothing changed, otherwise the unchanged list items |
 | `persist` | none | Stores the data on the device, see [Persistence](#persistence) |

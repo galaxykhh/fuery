@@ -48,6 +48,26 @@ void main() {
     expect(typed.result.data!.single.title, 'a');
   });
 
+  fakeTest('placeholderData keeps the inferred data type', (async) {
+    final posts = Query.use(
+      queryKey: ['posts', 1],
+      queryFn: (_) async => [const Todo('a')],
+      placeholderData: (previous) => previous,
+      client: client,
+    );
+    final QueryObserver<List<Todo>> typed = posts;
+
+    // Where the type is known, keepPreviousData does the same.
+    typed.setOptions(QueryOptions(
+      queryKey: ['posts', 2],
+      queryFn: (_) async => [const Todo('b')],
+      placeholderData: keepPreviousData,
+    ));
+    typed.subscribe((_) {});
+    async.flushMicrotasks();
+    expect(typed.result.data!.single.title, 'b');
+  });
+
   fakeTest('InfiniteQuery.use infers page and param types', (async) {
     final posts = InfiniteQuery.use(
       queryKey: ['posts'],
