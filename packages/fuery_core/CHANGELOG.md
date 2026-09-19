@@ -1,3 +1,6 @@
+## 0.3.1
+- Link the documentation site at https://galaxykhh.github.io/fuery/.
+
 ## 0.3.0
 - Rewrite the core around `QueryClient`, `QueryCache`, and observers. Most APIs changed; see the README.
 - Add retries with backoff, cancellation, pausing while offline, placeholder data, structural sharing, mutation scopes, `client.query`, and `client.infiniteQuery`.
