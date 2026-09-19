@@ -4,6 +4,7 @@ Fetch, cache, and keep server data fresh in Flutter.
 
 Fuery fetches, caches, and keeps your server data fresh, with request deduplication, stale-while-revalidate caching, retries, pagination, and optimistic updates. Builder, listener, and consumer widgets, with `buildWhen` and `listenWhen`, turn queries into UI and side effects.
 
+- No type arguments to write. Types are inferred from your query and mutation functions, all the way to widgets and callbacks.
 - No code generation, no `BuildContext` required to create a query.
 - Queries are plain objects with a `Stream`, so blocs and cubits can use them too.
 - Refetches when the app returns to the foreground, retries failed requests, and pauses while offline.
@@ -48,7 +49,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
 }
 ```
 
-`QueryResult(:final data?)` matches only when there is data, so `data` is a non-null `List<Todo>` without `!`. Data comes first, so a list that fails to refresh stays on screen, and the error shows only when there is no data yet.
+No type arguments are needed: `todos` is a `QueryObserver<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`. `QueryResult(:final data?)` matches only when there is data, so `data` is a non-null `List<Todo>` without `!`. Data comes first, so a list that fails to refresh stays on screen, and the error shows only when there is no data yet.
 
 The query fetches when `QueryBuilder` mounts. Every widget that uses the key `['todos']` shares one cache entry and one request.
 

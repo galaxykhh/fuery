@@ -22,6 +22,7 @@ hero:
 import { Card, CardGrid } from '@astrojs/starlight/components';
 
 ```dart
+// A QueryObserver<List<Todo>>, with no type arguments.
 final todos = Query.use(
   queryKey: ['todos'],
   queryFn: (_) => api.getTodos(),
@@ -30,7 +31,7 @@ final todos = Query.use(
 QueryBuilder(
   query: todos,
   builder: (context, state) => switch (state.data) {
-    final data? => TodoList(data),
+    final data? => TodoList(data), // a List<Todo>
     null => const CircularProgressIndicator(),
   },
 )
@@ -40,6 +41,10 @@ QueryBuilder(
 	<Card title="Cached and fresh" icon="database">
 		Every widget that uses a key shares one cache entry and one request. Stale
 		data stays on screen while it refetches in the background.
+	</Card>
+	<Card title="No type arguments" icon="approve-check">
+		Types are inferred from your query and mutation functions, all the way to
+		widgets, results, and callbacks.
 	</Card>
 	<Card title="Builders and listeners" icon="puzzle">
 		`Builder`, `Listener`, and `Consumer` widgets for queries and mutations, with
@@ -52,6 +57,10 @@ QueryBuilder(
 	<Card title="Built for real networks" icon="rocket">
 		Retries with backoff, pauses while offline, refetches when the app resumes,
 		and cancels requests nobody needs anymore.
+	</Card>
+	<Card title="Persisted and inspectable" icon="magnifier">
+		Keep queries across app restarts with any key-value storage, and inspect
+		the cache with the in-app devtools.
 	</Card>
 </CardGrid>
 
