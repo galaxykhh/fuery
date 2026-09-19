@@ -68,6 +68,7 @@ Builders and streams receive a `QueryResult`:
 | `refetchOnMount`, `refetchOnFocus`, `refetchOnReconnect` | `RefetchMode.ifStale` | `.never` or `.always` |
 | `refetchInterval` | none | Polls while a widget uses the query |
 | `refetchIntervalInBackground` | `false` | Keep polling while the app is in the background |
+| `refetchWhile` | none | Polls only while this returns true for the latest result |
 | `initialData` | none | Seeds the cache as if it had been fetched |
 | `placeholderData` | none | Shown while pending, never cached |
 | `networkMode` | `NetworkMode.online` | See [App lifecycle and network](../lifecycle/) |
@@ -84,6 +85,19 @@ final prices = Query.use(
 ```
 
 Polling runs only while a widget or stream listens to the query, and pauses while the app is in the background.
+
+To poll until something finishes, add `refetchWhile`. It is checked on every change, so polling stops when it returns false and resumes when it returns true again, for example after the query is invalidated:
+
+```dart
+final job = Query.use(
+  queryKey: ['jobs', id],
+  queryFn: (_) => api.getJob(id),
+  refetchInterval: const Duration(seconds: 2),
+  refetchWhile: (state) => state.data?.isDone != true,
+);
+```
+
+`refetchWhile` also runs before the first result arrives, so handle `state.data` being `null`.
 
 ## Dependent queries
 

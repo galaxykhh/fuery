@@ -3,13 +3,13 @@ title: Widgets
 description: Builders, listeners, and consumers for queries, infinite queries, and mutations.
 ---
 
-Each kind of query has a builder, a listener, and a consumer:
+Each kind of query has a builder, a listener, a consumer, and a selector:
 
-| | Rebuild UI | Side effects | Both |
-|---|---|---|---|
-| Query | `QueryBuilder` | `QueryListener` | `QueryConsumer` |
-| Infinite query | `InfiniteQueryBuilder` | `InfiniteQueryListener` | `InfiniteQueryConsumer` |
-| Mutation | `MutationBuilder` | `MutationListener` | `MutationConsumer` |
+| | Rebuild UI | Side effects | Both | Part of the state |
+|---|---|---|---|---|
+| Query | `QueryBuilder` | `QueryListener` | `QueryConsumer` | `QuerySelector` |
+| Infinite query | `InfiniteQueryBuilder` | `InfiniteQueryListener` | `InfiniteQueryConsumer` | `InfiniteQuerySelector` |
+| Mutation | `MutationBuilder` | `MutationListener` | `MutationConsumer` | `MutationSelector` |
 
 Mounting any of them subscribes to the query, which fetches if needed. Unmounting unsubscribes.
 
@@ -29,6 +29,33 @@ QueryBuilder(
   buildWhen: (previous, current) => previous.isRefetching != current.isRefetching,
   builder: (context, state) =>
       state.isRefetching ? const LinearProgressIndicator() : const SizedBox(),
+)
+```
+
+## Select part of the state
+
+A selector builds from one value of the state and rebuilds only when that value changes:
+
+```dart
+QuerySelector(
+  query: todos,
+  selector: (state) => state.data?.where((todo) => todo.done).length ?? 0,
+  builder: (context, doneCount) => Text('$doneCount done'),
+)
+```
+
+- Lists, maps, and sets are compared by content, so a selector that builds a new list each time only rebuilds when the items change. Other values are compared with `==`.
+- The selector runs again when the parent rebuilds, so it can use values from the parent.
+- Use `buildWhen` when the builder needs the whole state, and a selector when it needs one value derived from it.
+
+```dart
+MutationSelector(
+  mutation: saveTodo,
+  selector: (state) => state.isPending,
+  builder: (context, saving) => FilledButton(
+    onPressed: saving ? null : save,
+    child: const Text('Save'),
+  ),
 )
 ```
 

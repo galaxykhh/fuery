@@ -31,6 +31,7 @@ export default defineConfig({
 						'guides/widgets',
 						'guides/mutations',
 						'guides/infinite-queries',
+						'guides/streaming',
 						'guides/query-client',
 						'guides/organizing-queries',
 						'guides/bloc',

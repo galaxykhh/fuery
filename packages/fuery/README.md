@@ -102,10 +102,22 @@ Unused queries stay cached for `gcTime` (default: 5 minutes), so going back to a
 | `retryDelay` | 1s, 2s, 4s, … up to 30s | |
 | `refetchOnMount`, `refetchOnFocus`, `refetchOnReconnect` | `RefetchMode.ifStale` | `.never` or `.always` |
 | `refetchInterval` | none | Polls while a widget uses the query |
+| `refetchWhile` | none | Polls only while this returns true for the latest result |
 | `initialData` | none | Seeds the cache |
 | `placeholderData` | none | Shown while pending, not cached. Pass `keepPreviousData` to keep the previous key's data while a new key loads. |
 | `networkMode` | `NetworkMode.online` | `.always` ignores connectivity |
 | `structuralSharing` | `true` | Keeps unchanged data identical across refetches: the whole value if nothing changed, otherwise the unchanged list items |
+
+**Polling until done.** `refetchWhile` is checked on every change, so polling stops when it returns false and resumes when it returns true again:
+
+```dart
+final job = Query.use(
+  queryKey: ['jobs', id],
+  queryFn: (_) => api.getJob(id),
+  refetchInterval: const Duration(seconds: 2),
+  refetchWhile: (state) => state.data?.isDone != true,
+);
+```
 
 **Cancellation.** Read `context.signal` in the query function to make it cancellable. When the last widget leaves, the fetch is aborted instead of finishing in the background:
 
@@ -121,13 +133,13 @@ queryFn: (context) {
 
 ## Widgets
 
-Each kind of query has a builder, a listener, and a consumer:
+Each kind of query has a builder, a listener, a consumer, and a selector:
 
-| | Rebuild UI | Side effects | Both |
-|---|---|---|---|
-| Query | `QueryBuilder` | `QueryListener` | `QueryConsumer` |
-| Infinite query | `InfiniteQueryBuilder` | `InfiniteQueryListener` | `InfiniteQueryConsumer` |
-| Mutation | `MutationBuilder` | `MutationListener` | `MutationConsumer` |
+| | Rebuild UI | Side effects | Both | Part of the state |
+|---|---|---|---|---|
+| Query | `QueryBuilder` | `QueryListener` | `QueryConsumer` | `QuerySelector` |
+| Infinite query | `InfiniteQueryBuilder` | `InfiniteQueryListener` | `InfiniteQueryConsumer` | `InfiniteQuerySelector` |
+| Mutation | `MutationBuilder` | `MutationListener` | `MutationConsumer` | `MutationSelector` |
 
 How they update:
 
@@ -149,6 +161,16 @@ QueryListener(
   listener: (context, state) => ScaffoldMessenger.of(context)
       .showSnackBar(SnackBar(content: Text('Could not refresh: ${state.error}'))),
   child: ...,
+)
+```
+
+A selector builds from one value of the state and rebuilds only when that value changes. Lists, maps, and sets are compared by content:
+
+```dart
+QuerySelector(
+  query: todos,
+  selector: (state) => state.data?.where((todo) => todo.done).length ?? 0,
+  builder: (context, doneCount) => Text('$doneCount done'),
 )
 ```
 
@@ -235,6 +257,23 @@ initialPageParam: null as String?,
 getNextPageParam: (data) => data.lastPage.nextCursor,
 ```
 
+## Streaming
+
+`streamedQuery` builds a query function from a `Stream` that ends, such as a streamed answer. The query succeeds with the first chunk and keeps fetching until the stream is done, and `combine` folds each chunk into the data:
+
+```dart
+final answer = Query.use(
+  queryKey: ['answer', question],
+  queryFn: streamedQuery(
+    stream: (context) => api.ask(question),
+    initialValue: '',
+    combine: (text, token) => text + token,
+  ),
+);
+```
+
+When it fetches again, `refetchMode` decides what happens to the data it has: `StreamRefetchMode.reset` (default) starts over, `.append` folds the new stream onto it, and `.replace` keeps it until the new stream is done.
+
 ## Using with bloc
 
 Queries and mutations don't depend on widgets. Every observer has a `stream` that emits the current result first, then every change. Listening to it is what makes the query fetch.
@@ -279,6 +318,18 @@ client.removeQueries(queryKey: ['todos']);
 ```
 
 `invalidateQueries` marks matching queries stale and refetches the ones in use. The others refetch the next time they're used.
+
+**Watching the cache.** `client.watch` turns any value computed from the client into a `Stream`. It emits the current value, then a new value whenever queries or mutations change it. Watching doesn't fetch anything:
+
+```dart
+late final fetching = Fuery.instance.watch((client) => client.isFetching() > 0);
+
+StreamBuilder(
+  stream: fetching,
+  builder: (context, snapshot) =>
+      snapshot.data == true ? const LinearProgressIndicator() : const SizedBox(),
+)
+```
 
 **Fetching outside widgets.** `client.query` returns cached data if it's fresh, and fetches otherwise. It throws on failure and doesn't retry unless you set `retry`:
 
