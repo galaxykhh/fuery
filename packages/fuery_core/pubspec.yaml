@@ -1,0 +1,24 @@
+name: fuery_core
+description: "Server state caching for Dart: queries, infinite queries, and mutations with request deduplication, retries, and background refetching."
+version: 0.3.0
+homepage: https://github.com/galaxykhh
+repository: https://github.com/galaxykhh/fuery/tree/main/packages/fuery_core
+topics:
+  - react-query
+  - state-management
+  - server-state
+
+resolution: workspace
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  clock: ^1.1.1
+  collection: ^1.18.0
+  meta: ^1.15.0
+
+dev_dependencies:
+  fake_async: ^1.3.1
+  lints: ^5.0.0
+  test: ^1.25.2

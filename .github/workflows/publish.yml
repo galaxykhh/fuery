@@ -1,0 +1,33 @@
+name: Publish
+
+# Push a tag like v0.3.0 to publish both packages. Their versions must match
+# the tag, and each package on pub.dev must allow automated publishing from
+# this repository with the tag pattern v{{version}}.
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # pub.dev authenticates this workflow with an OIDC token
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dart-lang/setup-dart@v1
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      # fuery depends on fuery_core, so publish the core first.
+      - run: dart pub publish --force
+        working-directory: packages/fuery_core
+      - run: flutter pub publish --force
+        working-directory: packages/fuery

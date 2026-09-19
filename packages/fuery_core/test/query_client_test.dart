@@ -1,0 +1,548 @@
+import 'package:fuery_core/fuery_core.dart';
+import 'package:test/test.dart';
+
+import 'helpers.dart';
+
+void main() {
+  late QueryClient client;
+
+  setUp(() {
+    resetManagers();
+    client = QueryClient(
+      defaultOptions: const DefaultOptions(
+        queries: QueryDefaults(retry: RetryPolicy.never()),
+      ),
+    )..mount();
+  });
+
+  tearDown(() {
+    client.unmount();
+    client.clear();
+  });
+
+  QueryObserver<String> observe(QueryKey key, FakeFetcher<String> fetcher) {
+    return QueryObserver<String>(
+      client,
+      QueryOptions(queryKey: key, queryFn: fetcher.call),
+    );
+  }
+
+  group('invalidateQueries', () {
+    fakeTest('refetches active queries and marks inactive ones stale', (async) {
+      final active = FakeFetcher(() => 'active');
+      final inactive = FakeFetcher(() => 'inactive');
+      final other = FakeFetcher(() => 'other');
+
+      observe(['todos', 1], active).subscribe((_) {});
+      final unsubscribe = observe(['todos', 2], inactive).subscribe((_) {});
+      observe(['posts'], other).subscribe((_) {});
+      async.elapse(ms10);
+      unsubscribe();
+
+      client.invalidateQueries(queryKey: ['todos']);
+      async.elapse(ms10);
+
+      expect(active.calls, 2);
+      expect(inactive.calls, 1);
+      expect(other.calls, 1);
+      expect(client.getQueryState(['todos', 2])!.isInvalidated, isTrue);
+      expect(client.getQueryState(['posts'])!.isInvalidated, isFalse);
+    });
+
+    fakeTest('matches the key exactly with exact', (async) {
+      final list = FakeFetcher(() => 'list');
+      final detail = FakeFetcher(() => 'detail');
+      observe(['todos'], list).subscribe((_) {});
+      observe(['todos', 1], detail).subscribe((_) {});
+      async.elapse(ms10);
+
+      client.invalidateQueries(queryKey: ['todos'], exact: true);
+      async.elapse(ms10);
+
+      expect(list.calls, 2);
+      expect(detail.calls, 1);
+    });
+
+    fakeTest('only marks queries stale with RefetchType.none', (async) {
+      final fetcher = FakeFetcher(() => 'data');
+      observe(['todos'], fetcher).subscribe((_) {});
+      async.elapse(ms10);
+
+      client.invalidateQueries(
+        queryKey: ['todos'],
+        refetchType: RefetchType.none,
+      );
+      async.elapse(ms10);
+
+      expect(fetcher.calls, 1);
+      expect(client.getQueryState(['todos'])!.isInvalidated, isTrue);
+    });
+
+    fakeTest('refetches an invalidated query on the next mount', (async) {
+      final fetcher = FakeFetcher(() => 'data');
+      final observer = QueryObserver<String>(
+        client,
+        QueryOptions(
+          queryKey: ['todos'],
+          queryFn: fetcher.call,
+          staleTime: infiniteDuration,
+        ),
+      );
+      final unsubscribe = observer.subscribe((_) {});
+      async.elapse(ms10);
+      unsubscribe();
+
+      client.invalidateQueries(queryKey: ['todos']);
+      async.elapse(ms10);
+      expect(fetcher.calls, 1);
+
+      observer.subscribe((_) {});
+      async.elapse(ms10);
+      expect(fetcher.calls, 2);
+    });
+  });
+
+  group('query data', () {
+    fakeTest('setQueryData updates observers', (async) {
+      final observer = observe(['todos'], FakeFetcher(() => 'fetched'));
+      observer.subscribe((_) {});
+      async.elapse(ms10);
+
+      client.setQueryData(['todos'], 'manual');
+      expect(observer.result.data, 'manual');
+      expect(client.getQueryData<String>(['todos']), 'manual');
+    });
+
+    fakeTest('setQueryData creates a query that a later observer uses',
+        (async) {
+      client.setQueryData<String>(['todos'], 'seeded');
+      final fetcher = FakeFetcher(() => 'fetched');
+      final observer = QueryObserver<String>(
+        client,
+        QueryOptions(
+          queryKey: ['todos'],
+          queryFn: fetcher.call,
+          staleTime: const Duration(minutes: 1),
+        ),
+      );
+      observer.subscribe((_) {});
+      async.elapse(ms10);
+
+      expect(fetcher.calls, 0);
+      expect(observer.result.data, 'seeded');
+    });
+
+    fakeTest('updateQueryData derives from the previous value', (async) {
+      client.setQueryData<List<int>>(['numbers'], [1, 2]);
+      client.updateQueryData<List<int>>(['numbers'], (old) => [...?old, 3]);
+
+      expect(client.getQueryData<List<int>>(['numbers']), [1, 2, 3]);
+    });
+
+    fakeTest('reading a key with another data type throws', (async) {
+      client.setQueryData<String>(['todos'], 'text');
+
+      expect(
+        () => client.queryCache.build<int>(
+          client,
+          QueryOptions<int>(queryKey: ['todos']),
+        ),
+        throwsStateError,
+      );
+    });
+  });
+
+  group('query', () {
+    fakeTest('returns fresh cached data without fetching', (async) {
+      final fetcher = FakeFetcher(() => 'data');
+      final options = QueryOptions<String>(
+        queryKey: ['todos'],
+        queryFn: fetcher.call,
+        staleTime: const Duration(minutes: 1),
+      );
+
+      String? first;
+      String? second;
+      client.query(options).then((data) => first = data);
+      async.elapse(ms10);
+      client.query(options).then((data) => second = data);
+      async.flushMicrotasks();
+
+      expect(first, 'data');
+      expect(second, 'data');
+      expect(fetcher.calls, 1);
+    });
+
+    fakeTest('throws when the fetch fails and does not retry', (async) {
+      final fetcher = FakeFetcher(() => 'data')..error = StateError('boom');
+      Object? error;
+      QueryClient()
+          .query(QueryOptions<String>(
+        queryKey: ['todos'],
+        queryFn: fetcher.call,
+      ))
+          .catchError((Object e) {
+        error = e;
+        return '';
+      });
+      async.elapse(const Duration(seconds: 10));
+
+      expect(error, isA<StateError>());
+      expect(fetcher.calls, 1);
+    });
+
+    fakeTest('dedupes concurrent fetches of the same key', (async) {
+      final fetcher = FakeFetcher(() => 'data');
+      final options = QueryOptions<String>(
+        queryKey: ['todos'],
+        queryFn: fetcher.call,
+      );
+      client.query(options);
+      client.query(options);
+      async.elapse(ms10);
+
+      expect(fetcher.calls, 1);
+    });
+  });
+
+  fakeTest('cancelQueries reverts to the previous state', (async) {
+    final fetcher = FakeFetcher(() => 'first');
+    final observer = observe(['todos'], fetcher);
+    observer.subscribe((_) {});
+    async.elapse(ms10);
+
+    fetcher.value = () => 'second';
+    observer.refetch();
+    client.cancelQueries(queryKey: ['todos']);
+    async.elapse(ms10);
+
+    expect(observer.result.data, 'first');
+    expect(observer.result.isSuccess, isTrue);
+    expect(observer.result.fetchStatus, FetchStatus.idle);
+  });
+
+  fakeTest('removeQueries removes matching queries', (async) {
+    client.setQueryData(['todos', 1], 'a');
+    client.setQueryData(['todos', 2], 'b');
+    client.setQueryData(['posts'], 'c');
+
+    client.removeQueries(queryKey: ['todos']);
+
+    expect(client.getQueryData<String>(['todos', 1]), isNull);
+    expect(client.getQueryData<String>(['posts']), 'c');
+  });
+
+  fakeTest('resetQueries restores initial data and refetches', (async) {
+    final fetcher = FakeFetcher(() => 'fetched');
+    final observer = QueryObserver<String>(
+      client,
+      QueryOptions(
+        queryKey: ['todos'],
+        queryFn: fetcher.call,
+        initialData: 'initial',
+      ),
+    );
+    observer.subscribe((_) {});
+    async.elapse(ms10);
+    expect(observer.result.data, 'fetched');
+
+    client.resetQueries(queryKey: ['todos']);
+    expect(observer.result.data, 'initial');
+    async.elapse(ms10);
+    expect(observer.result.data, 'fetched');
+    expect(fetcher.calls, 2);
+  });
+
+  fakeTest('setQueryDefaults applies to keys with that prefix', (async) {
+    client.setQueryDefaults(
+      ['todos'],
+      const QueryDefaults(staleTime: Duration(minutes: 1)),
+    );
+
+    final todos = observe(['todos', 1], FakeFetcher(() => 'a'));
+    final posts = observe(['posts'], FakeFetcher(() => 'b'));
+
+    expect(todos.options.staleTime, const Duration(minutes: 1));
+    expect(posts.options.staleTime, isNull);
+  });
+
+  fakeTest('isFetching counts fetching queries', (async) {
+    observe(['todos'], FakeFetcher(() => 'a')).subscribe((_) {});
+    observe(['posts'], FakeFetcher(() => 'b')).subscribe((_) {});
+
+    expect(client.isFetching(), 2);
+    expect(client.isFetching(queryKey: ['todos']), 1);
+    async.elapse(ms10);
+    expect(client.isFetching(), 0);
+  });
+
+  fakeTest('cache config callbacks see every query', (async) {
+    final errors = <Object>[];
+    final client = QueryClient(
+      queryCache: QueryCache(
+        config: QueryCacheConfig(onError: (error, _) => errors.add(error)),
+      ),
+      defaultOptions: const DefaultOptions(
+        queries: QueryDefaults(retry: RetryPolicy.never()),
+      ),
+    );
+    QueryObserver<String>(
+      client,
+      QueryOptions(
+        queryKey: ['a'],
+        queryFn: (FakeFetcher(() => 'a')..error = StateError('boom')).call,
+      ),
+    ).subscribe((_) {});
+    async.elapse(ms10);
+
+    expect(errors.single, isA<StateError>());
+    client.clear();
+  });
+
+  group('reading and prefetching', () {
+    fakeTest('getQueriesData returns every matching key and data', (async) {
+      client.setQueryData(['todos', 1], 'a');
+      client.setQueryData(['todos', 2], 'b');
+      client.setQueryData(['posts'], 'c');
+
+      final entries = client.getQueriesData<String>(queryKey: ['todos']);
+      expect(entries.map((e) => '${e.$1} ${e.$2}'), [
+        '[todos, 1] a',
+        '[todos, 2] b',
+      ]);
+    });
+
+    fakeTest('with staticStaleTime, uses any cached data', (async) {
+      final fetcher = FakeFetcher(() => 'fetched');
+      final options = QueryOptions<String>(
+        queryKey: ['todos'],
+        queryFn: fetcher.call,
+        staleTime: staticStaleTime,
+      );
+
+      String? first;
+      client.query(options).then((data) => first = data);
+      async.elapse(ms10);
+      expect(first, 'fetched');
+
+      client.invalidateQueries(queryKey: ['todos']);
+      fetcher.value = () => 'refetched';
+      String? second;
+      client.query(options).then((data) => second = data);
+      async.elapse(ms10);
+
+      expect(second, 'fetched');
+      expect(fetcher.calls, 1);
+    });
+
+    fakeTest('prefetching with ignore fills the cache and hides errors',
+        (async) {
+      client
+          .query(QueryOptions<String>(
+            queryKey: ['ok'],
+            queryFn: FakeFetcher(() => 'data').call,
+          ))
+          .ignore();
+      client
+          .query(QueryOptions<String>(
+            queryKey: ['bad'],
+            queryFn:
+                (FakeFetcher(() => 'data')..error = StateError('boom')).call,
+          ))
+          .ignore();
+      async.elapse(ms10);
+
+      expect(client.getQueryData<String>(['ok']), 'data');
+      expect(client.getQueryState(['bad'])!.status, QueryStatus.error);
+    });
+
+    fakeTest('infiniteQuery loads the first page', (async) {
+      InfiniteData<String, int>? data;
+      client
+          .infiniteQuery(infiniteQueryOptions(
+            queryKey: ['pages'],
+            queryFn: (context) async => 'page ${context.pageParam}',
+            initialPageParam: 1,
+            getNextPageParam: (data) => data.lastPageParam + 1,
+          ))
+          .then((value) => data = value);
+      async.flushMicrotasks();
+
+      expect(data!.pages, ['page 1']);
+      expect(
+        client.getQueryData<InfiniteData<String, int>>(['pages'])!.pages,
+        ['page 1'],
+      );
+    });
+
+    fakeTest('query without a queryFn uses an observer\'s', (async) {
+      final fetcher = FakeFetcher(() => 'data');
+      observe(['todos'], fetcher).subscribe((_) {});
+      async.elapse(ms10);
+
+      String? data;
+      client
+          .query(QueryOptions<String>(queryKey: ['todos']))
+          .then((value) => data = value);
+      async.elapse(ms10);
+
+      expect(data, 'data');
+      expect(fetcher.calls, 2);
+    });
+
+    fakeTest('query fails without any queryFn', (async) {
+      Object? error;
+      client.query(QueryOptions<String>(queryKey: ['todos'])).then((_) {},
+          onError: (Object e) {
+        error = e;
+      });
+      async.flushMicrotasks();
+
+      expect(error, isA<StateError>());
+    });
+  });
+
+  group('refetching', () {
+    fakeTest('refetchQueries refetches matching enabled queries', (async) {
+      final todos = FakeFetcher(() => 'todos');
+      final disabled = FakeFetcher(() => 'disabled');
+      observe(['todos'], todos).subscribe((_) {});
+      QueryObserver<String>(
+        client,
+        QueryOptions(
+          queryKey: ['todos', 'disabled'],
+          queryFn: disabled.call,
+          enabled: false,
+        ),
+      ).subscribe((_) {});
+      async.elapse(ms10);
+
+      client.refetchQueries(queryKey: ['todos']);
+      async.elapse(ms10);
+
+      expect(todos.calls, 2);
+      expect(disabled.calls, 0);
+    });
+
+    fakeTest('refetchQueries does not wait for paused queries', (async) {
+      observe(['todos'], FakeFetcher(() => 'data')).subscribe((_) {});
+      async.elapse(ms10);
+      onlineManager.setOnline(false);
+
+      var done = false;
+      client.refetchQueries().then((_) => done = true);
+      async.flushMicrotasks();
+
+      expect(done, isTrue);
+      expect(client.getQueryState(['todos'])!.fetchStatus, FetchStatus.paused);
+    });
+
+    fakeTest('refetchQueries rethrows with throwOnError', (async) {
+      final fetcher = FakeFetcher(() => 'data');
+      observe(['todos'], fetcher).subscribe((_) {});
+      async.elapse(ms10);
+      fetcher.error = StateError('boom');
+
+      Object? error;
+      client.refetchQueries(throwOnError: true).then((_) {},
+          onError: (Object e) {
+        error = e;
+      });
+      async.elapse(ms10);
+
+      expect(error, isA<StateError>());
+    });
+
+    fakeTest('filters by stale, type, and predicate', (async) {
+      client.setQueryData(['fresh'], 'a');
+      final stale = observe(['stale'], FakeFetcher(() => 'b'));
+      stale.subscribe((_) {});
+      async.elapse(ms10);
+
+      final staleKeys = client.queryCache
+          .findAll(const QueryFilters(stale: true))
+          .map((q) => q.queryKey);
+      expect(staleKeys, [
+        ['stale'],
+      ]);
+      expect(
+        client.queryCache
+            .findAll(const QueryFilters(type: QueryTypeFilter.inactive))
+            .single
+            .queryKey,
+        ['fresh'],
+      );
+      expect(
+        client.queryCache
+            .findAll(
+                QueryFilters(predicate: (q) => q.queryKey.first == 'fresh'))
+            .single
+            .queryKey,
+        ['fresh'],
+      );
+      expect(client.queryCache.find(const QueryFilters(queryKey: ['fresh'])),
+          isNotNull);
+      expect(client.queryCache.find(const QueryFilters(queryKey: ['fre'])),
+          isNull);
+    });
+  });
+
+  fakeTest('notifies cache listeners about query events', (async) {
+    final events = <Type>[];
+    final stopListening =
+        client.queryCache.subscribe((event) => events.add(event.runtimeType));
+    addTearDown(stopListening);
+
+    final observer = observe(['todos'], FakeFetcher(() => 'data'));
+    final unsubscribe = observer.subscribe((_) {});
+    async.elapse(ms10);
+    unsubscribe();
+    client.removeQueries();
+
+    expect(
+        events,
+        containsAll([
+          QueryAddedEvent,
+          QueryObserverAddedEvent,
+          QueryUpdatedEvent,
+          QueryObserverResultsUpdatedEvent,
+          QueryObserverRemovedEvent,
+          QueryRemovedEvent,
+        ]));
+  });
+
+  fakeTest('setMutationDefaults applies to keys with that prefix', (async) {
+    client.setMutationDefaults(
+      ['todos'],
+      const MutationDefaults(retry: RetryPolicy.count(2)),
+    );
+
+    final todo = Mutation.use(
+      mutationFn: (int id) async => id,
+      mutationKey: ['todos', 'add'],
+      client: client,
+    );
+    final other = Mutation.use(
+      mutationFn: (int id) async => id,
+      mutationKey: ['posts'],
+      client: client,
+    );
+
+    expect(todo.options.retry, isNotNull);
+    expect(other.options.retry, isNull);
+  });
+
+  fakeTest('resumePausedMutations does nothing while offline', (async) {
+    onlineManager.setOnline(false);
+    final mutation = Mutation.use(
+      mutationFn: (int id) async => id,
+      client: client,
+    );
+    mutation.mutate(1);
+    async.flushMicrotasks();
+
+    client.resumePausedMutations();
+    async.flushMicrotasks();
+    expect(mutation.result.isPaused, isTrue);
+  });
+}

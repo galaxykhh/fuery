@@ -27,9 +27,3 @@ migrate_working_dir/
 **/doc/api/
 .dart_tool/
 build/
-
-# Test coverage output
-coverage/
-
-# Personal Claude Code settings
-.claude/settings.local.json
