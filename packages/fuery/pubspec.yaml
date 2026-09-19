@@ -2,15 +2,17 @@ name: fuery
 description: "Asynchronous state management library that helps implements the server side state management in Flutter"
 version: 0.0.1
 homepage: https://github.com/galaxykhh
-repository: https://github.com/galaxykhh/fuery
+repository: https://github.com/galaxykhh/fuery/tree/main/packages/fuery
 topics:
   - react-query
   - state-management
   - server-state
 
+resolution: workspace
+
 environment:
-  sdk: '>=3.3.1 <4.0.0'
-  flutter: ">=1.17.0"
+  sdk: ^3.6.0
+  flutter: ">=3.27.0"
 
 dependencies:
   flutter:
