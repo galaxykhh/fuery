@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/cupertino.dart' show DefaultCupertinoLocalizations;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:fuery_core/fuery_core.dart';
@@ -59,36 +60,38 @@ class _FueryDevtoolsState extends State<FueryDevtools> {
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.enabled) return widget.child;
     final safeArea = MediaQuery.maybePaddingOf(context) ?? EdgeInsets.zero;
 
+    // The child keeps its place in the tree, so turning the devtools on or
+    // off doesn't reset the app.
     return Stack(
       alignment: Alignment.topLeft,
       children: [
         widget.child,
-        Positioned.fill(
-          child: _open
-              ? Align(
-                  alignment: Alignment.bottomCenter,
-                  child: FractionallySizedBox(
-                    widthFactor: 1,
-                    heightFactor: 0.55,
-                    child: FueryDevtoolsPanel(
-                      client: widget.client,
-                      onClose: () => setState(() => _open = false),
+        if (widget.enabled)
+          Positioned.fill(
+            child: _open
+                ? Align(
+                    alignment: Alignment.bottomCenter,
+                    child: FractionallySizedBox(
+                      widthFactor: 1,
+                      heightFactor: 0.55,
+                      child: FueryDevtoolsPanel(
+                        client: widget.client,
+                        onClose: () => setState(() => _open = false),
+                      ),
+                    ),
+                  )
+                : Padding(
+                    padding: safeArea + const EdgeInsets.all(16),
+                    child: Align(
+                      alignment: widget.buttonAlignment,
+                      child: _OpenButton(
+                        onPressed: () => setState(() => _open = true),
+                      ),
                     ),
                   ),
-                )
-              : Padding(
-                  padding: safeArea + const EdgeInsets.all(16),
-                  child: Align(
-                    alignment: widget.buttonAlignment,
-                    child: _OpenButton(
-                      onPressed: () => setState(() => _open = true),
-                    ),
-                  ),
-                ),
-        ),
+          ),
       ],
     );
   }
@@ -131,7 +134,7 @@ class _FueryDevtoolsPanelState extends State<FueryDevtoolsPanel> {
 
   _PanelConfig _read() {
     return (
-      client: widget.client ?? context.queryClient,
+      client: widget.client ?? dependOnQueryClient(context),
       onClose: widget.onClose,
     );
   }
@@ -149,6 +152,7 @@ class _FueryDevtoolsPanelState extends State<FueryDevtoolsPanel> {
       locale: const Locale('en'),
       delegates: const [
         DefaultMaterialLocalizations.delegate,
+        DefaultCupertinoLocalizations.delegate,
         DefaultWidgetsLocalizations.delegate,
       ],
       child: Theme(
@@ -347,8 +351,9 @@ class _PanelBodyState extends State<_PanelBody> {
 @visibleForTesting
 String queryStatusLabel(Query<Object> query) {
   if (query.state.fetchStatus == FetchStatus.fetching) return 'fetching';
-  if (query.observersCount == 0) return 'inactive';
   if (query.state.fetchStatus == FetchStatus.paused) return 'paused';
+  if (query.observersCount == 0) return 'inactive';
+  if (!query.isActive()) return 'disabled';
   return query.isStale() ? 'stale' : 'fresh';
 }
 

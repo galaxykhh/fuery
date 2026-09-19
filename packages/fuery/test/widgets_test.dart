@@ -340,6 +340,43 @@ void main() {
       await tearDownApp(tester);
     });
 
+    testWidgets('MutationBuilder shows the latest state when it mounts again',
+        (tester) async {
+      final save = Mutation.use(
+        mutationFn: (String title) async {
+          await Future<void>.delayed(ms10);
+          return title;
+        },
+        client: client,
+      );
+      final visible = ValueNotifier(true);
+      await pumpApp(
+        tester,
+        ValueListenableBuilder(
+          valueListenable: visible,
+          builder: (context, show, _) => show
+              ? MutationBuilder(
+                  mutation: save,
+                  builder: (_, state) => Text(state.status.name),
+                )
+              : const Text('hidden'),
+        ),
+      );
+
+      save.mutate('a');
+      await tester.pump();
+      expect(find.text('pending'), findsOneWidget);
+
+      // For example a tab switch while saving.
+      visible.value = false;
+      await tester.pump();
+      await tester.pump(ms10);
+      visible.value = true;
+      await tester.pump();
+      expect(find.text('success'), findsOneWidget);
+      await tearDownApp(tester);
+    });
+
     testWidgets('MutationListener reacts to success', (tester) async {
       final addTodo = Mutation.use(
         mutationFn: (String title) async => title,
@@ -574,7 +611,7 @@ void main() {
       expect(seen, [client, other]);
       // The old client no longer refetches on focus; the new one does.
       final fetcher = Fetcher('a');
-      QueryObserver<String>(
+      final unsubscribe = QueryObserver<String>(
         other,
         QueryOptions(queryKey: ['todos'], queryFn: fetcher.call),
       ).subscribe((_) {});
@@ -584,6 +621,7 @@ void main() {
       await tester.pump(ms10);
       expect(fetcher.calls, 2);
 
+      unsubscribe();
       await tester.pumpWidget(const SizedBox());
       other.clear();
       client.clear();

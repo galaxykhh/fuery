@@ -42,7 +42,8 @@ class MutationBuilder<TData, TVariables, TContext> extends StatelessWidget {
   }
 }
 
-/// Runs side effects when a mutation changes.
+/// Runs side effects when a mutation changes. Not called for the state the
+/// mutation already had when the listener mounted.
 ///
 /// ```dart
 /// MutationListener(

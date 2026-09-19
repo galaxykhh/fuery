@@ -16,7 +16,7 @@ typedef _Result<TPage, TParam> = InfiniteQueryResult<TPage, TParam>;
 ///       for (final page in state.pages) ...page.items.map(PostTile.new),
 ///       if (state.hasNextPage)
 ///         TextButton(
-///           onPressed: state.isFetchingNextPage ? null : posts.fetchNextPage,
+///           onPressed: state.isFetching ? null : posts.fetchNextPage,
 ///           child: const Text('Load more'),
 ///         ),
 ///     ],
@@ -47,7 +47,8 @@ class InfiniteQueryBuilder<TPage, TParam> extends StatelessWidget {
   }
 }
 
-/// Runs side effects when an infinite query changes.
+/// Runs side effects when an infinite query changes. Not called for the
+/// result the query already had when the listener mounted.
 class InfiniteQueryListener<TPage, TParam> extends StatelessWidget {
   const InfiniteQueryListener({
     super.key,
