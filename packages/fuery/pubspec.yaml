@@ -1,6 +1,6 @@
 name: fuery
-description: "Asynchronous state management library that helps implements the server side state management in Flutter"
-version: 0.0.1
+description: "Server state caching for Flutter with widgets that work like flutter_bloc: queries, infinite queries, mutations, retries, and background refetching."
+version: 0.3.0
 homepage: https://github.com/galaxykhh
 repository: https://github.com/galaxykhh/fuery/tree/main/packages/fuery
 topics:
@@ -17,7 +17,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  fuery_core: ^0.2.2
+  fuery_core: ^0.3.0
 
 dev_dependencies:
   flutter_test:

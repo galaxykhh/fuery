@@ -1,3 +1,8 @@
+## 0.3.0
+- Rewrite the core around `QueryClient`, `QueryCache`, and observers. Most APIs changed; see the README.
+- Add retries with backoff, cancellation, pausing while offline, placeholder data, structural sharing, mutation scopes, `client.query`, and `client.infiniteQuery`.
+- Replace `rxdart` with `clock`, `collection`, and `meta`.
+
 ## 0.2.2
 - fix: The type error for `getQueryData` has been resolved.
 
