@@ -166,6 +166,7 @@ class QueryCache extends Subscribable<QueryCacheEvent> {
 
   void remove(Query<Object> query) {
     if (!identical(_queries[query.queryHash], query)) return;
+    query._removed = true;
     query.destroy();
     _queries.remove(query.queryHash);
     notify(QueryRemovedEvent(query));

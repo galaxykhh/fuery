@@ -32,14 +32,14 @@ class _TodoListScreenState extends State<TodoListScreen> {
       return TodoApi().add(payload.title, payload.description);
     },
     onSuccess: (todo, payload, _) {
-      return Fuery.instance.invalidateQueries(queryKey: todosKey);
+      return Fuery.client.invalidateQueries(queryKey: todosKey);
     },
   );
 
   final toggleTodo = Mutation.use(
     mutationFn: (int id) => TodoApi().toggle(id),
     onSuccess: (_, id, __) {
-      return Fuery.instance.invalidateQueries(queryKey: todosKey);
+      return Fuery.client.invalidateQueries(queryKey: todosKey);
     },
   );
 
@@ -48,7 +48,7 @@ class _TodoListScreenState extends State<TodoListScreen> {
   final deleteTodo = Mutation.use(
     mutationFn: (int id) => TodoApi().delete(id),
     onMutate: (id) {
-      final client = Fuery.instance;
+      final client = Fuery.client;
       final previous = client.getQueryData<List<Todo>>(todosKey);
       client.updateQueryData<List<Todo>>(
         todosKey,
@@ -57,10 +57,10 @@ class _TodoListScreenState extends State<TodoListScreen> {
       return previous;
     },
     onError: (error, id, previous) {
-      if (previous != null) Fuery.instance.setQueryData(todosKey, previous);
+      if (previous != null) Fuery.client.setQueryData(todosKey, previous);
     },
     onSuccess: (_, id, __) {
-      return Fuery.instance.invalidateQueries(queryKey: todosKey);
+      return Fuery.client.invalidateQueries(queryKey: todosKey);
     },
   );
 

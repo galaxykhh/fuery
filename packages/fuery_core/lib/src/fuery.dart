@@ -3,13 +3,23 @@ part of 'core.dart';
 /// Holds the default [QueryClient] used by [Query.use], [InfiniteQuery.use],
 /// and [Mutation.use] when no client is passed.
 abstract final class Fuery {
-  static QueryClient? _instance;
+  static QueryClient? _client;
 
   /// The default client. Created and mounted on first use.
-  static QueryClient get instance => _instance ??= QueryClient()..mount();
+  static QueryClient get client => _client ??= QueryClient()..mount();
 
-  /// Replaces the default client, for example with one configured with
-  /// [DefaultOptions], or a fresh one in tests. Call [QueryClient.mount] on it
-  /// to refetch on focus and reconnect.
-  static set instance(QueryClient client) => _instance = client;
+  /// Replaces the default client, for example with one that has a storage or
+  /// other defaults. The new client is mounted, so it refetches on focus and
+  /// reconnect, and the previous one is unmounted.
+  ///
+  /// ```dart
+  /// Fuery.client = QueryClient(storage: PreferencesStorage(preferences));
+  /// ```
+  static set client(QueryClient client) {
+    final previous = _client;
+    if (identical(previous, client)) return;
+    client.mount();
+    previous?.unmount();
+    _client = client;
+  }
 }

@@ -152,6 +152,7 @@ class MutationCache extends Subscribable<MutationCacheEvent> {
   }
 
   void remove(AnyMutation mutation) {
+    mutation._removed = true;
     mutation.destroy();
     if (_mutations.remove(mutation)) {
       final scope = mutation.options.scope?.id;
@@ -188,6 +189,7 @@ class MutationCache extends Subscribable<MutationCacheEvent> {
   void clear() {
     notifyManager.batch(() {
       for (final mutation in _mutations.toList()) {
+        mutation._removed = true;
         mutation.destroy();
         notify(MutationRemovedEvent(mutation));
       }

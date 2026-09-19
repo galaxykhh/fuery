@@ -23,6 +23,6 @@ void main() {
     expect(find.text('Finish Assignment'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox());
-    Fuery.instance.clear();
+    Fuery.client.clear();
   });
 }

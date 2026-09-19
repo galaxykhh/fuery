@@ -38,6 +38,7 @@ export default defineConfig({
 						'guides/bloc',
 						'guides/lifecycle',
 						'guides/testing',
+						'guides/devtools',
 					],
 				},
 				{

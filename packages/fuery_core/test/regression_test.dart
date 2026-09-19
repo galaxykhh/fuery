@@ -221,4 +221,29 @@ void main() {
     ));
     expect(events, [MutationObserverOptionsUpdatedEvent]);
   });
+
+  fakeTest('removed queries and mutations keep no garbage collection timer',
+      (async) {
+    onlineManager.setOnline(false);
+    final query = Query.use(
+      queryKey: ['paused'],
+      queryFn: FakeFetcher(() => 'a').call,
+      client: client,
+    );
+    final mutation = Mutation.use(
+      mutationFn: (int id) async => id,
+      client: client,
+    );
+    final unsubscribeQuery = query.subscribe((_) {});
+    final unsubscribeMutation = mutation.subscribe((_) {});
+    mutation.mutate(1);
+    async.flushMicrotasks();
+
+    client.clear();
+    unsubscribeQuery();
+    unsubscribeMutation();
+    async.flushMicrotasks();
+
+    expect(async.pendingTimers, isEmpty);
+  });
 }

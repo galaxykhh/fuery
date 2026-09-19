@@ -3,12 +3,12 @@ title: QueryClient
 description: Read, write, invalidate, and prefetch cached data.
 ---
 
-The `QueryClient` owns the cache. `Fuery.instance` is the default client, used whenever you don't pass `client:`.
+The `QueryClient` owns the cache. `Fuery.client` is the default client, used whenever you don't pass `client:`.
 
 ## Reading and writing the cache
 
 ```dart
-final client = Fuery.instance;
+final client = Fuery.client;
 
 client.getQueryData<List<Todo>>(['todos']);
 client.setQueryData(['todos', 1], todo);
@@ -89,19 +89,19 @@ To use whatever is cached, however old, set `staleTime: staticStaleTime`. This i
 Configure every query, or every query under a key prefix:
 
 ```dart
-Fuery.instance = QueryClient(
+Fuery.client = QueryClient(
   defaultOptions: const DefaultOptions(
     queries: QueryDefaults(staleTime: Duration(seconds: 30)),
   ),
-)..mount();
+);
 
-Fuery.instance.setQueryDefaults(
+Fuery.client.setQueryDefaults(
   ['settings'],
   const QueryDefaults(staleTime: infiniteDuration),
 );
 ```
 
-`mount()` makes the client refetch on focus and reconnect. The default `Fuery.instance` is already mounted.
+Assigning `Fuery.client` mounts the new client, so it refetches on focus and reconnect, and unmounts the previous one.
 
 ## Providing a client
 
@@ -111,4 +111,4 @@ To give part of the app its own client, for example in widget tests, wrap it in 
 FueryProvider(client: QueryClient(), child: const App());
 ```
 
-Read it with `context.queryClient`, which falls back to `Fuery.instance` when there is no provider, and pass it as `client:` to `Query.use`, `InfiniteQuery.use`, and `Mutation.use`.
+Read it with `context.queryClient`, which falls back to `Fuery.client` when there is no provider, and pass it as `client:` to `Query.use`, `InfiniteQuery.use`, and `Mutation.use`.

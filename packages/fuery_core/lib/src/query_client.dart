@@ -17,8 +17,9 @@ class DefaultOptions {
 /// Owns the query and mutation caches and is the main way to read, write, and
 /// invalidate cached data.
 ///
-/// Call [mount] to refetch on focus and reconnect, and [unmount] when the
-/// client is no longer used.
+/// A mounted client refetches on focus and reconnect. Assigning [Fuery.client]
+/// and `FueryProvider` mount their clients; call [mount] and [unmount]
+/// yourself for other clients.
 class QueryClient {
   QueryClient({
     QueryCache? queryCache,
@@ -128,7 +129,7 @@ class QueryClient {
   /// first used.
   ///
   /// ```dart
-  /// await Fuery.instance.restore();
+  /// await Fuery.client.restore();
   /// runApp(const App());
   /// ```
   Future<void> restore() async {

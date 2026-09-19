@@ -3,7 +3,7 @@
 Server state caching for Flutter: queries, infinite queries, and mutations, with builder and listener widgets. This is a pub workspace with two published packages:
 
 - `packages/fuery_core`: pure Dart core (queries, infinite queries, mutations, cache, retries). No Flutter imports.
-- `packages/fuery`: Flutter widgets, app lifecycle binding, and `FueryProvider`. Re-exports `fuery_core`.
+- `packages/fuery`: Flutter widgets, app lifecycle binding, `FueryProvider`, and the in-app devtools. Re-exports `fuery_core`.
 - `packages/fuery/example`: todo app built with Fuery widgets and a cubit, with widget tests.
 - `docs`: the documentation site (Astro Starlight), deployed to https://galaxykhh.github.io/fuery/
 

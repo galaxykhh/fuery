@@ -22,7 +22,7 @@ class Mutation<TData, TVariables, TContext> extends Removable {
   /// late final addTodo = Mutation.use(
   ///   mutationFn: (String title) => api.addTodo(title),
   ///   onSuccess: (todo, title, context) {
-  ///     Fuery.instance.invalidateQueries(queryKey: ['todos']);
+  ///     Fuery.client.invalidateQueries(queryKey: ['todos']);
   ///   },
   /// );
   ///
@@ -45,7 +45,7 @@ class Mutation<TData, TVariables, TContext> extends Removable {
     QueryClient? client,
   }) {
     return MutationObserver<TData, TVariables, TContext>(
-      client ?? Fuery.instance,
+      client ?? Fuery.client,
       MutationOptions<TData, TVariables, TContext>(
         mutationFn: mutationFn,
         mutationKey: mutationKey,
@@ -82,7 +82,7 @@ class Mutation<TData, TVariables, TContext> extends Removable {
     QueryClient? client,
   }) {
     return NoParamMutationObserver<TData, TContext>(
-      client ?? Fuery.instance,
+      client ?? Fuery.client,
       MutationOptions<TData, void, TContext>(
         mutationFn: (_) => mutationFn(),
         mutationKey: mutationKey,
@@ -107,6 +107,7 @@ class Mutation<TData, TVariables, TContext> extends Removable {
   }
 
   final int mutationId;
+  bool _removed = false;
   final MutationCache _mutationCache;
   final List<MutationObserver<TData, TVariables, TContext>> _observers = [];
   late MutationOptions<TData, TVariables, TContext> _options;
@@ -135,6 +136,13 @@ class Mutation<TData, TVariables, TContext> extends Removable {
     _observers.remove(observer);
     scheduleGc();
     _mutationCache.notify(MutationObserverRemovedEvent(this, observer));
+  }
+
+  @override
+  @protected
+  void scheduleGc() {
+    // Once removed from the cache, there is nothing left to collect.
+    if (!_removed) super.scheduleGc();
   }
 
   @override
