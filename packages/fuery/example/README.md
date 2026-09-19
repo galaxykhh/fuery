@@ -1,16 +1,15 @@
-# example
+# Fuery example
 
-A new Flutter project.
+A todo app that shows how the pieces fit together:
 
-## Getting Started
+- `Query.use` with `QueryBuilder` for the list, and a second `QueryBuilder` with `buildWhen` for a refetch indicator.
+- `Mutation.use` to add todos, invalidating the list on success.
+- An optimistic delete that removes the todo immediately and rolls back if the request fails.
+- `MutationBuilder` for a loading barrier and `MutationListener` for an error snackbar.
 
-This project is a starting point for a Flutter application.
+The screen is in [`lib/app/screens/todo_list/todo_list.dart`](lib/app/screens/todo_list/todo_list.dart), and [`test/todo_list_test.dart`](test/todo_list_test.dart) exercises it.
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```bash
+flutter run
+flutter test
+```

@@ -1,121 +1,92 @@
-<!--
-This README describes the package. If you publish this package to pub.dev,
-this README's contents appear on the landing page for your package.
-
-For information about how to write a good package README, see the guide for
-[writing package pages](https://dart.dev/guides/libraries/writing-package-pages).
-
-For general information about developing packages, see the Dart guide for
-[creating packages](https://dart.dev/guides/libraries/create-library-packages)
-and the Flutter guide for
-[developing packages and plugins](https://flutter.dev/developing-packages).
--->
-
-
 # Fuery Core
-### Asynchronous State Management for Dart.
 
-## Features
-* Async data fetching, caching, invalidation, pagination
-* Mutation with side effect
+Server state caching for Dart: queries, infinite queries, and mutations.
 
-## Installation
+This is the pure Dart core. **For Flutter apps, use [`fuery`](https://pub.dev/packages/fuery)**, which re-exports this package and adds widgets. Use `fuery_core` directly for Dart servers, CLIs, or packages that shouldn't depend on Flutter.
+
+## Install
+
 ```bash
-flutter pub add fuery_core
+dart pub add fuery_core
 ```
 
-## Basic Usage
-### Query
-```dart
-int id = 2;
+## Queries
 
-// QueryResult<Post, Error>
-late final post = Query.use<Post, Error>(
-  queryKey: ['posts', id],
-  queryFn: () => repository.getPostById(id),
+`Query.use` returns a `QueryObserver`. It fetches when it gets its first listener, and shares one cache entry and one request with every other observer of the same key.
+
+```dart
+import 'package:fuery_core/fuery_core.dart';
+
+final todos = Query.use(
+  queryKey: ['todos'],
+  queryFn: (context) => api.getTodos(),
+  staleTime: const Duration(minutes: 1),
 );
+
+final subscription = todos.stream.listen((result) {
+  if (result.isSuccess) print(result.data);
+});
+
+await todos.refetch();
+await subscription.cancel(); // stops observing; the cache is freed after gcTime
 ```
-### Infinite Query
+
+The stream sends the current `QueryResult` first, then every change. You can also read `todos.result` at any time, or use `subscribe(listener)`, which returns an unsubscribe function.
+
+## Mutations
+
 ```dart
-class PageResponse<T> {
-  final List<T> items;
-  final int? nextCursor;
+final addTodo = Mutation.use(
+  mutationFn: (String title) => api.addTodo(title),
+  onSuccess: (todo, title, context) =>
+      Fuery.instance.invalidateQueries(queryKey: ['todos']),
+);
 
-  ...
-  
-  factory PageResponse.fromJson(Map<String, dynamic> map) {
-    return ...;
-  }
-}
+final todo = await addTodo.mutateAsync('Buy milk'); // throws on error
+addTodo.mutate('Buy milk'); // reports errors in addTodo.result instead
+```
 
-class MyRepository {
-  Future<PageResponse<Post>> getPostsByPage(int page) async {
-    try {
-      return PageResponse.fromJson(...);
-    } catch(_) {
-      throw Error();
-    }
-  }
-}
+## Infinite queries
 
-// InfiniteQueryResult<int, List<InfiniteData<int, PageResponse<Post>>>, Error>
-late final posts = InfiniteQuery.use<int, PageResponse<Post>, Error>(
-  queryKey: ['posts', 'list'],
-  queryFn: (int page) => repository.getPostsByPage(page),
+```dart
+final posts = InfiniteQuery.use(
+  queryKey: ['posts'],
+  queryFn: (context) => api.getPosts(page: context.pageParam),
   initialPageParam: 1,
-  getNextPageParam: (lastPage, allPages) {
-    print(lastPage.runtimeType) // InfiniteData<int, PageResponse<Post>>,
-    print(allPages.runtimeType) // List<InfiniteData<int, PageResponse<Post>>>,
-    
-    return lastPage.data.nextPage;
-  },
-);
-```
-
-
-### Mutation
-```dart
-// MutationResult<Post, Error, void Function(String), Future<Post> Function(String)>
-late final createPost = Mutation.use<String, Post, Error>(
-  mutationFn: (String content) => repository.createPost(content),
-  onMutate: (param) => print('mutate started'),
-  onSuccess: (param, data) => print('mutate succeed'),
-  onError: (param, error) => print('mutate error occurred'),
+  getNextPageParam: (data) =>
+      data.lastPage.hasMore ? data.lastPageParam + 1 : null,
 );
 
-createPost.mutate('some content');
-// or
-await createPost.mutateAsync('some content');
+posts.stream.listen((result) => print(result.pages));
+await posts.fetchNextPage();
 ```
 
-### Mutation without parameters
-Sometimes you may need a Mutation without parameters. In such situations, you can use the Mutation.noParams constructor.
+## QueryClient
+
+`Fuery.instance` is the default `QueryClient`, used whenever no `client:` is passed. Create your own to change defaults or to isolate tests:
 
 ```dart
-// MutationResult<Post, Error, void Function(), Future<void> Function()>
-late final createRandomPost = Mutation.noParams<Post, Error>(
-  mutationFn: () => repository.createRandomPost(),
-  onMutate: () => print('mutate started'),
-  onSuccess: (data) => print('mutate succeed'),
-  onError: (error) => print('mutate error occurred'),
-);
+final client = QueryClient(
+  defaultOptions: const DefaultOptions(
+    queries: QueryDefaults(staleTime: Duration(seconds: 30)),
+  ),
+)..mount();
 
-createRandomPost.mutate();
-// or
-await createRandomPost.mutateAsync();
-```
-
-### Fuery Client
-```dart
-// invalidate.
-Fuery.invalidateQueries(queryKey: ['posts']);
-
-// Default query options configuration
-Fuery.configQueryOptions(
-  query: QueryOptions(...),
-  infiniteQuery: InfiniteQueryOptions(...),
+client.invalidateQueries(queryKey: ['todos']);
+client.setQueryData(['todos', 1], todo);
+final data = await client.query(
+  QueryOptions(queryKey: ['todos'], queryFn: (_) => api.getTodos()),
 );
 ```
 
-## Todo
-* More complex features like query-core (from react-query)
+`mount()` makes the client refetch when `focusManager` or `onlineManager` report that the app is focused or back online. Pure Dart has no focus or connectivity events, so set them yourself with `setEventListener`, or call `setFocused` and `setOnline`.
+
+Cached queries keep garbage collection timers running, which keeps a Dart process alive. Call `client.clear()` when a CLI is done.
+
+## Documentation
+
+The [`fuery` README](https://pub.dev/packages/fuery) covers every option, optimistic updates, cancellation, and defaults.
+
+## Acknowledgements
+
+Fuery's caching and refetching model is inspired by [TanStack Query](https://tanstack.com/query).

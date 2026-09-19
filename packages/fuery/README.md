@@ -1,178 +1,365 @@
-<!--
-This README describes the package. If you publish this package to pub.dev,
-this README's contents appear on the landing page for your package.
-
-For information about how to write a good package README, see the guide for
-[writing package pages](https://dart.dev/guides/libraries/writing-package-pages).
-
-For general information about developing packages, see the Dart guide for
-[creating packages](https://dart.dev/guides/libraries/create-library-packages)
-and the Flutter guide for
-[developing packages and plugins](https://flutter.dev/developing-packages).
--->
-
 <p align="center">
   <img src="https://github.com/galaxykhh/fuery/assets/79380337/15ad2527-a059-44ce-a8d2-51920c02596f"/>
   <h1 align="center">Fuery</h1>
 </p>
 
-### Asynchronous state management library that helps implements the server side state management in Flutter
+Server state for Flutter, with widgets that work like `flutter_bloc`.
 
-## Features
+Fuery fetches, caches, and keeps your server data fresh, with request deduplication, stale-while-revalidate caching, retries, pagination, and optimistic updates. The widgets follow `flutter_bloc` conventions (`Builder`, `Listener`, `Consumer`, `buildWhen`, `listenWhen`), so they fit next to the blocs you already have.
 
-- Async data fetching, caching, invalidation, pagination
-- Mutation with side effect
-- Widget builders and listeners
+- No code generation, no `BuildContext` required to create a query.
+- Queries are plain objects with a `Stream`, so blocs and cubits can use them too.
+- Refetches when the app returns to the foreground, retries failed requests, and pauses while offline.
 
-## Installation
+## Install
 
 ```bash
 flutter pub add fuery
 ```
 
-## Basic Usage
+## Quick start
 
-### Query
+Create a query once, for example in a `State` field, and build UI from it:
 
 ```dart
-int id = 2;
+class TodoListScreen extends StatefulWidget {
+  const TodoListScreen({super.key});
 
-// QueryResult<Post, Error>
-late final post = Query.use<Post, Error>(
-  queryKey: ['posts', id],
-  queryFn: () => repository.getPostById(id),
-);
+  @override
+  State<TodoListScreen> createState() => _TodoListScreenState();
+}
 
+class _TodoListScreenState extends State<TodoListScreen> {
+  final todos = Query.use(
+    queryKey: ['todos'],
+    queryFn: (_) => api.getTodos(),
+  );
 
-// Widget
-...
-return QueryBuilder(
-    query: post,
-    builder: (context, state) {
-        if (state.status.isPending) {
-            ...
-        }
+  @override
+  Widget build(BuildContext context) {
+    return QueryBuilder(
+      query: todos,
+      builder: (context, state) {
+        if (state.isPending) return const CircularProgressIndicator();
+        if (state.isError && !state.hasData) return Text('${state.error}');
+        return TodoList(state.data!);
+      },
+    );
+  }
+}
+```
 
-        if (state.status.isError) {
-            ...
-        }
-    }
+The query fetches when `QueryBuilder` mounts. Every widget that uses the key `['todos']` shares one cache entry and one request.
+
+Creating a query does not fetch, so it doesn't need to be `late`. Use `late final` only when the query reads `widget` or other fields, for example `queryKey: ['todo', widget.id]`.
+
+## Queries
+
+```dart
+final todo = Query.use(
+  queryKey: ['todos', id],
+  queryFn: (context) => api.getTodo(id),
+  staleTime: const Duration(minutes: 1),
 );
 ```
 
-### Infinite Query
+**Keys** identify cached data. They are lists compared by value, so `['todos', 1]` from two widgets is the same query. Maps inside keys are compared regardless of key order. A key can contain `null`, `bool`, `num`, `String`, enums, `DateTime`, lists, maps, and objects with a `toJson()` method.
+
+Query data can't be `null`, because `null` means "no data yet". Use a non-nullable type like `Future<User>`, and throw or return an empty value when there's nothing.
+
+Each key holds one data type. Using a key with a different type, for example `setQueryData(['todos'], [])` for a `List<Todo>` query, throws a `StateError`. Write `setQueryData<List<Todo>>(['todos'], [])` instead.
+
+**Freshness.** Data is *fresh* for `staleTime` (default: zero) and *stale* afterwards. Stale data is still shown, and it's refetched in the background when:
+
+- a new widget starts using the query,
+- the app returns to the foreground,
+- the network reconnects,
+- it is invalidated.
+
+Unused queries stay cached for `gcTime` (default: 5 minutes), so going back to a screen shows data instantly.
+
+**Result.** The builder receives a `QueryResult`:
+
+| Field | Meaning |
+|---|---|
+| `status` | `pending` (no data yet), `error`, or `success` |
+| `fetchStatus` | `fetching`, `paused` (waiting for the network), or `idle` |
+| `data`, `error` | The latest data and error. `data` is kept when a refetch fails. |
+| `isLoading` | First load: pending and fetching |
+| `isRefetching` | Fetching while data is shown |
+| `isLoadingError` / `isRefetchError` | Failed with no data / failed with data still shown |
+| `isStale`, `isPlaceholderData`, `failureCount`, `dataUpdatedAt` | See the API docs |
+
+**Options.**
+
+| Option | Default | |
+|---|---|---|
+| `enabled` | `true` | `false` stops automatic fetching |
+| `staleTime` | zero | `infiniteDuration`: fresh until invalidated. `staticStaleTime`: never stale or refetched automatically, even when invalidated. |
+| `gcTime` | 5 minutes | How long unused data stays cached |
+| `retry` | `RetryPolicy.count(3)` | Also `.never()`, `.always()`, `.when((count, error) => ...)` |
+| `retryDelay` | 1s, 2s, 4s, … up to 30s | |
+| `refetchOnMount`, `refetchOnFocus`, `refetchOnReconnect` | `RefetchMode.ifStale` | `.never` or `.always` |
+| `refetchInterval` | none | Polls while a widget uses the query |
+| `initialData` | none | Seeds the cache |
+| `placeholderData` | none | Shown while pending, not cached. Pass `keepPreviousData` to keep the previous key's data while a new key loads. |
+| `networkMode` | `NetworkMode.online` | `.always` ignores connectivity |
+| `structuralSharing` | `true` | Keeps unchanged data identical across refetches: the whole value if nothing changed, otherwise the unchanged list items |
+
+**Cancellation.** Read `context.signal` in the query function to make it cancellable. When the last widget leaves, the fetch is aborted instead of finishing in the background:
 
 ```dart
-class PageResponse<T> {
-  final List<T> items;
-  final int? nextCursor;
+queryFn: (context) {
+  final cancelToken = CancelToken();
+  context.signal.onAbort(cancelToken.cancel);
+  return dio
+      .get('/todos', cancelToken: cancelToken)
+      .then((response) => Todo.listFromJson(response.data));
+},
+```
 
-  ...
+## Widgets
 
-  factory PageResponse.fromJson(Map<String, dynamic> map) {
-    return ...;
-  }
-}
+Each kind of query has a builder, a listener, and a consumer:
 
-class MyRepository {
-  Future<PageResponse<Post>> getPostsByPage(int page) async {
-    try {
-      return PageResponse.fromJson(...);
-    } catch(_) {
-      throw Error();
-    }
-  }
-}
+| | Rebuild UI | Side effects | Both |
+|---|---|---|---|
+| Query | `QueryBuilder` | `QueryListener` | `QueryConsumer` |
+| Infinite query | `InfiniteQueryBuilder` | `InfiniteQueryListener` | `InfiniteQueryConsumer` |
+| Mutation | `MutationBuilder` | `MutationListener` | `MutationConsumer` |
 
-// InfiniteQueryResult<int, List<InfiniteData<int, PageResponse<Post>>>, Error>
-late final posts = InfiniteQuery.use<int, PageResponse<Post>, Error>(
-  queryKey: ['posts', 'list'],
-  queryFn: (int page) => repository.getPostsByPage(page),
+They behave like their `flutter_bloc` counterparts:
+
+- `buildWhen(previous, current)` compares with the last built result.
+- `listenWhen(previous, current)` compares with the previous result.
+- Listeners are not called for the result the query already had when they mounted.
+
+```dart
+QueryBuilder(
+  query: todos,
+  buildWhen: (previous, current) => previous.isRefetching != current.isRefetching,
+  builder: (context, state) =>
+      state.isRefetching ? const LinearProgressIndicator() : const SizedBox(),
+)
+
+QueryListener(
+  query: todos,
+  listenWhen: (previous, current) => current.isRefetchError,
+  listener: (context, state) => ScaffoldMessenger.of(context)
+      .showSnackBar(SnackBar(content: Text('Could not refresh: ${state.error}'))),
+  child: ...,
+)
+```
+
+## Mutations
+
+Mutations create, update, or delete server data:
+
+```dart
+final addTodo = Mutation.use(
+  mutationFn: (String title) => api.addTodo(title),
+  onSuccess: (todo, title, context) {
+    return Fuery.instance.invalidateQueries(queryKey: ['todos']);
+  },
+);
+
+addTodo.mutate('Buy milk');               // errors go to the state and callbacks
+final todo = await addTodo.mutateAsync('Buy milk'); // throws on error
+```
+
+Returning the `invalidateQueries` future from `onSuccess` keeps the mutation pending until the list has refetched.
+
+**Optimistic updates.** Update the cache in `onMutate` and return what you need to roll back. The returned value is passed to the other callbacks as `context`:
+
+```dart
+final deleteTodo = Mutation.use(
+  mutationFn: (int id) => api.deleteTodo(id),
+  onMutate: (id) {
+    final previous = Fuery.instance.getQueryData<List<Todo>>(['todos']);
+    Fuery.instance.updateQueryData<List<Todo>>(
+      ['todos'],
+      (todos) => todos?.where((todo) => todo.id != id).toList(),
+    );
+    return previous;
+  },
+  onError: (error, id, previous) {
+    if (previous != null) Fuery.instance.setQueryData(['todos'], previous);
+  },
+);
+```
+
+**Without variables**, use `Mutation.noParam` and call `mutate()`:
+
+```dart
+final logout = Mutation.noParam(mutationFn: () => api.logout());
+logout.mutate();
+```
+
+Mutations don't retry unless you set `retry`. With a `scope`, mutations that share the scope id run one after another.
+
+## Infinite queries
+
+```dart
+final posts = InfiniteQuery.use(
+  queryKey: ['posts'],
+  queryFn: (context) => api.getPosts(page: context.pageParam),
   initialPageParam: 1,
-  getNextPageParam: (lastPage, allPages) {
-    print(lastPage.runtimeType) // InfiniteData<int, PageResponse<Post>>,
-    print(allPages.runtimeType) // List<InfiniteData<int, PageResponse<Post>>>,
-
-    return lastPage.data.nextPage;
-  },
+  getNextPageParam: (data) =>
+      data.lastPage.hasMore ? data.lastPageParam + 1 : null,
 );
 
-// Widget
-...
-return InfiniteQueryBuilder(
-    query: posts,
-    builder: (context, state) {
-        if (state.status.isPending) {
-            ...
-        }
-
-        if (state.status.isError) {
-            ...
-        }
-    }
-);
+InfiniteQueryBuilder(
+  query: posts,
+  builder: (context, state) => ListView(
+    children: [
+      for (final page in state.pages) ...page.items.map(PostTile.new),
+      if (state.hasNextPage)
+        TextButton(
+          onPressed: state.isFetchingNextPage ? null : posts.fetchNextPage,
+          child: const Text('Load more'),
+        ),
+    ],
+  ),
+)
 ```
 
-### Mutation
+`getNextPageParam` returns `null` when there are no more pages. Its `data` argument has `pages`, `pageParams`, `lastPage`, `lastPageParam`, `firstPage`, and `firstPageParam`. Add `getPreviousPageParam` for bidirectional lists, and `maxPages` to limit how many pages are kept.
+
+Refetching an infinite query reloads every loaded page in order.
+
+If the first page has no param, give `null` its type so Dart can infer it:
 
 ```dart
-// MutationResult<Post, Error, void Function(String), Future<Post> Function(String)>
-late final createPost = Mutation.use<String, Post, Error>(
-  mutationFn: (String content) => repository.createPost(content),
-  onMutate: (param) => print('mutate started'),
-  onSuccess: (param, data) => print('mutate succeed'),
-  onError: (param, error) => print('mutate error occurred'),
-);
-
-createPost.mutate('some content');
-// or
-await createPost.mutateAsync('some content');
+initialPageParam: null as String?,
+getNextPageParam: (data) => data.lastPage.nextCursor,
 ```
 
-### Mutation without parameters
+## Using with bloc
 
-Sometimes you may need a Mutation without parameters. In such situations, you can use the Mutation.noParams constructor.
+Queries and mutations don't depend on widgets. Every observer has a `stream` that emits the current result first, then every change. Listening to it is what makes the query fetch.
 
 ```dart
-// MutationResult<Post, Error, void Function(), Future<void> Function()>
-late final createRandomPost = Mutation.noParams<Post, Error>(
-  mutationFn: () => repository.createRandomPost(),
-  onMutate: () => print('mutate started'),
-  onSuccess: (data) => print('mutate succeed'),
-  onError: (error) => print('mutate error occurred'),
-);
+class TodoCubit extends Cubit<TodoState> {
+  TodoCubit() : super(const TodoState()) {
+    _subscription = _todos.stream.listen((result) {
+      emit(state.copyWith(todos: result.data, loading: result.isLoading));
+    });
+  }
 
-createRandomPost.mutate();
-// or
-await createRandomPost.mutateAsync();
+  final _todos = Query.use(queryKey: ['todos'], queryFn: (_) => api.getTodos());
+  late final StreamSubscription<QueryResult<List<Todo>>> _subscription;
+
+  Future<void> refresh() => _todos.refetch();
+
+  @override
+  Future<void> close() {
+    _subscription.cancel();
+    return super.close();
+  }
+}
 ```
 
-### MutationBuilder
+In a `Bloc`, use `emit.forEach(todos.stream, onData: ...)`. If you don't use any Fuery widgets, call `FueryBinding.ensureInitialized()` once so queries refetch when the app resumes.
+
+## QueryClient
+
+`Fuery.instance` is the default client. Use it to read, write, and invalidate cached data:
 
 ```dart
+final client = Fuery.instance;
 
-// Shows loading barrier when deleting todo item.
-MutationBuilder(
-  mutation: deleteTodo,
-  builder: (context, state) {
-    if (state.status.isPending) {
-      return LoadingBarrier();
-    }
-
-    return const SizedBox();
-  },
-),
+client.invalidateQueries(queryKey: ['todos']);          // prefix match
+client.invalidateQueries(queryKey: ['todos'], exact: true);
+client.setQueryData(['todos', 1], todo);
+client.updateQueryData<List<Todo>>(['todos'], (todos) => [...?todos, todo]);
+client.getQueryData<List<Todo>>(['todos']);
+client.cancelQueries(queryKey: ['todos']);
+client.removeQueries(queryKey: ['todos']);
 ```
 
-### Fuery Client
+`invalidateQueries` marks matching queries stale and refetches the ones in use. The others refetch the next time they're used.
+
+**Fetching outside widgets.** `client.query` returns cached data if it's fresh, and fetches otherwise. It throws on failure and doesn't retry unless you set `retry`:
 
 ```dart
-// invalidate.
-Fuery.invalidateQueries(queryKey: ['posts']);
+final todosQuery = QueryOptions(queryKey: ['todos'], queryFn: (_) => api.getTodos());
 
-// Default query options configuration
-Fuery.configQueryOptions(
-  query: QueryOptions(...),
-  infiniteQuery: InfiniteQueryOptions(...),
+final todos = await client.query(todosQuery);   // fetch, or use fresh cache
+client.query(todosQuery).ignore();              // prefetch: ignore result and errors
+final cached = await client.query(QueryOptions( // use any cached data
+  queryKey: ['todos'],
+  queryFn: (_) => api.getTodos(),
+  staleTime: staticStaleTime,
+));
+```
+
+`client.infiniteQuery(infiniteQueryOptions(...))` does the same for infinite queries, and fetches `pages` pages when nothing is cached.
+
+**Defaults.** Configure every query, or every query under a key prefix:
+
+```dart
+Fuery.instance = QueryClient(
+  defaultOptions: const DefaultOptions(
+    queries: QueryDefaults(staleTime: Duration(seconds: 30)),
+  ),
+)..mount();
+
+Fuery.instance.setQueryDefaults(
+  ['settings'],
+  const QueryDefaults(staleTime: infiniteDuration),
 );
 ```
+
+**FueryProvider.** To give a subtree its own client, for example in widget tests, wrap it in `FueryProvider` and pass `client: context.queryClient` to the entry points:
+
+```dart
+FueryProvider(client: QueryClient(), child: const App());
+
+late final todos = Query.use(
+  queryKey: ['todos'],
+  queryFn: (_) => api.getTodos(),
+  client: context.queryClient,
+);
+```
+
+`context.queryClient` returns `Fuery.instance` when there is no provider.
+
+## App lifecycle and connectivity
+
+Fuery widgets connect the app lifecycle automatically:
+
+- When the app returns to the foreground, stale queries refetch.
+- While the app is in the background, retries and polling pause.
+
+Fuery assumes the device is online. To pause fetches while offline and refetch on reconnect, connect a connectivity source, for example [`connectivity_plus`](https://pub.dev/packages/connectivity_plus):
+
+```dart
+onlineManager.setEventListener((setOnline) {
+  final subscription = Connectivity().onConnectivityChanged.listen((results) {
+    setOnline(!results.contains(ConnectivityResult.none));
+  });
+  return subscription.cancel;
+});
+```
+
+## Testing
+
+Give each test a fresh client, and turn off retries so failures show up immediately:
+
+```dart
+testWidgets('shows todos', (tester) async {
+  final client = QueryClient(
+    defaultOptions: const DefaultOptions(
+      queries: QueryDefaults(retry: RetryPolicy.never()),
+    ),
+  );
+  await tester.pumpWidget(FueryProvider(client: client, child: const App()));
+  // ...
+  await tester.pumpWidget(const SizedBox());
+  client.clear(); // cancels cache timers so the test can end
+});
+```
+
+## Acknowledgements
+
+Fuery's caching and refetching model is inspired by [TanStack Query](https://tanstack.com/query).
