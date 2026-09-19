@@ -1,3 +1,10 @@
+## 0.8.0
+- **Breaking:** after `removeQueries` or `clear()`, observers that are still subscribed move to a new query and load again, instead of keeping the removed data. Cancel subscriptions before calling `clear()` in tests and CLIs.
+- Cancelling a fetch updates its state right away, and cancel errors are no longer reported to `QueryCacheConfig.onError`.
+- `pages` in `infiniteQueryOptions` only applies when nothing is cached.
+- Fix many cache, cancellation, retry, persistence, and mutation edge cases, including leftover retry timers, mutations that were never garbage collected, and restores racing with resets.
+- Persisted infinite queries infer their page param type.
+
 ## 0.7.0
 - **Breaking:** the public API only covers what apps use. Queries and mutations in the caches are read-only: change them through `QueryClient`, and watch them with `QueryClient.watch`.
 - **Breaking:** removed the cache events and `QueryCache.subscribe` / `MutationCache.subscribe`. Use `QueryClient.watch`.

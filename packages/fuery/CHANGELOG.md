@@ -1,3 +1,8 @@
+## 0.8.0
+- Fix the devtools panel: it follows a replaced provider client, works with the iOS text selection toolbar, keeps the app's state when toggled, and labels disabled queries.
+- Fix: mutation widgets show the latest state when they mount again, and `FueryBinding.ensureInitialized` works before the Flutter binding exists.
+- Includes `fuery_core` 0.8.0.
+
 ## 0.7.0
 - Includes `fuery_core` 0.7.0, which keeps cache internals private. `QueryClient.watch` replaces cache event subscriptions.
 
