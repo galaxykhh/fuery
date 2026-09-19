@@ -1,6 +1,7 @@
 import 'package:example/app/core/app_router.dart';
 import 'package:example/app/screens/todo_list/todo_list.dart';
 import 'package:flutter/material.dart';
+import 'package:fuery/fuery.dart';
 
 class TodoApp extends StatefulWidget {
   const TodoApp({super.key});
@@ -15,6 +16,8 @@ class _TodoAppState extends State<TodoApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      // Shows the Fuery devtools button in debug and profile builds.
+      builder: (context, child) => FueryDevtools(child: child!),
       onGenerateRoute: router.generateRoute,
       initialRoute: TodoListScreen.routeName,
     );

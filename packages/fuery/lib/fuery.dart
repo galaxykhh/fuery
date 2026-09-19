@@ -4,6 +4,7 @@ library;
 
 export 'package:fuery_core/fuery_core.dart';
 
+export 'src/devtools.dart' show FueryDevtools, FueryDevtoolsPanel;
 export 'src/fuery_binding.dart';
 export 'src/fuery_provider.dart';
 export 'src/infinite_query_widgets.dart';
