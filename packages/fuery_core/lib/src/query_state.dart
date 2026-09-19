@@ -30,23 +30,8 @@ enum FetchStatus {
   bool get isIdle => this == idle;
 }
 
-enum FetchDirection { forward, backward }
-
-/// Metadata attached to a fetch, such as the direction of an infinite query
-/// page fetch.
-@immutable
-class FetchMeta {
-  const FetchMeta({this.direction});
-
-  final FetchDirection? direction;
-
-  @override
-  bool operator ==(Object other) =>
-      other is FetchMeta && other.direction == direction;
-
-  @override
-  int get hashCode => direction.hashCode;
-}
+/// Which page an infinite query fetches.
+enum _FetchDirection { forward, backward }
 
 /// The raw state stored in a [Query]. Observers derive [QueryResult]s from it.
 @immutable
@@ -60,11 +45,25 @@ class QueryState<TData extends Object> {
     this.errorUpdatedAt = 0,
     this.fetchFailureCount = 0,
     this.fetchFailureReason,
-    this.fetchMeta,
     this.isInvalidated = false,
     this.status = QueryStatus.pending,
     this.fetchStatus = FetchStatus.idle,
-  });
+  }) : _fetchDirection = null;
+
+  const QueryState._({
+    required this.data,
+    required this.dataUpdateCount,
+    required this.dataUpdatedAt,
+    required this.error,
+    required this.errorUpdateCount,
+    required this.errorUpdatedAt,
+    required this.fetchFailureCount,
+    required this.fetchFailureReason,
+    required this.isInvalidated,
+    required this.status,
+    required this.fetchStatus,
+    required _FetchDirection? fetchDirection,
+  }) : _fetchDirection = fetchDirection;
 
   /// The last successfully resolved data. `null` means there is no data.
   final TData? data;
@@ -90,8 +89,8 @@ class QueryState<TData extends Object> {
   /// The latest failure during the current fetch. Reset on success.
   final Object? fetchFailureReason;
 
-  /// Metadata of the in-flight or most recent fetch.
-  final FetchMeta? fetchMeta;
+  /// The page direction of the in-flight or most recent fetch.
+  final _FetchDirection? _fetchDirection;
 
   /// Whether the query was invalidated. Reset on success.
   final bool isInvalidated;
@@ -109,12 +108,11 @@ class QueryState<TData extends Object> {
     int? errorUpdatedAt,
     int? fetchFailureCount,
     Object? fetchFailureReason = _undefined,
-    Object? fetchMeta = _undefined,
     bool? isInvalidated,
     QueryStatus? status,
     FetchStatus? fetchStatus,
   }) {
-    return QueryState<TData>(
+    return QueryState<TData>._(
       data: identical(data, _undefined) ? this.data : data as TData?,
       dataUpdateCount: dataUpdateCount ?? this.dataUpdateCount,
       dataUpdatedAt: dataUpdatedAt ?? this.dataUpdatedAt,
@@ -125,12 +123,27 @@ class QueryState<TData extends Object> {
       fetchFailureReason: identical(fetchFailureReason, _undefined)
           ? this.fetchFailureReason
           : fetchFailureReason,
-      fetchMeta: identical(fetchMeta, _undefined)
-          ? this.fetchMeta
-          : fetchMeta as FetchMeta?,
       isInvalidated: isInvalidated ?? this.isInvalidated,
       status: status ?? this.status,
       fetchStatus: fetchStatus ?? this.fetchStatus,
+      fetchDirection: _fetchDirection,
+    );
+  }
+
+  QueryState<TData> _withFetchDirection(_FetchDirection? direction) {
+    return QueryState<TData>._(
+      data: data,
+      dataUpdateCount: dataUpdateCount,
+      dataUpdatedAt: dataUpdatedAt,
+      error: error,
+      errorUpdateCount: errorUpdateCount,
+      errorUpdatedAt: errorUpdatedAt,
+      fetchFailureCount: fetchFailureCount,
+      fetchFailureReason: fetchFailureReason,
+      isInvalidated: isInvalidated,
+      status: status,
+      fetchStatus: fetchStatus,
+      fetchDirection: direction,
     );
   }
 
@@ -145,7 +158,7 @@ class QueryState<TData extends Object> {
         other.errorUpdatedAt == errorUpdatedAt &&
         other.fetchFailureCount == fetchFailureCount &&
         other.fetchFailureReason == fetchFailureReason &&
-        other.fetchMeta == fetchMeta &&
+        other._fetchDirection == _fetchDirection &&
         other.isInvalidated == isInvalidated &&
         other.status == status &&
         other.fetchStatus == fetchStatus;
@@ -161,7 +174,7 @@ class QueryState<TData extends Object> {
         errorUpdatedAt,
         fetchFailureCount,
         fetchFailureReason,
-        fetchMeta,
+        _fetchDirection,
         isInvalidated,
         status,
         fetchStatus,
@@ -174,19 +187,18 @@ class QueryState<TData extends Object> {
   }
 }
 
-/// A state transition applied to a [Query]. Delivered to cache listeners in
-/// [QueryUpdatedEvent].
-sealed class QueryAction {
-  const QueryAction();
+/// A state transition applied to a [Query].
+sealed class _QueryAction {
+  const _QueryAction();
 }
 
-final class QueryFetchAction extends QueryAction {
-  const QueryFetchAction(this.meta);
-  final FetchMeta? meta;
+final class _QueryFetchAction extends _QueryAction {
+  const _QueryFetchAction(this.direction);
+  final _FetchDirection? direction;
 }
 
-final class QuerySuccessAction<TData extends Object> extends QueryAction {
-  const QuerySuccessAction({
+final class _QuerySuccessAction<TData extends Object> extends _QueryAction {
+  const _QuerySuccessAction({
     required this.data,
     this.dataUpdatedAt,
     this.manual = false,
@@ -196,30 +208,30 @@ final class QuerySuccessAction<TData extends Object> extends QueryAction {
   final bool manual;
 }
 
-final class QueryErrorAction extends QueryAction {
-  const QueryErrorAction(this.error);
+final class _QueryErrorAction extends _QueryAction {
+  const _QueryErrorAction(this.error);
   final Object error;
 }
 
-final class QueryFailedAction extends QueryAction {
-  const QueryFailedAction(this.failureCount, this.error);
+final class _QueryFailedAction extends _QueryAction {
+  const _QueryFailedAction(this.failureCount, this.error);
   final int failureCount;
   final Object error;
 }
 
-final class QueryPauseAction extends QueryAction {
-  const QueryPauseAction();
+final class _QueryPauseAction extends _QueryAction {
+  const _QueryPauseAction();
 }
 
-final class QueryContinueAction extends QueryAction {
-  const QueryContinueAction();
+final class _QueryContinueAction extends _QueryAction {
+  const _QueryContinueAction();
 }
 
-final class QueryInvalidateAction extends QueryAction {
-  const QueryInvalidateAction();
+final class _QueryInvalidateAction extends _QueryAction {
+  const _QueryInvalidateAction();
 }
 
-final class QuerySetStateAction<TData extends Object> extends QueryAction {
-  const QuerySetStateAction(this.state);
+final class _QuerySetStateAction<TData extends Object> extends _QueryAction {
+  const _QuerySetStateAction(this.state);
   final QueryState<TData> state;
 }

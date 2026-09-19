@@ -8,11 +8,11 @@ import 'abort.dart';
 import 'focus_manager.dart';
 import 'notify_manager.dart';
 import 'online_manager.dart';
-import 'removable.dart';
 import 'retryer.dart';
 import 'subscribable.dart';
 import 'utils.dart';
 
+part 'removable.dart';
 part 'query_state.dart';
 part 'query_options.dart';
 part 'query.dart';

@@ -142,13 +142,7 @@ void main() {
     fakeTest('reading a key with another data type throws', (async) {
       client.setQueryData<String>(['todos'], 'text');
 
-      expect(
-        () => client.queryCache.build<int>(
-          client,
-          QueryOptions<int>(queryKey: ['todos']),
-        ),
-        throwsStateError,
-      );
+      expect(() => client.setQueryData<int>(['todos'], 1), throwsStateError);
     });
   });
 
@@ -487,28 +481,34 @@ void main() {
     });
   });
 
-  fakeTest('notifies cache listeners about query events', (async) {
-    final events = <Type>[];
-    final stopListening =
-        client.queryCache.subscribe((event) => events.add(event.runtimeType));
-    addTearDown(stopListening);
+  fakeTest('watch sees queries added, observed, updated, and removed', (async) {
+    final snapshots = <List<(QueryStatus, int)>>[];
+    final subscription = client
+        .watch((client) => [
+              for (final query in client.queryCache.getAll())
+                (query.state.status, query.observersCount),
+            ])
+        .listen(snapshots.add);
 
     final observer = observe(['todos'], FakeFetcher(() => 'data'));
+    async.flushMicrotasks();
     final unsubscribe = observer.subscribe((_) {});
+    async.flushMicrotasks();
     async.elapse(ms10);
     unsubscribe();
+    async.flushMicrotasks();
     client.removeQueries();
+    async.flushMicrotasks();
+    subscription.cancel();
 
-    expect(
-        events,
-        containsAll([
-          QueryAddedEvent,
-          QueryObserverAddedEvent,
-          QueryUpdatedEvent,
-          QueryObserverResultsUpdatedEvent,
-          QueryObserverRemovedEvent,
-          QueryRemovedEvent,
-        ]));
+    expect(snapshots, [
+      <(QueryStatus, int)>[],
+      [(QueryStatus.pending, 0)],
+      [(QueryStatus.pending, 1)],
+      [(QueryStatus.success, 1)],
+      [(QueryStatus.success, 0)],
+      <(QueryStatus, int)>[],
+    ]);
   });
 
   fakeTest('setMutationDefaults applies to keys with that prefix', (async) {

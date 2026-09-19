@@ -2,7 +2,7 @@
 library;
 
 export 'src/abort.dart' show AbortSignal, AbortController, AbortedException;
-export 'src/core.dart' hide FetchContext, QueryBehavior, InfiniteQueryBehavior;
+export 'src/core.dart';
 export 'src/focus_manager.dart';
 export 'src/notify_manager.dart';
 export 'src/online_manager.dart';
@@ -21,5 +21,4 @@ export 'src/utils.dart'
         infiniteDuration,
         staticStaleTime,
         keepPreviousData,
-        partialMatchKey,
         replaceEqualDeep;

@@ -60,9 +60,9 @@ class InfiniteQueryFunctionContext<TParam> extends QueryFunctionContext {
 
 /// Fetches pages for an infinite query. Refetching re-fetches every loaded
 /// page in order, recomputing each page param from the fresh pages.
-class InfiniteQueryBehavior<TPage, TParam>
-    implements QueryBehavior<InfiniteData<TPage, TParam>> {
-  InfiniteQueryBehavior({
+class _InfiniteQueryBehavior<TPage, TParam>
+    implements _QueryBehavior<InfiniteData<TPage, TParam>> {
+  _InfiniteQueryBehavior({
     required this.queryFn,
     required this.initialPageParam,
     required this.getNextPageParam,
@@ -85,10 +85,10 @@ class InfiniteQueryBehavior<TPage, TParam>
 
   @override
   void onFetch(
-    FetchContext<InfiniteData<TPage, TParam>> context,
+    _FetchContext<InfiniteData<TPage, TParam>> context,
     Query<InfiniteData<TPage, TParam>> query,
   ) {
-    final direction = context.fetchOptions?.meta?.direction;
+    final direction = context.fetchOptions?.direction;
     final oldPages = context.state.data?.pages ?? <TPage>[];
     final oldPageParams = context.state.data?.pageParams ?? <TParam>[];
 
@@ -135,7 +135,7 @@ class InfiniteQueryBehavior<TPage, TParam>
       }
 
       if (direction != null && oldPages.isNotEmpty) {
-        final previous = direction == FetchDirection.backward;
+        final previous = direction == _FetchDirection.backward;
         final oldData = InfiniteData<TPage, TParam>(
           pages: oldPages,
           pageParams: oldPageParams,
@@ -214,7 +214,7 @@ class InfiniteQueryOptions<TPage, TParam>
     super.structuralSharing,
     InfiniteQueryPersist<TPage, TParam>? persist,
     super.meta,
-  }) : super(
+  }) : super._withBehavior(
           persist: persist?._toQueryPersist(),
           // Infinite observers always report InfiniteQueryResults.
           refetchWhile: refetchWhile == null
@@ -222,7 +222,7 @@ class InfiniteQueryOptions<TPage, TParam>
               : (result) => refetchWhile(
                     result as InfiniteQueryResult<TPage, TParam>,
                   ),
-          behavior: InfiniteQueryBehavior<TPage, TParam>(
+          behavior: _InfiniteQueryBehavior<TPage, TParam>(
             queryFn: queryFn,
             initialPageParam: initialPageParam,
             getNextPageParam: getNextPageParam,
@@ -336,9 +336,9 @@ class InfiniteQueryObserver<TPage, TParam>
     bool throwOnError = false,
   }) async {
     final result = await _fetch(
-      FetchOptions(
+      _FetchOptions(
         cancelRefetch: cancelRefetch,
-        meta: const FetchMeta(direction: FetchDirection.forward),
+        direction: _FetchDirection.forward,
       ),
       throwOnError,
     );
@@ -351,9 +351,9 @@ class InfiniteQueryObserver<TPage, TParam>
     bool throwOnError = false,
   }) async {
     final result = await _fetch(
-      FetchOptions(
+      _FetchOptions(
         cancelRefetch: cancelRefetch,
-        meta: const FetchMeta(direction: FetchDirection.backward),
+        direction: _FetchDirection.backward,
       ),
       throwOnError,
     );
@@ -378,11 +378,12 @@ class InfiniteQueryObserver<TPage, TParam>
     QueryOptions<InfiniteData<TPage, TParam>> options,
     QueryResult<InfiniteData<TPage, TParam>> base,
   ) {
-    final behavior = options.behavior! as InfiniteQueryBehavior<TPage, TParam>;
+    final behavior =
+        options._behavior! as _InfiniteQueryBehavior<TPage, TParam>;
     final data = query.state.data;
-    final direction = query.state.fetchMeta?.direction;
-    final forward = direction == FetchDirection.forward;
-    final backward = direction == FetchDirection.backward;
+    final direction = query.state._fetchDirection;
+    final forward = direction == _FetchDirection.forward;
+    final backward = direction == _FetchDirection.backward;
 
     return InfiniteQueryResult<TPage, TParam>._fromBase(
       base,

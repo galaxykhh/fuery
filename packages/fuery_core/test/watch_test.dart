@@ -115,13 +115,17 @@ void main() {
   });
 
   fakeTest('stops listening to the client when cancelled', (async) {
-    final subscription =
-        client.watch((client) => client.isFetching()).listen((_) {});
-    expect(client.queryCache.hasListeners(), isTrue);
-    expect(client.mutationCache.hasListeners(), isTrue);
+    var reads = 0;
+    final subscription = client.watch((client) {
+      reads++;
+      return client.isFetching();
+    }).listen((_) {});
+    async.flushMicrotasks();
 
     subscription.cancel();
-    expect(client.queryCache.hasListeners(), isFalse);
-    expect(client.mutationCache.hasListeners(), isFalse);
+    client.setQueryData(['a'], 'a');
+    Mutation.use(mutationFn: (int x) async => x, client: client).mutate(1);
+    async.flushMicrotasks();
+    expect(reads, 1);
   });
 }

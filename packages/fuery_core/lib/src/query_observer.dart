@@ -61,7 +61,7 @@ class QueryObserver<TData extends Object>
     if (_shouldFetchOnMount(currentQuery, options)) {
       _executeFetch();
     } else {
-      updateResult();
+      _updateResult();
     }
 
     _updateTimers();
@@ -95,16 +95,14 @@ class QueryObserver<TData extends Object>
     final defaulted = _client.defaultQueryOptions(options);
 
     // Throws before anything changes if the key holds another data type.
-    _client.queryCache.build<TData>(_client, defaulted);
+    _client.queryCache._build<TData>(_client, defaulted);
     _options = defaulted;
 
     _updateQuery();
     currentQuery._setOptions(this.options);
 
     if (prevOptions != null && !prevOptions._sameAs(this.options)) {
-      _client.queryCache.notify(
-        QueryObserverOptionsUpdatedEvent(currentQuery, this),
-      );
+      _client.queryCache._notify();
     }
 
     final mounted = hasListeners();
@@ -119,7 +117,7 @@ class QueryObserver<TData extends Object>
       _executeFetch();
     }
 
-    updateResult();
+    _updateResult();
 
     final queryChanged = !identical(currentQuery, prevQuery);
     final enabledChanged = this.options.enabled != prevOptions?.enabled;
@@ -144,7 +142,7 @@ class QueryObserver<TData extends Object>
   /// `isFetching` already true if subscribing starts a fetch. Useful for the
   /// first build of a widget.
   QueryResult<TData> getOptimisticResult() {
-    final query = _client.queryCache.build<TData>(_client, options);
+    final query = _client.queryCache._build<TData>(_client, options);
     final result = _createResult(query, options, optimistic: true);
     if (result != _currentResult) {
       _currentResult = result;
@@ -162,24 +160,24 @@ class QueryObserver<TData extends Object>
     bool cancelRefetch = true,
     bool throwOnError = false,
   }) {
-    return _fetch(FetchOptions(cancelRefetch: cancelRefetch), throwOnError);
+    return _fetch(_FetchOptions(cancelRefetch: cancelRefetch), throwOnError);
   }
 
   Future<QueryResult<TData>> _fetch(
-    FetchOptions fetchOptions,
+    _FetchOptions fetchOptions,
     bool throwOnError,
   ) async {
     await _executeFetch(fetchOptions, throwOnError);
-    updateResult();
+    _updateResult();
     return result;
   }
 
   Future<TData?> _executeFetch([
-    FetchOptions? fetchOptions,
+    _FetchOptions? fetchOptions,
     bool throwOnError = false,
   ]) {
     _updateQuery();
-    final future = currentQuery.fetch(options, fetchOptions);
+    final future = currentQuery._fetch(options, fetchOptions);
     if (throwOnError) return future;
     return future.then<TData?>((data) => data, onError: (Object _) => null);
   }
@@ -199,7 +197,7 @@ class QueryObserver<TData extends Object>
     // Timers can fire a little early, so wait one extra millisecond to make
     // sure the data is stale when the timer runs.
     _staleTimer = Timer(Duration(milliseconds: time + 1), () {
-      if (!result.isStale) updateResult();
+      if (!result.isStale) _updateResult();
     });
   }
 
@@ -328,7 +326,7 @@ class QueryObserver<TData extends Object>
   }
 
   /// Recomputes the result and notifies listeners if it changed.
-  void updateResult() {
+  void _updateResult() {
     final prevResult = _currentResult;
     final nextResult = _createResult(currentQuery, options);
 
@@ -347,12 +345,12 @@ class QueryObserver<TData extends Object>
       for (final listener in listeners.toList()) {
         listener(nextResult);
       }
-      _client.queryCache.notify(QueryObserverResultsUpdatedEvent(currentQuery));
+      _client.queryCache._notify();
     });
   }
 
   void _updateQuery() {
-    final query = _client.queryCache.build<TData>(_client, options);
+    final query = _client.queryCache._build<TData>(_client, options);
     if (identical(query, _query)) return;
 
     final prevQuery = _query;
@@ -366,7 +364,7 @@ class QueryObserver<TData extends Object>
   }
 
   void _onQueryUpdate() {
-    updateResult();
+    _updateResult();
     if (hasListeners()) _updateTimers();
   }
 }

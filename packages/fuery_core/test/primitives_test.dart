@@ -321,13 +321,6 @@ void main() {
       expect(a.toString(), contains('pages'));
     });
 
-    test('FetchMeta compares by direction', () {
-      const forward = FetchMeta(direction: FetchDirection.forward);
-      expect(forward, const FetchMeta(direction: FetchDirection.forward));
-      expect(forward.hashCode, FetchDirection.forward.hashCode);
-      expect(forward, isNot(const FetchMeta()));
-    });
-
     test('status enums expose flags', () {
       expect(QueryStatus.error.isError, isTrue);
       expect(QueryStatus.success.isSuccess, isTrue);

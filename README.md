@@ -14,6 +14,8 @@ QueryBuilder(
 )
 ```
 
+There are no type arguments to write: `todos` is a `QueryObserver<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`, and `data` in the builder is a `List<Todo>`.
+
 Fuery caches server data, deduplicates requests, retries failures, paginates, and refetches stale data in the background. Builder, listener, and consumer widgets turn queries into UI and side effects, and queries are plain objects with a `Stream`, so blocs, cubits, and services can use them as well.
 
 **[Read the documentation →](https://galaxykhh.github.io/fuery/)**

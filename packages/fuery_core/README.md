@@ -2,7 +2,7 @@
 
 # Fuery Core
 
-Server state caching for Dart: queries, infinite queries, and mutations.
+Server state caching for Dart: queries, infinite queries, and mutations. Types are inferred from your query and mutation functions, so you don't write type arguments.
 
 This is the pure Dart core. **For Flutter apps, use [`fuery`](https://pub.dev/packages/fuery)**, which re-exports this package and adds widgets. Use `fuery_core` directly for Dart servers, CLIs, or packages that shouldn't depend on Flutter.
 

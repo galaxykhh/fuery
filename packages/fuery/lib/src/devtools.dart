@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -180,8 +181,7 @@ class _PanelBodyState extends State<_PanelBody> {
   var _showMutations = false;
   var _filter = '';
   String? _selected;
-  var _scheduled = false;
-  void Function()? _unsubscribe;
+  late StreamSubscription<Object> _subscription;
 
   @override
   void initState() {
@@ -193,7 +193,7 @@ class _PanelBodyState extends State<_PanelBody> {
   void didUpdateWidget(_PanelBody oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.client, widget.client)) {
-      _unsubscribe!();
+      _subscription.cancel();
       _selected = null;
       _listen();
     }
@@ -201,29 +201,23 @@ class _PanelBodyState extends State<_PanelBody> {
 
   @override
   void dispose() {
-    _unsubscribe!();
+    _subscription.cancel();
     super.dispose();
   }
 
+  // Rebuilds whenever anything the panel shows changes.
   void _listen() {
-    final client = widget.client;
-    final unsubscribeQueries = client.queryCache.subscribe(_onChange);
-    final unsubscribeMutations = client.mutationCache.subscribe(_onChange);
-    _unsubscribe = () {
-      unsubscribeQueries();
-      unsubscribeMutations();
-    };
-  }
-
-  // Rebuilds once for each batch of cache changes.
-  void _onChange(Object _) {
-    if (_scheduled) return;
-    _scheduled = true;
-    notifyManager.schedule(() {
-      _scheduled = false;
+    _subscription = widget.client.watch(_snapshot).listen((_) {
       if (mounted) setState(() {});
     });
   }
+
+  static Object _snapshot(QueryClient client) => [
+        for (final query in client.queryCache.getAll())
+          (query, query.state, query.observersCount, query.isStale()),
+        for (final mutation in client.mutationCache.getAll())
+          (mutation, mutation.state),
+      ];
 
   @override
   Widget build(BuildContext context) {

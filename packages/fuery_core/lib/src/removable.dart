@@ -1,42 +1,34 @@
-import 'dart:async';
+part of 'core.dart';
 
-import 'package:meta/meta.dart';
+const Duration _defaultGcTime = Duration(minutes: 5);
 
-import 'utils.dart';
-
-const Duration defaultGcTime = Duration(minutes: 5);
-
-/// Base for cache entries that are garbage collected [gcTime] after they
+/// Base for cache entries that are garbage collected [_gcTime] after they
 /// become unused.
-abstract class Removable {
-  Duration gcTime = Duration.zero;
+abstract class _Removable {
+  Duration _gcTime = Duration.zero;
   Timer? _gcTimer;
 
   @mustCallSuper
-  void destroy() => clearGcTimeout();
+  void _destroy() => _clearGcTimeout();
 
-  @protected
-  void scheduleGc() {
-    clearGcTimeout();
+  void _scheduleGc() {
+    _clearGcTimeout();
 
-    if (isValidTimeout(gcTime)) {
-      _gcTimer = Timer(gcTime, optionalRemove);
+    if (isValidTimeout(_gcTime)) {
+      _gcTimer = Timer(_gcTime, _optionalRemove);
     }
   }
 
   /// Keeps the longest gcTime requested by any user of this entry.
-  @protected
-  void updateGcTime(Duration? newGcTime) {
-    final next = newGcTime ?? defaultGcTime;
-    if (next > gcTime) gcTime = next;
+  void _updateGcTime(Duration? newGcTime) {
+    final next = newGcTime ?? _defaultGcTime;
+    if (next > _gcTime) _gcTime = next;
   }
 
-  @protected
-  void clearGcTimeout() {
+  void _clearGcTimeout() {
     _gcTimer?.cancel();
     _gcTimer = null;
   }
 
-  @protected
-  void optionalRemove();
+  void _optionalRemove();
 }

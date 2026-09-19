@@ -18,8 +18,8 @@ abstract class Subscribable<T> {
   bool hasListeners() => listeners.isNotEmpty;
 
   @protected
-  void onSubscribe() {}
+  void onSubscribe();
 
   @protected
-  void onUnsubscribe() {}
+  void onUnsubscribe();
 }
