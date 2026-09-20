@@ -1,6 +1,6 @@
 ---
 title: Widgets
-description: Builders, listeners, and consumers for queries, infinite queries, and mutations.
+description: Builder, listener, consumer, and selector widgets for cached queries and mutations in Flutter.
 ---
 
 Each kind of query has a builder, a listener, a consumer, and a selector:

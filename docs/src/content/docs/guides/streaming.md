@@ -1,6 +1,6 @@
 ---
 title: Streaming
-description: Show data from a stream as it arrives.
+description: "Cache a stream in Flutter: show chunks as they arrive, then keep the result."
 ---
 
 Some responses arrive in chunks: a streamed answer, a progress log, a file being processed. `streamedQuery` builds a query function from such a `Stream` and folds each chunk into the query data:

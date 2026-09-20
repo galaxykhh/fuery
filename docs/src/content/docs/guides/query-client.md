@@ -1,6 +1,6 @@
 ---
 title: QueryClient
-description: Read, write, invalidate, and prefetch cached data.
+description: Read, write, invalidate, and prefetch the Flutter cache, inside widgets or outside them.
 ---
 
 The `QueryClient` owns the cache. `Fuery.client` is the default client, used whenever you don't pass `client:`.

@@ -1,6 +1,6 @@
 ---
 title: Organizing queries
-description: Keep keys and query functions in one place.
+description: Keep query keys, query functions, and mutations in one place as a Flutter app grows.
 ---
 
 As an app grows, the same key and query function show up on several screens and in several blocs. Put each query in one plain function instead:

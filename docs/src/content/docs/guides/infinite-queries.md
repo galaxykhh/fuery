@@ -1,6 +1,6 @@
 ---
 title: Infinite queries
-description: Load pages on demand for endless lists.
+description: Paginated and infinite scrolling lists in Flutter, with cached pages.
 ---
 
 ```dart

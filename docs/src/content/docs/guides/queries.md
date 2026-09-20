@@ -1,6 +1,6 @@
 ---
 title: Queries
-description: Keys, freshness, results, and query options.
+description: Query keys, stale time, caching, and every option for fetching server data in Flutter.
 ---
 
 ```dart

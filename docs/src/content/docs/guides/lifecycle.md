@@ -1,6 +1,6 @@
 ---
 title: App lifecycle and network
-description: Refetch when the app resumes, and pause while offline.
+description: Refetch when a Flutter app resumes, pause while offline, and resume on reconnect.
 ---
 
 ## App lifecycle

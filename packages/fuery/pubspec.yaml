@@ -1,13 +1,15 @@
 name: fuery
-description: "Server state caching for Flutter: queries, infinite queries, and mutations with builder and listener widgets, retries, and background refetching."
+description: "Server data caching for Flutter: cache API responses, refetch in the background, paginate, mutate with optimistic updates, and keep data across restarts."
 version: 0.8.2
 homepage: https://github.com/galaxykhh
 repository: https://github.com/galaxykhh/fuery/tree/main/packages/fuery
 documentation: https://galaxykhh.github.io/fuery/
 topics:
-  - react-query
   - state-management
   - server-state
+  - cache
+  - caching
+  - offline
 
 resolution: workspace
 

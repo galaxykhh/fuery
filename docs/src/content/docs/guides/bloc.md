@@ -1,6 +1,6 @@
 ---
 title: Using with bloc
-description: Use the same queries inside cubits and blocs.
+description: Use cached server data inside cubits and blocs, without replacing your state management.
 ---
 
 Queries and mutations don't depend on widgets. Every observer has a `stream` that emits the current result first, then every change. Listening to it is what makes the query fetch, and cancelling the subscription stops watching it.

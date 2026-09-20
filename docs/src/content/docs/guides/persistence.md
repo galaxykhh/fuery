@@ -1,6 +1,6 @@
 ---
 title: Persistence
-description: Keep query data across app restarts.
+description: Keep cached server data across app restarts in Flutter, with any key-value storage.
 ---
 
 Queries can store their data on the device. When the app starts again, it shows the last data right away and refetches it in the background if it's stale.
