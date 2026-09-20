@@ -1,3 +1,6 @@
+## 0.8.3
+- Documentation only: a description and topics that match what people search for, a live demo at https://galaxykhh.github.io/fuery/demo/, and a new page on server state in Flutter.
+
 ## 0.8.2
 - Documentation only: the README leads with how Fuery fits an existing app, and the example is now a gallery with one screen per case.
 
