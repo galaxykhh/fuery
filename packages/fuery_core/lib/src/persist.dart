@@ -55,7 +55,7 @@ class QueryPersist<TData extends Object> {
 /// Page params are stored as they are, so they must be JSON values such as
 /// numbers, strings, or `null`, unless `paramToJson` and `paramFromJson` are
 /// given.
-class InfiniteQueryPersist<TPage, TParam> {
+class InfiniteQueryPersist<TPage, TParam extends Object?> {
   const InfiniteQueryPersist({
     required Object? Function(TPage page) pageToJson,
     required TPage Function(Object? json) pageFromJson,

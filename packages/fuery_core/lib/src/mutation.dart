@@ -27,7 +27,7 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
   /// addTodo.mutate('Buy milk');
   /// ```
   static MutationObserver<TData, TVariables, TContext>
-      use<TData, TVariables, TContext>({
+      use<TData, TVariables, TContext extends Object?>({
     required MutationFn<TData, TVariables> mutationFn,
     MutationKey? mutationKey,
     MutationOnMutate<TVariables, TContext>? onMutate,
@@ -63,7 +63,8 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
 
   /// Creates an observer for a mutation without variables, so it can be
   /// called as `mutate()`.
-  static NoParamMutationObserver<TData, TContext> noParam<TData, TContext>({
+  static NoParamMutationObserver<TData, TContext>
+      noParam<TData, TContext extends Object?>({
     required Future<TData> Function() mutationFn,
     MutationKey? mutationKey,
     FutureOr<TContext?> Function()? onMutate,

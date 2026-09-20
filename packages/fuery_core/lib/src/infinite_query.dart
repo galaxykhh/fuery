@@ -404,8 +404,12 @@ class InfiniteQueryObserver<TPage, TParam>
 /// explicit type arguments. See [InfiniteQuery.use] for the parameters.
 /// [pages] sets how many pages to load when nothing is cached, for example
 /// to prefetch several pages with [QueryClient.infiniteQuery].
-InfiniteQueryOptions<TPage, TParam> infiniteQueryOptions<TPage, TParam,
-    TNext extends TParam?, TPrev extends TParam?, TPersistParam>({
+InfiniteQueryOptions<TPage, TParam> infiniteQueryOptions<
+    TPage,
+    TParam,
+    TNext extends TParam?,
+    TPrev extends TParam?,
+    TPersistParam extends Object?>({
   required QueryKey queryKey,
   required InfiniteQueryFn<TPage, TParam> queryFn,
   required TParam initialPageParam,
@@ -483,8 +487,12 @@ abstract final class InfiniteQuery {
   ///
   /// When the first page has no param, give `null` its type so the param type
   /// can be inferred: `initialPageParam: null as String?`.
-  static InfiniteQueryObserver<TPage, TParam> use<TPage, TParam,
-      TNext extends TParam?, TPrev extends TParam?, TPersistParam>({
+  static InfiniteQueryObserver<TPage, TParam> use<
+      TPage,
+      TParam,
+      TNext extends TParam?,
+      TPrev extends TParam?,
+      TPersistParam extends Object?>({
     required QueryKey queryKey,
     required InfiniteQueryFn<TPage, TParam> queryFn,
     required TParam initialPageParam,

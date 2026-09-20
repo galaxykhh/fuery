@@ -481,7 +481,7 @@ void main() {
   fakeTest('a key read with a wider data type is rejected clearly', (async) {
     client.setQueryData(['todos'], [const Item(1, 'a')]);
 
-    expect(() => client.setQueryData(['todos'], []), throwsStateError);
+    expect(() => client.setQueryData(['todos'], <Object?>[]), throwsStateError);
     expect(
       () => QueryObserver<Object>(
         client,

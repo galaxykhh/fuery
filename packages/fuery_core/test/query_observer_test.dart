@@ -277,7 +277,7 @@ void main() {
     final observer = observe(
       ['todos', 1],
       fetcher.call,
-      placeholderData: keepPreviousData,
+      placeholderData: (previous) => previous,
     );
     observer.subscribe((_) {});
     async.elapse(ms10);

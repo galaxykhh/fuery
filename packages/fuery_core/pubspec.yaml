@@ -1,6 +1,6 @@
 name: fuery_core
 description: "Server state caching for Dart: queries, infinite queries, and mutations with request deduplication, retries, and background refetching."
-version: 0.8.0
+version: 0.8.1
 homepage: https://github.com/galaxykhh
 repository: https://github.com/galaxykhh/fuery/tree/main/packages/fuery_core
 documentation: https://galaxykhh.github.io/fuery/

@@ -31,14 +31,14 @@ Coverage (both packages are at 100% line coverage):
 
 `coverage/` is gitignored.
 
-CI (`.github/workflows/ci.yml`) runs format, analyze, and all three test suites on the latest stable Flutter for every pull request and every push to `main`. `.github/workflows/docs.yml` builds the docs site on pull requests that touch `docs/` and deploys it to GitHub Pages from `main`.
+CI (`.github/workflows/ci.yml`) runs format, analyze, and all three test suites on the latest stable Flutter, and analyze and the tests on the oldest supported version (Flutter 3.27, Dart 3.6), for every pull request and every push to `main`. Raise the pubspec constraints and that CI version together. `.github/workflows/docs.yml` builds the docs site on pull requests that touch `docs/` and deploys it to GitHub Pages from `main`.
 
 ## Rules for every change
 
 - Keep `flutter analyze packages` at zero issues and `dart format` clean.
 - Keep 100% line coverage in both packages. Mark truly unreachable defensive code with `// coverage:ignore-start` / `// coverage:ignore-end` and a comment explaining why it can't run.
 - For a bug fix, write the failing test first and confirm it fails before fixing.
-- Public entry points (`Query.use`, `InfiniteQuery.use`, `Mutation.use`, `Mutation.noParam`, `infiniteQueryOptions`, `streamedQuery`, `QueryClient.watch`, `QueryPersist`, `InfiniteQueryPersist`, and the widgets) must work without explicit type arguments. `packages/fuery_core/test/inference_test.dart` stops compiling if inference breaks; extend it for new entry points.
+- Public entry points (`Query.use`, `InfiniteQuery.use`, `Mutation.use`, `Mutation.noParam`, `infiniteQueryOptions`, `streamedQuery`, `QueryClient.watch`, `QueryPersist`, `InfiniteQueryPersist`, and the widgets) must work without explicit type arguments. This includes apps that enable `strict-inference`: give a type parameter that only optional arguments use a bound, such as `TContext extends Object?`, so it falls back to the bound instead of failing inference. Both packages enable `strict-casts`, `strict-inference`, and `strict-raw-types`, so `packages/fuery_core/test/inference_test.dart` fails analysis or stops compiling if inference breaks; extend it for new entry points.
 - Keep the public API to what apps and `fuery` use. Making something public later is not breaking, but hiding it is. Apps change the caches through `QueryClient` and observe them with `QueryClient.watch`; don't add public cache events or cache-mutating methods.
 - Fetch outside widgets with `client.query` and `client.infiniteQuery`. Don't add `fetchQuery`, `prefetchQuery`, or `ensureQueryData`-style methods.
 - `fuery` and `fuery_core` are released together with the same version. Breaking changes are allowed before 1.0.
