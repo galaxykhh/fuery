@@ -3,7 +3,7 @@ title: Organizing queries
 description: Keep query keys, query functions, and mutations in one place as a Flutter app grows.
 ---
 
-As an app grows, the same key and query function show up on several screens and in several blocs. Put each query in one plain function instead:
+Put each query in one plain function, in a file next to its API. As an app grows, the same key and query function otherwise show up on several screens and in several blocs:
 
 ```dart
 // lib/data/todo_queries.dart
@@ -30,9 +30,9 @@ Screens and blocs call `todosQuery()` and share one cache entry, and mutations i
 - **Keys stay consistent.** A typo in a key would silently create a second cache entry; one function per query rules that out.
 - **Hierarchy is explicit.** `['todos', ...]` groups everything about todos, so `invalidateQueries(queryKey: ['todos'])` refreshes the list and every detail at once.
 
-## Mutations
+## Organizing mutations
 
-Mutations go next to their queries, for the same reason. The difference is what gets shared: a query key shares one cache entry, while each `Mutation.use` call has its own pending and error state. So a factory shares the server work, and every screen that calls it keeps its own state:
+Put mutations next to their queries, for the same reason. What they share differs, though. Two widgets that use the same query key share one cache entry, but each `Mutation.use` call keeps its own pending and error state. A mutation factory therefore shares the mutation function and the cache updates, while every screen that calls it keeps its own state:
 
 ```dart
 // lib/data/todo_mutations.dart

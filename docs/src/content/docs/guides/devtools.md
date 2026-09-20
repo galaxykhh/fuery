@@ -5,7 +5,7 @@ description: Inspect the Flutter query cache while the app runs, on a device or 
 
 `FueryDevtools` adds a button over your app. It opens a panel with every query and mutation of the client: their status, their data, and buttons to refetch or clear them.
 
-## Add it
+## Adding the devtools
 
 Put it in your app's `builder`, so it stays above every route:
 
@@ -16,11 +16,11 @@ MaterialApp(
 )
 ```
 
-It only appears in debug and profile builds. In release builds it shows just your app, and its code is left out of the build.
+It appears only in debug and profile builds. A release build shows your app alone and leaves the devtools code out.
 
 The example app turns them on in [its app widget](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/app.dart).
 
-## Queries
+## The Queries tab
 
 The Queries tab lists every query with its key, its status, and how many observers use it. Each `Query.use` object counts once, however many widgets or listeners it has. Type in the filter to find a key.
 
@@ -44,11 +44,11 @@ The buttons act on the selected query:
 | Reset | Returns it to its initial state and deletes its [persisted data](../persistence/) |
 | Remove | Removes it from the cache and deletes its persisted data |
 
-## Mutations
+## The Mutations tab
 
 The Mutations tab lists mutations, newest first, with their status, key, variables, and error.
 
-## Options
+## FueryDevtools options
 
 | Option | Default | |
 |---|---|---|
@@ -57,7 +57,7 @@ The Mutations tab lists mutations, newest first, with their status, key, variabl
 | `buttonAlignment` | `Alignment.bottomRight` | Where the button sits |
 | `initiallyOpen` | `false` | Whether the panel starts open |
 
-## On your own screen
+## The panel without the button
 
 `FueryDevtoolsPanel` is the panel without the button, for example for a debug menu:
 

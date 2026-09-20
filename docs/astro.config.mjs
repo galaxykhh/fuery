@@ -38,8 +38,11 @@ export default defineConfig({
 				baseUrl: 'https://github.com/galaxykhh/fuery/edit/main/docs/',
 			},
 			sidebar: [
-				{ label: 'Server state in Flutter', slug: 'server-state' },
 				{ label: 'Getting started', slug: 'getting-started' },
+				{
+					label: 'Concepts',
+					items: ['server-state', 'guides/organizing-queries'],
+				},
 				{
 					label: 'Guides',
 					items: [
@@ -48,11 +51,9 @@ export default defineConfig({
 						'guides/mutations',
 						'guides/infinite-queries',
 						'guides/streaming',
-						'guides/query-client',
 						'guides/persistence',
-						'guides/organizing-queries',
-						'guides/bloc',
 						'guides/lifecycle',
+						'guides/bloc',
 						'guides/testing',
 						'guides/devtools',
 					],
@@ -60,11 +61,14 @@ export default defineConfig({
 				{
 					label: 'Reference',
 					items: [
+						'guides/query-client',
+						'reference/query-options',
 						{ label: 'fuery API', link: 'https://pub.dev/documentation/fuery/latest/' },
 						{ label: 'fuery_core API', link: 'https://pub.dev/documentation/fuery_core/latest/' },
 						{ label: 'Example app', link: 'https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example' },
 					],
 				},
+				{ label: 'Troubleshooting', slug: 'troubleshooting' },
 			],
 		}),
 	],

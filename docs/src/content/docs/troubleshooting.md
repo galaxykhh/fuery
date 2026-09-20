@@ -1,0 +1,129 @@
+---
+title: Troubleshooting
+description: Errors and surprises you can hit with Fuery in Flutter, what causes them, and how to fix them.
+---
+
+Each entry names the symptom, the cause, and the fix.
+
+## StateError: Query holds X, but was requested as Y
+
+A key holds one data type. Reading or writing it with another type throws:
+
+```dart
+client.setQueryData(['todos'], []); // StateError: the list has no type
+```
+
+Dart infers `List<dynamic>` for the empty list, which isn't the `List<Todo>` the query holds. Name the type:
+
+```dart
+client.setQueryData<List<Todo>>(['todos'], []);
+```
+
+## The data type is Object instead of my model
+
+Passing a generic function such as `keepPreviousData` to `Query.use` makes Dart infer the data type from that function rather than from `queryFn`:
+
+```dart
+final posts = Query.use(
+  queryKey: ['posts', 1],
+  queryFn: (_) => api.getPosts(1),
+  placeholderData: keepPreviousData, // posts is QueryObserver<Object>
+);
+```
+
+Write the closure instead. Inside `QueryOptions`, where the type is already known, `keepPreviousData` is fine:
+
+```dart
+placeholderData: (previous) => previous,
+```
+
+## A Timer is still pending even after the widget tree was disposed
+
+A cached query keeps a garbage collection timer, and `testWidgets` fails if any timer outlives the test. End each widget test by unmounting the tree and emptying the cache:
+
+```dart
+await tester.pumpWidget(const SizedBox());
+client.clear();
+```
+
+Unsubscribe any observer you subscribed by hand before `clear()`. Clearing moves observers that are still subscribed to new queries, which start loading again.
+
+## The test client stays empty, or a test only passes when it runs first
+
+A query captures its client when you create it. A query declared at the top level of a file therefore keeps the client from the first test that used it, while later tests create fresh clients that never see it.
+
+Declare shared queries as functions instead, so each caller gets a query on the current client:
+
+```dart
+QueryObserver<List<Todo>> todosQuery() =>
+    Query.use(queryKey: ['todos'], queryFn: (_) => api.getTodos());
+```
+
+See [Which client a query uses](../guides/query-client/#which-client-a-query-uses).
+
+## A test hangs on await subscription.cancel()
+
+Inside `testWidgets` and `fakeAsync`, the future returned by `cancel()` never completes. Call it without awaiting:
+
+```dart
+@override
+Future<void> close() {
+  _subscription.cancel(); // no await
+  return super.close();
+}
+```
+
+## Persisted data doesn't come back
+
+Three things to check:
+
+- The client has a storage: `Fuery.client = QueryClient(storage: myStorage)`, set before anything uses a query.
+- The query sets `persist`. Queries without it are never stored.
+- The stored entry is still valid. Data is discarded when its `version` differs from the query's, or when it is older than the query's `maxAge` or the client's `persistMaxAge` (one day by default).
+
+With a storage that reads asynchronously, data arrives a frame or two later. To have it on the first frame, `await Fuery.client.restore()` before `runApp`.
+
+## An optimistic update is undone a moment later
+
+A refetch that was already running finishes after your change and overwrites it. Cancel it first:
+
+```dart
+onMutate: (id) async {
+  await Fuery.client.cancelQueries(queryKey: ['todos']);
+  // ... snapshot and update the cache
+},
+```
+
+## fetchNextPage cancels a refetch
+
+`fetchNextPage()` cancels a fetch that is already running, including a background refetch of every page. Check `isFetching` before calling it, or pass `cancelRefetch: false`.
+
+## A query refetches more often than expected
+
+Every widget that starts using a query refetches it when the data is stale, and the default `staleTime` is zero, so almost everything is stale. Give the query a `staleTime` that matches how fast the data changes.
+
+## A query fetches on every rebuild
+
+`Query.use` in a `build` method creates a new query object each time. Create it once in a `State` field, a cubit, or a function that widgets call:
+
+```dart
+class _TodosScreenState extends State<TodosScreen> {
+  final todos = Query.use(queryKey: ['todos'], queryFn: (_) => api.getTodos());
+}
+```
+
+## Nothing refetches when the app resumes
+
+Fuery widgets connect the app lifecycle for you. An app that only uses queries from blocs has no Fuery widget, so call this once at startup:
+
+```dart
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  FueryBinding.ensureInitialized();
+  runApp(const App());
+}
+```
+
+## Nothing pauses while the device is offline
+
+Fuery assumes the device is online until you report connectivity. See [Refetching automatically](../guides/lifecycle/#when-the-network-reconnects).
