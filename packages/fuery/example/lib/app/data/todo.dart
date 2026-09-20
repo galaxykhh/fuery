@@ -45,7 +45,9 @@ class Todo {
 
   Map<String, dynamic> toJson() => toMap();
 
-  factory Todo.fromJson(Map<String, dynamic> json) => Todo.fromMap(json);
+  /// Takes the value `jsonDecode` produced, so callers don't cast.
+  factory Todo.fromJson(Object? json) =>
+      Todo.fromMap(json! as Map<String, dynamic>);
 
   @override
   String toString() {

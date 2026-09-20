@@ -40,6 +40,11 @@ class TodoApi {
     return [..._todos];
   }
 
+  Future<Todo> getOne(int id) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    return _todos.firstWhere((todo) => todo.id == id);
+  }
+
   Future<Todo> add(String title, String description) async {
     await Future.delayed(const Duration(milliseconds: 250));
     final todo = Todo(

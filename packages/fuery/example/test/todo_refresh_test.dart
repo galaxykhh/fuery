@@ -1,12 +1,13 @@
-import 'package:example/app/app.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fuery/fuery.dart';
+
+import 'helpers.dart';
 
 void main() {
   testWidgets('a refetch in flight does not bring a deleted todo back',
       (tester) async {
-    await tester.pumpWidget(const TodoApp());
+    await pumpApp(tester);
+    await openCase(tester, caseList);
     await tester.pump(const Duration(milliseconds: 500));
 
     // Refresh, then delete while the refetch is still running.
@@ -24,7 +25,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Grocery Shopping'), findsNothing);
 
-    await tester.pumpWidget(const SizedBox());
-    Fuery.client.clear();
+    await tearDownApp(tester);
   });
 }

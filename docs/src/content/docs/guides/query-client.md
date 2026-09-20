@@ -112,3 +112,7 @@ FueryProvider(client: QueryClient(), child: const App());
 ```
 
 Read it with `context.queryClient`, which falls back to `Fuery.client` when there is no provider, and pass it as `client:` to `Query.use`, `InfiniteQuery.use`, and `Mutation.use`.
+
+## In the example app
+
+The example has prefetching and watching in [the prefetch screen](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/prefetch/prefetch.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) lists one screen per case.

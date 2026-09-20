@@ -101,3 +101,7 @@ MutationBuilder(
       state.isPending ? const LinearProgressIndicator() : const SizedBox(),
 )
 ```
+
+## In the example app
+
+The example has an optimistic delete in [the todo mutations](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/data/todo_mutations.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) lists one screen per case.

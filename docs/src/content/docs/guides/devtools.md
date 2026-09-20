@@ -18,6 +18,8 @@ MaterialApp(
 
 It only appears in debug and profile builds. In release builds it shows just your app, and its code is left out of the build.
 
+The example app turns them on in [its app widget](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/app.dart).
+
 ## Queries
 
 The Queries tab lists every query with its key, its status, and how many observers use it. Each `Query.use` object counts once, however many widgets or listeners it has. Type in the filter to find a key.

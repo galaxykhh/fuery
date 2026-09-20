@@ -77,3 +77,7 @@ void main() {
   runApp(const App());
 }
 ```
+
+## In the example app
+
+The example has a query in a cubit in [the stats cubit](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/todo_stats/todo_stats_cubit.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) lists one screen per case.

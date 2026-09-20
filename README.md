@@ -16,6 +16,11 @@ QueryBuilder(
 
 There are no type arguments to write: `todos` is a `QueryObserver<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`, and `data` in the builder is a `List<Todo>`.
 
+- **Drops into the app you have.** Start with one screen: creating a query needs no `BuildContext`, and nothing else has to change.
+- **Runs where your code runs.** The core is pure Dart, so widgets, cubits, services, CLIs, and servers use the same query object.
+- **No type arguments, no code generation.**
+- **Devtools in the app**, on a device.
+
 Fuery caches server data, deduplicates requests, retries failures, paginates, and refetches stale data in the background. Builder, listener, and consumer widgets turn queries into UI and side effects, and queries are plain objects with a `Stream`, so blocs, cubits, and services can use them as well.
 
 **[Read the documentation →](https://galaxykhh.github.io/fuery/)**

@@ -59,3 +59,7 @@ test('loads todos', () {
 ## Cubits and blocs
 
 Cubits and blocs that use queries work in `testWidgets` or `fakeAsync` as well. In their `close()`, call `subscription.cancel()` without awaiting it. The future it returns doesn't complete in these fake clocks.
+
+## In the example app
+
+The example's tests open one case at a time with [a small helper](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/test/helpers.dart), and its [test folder](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/test) has a widget test per case.

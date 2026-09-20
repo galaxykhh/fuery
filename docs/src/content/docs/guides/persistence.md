@@ -60,14 +60,14 @@ QueryObserver<List<Todo>> todosQuery() {
     persist: QueryPersist(
       toJson: (todos) => [for (final todo in todos) todo.toJson()],
       fromJson: (json) => [
-        for (final item in json! as List)
-          Todo.fromJson(item as Map<String, Object?>),
+        for (final item in json! as List) Todo.fromJson(item),
       ],
     ),
   );
 }
 ```
 
+- **The codec:** `toJson` must return something `jsonEncode` accepts, and `fromJson` receives whatever `jsonDecode` produced, so narrowing it once belongs to the codec. `Todo.fromJson` above takes that value; with a generated `Todo.fromJson(Map<String, dynamic> json)`, write `Todo.fromJson(item as Map<String, dynamic>)`.
 - **Restoring:** the first time the query is used, its stored data is restored with the time it was fetched, so `staleTime` decides whether it refetches. Fresh data isn't fetched again.
 - **Storing:** data is stored whenever it changes and no fetch is running, including changes made with `setQueryData`. A [streamed query](../streaming/) is stored once its stream is done.
 - **Offline:** restoring doesn't need the network.
@@ -106,8 +106,7 @@ persist: QueryPersist(
   maxAge: const Duration(hours: 6),
   toJson: (todos) => [for (final todo in todos) todo.toJson()],
   fromJson: (json) => [
-    for (final item in json! as List)
-      Todo.fromJson(item as Map<String, Object?>),
+    for (final item in json! as List) Todo.fromJson(item),
   ],
 ),
 ```
@@ -130,3 +129,7 @@ runApp(const App());
 | Garbage collection | Kept. Unused queries leave memory and are restored the next time they're used. |
 
 Errors from the storage are ignored: a failing storage behaves like an empty one. Mutations aren't persisted.
+
+## In the example app
+
+The example has a storage adapter in [the preferences storage](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/data/preferences_storage.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) lists one screen per case.
