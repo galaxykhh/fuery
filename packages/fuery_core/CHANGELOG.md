@@ -1,3 +1,6 @@
+## 0.8.1
+- Fix: entry points no longer report an inference failure in apps that enable `strict-inference`, such as those using `very_good_analysis`.
+
 ## 0.8.0
 - **Breaking:** after `removeQueries` or `clear()`, observers that are still subscribed move to a new query and load again, instead of keeping the removed data. Cancel subscriptions before calling `clear()` in tests and CLIs.
 - Cancelling a fetch updates its state right away, and cancel errors are no longer reported to `QueryCacheConfig.onError`.
