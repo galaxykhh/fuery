@@ -98,6 +98,29 @@ onMutate: (id) async {
 
 `fetchNextPage()` cancels a fetch that is already running, including a background refetch of every page. Check `isFetching` before calling it, or pass `cancelRefetch: false`.
 
+## The error screen takes several seconds to appear
+
+A failed fetch retries three times by default, waiting 1s, 2s, then 4s. An error that can never succeed, such as a 404, spends that time retrying. Retry only what is worth retrying, with [`RetryPolicy.when`](../guides/queries/#which-errors-to-retry).
+
+## The query succeeds even though the request failed
+
+A query fails when its query function throws. A repository that returns a result object instead, such as a `Result` or an `Either`, returns normally either way, so the query is a success holding a failure. Unwrap it and throw: [Reporting failures from a repository](../guides/organizing-queries/#reporting-failures-from-a-repository).
+
+## What the user typed is replaced while they type
+
+A form seeded from a query is overwritten when a background refetch returns. Seed the controllers once, and stop the query refetching while the form is open:
+
+```dart
+final todo = Query.use(
+  queryKey: ['todos', 'detail', id],
+  queryFn: (_) => api.getTodo(id),
+  refetchOnMount: RefetchMode.never,
+  refetchOnFocus: RefetchMode.never,
+);
+```
+
+Invalidate the key after saving, so every other screen picks the change up.
+
 ## A query refetches more often than expected
 
 Every widget that starts using a query refetches it when the data is stale, and the default `staleTime` is zero, so almost everything is stale. Give the query a `staleTime` that matches how fast the data changes.

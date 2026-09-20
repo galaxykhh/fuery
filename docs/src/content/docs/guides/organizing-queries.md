@@ -30,6 +30,79 @@ Screens and blocs call `todosQuery()` and share one cache entry, and mutations i
 - **Keys stay consistent.** A typo in a key would silently create a second cache entry; one function per query rules that out.
 - **Hierarchy is explicit.** `['todos', ...]` groups everything about todos, so `invalidateQueries(queryKey: ['todos'])` refreshes the list and every detail at once.
 
+## Passing dependencies to a query function
+
+A query function must never capture a `BuildContext`. The `api` above is a long-lived object, which is what makes those snippets safe.
+
+The query keeps its query function with the cache entry and runs it again later: when the app returns to the foreground, when the network reconnects, on every `refetchInterval` tick, and whenever anything invalidates the key. Those runs happen after the widget that created the query is gone, so a captured `BuildContext` is unmounted by then. Capturing a `State`, a `TickerProvider`, or anything reached through `context` has the same problem.
+
+Plain values are fine. An id or a search term belongs in the key and in the request, and outlives the widget without trouble.
+
+Give the factory the dependency as a parameter:
+
+```dart
+QueryObserver<List<Todo>> todosQuery(TodoApi api) {
+  return Query.use(
+    queryKey: todosKey,
+    queryFn: (_) => api.getTodos(),
+  );
+}
+```
+
+The screen resolves it once, where it creates the query:
+
+```dart
+class _TodoScreenState extends State<TodoScreen> {
+  late final todos = todosQuery(locator<TodoApi>());
+}
+```
+
+Or look the dependency up inside the query function, which keeps the factory parameterless:
+
+```dart
+QueryObserver<List<Todo>> todosQuery() {
+  return Query.use(
+    queryKey: todosKey,
+    queryFn: (_) => locator<TodoApi>().getTodos(),
+  );
+}
+```
+
+`locator` stands for whatever your app resolves dependencies with. Either shape keeps the closure free of anything tied to a widget. Two observers with the same key share one cache entry, so give every call site for a key the same dependency.
+
+`QueryFunctionContext`, the argument every query function receives, carries nothing from the widget tree:
+
+| Field | What it gives |
+|---|---|
+| `client` | The `QueryClient` running the fetch, for reading other cached data |
+| `queryKey` | The key being fetched, so the function can build the request from it |
+| `meta` | Static values attached with the `meta` option |
+| `signal` | Aborted when the fetch is cancelled. See [Cancelling a request](../queries/#cancelling-a-request). |
+
+## Reporting failures from a repository
+
+A query function has to throw. Fuery takes the error state from a thrown error and from nothing else, so a function that returns a `Result`, an `Either`, or any other wrapper always succeeds, whatever the wrapper holds. The query then:
+
+- keeps `status` at `QueryStatus.success` and `error` at null,
+- never sets `isError`, `isLoadingError`, or `isRefetchError`,
+- never retries, because the retry policy only ever sees thrown errors.
+
+Unwrap in the query function and throw the failure:
+
+```dart
+QueryObserver<List<Todo>> todosQuery(TodoRepository repo) {
+  return Query.use(
+    queryKey: todosKey,
+    queryFn: (_) async => switch (await repo.getTodos()) {
+      Ok(:final value) => value,
+      Err(:final error) => throw error,
+    },
+  );
+}
+```
+
+Having nothing to return isn't a failure either. Query data can't be null, so a function with no result to give throws as well. See [Query data can't be null](../queries/#query-data-cant-be-null).
+
 ## Organizing mutations
 
 Put mutations next to their queries, for the same reason. What they share differs, though. Two widgets that use the same query key share one cache entry, but each `Mutation.use` call keeps its own pending and error state. A mutation factory therefore shares the mutation function and the cache updates, while every screen that calls it keeps its own state:

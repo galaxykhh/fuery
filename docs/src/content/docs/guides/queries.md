@@ -39,6 +39,8 @@ Creating a query starts nothing, so the field doesn't need to be `late`. Use `la
 
 Several screens can each create their own observer for the same key. They share one cache entry and one request, so you never pass a query down the tree. [Organizing queries](../organizing-queries/) shows where to keep them as an app grows.
 
+Those observers can ask for different options. Each keeps its own `staleTime` and `refetchOnMount`, so a screen that wants fresher data still refetches on mount while the other screen shows what is cached. The shared entry keeps the longest `gcTime` any of them asked for.
+
 ## Query data can't be null
 
 `null` means "no data yet", so query data types are non-nullable. Use a type like `Future<User>`, and throw or return an empty value when there is nothing to show.
@@ -58,19 +60,47 @@ Data that nothing uses stays cached for `gcTime` (default: 5 minutes), so return
 
 ## QueryResult fields
 
-Builders and streams receive a `QueryResult`:
+Builders and streams receive a `QueryResult`. Two enums carry the state, and the rest are named questions about them:
 
 | Field | Meaning |
 |---|---|
-| `status` | `pending` (no data yet), `error`, or `success` |
-| `fetchStatus` | `fetching`, `paused` (waiting for the network), or `idle` |
+| `status` | A `QueryStatus`: `pending` (no data yet), `error`, or `success` |
+| `fetchStatus` | A `FetchStatus`: `fetching`, `paused` (waiting for the network or the foreground), or `idle` |
 | `data`, `error` | The latest data and error. `data` is kept when a refetch fails. |
+
+| Question | True when |
+|---|---|
+| `isPending`, `isSuccess`, `isError` | `status` is that one |
+| `hasData` | `data` isn't null |
+| `isFetching`, `isPaused` | `fetchStatus` is that one |
 | `isLoading` | First load: pending and fetching |
 | `isRefetching` | Fetching while data is shown |
 | `isLoadingError` | Failed before any data arrived |
 | `isRefetchError` | Failed while data is still shown |
 | `isPlaceholderData` | `data` comes from `placeholderData` |
-| `isStale`, `failureCount`, `dataUpdatedAt` | Freshness, retries so far, and when data last changed |
+| `isStale` | Older than `staleTime`, so the next trigger refetches |
+| `isEnabled` | The query may fetch on its own |
+| `isFetched`, `isFetchedAfterMount` | It has fetched at all, and since this observer started |
+
+`failureCount` and `failureReason` describe the attempts since the last success, and `dataUpdatedAt`, `errorUpdatedAt`, and `errorUpdateCount` say when each last changed, in milliseconds since epoch.
+
+## Which errors to retry
+
+A failed fetch retries three times by default, waiting 1s, 2s, then 4s, so a request that can never succeed takes about seven seconds to reach the error branch. Narrow that to the errors worth retrying:
+
+```dart
+Fuery.client = QueryClient(
+  defaultOptions: DefaultOptions(
+    queries: QueryDefaults(
+      retry: RetryPolicy.when(
+        (failureCount, error) => failureCount < 3 && error is! NotFoundException,
+      ),
+    ),
+  ),
+);
+```
+
+`RetryPolicy.count(3)` is the default; `RetryPolicy.never()` and `RetryPolicy.always()` are the other shorthands, and a single query can set its own `retry`. Mutations never retry unless you ask them to.
 
 ## Polling until something finishes
 
@@ -97,9 +127,38 @@ final job = Query.use(
 
 `refetchWhile` also runs before the first result arrives, so handle `state.data` being `null`.
 
+## Changing what a query asks for
+
+`setOptions` points an existing observer at another key, which is how a search field or a filter works. One observer has to follow every term: a new observer per term starts from nothing.
+
+```dart
+void search(String term) {
+  results.setOptions(QueryOptions(
+    queryKey: ['todos', 'search', term],
+    queryFn: (_) => api.searchTodos(term),
+    enabled: term.isNotEmpty,
+    placeholderData: keepPreviousData,
+  ));
+}
+```
+
+`enabled: false` keeps the query from fetching on its own, so an empty term costs nothing. `refetch()` still fetches when you ask it to.
+
+Debounce in the widget, with a `Timer`, before calling `setOptions`. Each term gets its own cache entry, so going back to an earlier term shows its results at once.
+
 ## Queries that depend on another query
 
-Create the second query once the value it needs exists. Passing the value to a child widget does that:
+`enabled` also covers a query that needs a value from another one:
+
+```dart
+final projects = Query.use(
+  queryKey: ['projects', userId],
+  queryFn: (_) => api.getProjects(userId!),
+  enabled: userId != null,
+);
+```
+
+Or create the second query once the value exists, by passing it to a child widget:
 
 ```dart
 QueryBuilder(
@@ -140,6 +199,24 @@ One observer has to follow every page, as `setOptions` does above. A new observe
 
 While the next page loads, `state.isPlaceholderData` is `true`, so you can dim the list or disable the next button. For endless scrolling, use an [infinite query](../infinite-queries/) instead.
 
+## Opening a detail screen without a spinner
+
+The list already holds the item the detail screen is about to fetch. Read it out of the cache as placeholder data:
+
+```dart
+QueryObserver<Todo> todoQuery(int id) => Query.use(
+      queryKey: ['todos', 'detail', id],
+      queryFn: (_) => api.getTodo(id),
+      placeholderData: (previous) {
+        if (previous != null) return previous;
+        final todos = Fuery.client.getQueryData<List<Todo>>(['todos', 'list']);
+        return todos?.firstWhereOrNull((todo) => todo.id == id);
+      },
+    );
+```
+
+Placeholder data is shown, never cached, and the fetch still runs, so the screen fills in as soon as the full item arrives. Use `initialData` instead when the value should count as fetched data and land in the cache.
+
 ## Cancelling a request
 
 Read `context.signal` in the query function to make the request cancellable. Fuery then aborts the fetch when the last widget stops using the query, instead of letting it finish in the background:
@@ -155,6 +232,8 @@ queryFn: (context) {
 ```
 
 Without the signal, the request finishes and Fuery caches its result for next time.
+
+`context.signal` is an `AbortSignal`. A query function that works in steps can check `signal.aborted` between them, call `signal.throwIfAborted()` to stop with an `AbortedException`, or race `signal.whenAborted` against its own work. A fetch that `cancelQueries` stops fails with a `CancelledError`, which is worth filtering out before reporting errors to a crash reporter.
 
 ## In the example app
 

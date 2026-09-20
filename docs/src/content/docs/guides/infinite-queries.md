@@ -18,7 +18,7 @@ final posts = InfiniteQuery.use(
 );
 ```
 
-- `queryFn` fetches one page. `context.pageParam` is the page to load.
+- `queryFn` fetches one page. Its `InfiniteQueryFunctionContext` is a [query function context](../organizing-queries/#passing-dependencies-to-a-query-function) plus `pageParam`, the page to load.
 - `getNextPageParam` returns the param of the next page, or `null` when there are no more pages.
 - Fuery infers the page and param types.
 
@@ -30,7 +30,14 @@ InfiniteQueryBuilder(
   builder: (context, state) => ListView(
     children: [
       for (final page in state.pages) ...page.items.map(PostTile.new),
-      if (state.hasNextPage)
+      if (state.isFetchingNextPage)
+        const Center(child: CircularProgressIndicator())
+      else if (state.isFetchNextPageError)
+        TextButton(
+          onPressed: posts.fetchNextPage,
+          child: const Text('Loading more failed. Retry'),
+        )
+      else if (state.hasNextPage)
         TextButton(
           onPressed: state.isFetching ? null : posts.fetchNextPage,
           child: const Text('Load more'),
@@ -40,7 +47,26 @@ InfiniteQueryBuilder(
 )
 ```
 
+The footer reads `isFetchingNextPage` rather than `isFetching`, so a background refetch of the whole list doesn't replace the button with a spinner.
+
 `fetchNextPage()` cancels a fetch that is already running, including a background refetch of every page, and starts again. Check `isFetching` first, as in the example above, or pass `cancelRefetch: false`.
+
+## InfiniteQueryResult fields
+
+Builders and streams receive an `InfiniteQueryResult`. It carries every [`QueryResult` field](../queries/#queryresult-fields) and six more questions about the pages:
+
+| Question | True when |
+|---|---|
+| `hasNextPage` | `getNextPageParam` returned a param. False until the first page loads. |
+| `hasPreviousPage` | `getPreviousPageParam` returned a param. False without that option. |
+| `isFetchingNextPage` | A `fetchNextPage()` is running |
+| `isFetchingPreviousPage` | A `fetchPreviousPage()` is running |
+| `isFetchNextPageError` | The last fetch was a `fetchNextPage()` and it failed |
+| `isFetchPreviousPageError` | The last fetch was a `fetchPreviousPage()` and it failed |
+
+`state.pages` is the loaded pages, or an empty list when there is no data yet. `state.data` holds the same pages together with their params.
+
+`isRefetching` and `isRefetchError` cover a refetch of the whole list, so both stay false while a single page loads or fails.
 
 ## InfiniteData fields
 
@@ -64,11 +90,45 @@ final items = InfiniteQuery.use(
 
 ## Fetching previous pages
 
-Add `getPreviousPageParam` and call `fetchPreviousPage()` for lists that start in the middle, like a chat that opens at the latest message. `maxPages` limits how many pages stay in memory. Fuery drops pages at the other end.
+Add `getPreviousPageParam` and call `fetchPreviousPage()` for lists that start in the middle, like a chat that opens at the latest message. `hasPreviousPage` and `isFetchingPreviousPage` drive a header the way their next-page counterparts drive a footer.
+
+## Limiting how many pages stay in memory
+
+`maxPages` caps the number of cached pages. At the cap, loading a next page drops the first page, and loading a previous page drops the last one:
+
+```dart
+final messages = InfiniteQuery.use(
+  queryKey: ['messages', roomId],
+  queryFn: (context) => api.getMessages(cursor: context.pageParam),
+  initialPageParam: null as String?,
+  getNextPageParam: (data) => data.lastPage.nextCursor,
+  getPreviousPageParam: (data) => data.firstPage.previousCursor,
+  maxPages: 5,
+);
+```
+
+Give `getPreviousPageParam` as well. Without it `fetchPreviousPage()` has no param to ask for, so a page dropped from the front never comes back.
 
 ## Refetching every loaded page
 
 Refetching an infinite query reloads every loaded page in order. It starts from the first page and asks `getNextPageParam` for each next one, so the list stays consistent even if items moved between pages.
+
+## Keeping an infinite query in a function
+
+`InfiniteQuery.use` returns an `InfiniteQueryObserver<TPage, TParam>`: the page type first, the page param type second. Name it when you move the query into a function, as [Organizing queries](../organizing-queries/) suggests:
+
+```dart
+// lib/data/post_queries.dart
+InfiniteQueryObserver<PostPage, int> postsQuery() {
+  return InfiniteQuery.use(
+    queryKey: ['posts'],
+    queryFn: (context) => api.getPosts(page: context.pageParam),
+    initialPageParam: 1,
+    getNextPageParam: (data) =>
+        data.lastPage.hasMore ? data.lastPageParam + 1 : null,
+  );
+}
+```
 
 ## In the example app
 

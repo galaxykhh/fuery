@@ -23,7 +23,26 @@ addTodo.mutate('Buy milk'); // errors go to the state and callbacks
 final todo = await addTodo.mutateAsync('Buy milk'); // throws on error
 ```
 
-Use `mutate` from buttons and `mutateAsync` when you need the result. `addTodo.result` holds the latest `MutationState`: `status`, `data`, `error`, and `variables`. `addTodo.reset()` returns it to idle.
+Use `mutate` from buttons and `mutateAsync` when you need the result. `addTodo.result` holds the latest `MutationState`. `addTodo.reset()` returns it to idle.
+
+## MutationState fields
+
+Builders, listeners, and `result` all report a `MutationState`:
+
+| Field | Meaning |
+|---|---|
+| `status` | A `MutationStatus`: `idle`, `pending`, `success`, or `error` |
+| `data` | What `mutationFn` returned, or `null` until it succeeds |
+| `error` | Why the mutation failed. `null` in every other status. |
+| `variables` | What the latest `mutate` call passed |
+| `context` | What `onMutate` returned |
+| `submittedAt` | When the latest `mutate` call started, in milliseconds since epoch. `0` before the first one. |
+| `failureCount`, `failureReason` | How many attempts have failed and why. Both reset when a `mutate` call starts and when it succeeds. |
+
+| Question | True when |
+|---|---|
+| `isIdle`, `isPending`, `isSuccess`, `isError` | `status` is that one |
+| `isPaused` | Waiting for the network, or for another mutation in the same `scope` |
 
 ## Callbacks
 
@@ -73,16 +92,29 @@ final deleteTodo = Mutation.use(
 
 ## Mutations without variables
 
-Use `Mutation.noParam` and call `mutate()`:
+`Mutation.noParam` returns a `NoParamMutationObserver<TData, TContext>`, whose `mutate()` takes no argument:
 
 ```dart
 final logout = Mutation.noParam(mutationFn: () => api.logout());
 logout.mutate();
 ```
 
+Its callbacks drop the variables argument as well: `onMutate()`, `onSuccess(data, context)`, `onError(error, context)`, and `onSettled(data, error, context)`.
+
+```dart
+final logout = Mutation.noParam(
+  mutationFn: () => api.logout(),
+  onSuccess: (data, context) => Fuery.client.clear(),
+);
+```
+
+Empty the cache once the app has left the screens that were using it. [Clearing everything at logout](../query-client/#clearing-everything-at-logout) explains why the order matters.
+
+The state is still a `MutationState`, so a `MutationBuilder` reads `isPending` and `error` the same way.
+
 ## Retries and ordering
 
-Mutations don't retry unless you set `retry`, because repeating a write is not always safe. Mutations that share a `scope` run one after another, in the order they were started:
+A mutation never retries unless you set `retry`, because repeating a write is not always safe. `RetryPolicy.count(2)` gives it two more attempts, waiting 1s and then 2s. Mutations that share a `scope` run one after another, in the order they were started:
 
 ```dart
 final saveDraft = Mutation.use(
@@ -91,6 +123,8 @@ final saveDraft = Mutation.use(
   scope: const MutationScope('drafts'),
 );
 ```
+
+A mutation that waits for its turn in the scope reports `isPaused`, and so does one waiting for the network.
 
 ## Showing mutation state
 
@@ -102,6 +136,36 @@ MutationBuilder(
 )
 ```
 
+Switch on `status` when a widget draws every branch:
+
+```dart
+MutationBuilder(
+  mutation: addTodo,
+  builder: (context, state) => switch (state.status) {
+    MutationStatus.idle => const Text('Nothing added yet'),
+    MutationStatus.pending => const CircularProgressIndicator(),
+    MutationStatus.success => const Text('Added'),
+    MutationStatus.error => Text('Could not add: ${state.error}'),
+  },
+)
+```
+
+## Telling the user a mutation failed
+
+A failed `mutate` puts the error in the state instead of throwing, so a screen shows it with a `MutationListener`:
+
+```dart
+MutationListener(
+  mutation: deleteTodo,
+  listenWhen: (previous, current) => current.isError,
+  listener: (context, state) => ScaffoldMessenger.of(context)
+      .showSnackBar(SnackBar(content: Text('Could not delete: ${state.error}'))),
+  child: const TodoListView(),
+)
+```
+
+Use `MutateOptions(onError: ...)` instead when only one call site shows the failure, and `mutateAsync` inside a `try`/`catch` when the caller handles it.
+
 ## In the example app
 
-The example has an optimistic delete in [the todo mutations](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/data/todo_mutations.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) lists one screen per case.
+The example has an optimistic delete in [the todo mutations](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/data/todo_mutations.dart), and the snackbar above in [the todo list screen](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/todo_list/todo_list.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) lists one screen per case.

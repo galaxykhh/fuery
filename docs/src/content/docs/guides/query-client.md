@@ -1,6 +1,6 @@
 ---
 title: QueryClient
-description: Read, write, invalidate, and prefetch the Flutter cache, inside widgets or outside them.
+description: Read, write, invalidate, and prefetch the Flutter cache, set defaults, and report every failure in one place.
 ---
 
 The `QueryClient` owns the cache. Use it to read and write cached data, to invalidate or refetch it, and to fetch outside widgets.
@@ -12,12 +12,50 @@ The `QueryClient` owns the cache. Use it to read and write cached data, to inval
 ```dart
 final client = Fuery.client;
 
-client.getQueryData<List<Todo>>(['todos']);
+client.getQueryData<List<Todo>>(['todos']);      // the data, or null
+client.getQueryState(['todos'])?.dataUpdatedAt;  // the whole QueryState
 client.setQueryData(['todos', 1], todo);
 client.updateQueryData<List<Todo>>(['todos'], (todos) => [...?todos, todo]);
 ```
 
 Every widget using the key rebuilds with the new data. Returning `null` from the `updateQueryData` updater leaves the cache unchanged.
+
+Both reads take one exact key. `getQueryState` returns the `QueryState` behind the data, with `status`, `fetchStatus`, `error`, `dataUpdatedAt`, `errorUpdatedAt`, and `isInvalidated`. It also counts what happened: `dataUpdateCount` and `errorUpdateCount` since the query appeared, and `fetchFailureCount` with `fetchFailureReason` for the attempts since the last success, which a `QueryResult` reports as `failureCount` and `failureReason`.
+
+Writing many keys at once, for example from one websocket frame, goes through `notifyManager.batch`. It collects the rebuilds and delivers them once:
+
+```dart
+notifyManager.batch(() {
+  for (final todo in frame.todos) {
+    client.setQueryData(['todo', todo.id], todo);
+  }
+});
+```
+
+## Listing what is cached
+
+`getQueriesData` reads many keys at once and returns the key and data of every match. It takes `queryKey`, `exact`, and `predicate`:
+
+```dart
+for (final (key, todo) in client.getQueriesData<Todo>(queryKey: ['todo'])) {
+  print('$key holds $todo');
+}
+```
+
+Every match has to hold the same type, because Fuery casts the data to the type argument. Keep detail keys like `['todo', 1]` under a different prefix than the list at `['todos']`.
+
+For anything else, read the caches. `client.queryCache` and `client.mutationCache` expose `getAll`, `find`, and `findAll`:
+
+```dart
+final loading = client.queryCache.findAll(
+  const QueryFilters(type: QueryTypeFilter.active, stale: true),
+);
+final saving = client.mutationCache.findAll(
+  const MutationFilters(status: MutationStatus.pending),
+);
+```
+
+A `Query` from the cache exposes `queryKey`, `state`, `options`, and `meta`. The caches only read. Change queries through the client.
 
 ## Invalidating
 
@@ -30,7 +68,67 @@ client.invalidateQueries(queryKey: ['todos'], exact: true); // only ['todos']
 
 Queries that widgets are using refetch right away. The others refetch the next time they're used. Pass `refetchType: RefetchType.none` to only mark them stale.
 
-The other operations take the same filters: `refetchQueries`, `cancelQueries`, `resetQueries`, and `removeQueries`.
+## Choosing which queries an operation touches
+
+Six calls pick their queries with the same filters. Each adds arguments of its own:
+
+| Call | What it does | Its own arguments |
+|---|---|---|
+| `invalidateQueries` | Marks the matches stale and refetches the active ones. | `refetchType`, `cancelRefetch`, `throwOnError` |
+| `refetchQueries` | Refetches the matches. Skips disabled queries, and static ones that have data. | `cancelRefetch`, `throwOnError` |
+| `resetQueries` | Returns the matches to their initial state, then refetches the active ones. | `cancelRefetch`, `throwOnError` |
+| `cancelQueries` | Cancels the fetches in flight. | `revert`, `silent` |
+| `removeQueries` | Deletes the matches from the cache. | none |
+| `isFetching` | Counts the matches that are fetching. | none |
+
+`isMutating` counts pending mutations instead, and takes the mutation filters: `mutationKey`, `exact`, and a `predicate` that receives an `AnyMutation`.
+
+### The filters
+
+Every filter you set has to match.
+
+| Filter | Type | Default | Selects |
+|---|---|---|---|
+| `queryKey` | `List<Object?>` | every query | Queries whose key starts with this one. `['todos']` matches `['todos', 1]`. |
+| `exact` | `bool` | `false` | `true` matches the single query with exactly this key. |
+| `type` | `QueryTypeFilter` | `.all` | `.active`: an enabled widget or subscriber is using the query. `.inactive`: nothing is using it. |
+| `stale` | `bool?` | unset | `true` for stale queries only, `false` for fresh ones. |
+| `predicate` | `bool Function(Query<Object>)` | unset | Queries this returns `true` for. |
+
+### The extra arguments
+
+| Argument | Default | What it does |
+|---|---|---|
+| `refetchType` | active queries | Which matches refetch: `RefetchType.active`, `.inactive`, `.all`, or `.none` to only mark them stale. |
+| `cancelRefetch` | `true` | Cancels the fetch in flight and starts a new one. `false` waits for the one already running. |
+| `throwOnError` | `false` | `true` makes the returned future fail when a refetch fails. |
+| `revert` | `true` | Puts the cancelled query back in the state it had before the fetch. `false` records the cancellation as its error. |
+| `silent` | `false` | `true` records nothing and returns the query to idle. |
+
+Without `refetchType`, `invalidateQueries` refetches the matches that `type` selected, or the active ones when `type` is unset.
+
+### Refreshing only what is on screen
+
+```dart
+client.invalidateQueries(
+  queryKey: ['todos'],
+  type: QueryTypeFilter.active,
+);
+```
+
+Without `type`, Fuery marks every matching query stale and refetches the active ones. With `type: QueryTypeFilter.active`, it leaves the queries nothing is showing alone: they keep their data, and refetch on mount only once their `staleTime` has passed.
+
+### Clearing one user's keys
+
+A `predicate` reaches into the key when a prefix isn't enough:
+
+```dart
+client.removeQueries(
+  predicate: (query) => query.queryKey.contains(userId),
+);
+```
+
+The predicate receives the `Query`, so it can read `query.state` and `query.options` as well, for example to drop every query that failed.
 
 ## Watching the cache
 
@@ -84,16 +182,34 @@ client.query(todosOptions).ignore(); // prefetch: ignore the result and errors
 
 To use whatever is cached, however old, set `staleTime: staticStaleTime`. Route guards and startup code use it to read the cache without waiting for a fetch.
 
-`client.infiniteQuery` does the same for [infinite queries](../infinite-queries/), taking the options from `infiniteQueryOptions`. When nothing is cached, it loads as many pages as the `pages` option asks for, one by default. When pages are already cached, it reloads those.
+## Fetching an infinite query outside widgets
 
-## Default options
+`client.infiniteQuery` does the same for [infinite queries](../infinite-queries/). Build its options with `infiniteQueryOptions`, which takes the same options as `InfiniteQuery.use`, plus `pages`:
 
-Configure every query, or every query under a key prefix:
+```dart
+InfiniteQueryOptions<TodoPage, int> pagedTodosOptions() => infiniteQueryOptions(
+      queryKey: ['todos', 'paged'],
+      queryFn: (context) => api.getPage(context.pageParam),
+      initialPageParam: 1,
+      getNextPageParam: (data) =>
+          data.lastPage.hasMore ? data.lastPageParam + 1 : null,
+      pages: 3,
+    );
+
+await client.infiniteQuery(pagedTodosOptions());
+```
+
+`pages` is how many pages to load when nothing is cached, one by default. When pages are already cached, `client.infiniteQuery` reloads those instead and ignores `pages`. `InfiniteQuery.use` doesn't take it: a widget loads the first page, then whatever `fetchNextPage()` asks for.
+
+## Setting defaults for every query and mutation
+
+Configure the whole client, or a key prefix:
 
 ```dart
 Fuery.client = QueryClient(
   defaultOptions: const DefaultOptions(
     queries: QueryDefaults(staleTime: Duration(seconds: 30)),
+    mutations: MutationDefaults(retry: RetryPolicy.count(2)),
   ),
 );
 
@@ -101,7 +217,16 @@ Fuery.client.setQueryDefaults(
   ['settings'],
   const QueryDefaults(staleTime: infiniteDuration),
 );
+
+Fuery.client.setMutationDefaults(
+  ['todos'],
+  const MutationDefaults(networkMode: NetworkMode.offlineFirst),
+);
 ```
+
+`QueryDefaults` takes the [query options](../../reference/query-options/) that aren't specific to one query: `enabled`, `staleTime`, `gcTime`, `refetchInterval`, `refetchIntervalInBackground`, `refetchOnMount`, `refetchOnFocus`, `refetchOnReconnect`, `retryOnMount`, `retry`, `retryDelay`, `networkMode`, `structuralSharing`, and `meta`. `MutationDefaults` takes `gcTime`, `retry`, `retryDelay`, `networkMode`, and `meta`.
+
+Per-key defaults win over client defaults, and options set on the query or mutation itself win over both. A mutation only picks up per-key defaults when it has a `mutationKey`. `getQueryDefaults(['settings'])` and `getMutationDefaults(['todos'])` return what a key resolves to, merged from every prefix you registered.
 
 Assigning `Fuery.client` mounts the new client and unmounts the previous one. The new client then refetches on focus and on reconnect.
 
@@ -114,6 +239,72 @@ void main() async {
   runApp(const App());
 }
 ```
+
+## Reporting every failure in one place
+
+Give the caches a config to run a callback for every query and every mutation. This is where an app reports to a crash or logging service:
+
+```dart
+Fuery.client = QueryClient(
+  queryCache: QueryCache(
+    config: QueryCacheConfig(
+      onError: (error, query) => reportError(error, query.queryKey),
+    ),
+  ),
+  mutationCache: MutationCache(
+    config: MutationCacheConfig(
+      onError: (error, variables, context, mutation) =>
+          reportError(error, mutation.options.mutationKey),
+    ),
+  ),
+);
+```
+
+A cache keeps its config for its whole life, so pass it when you construct the client.
+
+`QueryCacheConfig` takes three callbacks, each with the `Query` as its last argument:
+
+| Callback | Runs |
+|---|---|
+| `onSuccess(data, query)` | After a fetch resolves |
+| `onError(error, query)` | After a fetch fails and its retries are used up |
+| `onSettled(data, error, query)` | After either |
+
+A cancelled fetch is not a failure and reaches none of them.
+
+`MutationCacheConfig` takes four, each with the mutation as its last argument:
+
+| Callback | Runs |
+|---|---|
+| `onMutate(variables, mutation)` | Before `mutationFn` |
+| `onSuccess(data, variables, context, mutation)` | After success |
+| `onError(error, variables, context, mutation)` | After failure |
+| `onSettled(data, error, variables, context, mutation)` | After either |
+
+Each of these runs before the matching [callback on the mutation itself](../mutations/#callbacks), and Fuery awaits a future it returns. The mutation arrives as `AnyMutation`, a mutation of unknown types, so `data`, `variables`, and `context` come in as `Object?`. Identify it by `mutation.options.mutationKey` or `mutation.options.meta`.
+
+## Resuming mutations that paused offline
+
+A mutation started while the device is offline waits, and Fuery resumes it when the app is focused again or the network reconnects. Call `resumePausedMutations` to resume at another moment:
+
+```dart
+await client.resumePausedMutations();
+```
+
+It resumes every paused mutation on the client, and does nothing while the device is still offline. Fuery doesn't persist mutations, so a paused mutation is gone after a restart.
+
+## Clearing everything at logout
+
+```dart
+Future<void> logout() async {
+  await api.logout();
+  Fuery.client.clear();
+}
+```
+
+`clear()` removes every query and every mutation, and deletes all [persisted data](../persistence/#deleting-stored-data). The client itself stays, along with the defaults registered through `setQueryDefaults` and `setMutationDefaults`.
+
+Clear once the screens that use queries are gone. An observer still subscribed when `clear()` or `removeQueries` runs doesn't stop: Fuery moves it to a new query for the same key, and that query loads like a new one. A list still on screen therefore refetches right away, with the logged-out session. Navigate to the login screen first, and unsubscribe any observer you subscribed by hand.
 
 ## Which client a query uses
 

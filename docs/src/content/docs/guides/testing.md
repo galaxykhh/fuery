@@ -27,6 +27,10 @@ testWidgets('shows todos', (tester) async {
 });
 ```
 
+Mutations don't retry unless you ask them to, so `QueryDefaults` is enough. Add `mutations: MutationDefaults(...)` when a test sets a mutation default of its own.
+
+To test what happens when the app leaves the foreground, tell the focus manager: `focusManager.setFocused(false)`, then `setFocused(null)` to hand control back to the app lifecycle.
+
 - Pump the time your fake API takes, or `await tester.pump()` for instant fakes.
 - End each test by unmounting the widgets and calling `client.clear()`. Otherwise cache timers are still pending and the test fails.
 - Queries and mutations without a `client:` argument use `Fuery.client`. If your widgets pass `client: context.queryClient`, wrap the app in `FueryProvider(client: client, child: const App())` instead.

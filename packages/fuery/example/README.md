@@ -16,7 +16,7 @@ The demo is this app built for the web, with the devtools turned on through `--d
 
 | Screen | What it shows |
 |---|---|
-| [List, refresh, and optimistic delete](lib/app/screens/todo_list/todo_list.dart) | `QueryBuilder`, a refetch indicator with `buildWhen`, an optimistic delete that rolls back, `MutationBuilder` for a barrier and `MutationListener` for an error snackbar |
+| [List, refresh, and optimistic delete](lib/app/screens/todo_list/todo_list.dart) | `QueryBuilder`, pull-to-refresh and a retry button through `refetch`, a refetch indicator with `buildWhen`, an optimistic delete that rolls back, `MutationBuilder` for a barrier and `MutationListener` for an error snackbar |
 | [Todo detail](lib/app/screens/todo_detail/todo_detail.dart) | A key per todo, opening with the list's copy as `placeholderData` instead of a spinner |
 | [Stats in a cubit](lib/app/screens/todo_stats/todo_stats_cubit.dart) | The same query read from a `Cubit` through its stream, so completing a todo on the list updates the stats |
 | [Paged archive](lib/app/screens/infinite_todos/infinite_todos.dart) | `InfiniteQuery.use` with `fetchNextPage` and `hasNextPage` |
