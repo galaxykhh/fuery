@@ -1,6 +1,6 @@
 ---
 title: Mutations
-description: Create, update, and delete server data, with optimistic updates.
+description: Create, update, and delete server data in Flutter, with optimistic updates and rollback.
 ---
 
 Mutations change server data:

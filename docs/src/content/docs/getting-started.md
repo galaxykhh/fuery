@@ -1,6 +1,6 @@
 ---
 title: Getting started
-description: Install Fuery and show your first query.
+description: Install Fuery in a Flutter app and cache your first API request.
 ---
 
 ## Install

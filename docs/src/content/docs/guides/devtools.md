@@ -1,6 +1,6 @@
 ---
 title: Devtools
-description: Inspect queries and mutations while developing.
+description: Inspect the Flutter query cache while the app runs, on a device or in the browser.
 ---
 
 `FueryDevtools` adds a button over your app. It opens a panel with every query and mutation of the client: their status, their data, and buttons to refetch or clear them.

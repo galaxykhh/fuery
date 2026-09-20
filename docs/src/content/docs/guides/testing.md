@@ -1,6 +1,6 @@
 ---
 title: Testing
-description: Test widgets, blocs, and queries that use Fuery.
+description: Test Flutter widgets, blocs, and queries that use a cache, with fake time and a fresh client.
 ---
 
 ## Widget tests

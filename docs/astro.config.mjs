@@ -10,6 +10,21 @@ export default defineConfig({
 			title: 'Fuery',
 			description: 'Fetch, cache, and keep server data fresh in Flutter.',
 			head: [
+				{
+					tag: 'script',
+					attrs: { type: 'application/ld+json' },
+					content: JSON.stringify({
+						'@context': 'https://schema.org',
+						'@type': 'SoftwareSourceCode',
+						name: 'Fuery',
+						description:
+							'Server data caching for Flutter and Dart: queries, mutations, pagination, and offline support.',
+						codeRepository: 'https://github.com/galaxykhh/fuery',
+						programmingLanguage: 'Dart',
+						license: 'https://github.com/galaxykhh/fuery/blob/main/LICENSE',
+						url: 'https://galaxykhh.github.io/fuery/',
+					}),
+				},
 				{ tag: 'meta', attrs: { property: 'og:image', content: 'https://galaxykhh.github.io/fuery/og.png' } },
 				{ tag: 'meta', attrs: { property: 'og:image:alt', content: 'Fuery: server state for Flutter' } },
 			],
@@ -23,6 +38,7 @@ export default defineConfig({
 				baseUrl: 'https://github.com/galaxykhh/fuery/edit/main/docs/',
 			},
 			sidebar: [
+				{ label: 'Server state in Flutter', slug: 'server-state' },
 				{ label: 'Getting started', slug: 'getting-started' },
 				{
 					label: 'Guides',
