@@ -3,10 +3,14 @@
 A todo app with one screen per case, so each pattern can be read on its own.
 The home screen lists them; the mock API adds the delays a real one would have.
 
+**[Try it in a browser →](https://galaxykhh.github.io/fuery/demo/)**
+
 ```bash
 flutter run
 flutter test
 ```
+
+The demo is this app built for the web, with the devtools turned on through `--dart-define=fuery.demo=true`.
 
 ## Cases
 

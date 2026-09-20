@@ -31,7 +31,7 @@ Coverage (both packages are at 100% line coverage):
 
 `coverage/` is gitignored.
 
-CI (`.github/workflows/ci.yml`) runs format, analyze, and all three test suites on the latest stable Flutter, and analyze and the tests on the oldest supported version (Flutter 3.27, Dart 3.6), for every pull request and every push to `main`. Raise the pubspec constraints and that CI version together. `.github/workflows/docs.yml` builds the docs site on pull requests that touch `docs/` and deploys it to GitHub Pages from `main`.
+CI (`.github/workflows/ci.yml`) runs format, analyze, and all three test suites on the latest stable Flutter, and analyze and the tests on the oldest supported version (Flutter 3.27, Dart 3.6), for every pull request and every push to `main`. Raise the pubspec constraints and that CI version together. `.github/workflows/docs.yml` builds the example for the web into `docs/public/demo`, builds the docs site, and deploys both to GitHub Pages from `main`. It runs on pull requests that touch the docs, the example, or either package's `lib/`. The demo passes `--dart-define=fuery.demo=true`, which turns the devtools on in that release build.
 
 ## Rules for every change
 

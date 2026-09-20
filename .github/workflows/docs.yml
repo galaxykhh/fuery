@@ -3,9 +3,19 @@ name: Docs
 on:
   push:
     branches: [main]
-    paths: [docs/**, .github/workflows/docs.yml]
+    paths:
+      - docs/**
+      - packages/fuery/example/**
+      - packages/fuery/lib/**
+      - packages/fuery_core/lib/**
+      - .github/workflows/docs.yml
   pull_request:
-    paths: [docs/**, .github/workflows/docs.yml]
+    paths:
+      - docs/**
+      - packages/fuery/example/**
+      - packages/fuery/lib/**
+      - packages/fuery_core/lib/**
+      - .github/workflows/docs.yml
   workflow_dispatch:
 
 permissions:
@@ -20,6 +30,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      # The example runs at /fuery/demo/, with the devtools turned on so they
+      # can be tried in the browser.
+      - name: Build the demo
+        run: flutter build web --release --base-href /fuery/demo/ --dart-define=fuery.demo=true
+        working-directory: packages/fuery/example
+      # Astro copies public/ into the site as it is.
+      - run: cp -r packages/fuery/example/build/web docs/public/demo
       - uses: withastro/action@v6
         with:
           path: docs

@@ -10,7 +10,7 @@ Fuery fetches, caches, and keeps your server data fresh, with request deduplicat
 - **Built for real networks.** Refetches when the app returns to the foreground, retries failed requests, and pauses while offline once you [report connectivity](#app-lifecycle-and-connectivity).
 - **Devtools in the app.** Inspect the cache on a device, with no separate tooling.
 
-**[Read the documentation →](https://galaxykhh.github.io/fuery/)**
+**[Read the documentation →](https://galaxykhh.github.io/fuery/)** · **[Try the demo →](https://galaxykhh.github.io/fuery/demo/)**
 
 ## Install
 
