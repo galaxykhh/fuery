@@ -1,3 +1,6 @@
+## 0.8.3
+- Documentation only: a description and topics that match what people search for, and a new page on server state in Flutter.
+
 ## 0.8.2
 - Documentation only: the README and the persistence guide narrow decoded JSON once in the codec, and the storage examples no longer use a class that doesn't exist.
 

@@ -1,6 +1,6 @@
 name: fuery_core
 description: "Server data caching for Dart: cache API responses, deduplicate requests, refetch in the background, paginate, and mutate with optimistic updates."
-version: 0.8.2
+version: 0.8.3
 homepage: https://github.com/galaxykhh
 repository: https://github.com/galaxykhh/fuery/tree/main/packages/fuery_core
 documentation: https://galaxykhh.github.io/fuery/
