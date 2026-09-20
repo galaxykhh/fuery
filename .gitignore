@@ -33,3 +33,7 @@ coverage/
 
 # Personal Claude Code settings
 .claude/settings.local.json
+
+# Generated when a plugin is added
+.flutter-plugins
+.flutter-plugins-dependencies
