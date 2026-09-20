@@ -37,3 +37,9 @@ jobs:
         working-directory: packages/fuery
       - run: flutter test
         working-directory: packages/fuery/example
+      # The report lists which of the public API the docs mention. Regenerate
+      # it with `python3 docs/tool/api_coverage.py` when the API changes.
+      - if: matrix.version == ''
+        run: |
+          python3 docs/tool/api_coverage.py
+          git diff --exit-code docs/api-coverage.md

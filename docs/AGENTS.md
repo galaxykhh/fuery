@@ -38,8 +38,27 @@ Rules from the root `AGENTS.md` apply here too: describe Fuery on its own terms,
 
 Every page needs `title` and `description`. Quote a description that contains a colon followed by a space, or the YAML fails to parse.
 
+## API coverage
+
+`api-coverage.md` lists every public type, member, option, and filter argument,
+and whether the site mentions it. Regenerate it whenever the API changes:
+
+```bash
+python3 docs/tool/api_coverage.py           # writes docs/api-coverage.md
+python3 docs/tool/api_coverage.py --check   # also exits 1 on any gap
+```
+
+CI regenerates the report and fails when it differs from the committed one, so
+API added without a mention shows up as a diff. The gaps in the report are work
+to do. API an app author never names belongs in `tool/coverage_ignore.txt`,
+with the reason, rather than in the report.
+
+A ✅ only means the name appears somewhere. It says nothing about whether a
+reader can find it or understand it, which is what the rules above are for.
+
 ## Before a pull request
 
 - `npm run build` succeeds.
 - Every internal link and anchor still resolves. Heading renames break links silently.
 - Snippets match the API in `packages/`.
+- `python3 docs/tool/api_coverage.py` leaves `api-coverage.md` unchanged, or the change is intended.
