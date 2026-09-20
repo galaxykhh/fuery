@@ -30,8 +30,7 @@ QueryObserver<List<Todo>> todosQuery() {
     persist: QueryPersist(
       toJson: (todos) => [for (final todo in todos) todo.toJson()],
       fromJson: (json) => [
-        for (final todo in json! as List)
-          Todo.fromJson(todo as Map<String, dynamic>),
+        for (final todo in json! as List) Todo.fromJson(todo),
       ],
     ),
   );

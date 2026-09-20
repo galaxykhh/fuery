@@ -394,8 +394,7 @@ final todos = Query.use(
   persist: QueryPersist(
     toJson: (todos) => [for (final todo in todos) todo.toJson()],
     fromJson: (json) => [
-      for (final item in json! as List)
-        Todo.fromJson(item as Map<String, Object?>),
+      for (final item in json! as List) Todo.fromJson(item),
     ],
   ),
 );
