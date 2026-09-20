@@ -64,3 +64,7 @@ Add `getPreviousPageParam` and call `fetchPreviousPage()` for lists that start i
 ## Refetching
 
 Refetching an infinite query, for example after invalidation, reloads every loaded page in order, starting from the first page and asking `getNextPageParam` for each next one. The list stays consistent even if items moved between pages.
+
+## In the example app
+
+The example has a paged archive in [the archive screen](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/infinite_todos/infinite_todos.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) lists one screen per case.

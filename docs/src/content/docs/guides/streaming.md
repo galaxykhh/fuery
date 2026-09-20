@@ -68,3 +68,7 @@ stream: (context) {
   return request.tokens;
 },
 ```
+
+## In the example app
+
+The example has a streamed answer in [the streamed answer screen](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/streaming_answer/streaming_answer.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) lists one screen per case.

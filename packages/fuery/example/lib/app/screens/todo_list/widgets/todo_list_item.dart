@@ -7,11 +7,13 @@ class TodoListItem extends StatelessWidget {
     required this.todo,
     required this.onToggle,
     required this.onDelete,
+    required this.onOpen,
   });
 
   final Todo todo;
   final void Function(Todo todo) onToggle;
   final void Function(Todo todo) onDelete;
+  final void Function(Todo todo) onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -23,18 +25,21 @@ class TodoListItem extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  todo.title,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                Text(
-                  todo.description,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ],
+            child: GestureDetector(
+              onTap: () => onOpen(todo),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    todo.title,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  Text(
+                    todo.description,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
             ),
           ),
           Column(

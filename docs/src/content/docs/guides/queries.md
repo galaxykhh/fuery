@@ -160,3 +160,7 @@ queryFn: (context) {
 ```
 
 Without the signal, the request finishes and its result is cached for next time.
+
+## In the example app
+
+The example has placeholder data in [the search screen](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/search_todos/search_todos.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) lists one screen per case.

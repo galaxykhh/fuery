@@ -42,25 +42,25 @@ QueryBuilder(
 		Every widget that uses a key shares one cache entry and one request. Stale
 		data stays on screen while it refetches in the background.
 	</Card>
+	<Card title="Drops into your app" icon="puzzle">
+		Start with one screen. Creating a query needs no `BuildContext`, and there
+		is nothing to replace.
+	</Card>
+	<Card title="Runs where your code runs" icon="code-branch">
+		A pure Dart core, so widgets, cubits, services, CLIs, and servers use the
+		same query object.
+	</Card>
 	<Card title="No type arguments" icon="approve-check">
 		Types are inferred from your query and mutation functions, all the way to
-		widgets, results, and callbacks.
-	</Card>
-	<Card title="Builders and listeners" icon="puzzle">
-		`Builder`, `Listener`, and `Consumer` widgets for queries and mutations, with
-		`buildWhen` and `listenWhen`.
-	</Card>
-	<Card title="Works inside blocs" icon="code-branch">
-		Queries are plain objects with a `Stream`, so cubits and blocs can listen to
-		them too.
+		widgets, results, and callbacks. No code generation either.
 	</Card>
 	<Card title="Built for real networks" icon="rocket">
 		Retries with backoff, refetches when the app resumes, and can pause while
 		offline and cancel requests nobody needs anymore.
 	</Card>
 	<Card title="Persisted and inspectable" icon="magnifier">
-		Keep queries across app restarts with any key-value storage, and inspect
-		the cache with the in-app devtools.
+		Keep queries across restarts with any key-value storage, and inspect the
+		cache inside the running app, on a device.
 	</Card>
 </CardGrid>
 

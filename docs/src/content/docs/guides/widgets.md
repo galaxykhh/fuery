@@ -95,3 +95,7 @@ late final todos = Query.use(
   client: context.queryClient,
 );
 ```
+
+## In the example app
+
+The example has a selector in [the case list](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/cases/cases_screen.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) lists one screen per case.

@@ -1,5 +1,5 @@
 import 'package:example/app/core/app_router.dart';
-import 'package:example/app/screens/todo_list/todo_list.dart';
+import 'package:example/app/screens/cases/cases_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:fuery/fuery.dart';
 
@@ -19,7 +19,7 @@ class _TodoAppState extends State<TodoApp> {
       // Shows the Fuery devtools button in debug and profile builds.
       builder: (context, child) => FueryDevtools(child: child!),
       onGenerateRoute: router.generateRoute,
-      initialRoute: TodoListScreen.routeName,
+      initialRoute: CasesScreen.routeName,
     );
   }
 }

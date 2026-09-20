@@ -130,3 +130,7 @@ runApp(const App());
 | Garbage collection | Kept. Unused queries leave memory and are restored the next time they're used. |
 
 Errors from the storage are ignored: a failing storage behaves like an empty one. Mutations aren't persisted.
+
+## In the example app
+
+The example has a storage adapter in [the preferences storage](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/data/preferences_storage.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) lists one screen per case.

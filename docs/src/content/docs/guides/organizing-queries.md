@@ -30,4 +30,32 @@ Screens and blocs call `todosQuery()` and share one cache entry, and mutations i
 - **Keys stay consistent.** A typo in a key would silently create a second cache entry; one function per query rules that out.
 - **Hierarchy is explicit.** `['todos', ...]` groups everything about todos, so `invalidateQueries(queryKey: ['todos'])` refreshes the list and every detail at once.
 
-The [example app](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) uses this pattern to share its todo list between a widget screen and a cubit.
+## Mutations
+
+Mutations go next to their queries, for the same reason. The difference is what gets shared: a query key shares one cache entry, while each `Mutation.use` call has its own pending and error state. So a factory shares the server work, and every screen that calls it keeps its own state:
+
+```dart
+// lib/data/todo_mutations.dart
+MutationObserver<Todo, String, void> addTodoMutation() {
+  return Mutation.use(
+    mutationFn: (String title) => api.addTodo(title),
+    onSuccess: (todo, title, _) =>
+        Fuery.client.invalidateQueries(queryKey: todosKey),
+  );
+}
+```
+
+Keep the cache work, such as invalidating and rolling back, in the factory. Anything that belongs to one screen goes to the call site instead:
+
+```dart
+addTodo.mutate(
+  title,
+  MutateOptions(onSuccess: (todo, title, _) => Navigator.pop(context)),
+);
+```
+
+A `MutationListener` does the same for a snackbar or a dialog, with the screen's `BuildContext`.
+
+## In the example app
+
+The example has query and mutation factories in [the todo queries](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/data/todo_queries.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) lists one screen per case.

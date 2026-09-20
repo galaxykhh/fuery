@@ -1,10 +1,8 @@
-import 'package:example/app/data/payloads/add_todo_payload.dart';
-import 'package:example/app/data/todo.dart';
+import 'package:example/app/data/todo_mutations.dart';
 import 'package:example/app/data/todo_queries.dart';
-import 'package:example/app/data/todo_repository.dart';
+import 'package:example/app/screens/todo_detail/todo_detail.dart';
 import 'package:example/app/screens/todo_list/widgets/add_todo_dialog.dart';
 import 'package:example/app/screens/todo_list/widgets/todo_list_item.dart';
-import 'package:example/app/screens/todo_stats/todo_stats.dart';
 import 'package:flutter/material.dart';
 import 'package:fuery/fuery.dart';
 
@@ -27,44 +25,9 @@ class TodoListScreen extends StatefulWidget {
 class _TodoListScreenState extends State<TodoListScreen> {
   final todos = todosQuery();
 
-  final addTodo = Mutation.use(
-    mutationFn: (AddTodoPayload payload) {
-      return TodoApi().add(payload.title, payload.description);
-    },
-    onSuccess: (todo, payload, _) {
-      return Fuery.client.invalidateQueries(queryKey: todosKey);
-    },
-  );
-
-  final toggleTodo = Mutation.use(
-    mutationFn: (int id) => TodoApi().toggle(id),
-    onSuccess: (_, id, __) {
-      return Fuery.client.invalidateQueries(queryKey: todosKey);
-    },
-  );
-
-  // Removes the todo from the list right away, and puts it back if the
-  // server call fails.
-  final deleteTodo = Mutation.use(
-    mutationFn: (int id) => TodoApi().delete(id),
-    onMutate: (id) async {
-      final client = Fuery.client;
-      // A refetch in flight would bring the todo back.
-      await client.cancelQueries(queryKey: todosKey);
-      final previous = client.getQueryData<List<Todo>>(todosKey);
-      client.updateQueryData<List<Todo>>(
-        todosKey,
-        (todos) => todos?.where((todo) => todo.id != id).toList(),
-      );
-      return previous;
-    },
-    onError: (error, id, previous) {
-      if (previous != null) Fuery.client.setQueryData(todosKey, previous);
-    },
-    onSuccess: (_, id, __) {
-      return Fuery.client.invalidateQueries(queryKey: todosKey);
-    },
-  );
+  final addTodo = addTodoMutation();
+  final toggleTodo = toggleTodoMutation();
+  final deleteTodo = deleteTodoMutation();
 
   @override
   Widget build(BuildContext context) {
@@ -94,13 +57,6 @@ class _TodoListScreenState extends State<TodoListScreen> {
               ),
               actions: [
                 IconButton.outlined(
-                  onPressed: () => Navigator.push(
-                    context,
-                    TodoStatsScreen.route(),
-                  ),
-                  icon: const Icon(Icons.insights),
-                ),
-                IconButton.outlined(
                   onPressed: () => AddTodoDialog.show(
                     context,
                     onSubmit: addTodo.mutate,
@@ -125,6 +81,10 @@ class _TodoListScreenState extends State<TodoListScreen> {
                           todo: data[index],
                           onToggle: (todo) => toggleTodo.mutate(todo.id),
                           onDelete: (todo) => deleteTodo.mutate(todo.id),
+                          onOpen: (todo) => Navigator.push(
+                            context,
+                            TodoDetailScreen.route(todo.id),
+                          ),
                         );
                       },
                       separatorBuilder: (context, index) {

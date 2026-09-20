@@ -4,10 +4,11 @@ Fetch, cache, and keep server data fresh in Flutter.
 
 Fuery fetches, caches, and keeps your server data fresh, with request deduplication, stale-while-revalidate caching, retries, pagination, and optimistic updates. Builder, listener, and consumer widgets, with `buildWhen` and `listenWhen`, turn queries into UI and side effects.
 
-- No type arguments to write. Types are inferred from your query and mutation functions, all the way to widgets and callbacks.
-- No code generation, no `BuildContext` required to create a query.
-- Queries are plain objects with a `Stream`, so blocs and cubits can use them too.
-- Refetches when the app returns to the foreground, retries failed requests, and pauses while offline once you [report connectivity](#app-lifecycle-and-connectivity).
+- **Drops into the app you have.** Start with one screen: creating a query needs no `BuildContext`, and nothing else has to change.
+- **Runs where your code runs.** The core is pure Dart, so widgets, cubits, services, CLIs, and servers use the same query object.
+- **No type arguments, no code generation.** Types come from your query and mutation functions.
+- **Built for real networks.** Refetches when the app returns to the foreground, retries failed requests, and pauses while offline once you [report connectivity](#app-lifecycle-and-connectivity).
+- **Devtools in the app.** Inspect the cache on a device, with no separate tooling.
 
 **[Read the documentation →](https://galaxykhh.github.io/fuery/)**
 
