@@ -5,6 +5,22 @@ description: Use cached server data inside cubits and blocs, without replacing y
 
 Queries and mutations don't depend on widgets. Every observer exposes a `stream` that emits the current result first, then every change. The query fetches as soon as you listen to that stream, and stops updating when you cancel the subscription.
 
+## Which builder to use
+
+Adding Fuery doesn't move your screens to a new builder. Pick per screen:
+
+| The screen | Build it with |
+|---|---|
+| Shows server data much as it arrives | `QueryBuilder`. A cubit in between would rebuild the loading and error flags that `QueryResult` already carries. |
+| Mixes server data with app state: a selection, a filter, a form, several queries combined | A cubit that listens to the query, and `BlocBuilder` |
+| Already runs on events, in an app built with blocs | A bloc that listens to the query, and `BlocBuilder` |
+
+One screen can do both: `BlocBuilder` for the app state, `QueryBuilder` for the server data. Two screens that use the same key share one cache entry and one request either way, so the choice is about the screen, not about the data.
+
+Keep the query out of a repository. It is already the caching layer, so a cubit that listens to it directly has one layer less to keep in sync.
+
+The example app shows both: a list screen built with Fuery widgets, and a stats screen whose cubit listens to the same query.
+
 ## In a cubit
 
 ```dart

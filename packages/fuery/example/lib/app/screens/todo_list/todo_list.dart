@@ -73,26 +73,41 @@ class _TodoListScreenState extends State<TodoListScreen> {
               query: todos,
               builder: (context, state) {
                 return switch (state) {
-                  QueryResult(:final data?) => ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: data.length,
-                      itemBuilder: (context, index) {
-                        return TodoListItem(
-                          todo: data[index],
-                          onToggle: (todo) => toggleTodo.mutate(todo.id),
-                          onDelete: (todo) => deleteTodo.mutate(todo.id),
-                          onOpen: (todo) => Navigator.push(
-                            context,
-                            TodoDetailScreen.route(todo.id),
-                          ),
-                        );
-                      },
-                      separatorBuilder: (context, index) {
-                        return const SizedBox(height: 6);
-                      },
+                  // `refetch` completes when the fetch settles, which is what
+                  // RefreshIndicator waits for.
+                  QueryResult(:final data?) => RefreshIndicator(
+                      onRefresh: () => todos.refetch(),
+                      child: ListView.separated(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: data.length,
+                        itemBuilder: (context, index) {
+                          return TodoListItem(
+                            todo: data[index],
+                            onToggle: (todo) => toggleTodo.mutate(todo.id),
+                            onDelete: (todo) => deleteTodo.mutate(todo.id),
+                            onOpen: (todo) => Navigator.push(
+                              context,
+                              TodoDetailScreen.route(todo.id),
+                            ),
+                          );
+                        },
+                        separatorBuilder: (context, index) {
+                          return const SizedBox(height: 6);
+                        },
+                      ),
                     ),
                   QueryResult(:final error?) => Center(
-                      child: Text('Error: $error'),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('Error: $error'),
+                          const SizedBox(height: 12),
+                          FilledButton(
+                            onPressed: todos.refetch,
+                            child: const Text('Try again'),
+                          ),
+                        ],
+                      ),
                     ),
                   _ => const Center(child: CircularProgressIndicator()),
                 };

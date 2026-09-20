@@ -14,6 +14,8 @@ flutter pub add fuery
 
 `fuery` includes `fuery_core`, so this is the only package you need in a Flutter app. For Dart code without Flutter, such as a server or CLI, use `dart pub add fuery_core` instead.
 
+It needs Dart 3.6 and Flutter 3.27 or newer. There is no native code and no platform setup: `fuery_core` depends only on `clock`, `collection`, and `meta`, so it runs on every platform Flutter targets, the web included.
+
 ## 2. Write your first query
 
 A query needs a **key** that identifies the data and a **query function** that fetches it. Create the query once, for example in a `State` field, and build UI from it with `QueryBuilder`:

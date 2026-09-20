@@ -33,6 +33,8 @@ class PreferencesStorage implements QueryStorage {
 }
 ```
 
+Fuery stores each query under its hash, behind the `persistKeyPrefix` constant, so `readAll` can hand back the stored queries and leave the rest of the store alone.
+
 Give it to the client:
 
 ```dart

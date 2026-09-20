@@ -1,6 +1,7 @@
 import 'package:example/app/screens/todo_detail/todo_detail.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fuery/fuery.dart';
 
 import 'helpers.dart';
 
@@ -23,6 +24,30 @@ void main() {
     await tester.pump(const Duration(seconds: 3));
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Grocery Shopping'), findsNothing);
+    expect(find.text('Finish Assignment'), findsOneWidget);
+
+    await tearDownApp(tester);
+  });
+
+  testWidgets('pulling the list down refetches it', (tester) async {
+    await pumpApp(tester);
+    await openCase(tester, caseList);
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+
+    await tester.fling(
+        find.text('Finish Assignment'), const Offset(0, 300), 1000);
+    await tester.pump();
+    // The indicator snaps into place first, and calls onRefresh after it.
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // It stays up until the future refetch() returns.
+    expect(find.byType(RefreshProgressIndicator), findsOneWidget);
+    expect(Fuery.client.isFetching(), 1);
+
+    await tester.pumpAndSettle();
+    expect(find.byType(RefreshProgressIndicator), findsNothing);
+    expect(Fuery.client.isFetching(), 0);
     expect(find.text('Finish Assignment'), findsOneWidget);
 
     await tearDownApp(tester);
