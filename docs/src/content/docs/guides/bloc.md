@@ -3,7 +3,7 @@ title: Using with bloc
 description: Use cached server data inside cubits and blocs, without replacing your state management.
 ---
 
-Queries and mutations don't depend on widgets. Every observer has a `stream` that emits the current result first, then every change. Listening to it is what makes the query fetch, and cancelling the subscription stops watching it.
+Queries and mutations don't depend on widgets. Every observer exposes a `stream` that emits the current result first, then every change. The query fetches as soon as you listen to that stream, and stops updating when you cancel the subscription.
 
 ## In a cubit
 
@@ -28,7 +28,7 @@ class TodoCubit extends Cubit<TodoState> {
 }
 ```
 
-Call `cancel()` in `close()` without awaiting it. Its future doesn't complete inside `testWidgets`, so awaiting it hangs widget tests.
+Call `cancel()` in `close()` without awaiting it. See [Testing cubits and blocs](../testing/#testing-cubits-and-blocs) for why.
 
 ## In a bloc
 
@@ -68,15 +68,7 @@ A cubit and a `QueryBuilder` that use the same key share one cache entry. A chan
 
 ## App lifecycle
 
-Fuery widgets connect the app lifecycle for you. If your app only uses queries from blocs, call this once at startup so stale queries refetch when the app resumes:
-
-```dart
-void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  FueryBinding.ensureInitialized();
-  runApp(const App());
-}
-```
+An app that uses queries only from blocs has to connect the app lifecycle itself, with one call at startup. See [Refetching automatically](../lifecycle/#when-the-app-resumes).
 
 ## In the example app
 

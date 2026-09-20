@@ -5,9 +5,9 @@ description: Keep cached server data across app restarts in Flutter, with any ke
 
 Queries can store their data on the device. When the app starts again, it shows the last data right away and refetches it in the background if it's stale.
 
-## Connect a storage
+## Connecting storage
 
-Fuery stores strings through a `QueryStorage` that you connect to any storage. This one uses [`shared_preferences`](https://pub.dev/packages/shared_preferences):
+Fuery writes strings through a `QueryStorage`. Implement it against any key-value store. This one uses [`shared_preferences`](https://pub.dev/packages/shared_preferences):
 
 ```dart
 class PreferencesStorage implements QueryStorage {
@@ -46,9 +46,9 @@ Future<void> main() async {
 }
 ```
 
-`SharedPreferencesWithCache` reads synchronously, so persisted queries are restored before their first frame. Storage methods can also return futures, for example for a database. See [restoring ahead of time](#restoring-ahead-of-time).
+`SharedPreferencesWithCache` reads synchronously, so Fuery restores persisted queries before their first frame. Storage methods can also return futures, for example for a database. See [restoring ahead of time](#restoring-ahead-of-time).
 
-## Persist a query
+## Persisting a query
 
 Add `persist` with a way to convert the data to JSON and back. Only queries with `persist` are stored:
 
@@ -67,12 +67,12 @@ QueryObserver<List<Todo>> todosQuery() {
 }
 ```
 
-- **The codec:** `toJson` must return something `jsonEncode` accepts, and `fromJson` receives whatever `jsonDecode` produced, so narrowing it once belongs to the codec. `Todo.fromJson` above takes that value; with a generated `Todo.fromJson(Map<String, dynamic> json)`, write `Todo.fromJson(item as Map<String, dynamic>)`.
+- **The codec:** `toJson` must return a value `jsonEncode` accepts. `fromJson` receives whatever `jsonDecode` produced, so cast that value inside `fromJson` instead of at every call site. `Todo.fromJson` above takes that value; with a generated `Todo.fromJson(Map<String, dynamic> json)`, write `Todo.fromJson(item as Map<String, dynamic>)`.
 - **Restoring:** the first time the query is used, its stored data is restored with the time it was fetched, so `staleTime` decides whether it refetches. Fresh data isn't fetched again.
 - **Storing:** data is stored whenever it changes and no fetch is running, including changes made with `setQueryData`. A [streamed query](../streaming/) is stored once its stream is done.
 - **Offline:** restoring doesn't need the network.
 
-## Infinite queries
+## Persisting infinite queries
 
 Convert one page, and Fuery stores the list of pages:
 
@@ -92,9 +92,9 @@ final posts = InfiniteQuery.use(
 
 Page params are stored as they are, so they must be JSON values like numbers, strings, or `null`. Otherwise, add `paramToJson` and `paramFromJson`.
 
-## Expiry and versions
+## When stored data is discarded
 
-Stored data is discarded, and the query fetches as if nothing was stored, when:
+Fuery discards stored data, and the query fetches as if nothing was stored, when:
 
 - it is older than the query's `maxAge`, or, when the query doesn't set one, the client's `persistMaxAge` (default: one day),
 - its `version` differs from the query's `version`. Increase `version` when the JSON format changes,
@@ -120,7 +120,7 @@ await Fuery.client.restore();
 runApp(const App());
 ```
 
-## Deleting
+## Deleting stored data
 
 | | Stored data |
 |---|---|
@@ -128,7 +128,7 @@ runApp(const App());
 | `clear()` | All deleted. Call it when the user logs out. |
 | Garbage collection | Kept. Unused queries leave memory and are restored the next time they're used. |
 
-Errors from the storage are ignored: a failing storage behaves like an empty one. Mutations aren't persisted.
+A failing storage behaves like an empty one; Fuery ignores its errors. Fuery doesn't persist mutations.
 
 ## In the example app
 

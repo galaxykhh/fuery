@@ -3,7 +3,7 @@ title: Widgets
 description: Builder, listener, consumer, and selector widgets for cached queries and mutations in Flutter.
 ---
 
-Each kind of query has a builder, a listener, a consumer, and a selector:
+Every query, infinite query, and mutation has four widgets:
 
 | | Rebuild UI | Side effects | Both | Part of the state |
 |---|---|---|---|---|
@@ -11,15 +11,15 @@ Each kind of query has a builder, a listener, a consumer, and a selector:
 | Infinite query | `InfiniteQueryBuilder` | `InfiniteQueryListener` | `InfiniteQueryConsumer` | `InfiniteQuerySelector` |
 | Mutation | `MutationBuilder` | `MutationListener` | `MutationConsumer` | `MutationSelector` |
 
-Mounting any of them subscribes to the query, which fetches if needed. Unmounting unsubscribes.
+Mounting one subscribes it to its query or mutation. A query fetches if it needs to. Unmounting unsubscribes.
 
-## How they update
+## When builders and listeners run
 
 - `buildWhen(previous, current)` compares with the last built result.
 - `listenWhen(previous, current)` compares with the previous result.
 - Listeners aren't called for the result the query already had when they mounted.
 
-## Rebuild only what changed
+## Rebuilding only what changed
 
 `buildWhen` keeps a builder from rebuilding for changes it doesn't show. This one only shows a progress bar while refetching:
 
@@ -32,9 +32,9 @@ QueryBuilder(
 )
 ```
 
-## Select part of the state
+## Selecting part of the state
 
-A selector builds from one value of the state and rebuilds only when that value changes:
+A selector builds from one value of the result and rebuilds only when that value changes:
 
 ```dart
 QuerySelector(
@@ -44,9 +44,11 @@ QuerySelector(
 )
 ```
 
-- Lists, maps, and sets are compared by content, so a selector that builds a new list each time only rebuilds when the items change. Other values are compared with `==`.
+- Fuery compares lists, maps, and sets by content, and everything else with `==`. A selector that builds a new list on every call therefore rebuilds the builder only when the items change.
 - The selector runs again when the parent rebuilds, so it can use values from the parent.
-- Use `buildWhen` when the builder needs the whole state, and a selector when it needs one value derived from it.
+- Use `buildWhen` when the builder needs the whole result, and a selector when it needs one value derived from it.
+
+The same works for a mutation:
 
 ```dart
 MutationSelector(
@@ -59,7 +61,7 @@ MutationSelector(
 )
 ```
 
-## React to changes
+## Reacting to changes
 
 Use a listener for navigation, snackbars, and other one-off effects:
 
@@ -82,19 +84,9 @@ MutationListener(
 )
 ```
 
-## Create queries once
+## Where to create queries
 
-Create queries in `State` fields, blocs, or other long-lived objects, not in `build`. A query created in `build` is a new observer on every rebuild, which resubscribes each time.
-
-If a query reads `context`, for example to use a [provided client](../query-client/#providing-a-client), make it `late final` so it's created on first use:
-
-```dart
-late final todos = Query.use(
-  queryKey: ['todos'],
-  queryFn: (_) => api.getTodos(),
-  client: context.queryClient,
-);
-```
+Create queries in `State` fields, blocs, or other long-lived objects, never in `build`. See [Create the query once](../queries/#create-the-query-once).
 
 ## In the example app
 

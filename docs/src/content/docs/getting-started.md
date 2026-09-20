@@ -3,7 +3,10 @@ title: Getting started
 description: Install Fuery in a Flutter app and cache your first API request.
 ---
 
-## Install
+By the end of this page a screen shows a list from an API, with loading and
+error states, and the data cached for every other screen that needs it.
+
+## 1. Install Fuery
 
 ```bash
 flutter pub add fuery
@@ -11,7 +14,7 @@ flutter pub add fuery
 
 `fuery` includes `fuery_core`, so this is the only package you need in a Flutter app. For Dart code without Flutter, such as a server or CLI, use `dart pub add fuery_core` instead.
 
-## Your first query
+## 2. Write your first query
 
 A query needs a **key** that identifies the data and a **query function** that fetches it. Create the query once, for example in a `State` field, and build UI from it with `QueryBuilder`:
 
@@ -43,19 +46,18 @@ class _TodoListScreenState extends State<TodoListScreen> {
 }
 ```
 
-## What happens
+## What Fuery does for you
 
 - **No type arguments.** `todos` is a `QueryObserver<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`, and `state` in the builder is a `QueryResult<List<Todo>>`. Mutations, infinite queries, and every widget infer their types the same way.
-- **`data` is never null in the builder above.** `QueryResult(:final data?)` only matches when there is data, so `data` is a `List<Todo>` and needs no `!`. Data comes first, so a list that fails to refresh stays on screen, and the error shows only when there is no data yet.
-- **Creating the query doesn't fetch.** It fetches when `QueryBuilder` mounts, so the field doesn't need to be `late`. Use `late final` only when the query reads `widget` or another field, for example `queryKey: ['todo', widget.id]`.
-- **The first frame already shows loading.** There is no empty frame before the request starts.
+- **No null checks.** `QueryResult(:final data?)` matches only when there is data, so `data` is a `List<Todo>`. That branch comes first, so a list that fails to refresh stays on screen and the error shows only when there is nothing to show.
+- **Creating the query starts nothing.** The fetch begins when `QueryBuilder` mounts, and the first frame already shows loading.
 - **Widgets share data by key.** Another screen that uses `['todos']` gets the cached list immediately and shares the same request.
-- **Data stays fresh.** When another screen starts using the query, when the app returns to the foreground, or (once you [report connectivity](../guides/lifecycle/#network)) when the network reconnects, stale data refetches in the background while the old data stays on screen.
-- **Unused data is cleaned up.** Five minutes after the last widget stops using `['todos']`, the cache entry is removed.
+- **Stale data refreshes itself.** It refetches in the background when another screen starts using it and when the app returns to the foreground. The old data stays on screen while that happens.
 
 ## Next steps
 
-- [Queries](../guides/queries/): keys, freshness, and options.
+- [Server state in Flutter](../server-state/): why server data needs a cache rather than another state class.
+- [Queries](../guides/queries/): keys, freshness, and results.
 - [Widgets](../guides/widgets/): builders, listeners, and consumers.
 - [Mutations](../guides/mutations/): changing server data and optimistic updates.
 - [Using with bloc](../guides/bloc/): the same queries inside cubits and blocs.

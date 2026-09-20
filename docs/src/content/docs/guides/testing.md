@@ -3,7 +3,10 @@ title: Testing
 description: Test Flutter widgets, blocs, and queries that use a cache, with fake time and a fresh client.
 ---
 
-## Widget tests
+Tests need two things from Fuery: a cache that starts empty, and control over
+time. This page shows both, for widgets, for plain Dart, and for blocs.
+
+## Testing widgets
 
 Give each test a fresh client, and turn off retries so failures show up immediately:
 
@@ -28,7 +31,7 @@ testWidgets('shows todos', (tester) async {
 - End each test by unmounting the widgets and calling `client.clear()`. Otherwise cache timers are still pending and the test fails.
 - Queries and mutations without a `client:` argument use `Fuery.client`. If your widgets pass `client: context.queryClient`, wrap the app in `FueryProvider(client: client, child: const App())` instead.
 
-## Testing without widgets
+## Testing without a widget tree
 
 Add [`fake_async`](https://pub.dev/packages/fake_async) as a dev dependency to control time in plain Dart tests:
 
@@ -56,7 +59,7 @@ test('loads todos', () {
 });
 ```
 
-## Cubits and blocs
+## Testing cubits and blocs
 
 Cubits and blocs that use queries work in `testWidgets` or `fakeAsync` as well. In their `close()`, call `subscription.cancel()` without awaiting it. The future it returns doesn't complete in these fake clocks.
 

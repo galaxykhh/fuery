@@ -1,11 +1,15 @@
 ---
-title: App lifecycle and network
-description: Refetch when a Flutter app resumes, pause while offline, and resume on reconnect.
+title: Refetching automatically
+description: Refetch when a Flutter app resumes, pause while offline, and resume when the network reconnects.
 ---
 
-## App lifecycle
+Fuery refetches stale data on its own at two moments: when the app comes back
+to the foreground, and when the network reconnects. The first works out of the
+box; the second needs a connectivity source.
 
-Fuery widgets connect `AppLifecycleState` to Fuery automatically:
+## When the app resumes
+
+Fuery widgets connect `AppLifecycleState` for you:
 
 | App state | Fuery treats the app as |
 |---|---|
@@ -13,11 +17,21 @@ Fuery widgets connect `AppLifecycleState` to Fuery automatically:
 | `hidden`, `paused`, `detached` | Not focused |
 | `inactive` | Unchanged. Brief interruptions like a system dialog don't count. |
 
-When the app becomes focused again, stale queries in use refetch. While it isn't focused, retries wait and polling pauses, unless `refetchIntervalInBackground` is set.
+When the app is focused again, stale queries that widgets use refetch. While it isn't focused, retries wait and polling pauses, unless you set `refetchIntervalInBackground`.
 
 `refetchOnFocus` controls this per query: `RefetchMode.ifStale` (default), `RefetchMode.always`, or `RefetchMode.never`.
 
-## Network
+An app that uses queries only from blocs has no Fuery widget to connect the lifecycle, so call this once at startup:
+
+```dart
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  FueryBinding.ensureInitialized();
+  runApp(const App());
+}
+```
+
+## When the network reconnects
 
 Fuery assumes the device is online. To pause fetches while offline and refetch on reconnect, connect a connectivity source, for example [`connectivity_plus`](https://pub.dev/packages/connectivity_plus):
 

@@ -3,7 +3,7 @@ title: Mutations
 description: Create, update, and delete server data in Flutter, with optimistic updates and rollback.
 ---
 
-Mutations change server data:
+A mutation changes server data and reports what happened while it runs. This page covers running one, reacting to the result, and updating the cache before the server answers.
 
 ```dart
 final addTodo = Mutation.use(
@@ -36,7 +36,7 @@ Use `mutate` from buttons and `mutateAsync` when you need the result. `addTodo.r
 
 Returning a future from a callback keeps the mutation pending until it completes. Returning the `invalidateQueries` future from `onSuccess`, as above, keeps a loading indicator up until the list has refetched.
 
-To react to a single call, pass `MutateOptions`. These callbacks only run while a widget or listener is still subscribed to the mutation:
+To react to a single call, pass `MutateOptions`. These callbacks only run while something is still listening to the mutation:
 
 ```dart
 addTodo.mutate(
@@ -71,7 +71,7 @@ final deleteTodo = Mutation.use(
 );
 ```
 
-## Without variables
+## Mutations without variables
 
 Use `Mutation.noParam` and call `mutate()`:
 
