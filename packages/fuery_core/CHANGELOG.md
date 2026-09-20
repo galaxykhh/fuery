@@ -1,3 +1,6 @@
+## 0.8.2
+- Documentation only: the README and the persistence guide narrow decoded JSON once in the codec, and the storage examples no longer use a class that doesn't exist.
+
 ## 0.8.1
 - Fix: entry points no longer report an inference failure in apps that enable `strict-inference`, such as those using `very_good_analysis`.
 

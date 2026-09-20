@@ -1,3 +1,6 @@
+## 0.8.2
+- Documentation only: the README leads with how Fuery fits an existing app, and the example is now a gallery with one screen per case.
+
 ## 0.8.1
 - Includes `fuery_core` 0.8.1: no inference failures in apps that enable `strict-inference`.
 
