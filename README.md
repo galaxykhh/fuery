@@ -23,7 +23,7 @@ There are no type arguments to write: `todos` is a `QueryObserver<List<Todo>>` b
 
 Fuery caches server data, deduplicates requests, retries failures, paginates, and refetches stale data in the background. Builder, listener, and consumer widgets turn queries into UI and side effects, and queries are plain objects with a `Stream`, so blocs, cubits, and services can use them as well.
 
-**[Read the documentation →](https://galaxykhh.github.io/fuery/)**
+**[Read the documentation →](https://galaxykhh.github.io/fuery/)** · **[Try the demo →](https://galaxykhh.github.io/fuery/demo/)**
 
 ## Packages
 
