@@ -1,3 +1,6 @@
+## 0.9.0
+- **Breaking:** includes `fuery_core` 0.9.0: boolean reads such as `query.isStale` and `focusManager.isFocused` are getters, and API that only the package called is removed.
+
 ## 0.8.3
 - Documentation only: a description and topics that match what people search for, a live demo at https://galaxykhh.github.io/fuery/demo/, and a new page on server state in Flutter.
 
