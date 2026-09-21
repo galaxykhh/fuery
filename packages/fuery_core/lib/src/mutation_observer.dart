@@ -47,7 +47,7 @@ class MutationObserver<TData, TVariables, TContext>
 
   void setOptions(MutationOptions<TData, TVariables, TContext> options) {
     final prevOptions = _options;
-    _options = _client.defaultMutationOptions(options);
+    _options = _client._defaultMutationOptions(options);
 
     if (!this.options._sameAs(prevOptions)) {
       _client.mutationCache._notify();
@@ -75,7 +75,7 @@ class MutationObserver<TData, TVariables, TContext>
 
   @override
   void onUnsubscribe() {
-    if (!hasListeners()) _currentMutation?._removeObserver(this);
+    if (!hasListeners) _currentMutation?._removeObserver(this);
   }
 
   void _onMutationUpdate(_MutationAction action) {
@@ -106,7 +106,7 @@ class MutationObserver<TData, TVariables, TContext>
     );
     // Without listeners there is nobody to notify, and attaching would keep
     // the mutation from being garbage collected. onSubscribe attaches later.
-    if (hasListeners()) mutation._addObserver(this);
+    if (hasListeners) mutation._addObserver(this);
 
     return mutation._execute(variables);
   }
@@ -128,7 +128,7 @@ class MutationObserver<TData, TVariables, TContext>
   void _notify([_MutationAction? action]) {
     notifyManager.batch(() {
       final mutateOptions = _mutateOptions;
-      if (mutateOptions != null && hasListeners()) {
+      if (mutateOptions != null && hasListeners) {
         final context = _currentResult.context;
         TVariables variables() => _currentResult.variables as TVariables;
 
@@ -166,7 +166,7 @@ class MutationObserver<TData, TVariables, TContext>
         }
       }
 
-      for (final listener in listeners.toList()) {
+      for (final listener in listeners) {
         listener(_currentResult);
       }
     });

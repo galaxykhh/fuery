@@ -11,18 +11,14 @@
 *.onUnsubscribe: called by Subscribable when the last listener leaves
 *.hasListeners: internal bookkeeping
 *.listeners: internal bookkeeping
+*.clearListeners: called by QueryObserver.destroy
 
 # Called by the package itself.
 *.getOptimisticResult: the widgets call this to paint the first frame
 QueryClient.mount: assigning Fuery.client mounts the client
 QueryClient.unmount: assigning Fuery.client unmounts the old client
-QueryClient.defaultQueryOptions: resolves defaults internally
-QueryClient.defaultMutationOptions: resolves defaults internally
 NotifyManager.schedule: the package schedules its own notifications
 NotifyManager.batchCalls: wraps package callbacks
-NotifyManager.setNotifyFunction: for a host that drives notifications itself
-NotifyManager.setBatchNotifyFunction: for a host that batches them itself
-NotifyManager.setScheduler: for a host with its own scheduler
 FocusManager.onFocus: called by FueryBinding
 
 # Callback shapes. Readers write closures; the docs show each shape inline.
@@ -40,9 +36,6 @@ ResultCondition: the type of buildWhen and listenWhen, written inline
 ResultWidgetBuilder: the type of builder, written inline
 ResultWidgetListener: the type of listener, written inline
 RetryDelay: the type of retryDelay, written inline
-NotifyCallback: host-level plumbing
-NotifyFunction: host-level plumbing
-ScheduleFunction: host-level plumbing
 FocusSetup: the return type of setEventListener, written inline
 OnlineSetup: the return type of setEventListener, written inline
 

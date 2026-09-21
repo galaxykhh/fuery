@@ -61,7 +61,7 @@ Duration defaultRetryDelay(int failureCount, Object error) {
 
 bool canFetch(NetworkMode? networkMode) {
   return (networkMode ?? NetworkMode.online) == NetworkMode.online
-      ? onlineManager.isOnline()
+      ? onlineManager.isOnline
       : true;
 }
 
@@ -165,8 +165,8 @@ class Retryer<TData> {
   }
 
   bool _canContinue() {
-    return focusManager.isFocused() &&
-        (networkMode == NetworkMode.always || onlineManager.isOnline()) &&
+    return focusManager.isFocused &&
+        (networkMode == NetworkMode.always || onlineManager.isOnline) &&
         canRun();
   }
 

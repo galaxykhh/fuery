@@ -21,7 +21,7 @@ class OnlineManager extends Subscribable<bool> {
 
   @override
   void onUnsubscribe() {
-    if (!hasListeners()) {
+    if (!hasListeners) {
       _cleanup?.call();
       _cleanup = null;
     }
@@ -37,13 +37,13 @@ class OnlineManager extends Subscribable<bool> {
   void setOnline(bool online) {
     if (_online != online) {
       _online = online;
-      for (final listener in listeners.toList()) {
+      for (final listener in listeners) {
         listener(online);
       }
     }
   }
 
-  bool isOnline() => _online;
+  bool get isOnline => _online;
 }
 
 final OnlineManager onlineManager = OnlineManager();

@@ -91,7 +91,7 @@ class MutationCache {
     final mutation = Mutation<TData, TVariables, TContext>._(
       mutationCache: this,
       mutationId: ++_mutationId,
-      options: client.defaultMutationOptions(options),
+      options: client._defaultMutationOptions(options),
     );
     _add(mutation);
     return mutation;

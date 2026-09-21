@@ -23,7 +23,7 @@ class FocusManager extends Subscribable<bool> {
 
   @override
   void onUnsubscribe() {
-    if (!hasListeners()) {
+    if (!hasListeners) {
       _cleanup?.call();
       _cleanup = null;
     }
@@ -52,13 +52,13 @@ class FocusManager extends Subscribable<bool> {
 
   /// Notifies listeners with the current focus state.
   void onFocus() {
-    final focused = isFocused();
-    for (final listener in listeners.toList()) {
+    final focused = isFocused;
+    for (final listener in listeners) {
       listener(focused);
     }
   }
 
-  bool isFocused() => _focused ?? true;
+  bool get isFocused => _focused ?? true;
 }
 
 final FocusManager focusManager = FocusManager();

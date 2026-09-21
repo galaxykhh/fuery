@@ -68,7 +68,7 @@ class QueryObserver<TData extends Object>
 
   @override
   void onUnsubscribe() {
-    if (!hasListeners()) destroy();
+    if (!hasListeners) destroy();
   }
 
   /// Follows the key to a new query after the old one was removed from the
@@ -90,7 +90,7 @@ class QueryObserver<TData extends Object>
       return;
     }
     restoring.then((_) {
-      if (hasListeners() &&
+      if (hasListeners &&
           identical(query, currentQuery) &&
           _shouldFetchOnMount(query, options)) {
         _executeFetch();
@@ -108,7 +108,7 @@ class QueryObserver<TData extends Object>
 
   /// Removes all listeners and stops watching the query.
   void destroy() {
-    listeners = {};
+    clearListeners();
     _clearStaleTimeout();
     _clearRefetchInterval();
     _query?._removeObserver(this);
@@ -118,7 +118,7 @@ class QueryObserver<TData extends Object>
   void setOptions(QueryOptions<TData> options) {
     final prevOptions = _options;
     final prevQuery = _query;
-    final defaulted = _client.defaultQueryOptions(options);
+    final defaulted = _client._defaultQueryOptions(options);
 
     // Throws before anything changes if the key holds another data type.
     _client.queryCache._build<TData>(_client, defaulted);
@@ -131,7 +131,7 @@ class QueryObserver<TData extends Object>
       _client.queryCache._notify();
     }
 
-    final mounted = hasListeners();
+    final mounted = hasListeners;
 
     if (mounted &&
         _shouldFetchOptionally(
@@ -169,7 +169,7 @@ class QueryObserver<TData extends Object>
   /// first build of a widget.
   QueryResult<TData> getOptimisticResult() {
     final query = _client.queryCache._build<TData>(_client, options);
-    if (hasListeners()) {
+    if (hasListeners) {
       // Already subscribed: nothing will fetch on subscribe, and a changed
       // result must reach the other listeners too.
       _updateResult();
@@ -253,7 +253,7 @@ class QueryObserver<TData extends Object>
 
     _refetchTimer = Timer.periodic(nextInterval, (_) {
       if (options.refetchIntervalInBackground == true ||
-          focusManager.isFocused()) {
+          focusManager.isFocused) {
         _executeFetch();
       }
     });
@@ -335,7 +335,7 @@ class QueryObserver<TData extends Object>
         errorUpdateCount: state.errorUpdateCount,
         failureCount: state.fetchFailureCount,
         failureReason: state.fetchFailureReason,
-        isFetched: query.isFetched(),
+        isFetched: query.isFetched,
         isFetchedAfterMount:
             state.dataUpdateCount > queryInitialState.dataUpdateCount ||
                 state.errorUpdateCount > queryInitialState.errorUpdateCount,
@@ -372,7 +372,7 @@ class QueryObserver<TData extends Object>
     _currentResult = nextResult;
 
     notifyManager.batch(() {
-      for (final listener in listeners.toList()) {
+      for (final listener in listeners) {
         listener(nextResult);
       }
       _client.queryCache._notify();
@@ -387,7 +387,7 @@ class QueryObserver<TData extends Object>
     _query = query;
     _currentQueryInitialState = query.state;
 
-    if (hasListeners()) {
+    if (hasListeners) {
       prevQuery?._removeObserver(this);
       query._addObserver(this);
     }
@@ -395,7 +395,7 @@ class QueryObserver<TData extends Object>
 
   void _onQueryUpdate() {
     _updateResult();
-    if (hasListeners()) _updateTimers();
+    if (hasListeners) _updateTimers();
   }
 }
 

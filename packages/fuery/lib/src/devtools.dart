@@ -218,7 +218,7 @@ class _PanelBodyState extends State<_PanelBody> {
 
   static Object _snapshot(QueryClient client) => [
         for (final query in client.queryCache.getAll())
-          (query, query.state, query.observersCount, query.isStale()),
+          (query, query.state, query.observersCount, query.isStale),
         for (final mutation in client.mutationCache.getAll())
           (mutation, mutation.state),
       ];
@@ -353,8 +353,8 @@ String queryStatusLabel(Query<Object> query) {
   if (query.state.fetchStatus == FetchStatus.fetching) return 'fetching';
   if (query.state.fetchStatus == FetchStatus.paused) return 'paused';
   if (query.observersCount == 0) return 'inactive';
-  if (!query.isActive()) return 'disabled';
-  return query.isStale() ? 'stale' : 'fresh';
+  if (!query.isActive) return 'disabled';
+  return query.isStale ? 'stale' : 'fresh';
 }
 
 class _QueryDetail extends StatelessWidget {
