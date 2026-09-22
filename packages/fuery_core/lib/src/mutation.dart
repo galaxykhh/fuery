@@ -6,10 +6,12 @@ part of 'core.dart';
 /// [Mutation.use].
 class Mutation<TData, TVariables, TContext> extends _Removable {
   Mutation._({
+    required QueryClient client,
     required MutationCache mutationCache,
     required this.mutationId,
     required MutationOptions<TData, TVariables, TContext> options,
-  }) : _mutationCache = mutationCache {
+  })  : _client = client,
+        _mutationCache = mutationCache {
     _setOptions(options);
     _scheduleGc();
   }
@@ -40,6 +42,7 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
     NetworkMode? networkMode,
     MutationScope? scope,
     Map<String, Object?>? meta,
+    MutationPersist<TVariables>? persist,
     QueryClient? client,
   }) {
     return MutationObserver<TData, TVariables, TContext>(
@@ -57,6 +60,7 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
         networkMode: networkMode,
         scope: scope,
         meta: meta,
+        persist: persist,
       ),
     );
   }
@@ -78,6 +82,7 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
     NetworkMode? networkMode,
     MutationScope? scope,
     Map<String, Object?>? meta,
+    MutationPersist<void>? persist,
     QueryClient? client,
   }) {
     return NoParamMutationObserver<TData, TContext>(
@@ -101,13 +106,21 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
         networkMode: networkMode,
         scope: scope,
         meta: meta,
+        persist: persist,
       ),
     );
   }
 
   final int mutationId;
   bool _removed = false;
+  final QueryClient _client;
   final MutationCache _mutationCache;
+
+  /// Where the variables are stored while the mutation runs, if they are.
+  String? _storageKey;
+
+  /// The write in flight, so the delete after settling can wait for it.
+  Future<void>? _storeWrite;
   final List<MutationObserver<TData, TVariables, TContext>> _observers = [];
   late MutationOptions<TData, TVariables, TContext> _options;
   var _state = MutationState<TData, TVariables, TContext>();
@@ -162,7 +175,13 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
   /// Resumes a paused mutation.
   Future<Object?> _resume() => _retryer?.resume() ?? Future.value();
 
-  Future<TData> _execute(TVariables variables) async {
+  /// Runs the mutation. A [restored] mutation was stored by a previous run:
+  /// it is already stored under `storageKey`, keeps its `submittedAt`, and
+  /// skips `onMutate`, whose work belongs to the run that submitted it.
+  Future<TData> _execute(
+    TVariables variables, {
+    ({String storageKey, int submittedAt})? restored,
+  }) async {
     final retryer = _retryer = Retryer<TData>(
       fn: () {
         final mutationFn = _options.mutationFn;
@@ -189,15 +208,21 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
       _dispatch(_MutationPendingAction(
         isPaused: isPaused,
         variables: variables,
+        submittedAt: restored?.submittedAt,
       ));
-      await cacheConfig.onMutate?.call(variables, this);
-      final context = await _options.onMutate?.call(variables);
-      if (context != _state.context) {
-        _dispatch(_MutationPendingAction(
-          isPaused: isPaused,
-          variables: variables,
-          context: context,
-        ));
+      if (restored != null) {
+        _storageKey = restored.storageKey;
+      } else {
+        _writeStored();
+        await cacheConfig.onMutate?.call(variables, this);
+        final context = await _options.onMutate?.call(variables);
+        if (context != _state.context) {
+          _dispatch(_MutationPendingAction(
+            isPaused: isPaused,
+            variables: variables,
+            context: context,
+          ));
+        }
       }
 
       // The scope or network may have freed up during onMutate.
@@ -239,8 +264,49 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
       Error.throwWithStackTrace(error, stackTrace);
     } finally {
       if (identical(_retryer, retryer)) _retryer = null;
+      _deleteStored();
       if (_observers.isEmpty) _scheduleGc();
       _mutationCache._runNext(this);
+    }
+  }
+
+  /// Stores the variables under a key of its own, so every run of the
+  /// mutation is restored separately and in submission order.
+  void _writeStored() {
+    final storage = _client.storage;
+    final persist = _options.persist;
+    final mutationKey = _options.mutationKey;
+    if (storage == null || persist == null || mutationKey == null) return;
+    final key = '$_mutationKeyPrefix${_state.submittedAt}:$mutationId';
+    final String value;
+    try {
+      value = jsonEncode({
+        'v': persist.version,
+        'k': mutationKey,
+        't': _state.submittedAt,
+        'd': persist._encode(_state.variables as TVariables),
+      });
+    } catch (_) {
+      return; // Variables that can't be encoded aren't stored.
+    }
+    _storageKey = key;
+    _storeWrite = Future<void>.sync(() => storage.write(key, value))
+        .then((_) {}, onError: (Object _) {});
+  }
+
+  /// Deletes the stored variables once the mutation has settled, after a
+  /// write that is still in flight.
+  void _deleteStored() {
+    final key = _storageKey;
+    if (key == null) return;
+    _storageKey = null;
+    _client._loadedMutationKeys.remove(key);
+    final write = _storeWrite;
+    _storeWrite = null;
+    if (write == null) {
+      _client._deleteStored(key);
+    } else {
+      write.whenComplete(() => _client._deleteStored(key));
     }
   }
 
@@ -253,7 +319,8 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
       _MutationPendingAction(
         :final isPaused,
         :final variables,
-        :final context
+        :final context,
+        :final submittedAt,
       ) =>
         _state.copyWith(
           context: context,
@@ -264,7 +331,7 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
           isPaused: isPaused,
           status: MutationStatus.pending,
           variables: variables,
-          submittedAt: now(),
+          submittedAt: submittedAt ?? now(),
         ),
       _MutationSuccessAction(:final data) => _state.copyWith(
           data: data,

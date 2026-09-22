@@ -3,7 +3,7 @@ title: Persistence
 description: Keep cached server data across app restarts in Flutter, with any key-value storage.
 ---
 
-Queries can store their data on the device. When the app starts again, it shows the last data right away and refetches it in the background if it's stale.
+Queries can store their data on the device. When the app starts again, it shows the last data right away and refetches it in the background if it's stale. Mutations can store their variables while they run, so one that was waiting for the network when the app closed runs after the next start.
 
 ## Connecting storage
 
@@ -130,7 +130,46 @@ runApp(const App());
 | `clear()` | All deleted. Call it when the user logs out. |
 | Garbage collection | Kept. Unused queries leave memory and are restored the next time they're used. |
 
-A failing storage behaves like an empty one; Fuery ignores its errors. Fuery doesn't persist mutations.
+A failing storage behaves like an empty one; Fuery ignores its errors.
+
+## Persisting mutations
+
+A mutation with `persist` stores its variables from the moment it starts until it settles. A mutation that was paused offline, or still running, when the app was closed is therefore still there at the next start. `restore` runs it again with the options you pass, so keep those options in a function that both the screen and `main` call:
+
+```dart
+MutationOptions<Comment, NewComment, void> addCommentOptions() {
+  return MutationOptions(
+    mutationKey: ['comments', 'add'],
+    mutationFn: (NewComment comment) => api.addComment(comment),
+    scope: const MutationScope('comments'),
+    persist: MutationPersist(
+      toJson: (comment) => {'postId': comment.postId, 'body': comment.body},
+      fromJson: (json) {
+        final map = json! as Map<String, Object?>;
+        return (postId: map['postId']! as int, body: map['body']! as String);
+      },
+    ),
+    onSuccess: (_, comment, __) {
+      Fuery.client.invalidateQueries(queryKey: ['comments', comment.postId]);
+    },
+  );
+}
+
+// In a screen:
+final addComment = MutationObserver(Fuery.client, addCommentOptions());
+
+// In main, before runApp:
+await Fuery.client.restore(mutations: [addCommentOptions()]);
+```
+
+- A persisted mutation needs a `mutationKey`. That is how `restore` matches a stored run to its options. `mutations` is a list of `AnyMutationOptions`, which every `MutationOptions` is, so options with different types go in one list.
+- `restore` is the only way stored mutations come back. Each stored run is started again with its stored variables: right away while online, or when the network is back. Runs that share a scope go one at a time, oldest first.
+- A restored run skips `onMutate`, and its callbacks receive `null` as `context`. An optimistic update belongs to the run that made it; the restored run only repeats the request and its `onSuccess`.
+- A stored run is deleted once the mutation succeeds or fails. `clear()` deletes them all.
+- An entry whose options weren't passed to `restore` is kept, so a later `restore` can run it. One stored by another `version` of its `MutationPersist`, or one that can't be read, is deleted.
+- `Mutation.noParam` persists with `MutationPersist.noVariables`.
+
+A request that had reached the server before the app closed runs again after the restart. Persist mutations whose request is safe to repeat, or make the server treat a repeat as the same write.
 
 ## What Fuery guarantees
 

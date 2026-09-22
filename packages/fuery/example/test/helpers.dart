@@ -41,6 +41,24 @@ Future<void> openPost(
   await tester.pump(transition);
 }
 
+/// A storage that lives as long as the test, so a second app in the same
+/// test restores what the first one stored.
+class MemoryStorage implements QueryStorage {
+  final Map<String, String> entries = {};
+
+  @override
+  String? read(String key) => entries[key];
+
+  @override
+  void write(String key, String value) => entries[key] = value;
+
+  @override
+  void delete(String key) => entries.remove(key);
+
+  @override
+  Map<String, String> readAll() => Map.of(entries);
+}
+
 /// Unmounts everything and empties the cache, so no timers are left pending.
 Future<void> tearDownApp(WidgetTester tester) async {
   await tester.pumpWidget(const SizedBox());

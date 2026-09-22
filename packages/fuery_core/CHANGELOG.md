@@ -1,3 +1,7 @@
+## 0.10.0
+- Add persisted mutations: give a mutation with a `mutationKey` a `persist: MutationPersist(...)`, and `client.restore(mutations: [...])` runs the ones that were paused or in flight when the app closed.
+- `QueryClient.restore` takes `mutations`, and `AnyMutationOptions` names their type.
+
 ## 0.9.0
 - **Breaking:** boolean reads are getters. Drop the `()` from `Query.isStale`, `isActive`, `isDisabled`, `isFetched`, `isStatic`, `focusManager.isFocused`, `onlineManager.isOnline`, and `hasListeners`.
 - **Breaking:** the listeners of an observer, `focusManager`, and `onlineManager` can no longer be replaced or changed from outside. Use `subscribe`.

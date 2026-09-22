@@ -2,6 +2,9 @@ part of 'core.dart';
 
 typedef AnyMutation = Mutation<Object?, Object?, Object?>;
 
+/// Options of any mutation, as [QueryClient.restore] takes them.
+typedef AnyMutationOptions = MutationOptions<Object?, Object?, Object?>;
+
 /// Selects mutations, for example in [QueryClient.isMutating].
 @immutable
 class MutationFilters {
@@ -89,6 +92,7 @@ class MutationCache {
     MutationOptions<TData, TVariables, TContext> options,
   ) {
     final mutation = Mutation<TData, TVariables, TContext>._(
+      client: client,
       mutationCache: this,
       mutationId: ++_mutationId,
       options: client._defaultMutationOptions(options),

@@ -107,7 +107,7 @@ final data = await Fuery.client.query(
 );
 ```
 
-To keep data across restarts, give the client a `QueryStorage` and add `persist` to a query:
+To keep data across restarts, give the client a `QueryStorage` and add `persist` to a query. A mutation takes `persist: MutationPersist(...)` and a `mutationKey` the same way, and `client.restore(mutations: [...])` runs the ones that were still waiting when the process ended:
 
 ```dart
 Fuery.client = QueryClient(storage: myStorage); // your QueryStorage, see the persistence guide

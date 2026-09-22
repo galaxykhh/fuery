@@ -291,7 +291,7 @@ A mutation started while the device is offline waits, and Fuery resumes it when 
 await client.resumePausedMutations();
 ```
 
-It resumes every paused mutation on the client, and does nothing while the device is still offline. Fuery doesn't persist mutations, so a paused mutation is gone after a restart.
+It resumes every paused mutation on the client, and does nothing while the device is still offline. A paused mutation is gone after a restart unless it has a `persist`: see [persisting mutations](../persistence/#persisting-mutations).
 
 ## Clearing everything at logout
 

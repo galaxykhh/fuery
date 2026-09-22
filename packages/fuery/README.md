@@ -400,7 +400,9 @@ final todos = Query.use(
 );
 ```
 
-`QueryStorage` has `read`, `write`, `delete`, and `readAll`, and can be synchronous or asynchronous. Stored data expires after the client's `persistMaxAge` (default: one day), and `version` discards data in an old format. `clear()` deletes all stored data, for example on logout. The [persistence guide](https://galaxykhh.github.io/fuery/guides/persistence/) has a `shared_preferences` storage, infinite queries, and `restore()`.
+`QueryStorage` has `read`, `write`, `delete`, and `readAll`, and can be synchronous or asynchronous. Stored data expires after the client's `persistMaxAge` (default: one day), and `version` discards data in an old format. `clear()` deletes all stored data, for example on logout.
+
+A mutation with `persist: MutationPersist(...)` and a `mutationKey` stores its variables while it runs, so a comment written offline is still sent after the app is closed and opened again. `await Fuery.client.restore(mutations: [addCommentOptions()])` in `main` runs what was stored. The [persistence guide](https://galaxykhh.github.io/fuery/guides/persistence/) has a `shared_preferences` storage, infinite queries, `restore()`, and persisted mutations.
 
 ## Devtools
 

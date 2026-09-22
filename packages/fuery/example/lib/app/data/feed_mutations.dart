@@ -79,11 +79,26 @@ typedef NewComment = ({int postId, String body});
 /// Adds a comment. While offline the mutation pauses and runs once the
 /// connection is back. The scope keeps comments in the order they were
 /// written, one at a time.
-MutationObserver<Comment, NewComment, void> addCommentMutation() {
-  return Mutation.use(
+///
+/// `persist` stores the comment while it waits, so one written offline is
+/// still sent after the app is closed and opened again. `main.dart` passes
+/// [addCommentOptions] to `restore` for that.
+MutationObserver<Comment, NewComment, void> addCommentMutation() =>
+    MutationObserver(Fuery.client, addCommentOptions());
+
+MutationOptions<Comment, NewComment, void> addCommentOptions() {
+  return MutationOptions(
+    mutationKey: const ['comments', 'add'],
     mutationFn: (NewComment comment) =>
         DemoApi().addComment(comment.postId, comment.body),
     scope: const MutationScope('comments'),
+    persist: MutationPersist(
+      toJson: (comment) => {'postId': comment.postId, 'body': comment.body},
+      fromJson: (json) {
+        final map = json! as Map<String, Object?>;
+        return (postId: map['postId']! as int, body: map['body']! as String);
+      },
+    ),
     onSuccess: (_, comment, __) {
       final client = Fuery.client;
       client.invalidateQueries(queryKey: commentsKey(comment.postId));
