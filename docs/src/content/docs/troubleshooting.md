@@ -135,6 +135,31 @@ class _TodosScreenState extends State<TodosScreen> {
 }
 ```
 
+The same happens when the object is created inline, as in `QueryBuilder(query: Query.use(...))`, or by a factory such as `todosQuery()` called from `build`. Call the factory once, store the result, and pass that down.
+
+## A mutation stays pending after the request finished
+
+A callback that returns a future keeps the mutation pending until the future completes. `onSuccess: (_, __, ___) => client.invalidateQueries(...)` returns the invalidation, so the mutation is pending until the refetch is done. That is right for a save button whose spinner should wait for the list. When the screen shouldn't wait, use a block body, which returns nothing:
+
+```dart
+onSuccess: (post, _, __) {
+  client.invalidateQueries(queryKey: ['posts']);
+},
+```
+
+See [what the callbacks return](../guides/mutations/#callbacks).
+
+## The devtools button covers part of the app
+
+`FueryDevtools` puts its button in the bottom right corner, over a navigation bar or a floating action button that lives there. Move it with `buttonAlignment`:
+
+```dart
+FueryDevtools(
+  buttonAlignment: Alignment.centerRight,
+  child: child!,
+)
+```
+
 ## Nothing refetches when the app resumes
 
 Fuery widgets connect the app lifecycle for you. An app that only uses queries from blocs has no Fuery widget, so call this once at startup:

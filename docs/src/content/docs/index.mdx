@@ -44,7 +44,9 @@ QueryBuilder(
 <CardGrid>
 	<Card title="Cached and fresh" icon="database">
 		Every widget that uses a key shares one cache entry and one request. Stale
-		data stays on screen while it refetches in the background.
+		data stays on screen while it refetches in the background, and a refetch
+		that returns the same items keeps them identical, so list rows don't
+		rebuild.
 	</Card>
 	<Card title="Drops into your app" icon="puzzle">
 		Start with one screen. Creating a query needs no `BuildContext`, and there
@@ -59,8 +61,9 @@ QueryBuilder(
 		widgets, results, and callbacks. No code generation either.
 	</Card>
 	<Card title="Built for real networks" icon="rocket">
-		Retries with backoff, refetches when the app resumes, and can pause while
-		offline and cancel requests nobody needs anymore.
+		Retries with backoff, refetches when the app resumes, pauses while offline,
+		and cancels requests nobody needs anymore without reporting them as
+		errors. Polls until a condition holds, and folds a stream into the cache.
 	</Card>
 	<Card title="Persisted and inspectable" icon="magnifier">
 		Keep queries across restarts with any key-value storage, and inspect the
