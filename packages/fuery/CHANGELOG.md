@@ -1,3 +1,6 @@
+## 1.0.0
+- The public API is stable: from here, a breaking change bumps the major version. No changes since 0.10.0.
+
 ## 0.10.0
 - Includes `fuery_core` 0.10.0: mutations with `persist` survive a restart. The example's offline comment is sent after the app is opened again.
 
