@@ -622,8 +622,8 @@ void main() {
     fakeTest('exposes the query, its fetch, and its observers', (async) {
       final observer = observe(['a'], FakeFetcher(() => 'data').call);
       final query = observer.currentQuery;
-      expect(query.isDisabled(), isTrue);
-      expect(query.isStale(), isTrue);
+      expect(query.isDisabled, isTrue);
+      expect(query.isStale, isTrue);
 
       observer.subscribe((_) {});
       expect(query.future, isNotNull);
@@ -632,7 +632,7 @@ void main() {
 
       async.elapse(ms10);
       expect(query.future, isNull);
-      expect(query.isStale(), isTrue);
+      expect(query.isStale, isTrue);
     });
   });
 
@@ -662,7 +662,7 @@ void main() {
 
       expect(fetcher.calls, 1);
       expect(observer.result.isStale, isFalse);
-      expect(observer.currentQuery.isStatic(), isTrue);
+      expect(observer.currentQuery.isStatic, isTrue);
     });
 
     fakeTest('can still be refetched by hand', (async) {

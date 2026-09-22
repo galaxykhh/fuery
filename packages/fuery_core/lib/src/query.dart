@@ -117,7 +117,7 @@ class Query<TData extends Object> extends _Removable {
 
   void _setOptions(QueryOptions<TData> options) {
     _options =
-        options._defaulted ? options : _client.defaultQueryOptions(options);
+        options._defaulted ? options : _client._defaultQueryOptions(options);
     _updateGcTime(_options.gcTime);
 
     final state = _state;
@@ -196,19 +196,19 @@ class Query<TData extends Object> extends _Removable {
   }
 
   /// Whether at least one observer is enabled.
-  bool isActive() => _observers.any((o) => o.options.enabled != false);
+  bool get isActive => _observers.any((o) => o.options.enabled != false);
 
   /// Whether the query will not fetch on its own.
-  bool isDisabled() {
-    if (_observers.isNotEmpty) return !isActive();
-    return !isFetched();
+  bool get isDisabled {
+    if (_observers.isNotEmpty) return !isActive;
+    return !isFetched;
   }
 
   /// Whether the query resolved with data or an error at least once.
-  bool isFetched() => state.dataUpdateCount + state.errorUpdateCount > 0;
+  bool get isFetched => state.dataUpdateCount + state.errorUpdateCount > 0;
 
   /// Whether the query is stale, as seen by its observers.
-  bool isStale() {
+  bool get isStale {
     if (_observers.isNotEmpty) {
       return _observers.any((o) => o.result.isStale);
     }
@@ -217,7 +217,7 @@ class Query<TData extends Object> extends _Removable {
 
   /// Whether an observer uses [staticStaleTime], so the query is never stale
   /// and never refetched.
-  bool isStatic() =>
+  bool get isStatic =>
       _observers.any((o) => o.options.staleTime == staticStaleTime);
 
   /// Whether the data is older than [staleTime].

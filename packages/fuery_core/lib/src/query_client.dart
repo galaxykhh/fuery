@@ -371,7 +371,7 @@ class QueryClient {
   /// ));
   /// ```
   Future<TData> query<TData extends Object>(QueryOptions<TData> options) async {
-    var defaulted = defaultQueryOptions(options);
+    var defaulted = _defaultQueryOptions(options);
     if (defaulted.retry == null) {
       defaulted = defaulted._withRetry(const RetryPolicy.never());
     }
@@ -569,8 +569,8 @@ class QueryClient {
           .findAll(filters)
           // A static query is only skipped while it has data.
           .where((query) =>
-              !query.isDisabled() &&
-              !(query.isStatic() && query.state.data != null))
+              !query.isDisabled &&
+              !(query.isStatic && query.state.data != null))
           .map((query) {
         var future = query._refetch(fetchOptions).then<void>((_) {});
         if (!throwOnError) {
@@ -589,7 +589,7 @@ class QueryClient {
 
   /// Resumes mutations that were paused while offline.
   Future<void> resumePausedMutations() {
-    if (onlineManager.isOnline()) return mutationCache._resumePausedMutations();
+    if (onlineManager.isOnline) return mutationCache._resumePausedMutations();
     return Future.value();
   }
 
@@ -620,7 +620,7 @@ class QueryClient {
   }
 
   /// Fills unset values in [options] with client and per-key defaults.
-  QueryOptions<TData> defaultQueryOptions<TData extends Object>(
+  QueryOptions<TData> _defaultQueryOptions<TData extends Object>(
     QueryOptions<TData> options,
   ) {
     if (options._defaulted) return options;
@@ -631,7 +631,7 @@ class QueryClient {
   }
 
   MutationOptions<TData, TVariables, TContext>
-      defaultMutationOptions<TData, TVariables, TContext>(
+      _defaultMutationOptions<TData, TVariables, TContext>(
     MutationOptions<TData, TVariables, TContext> options,
   ) {
     if (options._defaulted) return options;

@@ -35,12 +35,12 @@ class QueryFilters {
     }
 
     if (type != QueryTypeFilter.all) {
-      final isActive = query.isActive();
+      final isActive = query.isActive;
       if (type == QueryTypeFilter.active && !isActive) return false;
       if (type == QueryTypeFilter.inactive && isActive) return false;
     }
 
-    if (stale != null && query.isStale() != stale) return false;
+    if (stale != null && query.isStale != stale) return false;
 
     if (fetchStatus != null && query.state.fetchStatus != fetchStatus) {
       return false;
@@ -97,7 +97,7 @@ class QueryCache {
     QueryClient client,
     QueryOptions<TData> options,
   ) {
-    final defaulted = client.defaultQueryOptions(options);
+    final defaulted = client._defaultQueryOptions(options);
     final queryHash = defaulted.queryHash!;
     final existing = _queries[queryHash];
 

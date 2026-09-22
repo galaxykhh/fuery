@@ -1,3 +1,8 @@
+## 0.9.0
+- **Breaking:** boolean reads are getters. Drop the `()` from `Query.isStale`, `isActive`, `isDisabled`, `isFetched`, `isStatic`, `focusManager.isFocused`, `onlineManager.isOnline`, and `hasListeners`.
+- **Breaking:** the listeners of an observer, `focusManager`, and `onlineManager` can no longer be replaced or changed from outside. Use `subscribe`.
+- **Breaking:** removed API that only the package called: `QueryClient.defaultQueryOptions`, `QueryClient.defaultMutationOptions`, and `NotifyManager.setScheduler`, `setNotifyFunction`, and `setBatchNotifyFunction`.
+
 ## 0.8.3
 - Documentation only: a description and topics that match what people search for, and a new page on server state in Flutter.
 

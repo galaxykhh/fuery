@@ -80,28 +80,6 @@ void main() {
       });
     });
 
-    test('uses custom scheduler and notify functions', () {
-      final manager = NotifyManager();
-      final events = <String>[];
-      manager
-        ..setScheduler((callback) {
-          events.add('schedule');
-          callback();
-        })
-        ..setBatchNotifyFunction((callback) {
-          events.add('batch');
-          callback();
-        })
-        ..setNotifyFunction((callback) {
-          events.add('notify');
-          callback();
-        });
-
-      manager.batch(() => manager.schedule(() => events.add('run')));
-
-      expect(events, ['schedule', 'batch', 'notify', 'run']);
-    });
-
     test('returns the batch result', () {
       expect(NotifyManager().batch(() => 42), 42);
     });
@@ -126,14 +104,14 @@ void main() {
       setFocused!(true);
 
       expect(events, [false, false, true]);
-      expect(manager.isFocused(), isTrue);
+      expect(manager.isFocused, isTrue);
 
       unsubscribe();
       expect(cleanedUp, isTrue);
     });
 
     test('is focused by default', () {
-      expect(FocusManager().isFocused(), isTrue);
+      expect(FocusManager().isFocused, isTrue);
     });
   });
 

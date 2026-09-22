@@ -108,10 +108,10 @@ void main() {
         QueryBuilder(query: query, builder: (_, state) => text(state)),
       );
       await tester.pump(ms10);
-      expect(query.hasListeners(), isTrue);
+      expect(query.hasListeners, isTrue);
 
       await tester.pumpWidget(const SizedBox());
-      expect(query.hasListeners(), isFalse);
+      expect(query.hasListeners, isFalse);
       expect(client.queryCache.getAll().single.observersCount, 0);
       client.clear();
     });
@@ -169,7 +169,7 @@ void main() {
       expect(find.text('loading'), findsOneWidget);
       await tester.pump(ms10);
       expect(find.text('second'), findsOneWidget);
-      expect(first.hasListeners(), isFalse);
+      expect(first.hasListeners, isFalse);
       await tearDownApp(tester);
     });
   });
@@ -639,14 +639,14 @@ void main() {
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
       await tester.pump();
-      expect(focusManager.isFocused(), isFalse);
+      expect(focusManager.isFocused, isFalse);
 
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pump(ms10);
 
-      expect(focusManager.isFocused(), isTrue);
+      expect(focusManager.isFocused, isTrue);
       expect(fetcher.calls, 2);
       await tearDownApp(tester);
     });
