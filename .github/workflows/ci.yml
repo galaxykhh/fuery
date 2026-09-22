@@ -31,12 +31,22 @@ jobs:
       - if: matrix.version == ''
         run: dart format --output=none --set-exit-if-changed packages
       - run: flutter analyze packages
-      - run: dart test
+      # On the latest version the core tests also write coverage/lcov.info.
+      - if: matrix.version != ''
+        run: dart test
         working-directory: packages/fuery_core
-      - run: flutter test
+      - if: matrix.version == ''
+        run: |
+          dart pub global activate coverage
+          dart pub global run coverage:test_with_coverage
+        working-directory: packages/fuery_core
+      - run: flutter test --coverage
         working-directory: packages/fuery
       - run: flutter test
         working-directory: packages/fuery/example
+      # Both packages stay at 100% line coverage.
+      - if: matrix.version == ''
+        run: python3 tool/check_coverage.py packages/fuery_core packages/fuery
       # The report lists which of the public API the docs mention. Regenerate
       # it with `python3 docs/tool/api_coverage.py` when the API changes.
       - if: matrix.version == ''
