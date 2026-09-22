@@ -4,7 +4,7 @@ Server state caching for Flutter: queries, infinite queries, and mutations, with
 
 - `packages/fuery_core`: pure Dart core (queries, infinite queries, mutations, cache, retries). No Flutter imports.
 - `packages/fuery`: Flutter widgets, app lifecycle binding, `FueryProvider`, and the in-app devtools. Re-exports `fuery_core`.
-- `packages/fuery/example`: a todo app with one screen per case (list, detail, paged, search, polling, streaming, prefetch, cubit), listed in its README. Add a case when a feature needs showing, and a widget test for it.
+- `packages/fuery/example`: a social feed app (feed, post, compose, search, notifications) whose README maps each screen to the Fuery features it shows. Show a new feature where it belongs in that app, with a widget test.
 - `docs`: the documentation site (Astro Starlight), deployed to https://galaxykhh.github.io/fuery/
 
 Each package and `docs/` has its own `AGENTS.md` with package-specific rules.

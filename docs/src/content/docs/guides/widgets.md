@@ -171,4 +171,4 @@ The cached data isn't the observer's to release. It stays for `gcTime` (default:
 
 ## In the example app
 
-The example has a selector in [the case list](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/cases/cases_screen.dart), and pull to refresh with a retry button in [the todo list](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/todo_list/todo_list.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) lists one screen per case.
+The example has `buildWhen` for a refetch indicator, pull to refresh with a retry button, and a `MutationListener` for a snackbar in [the feed](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/feed/feed_screen.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) maps each screen to what it shows.

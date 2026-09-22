@@ -80,7 +80,7 @@ on<TodoAdded>((event, emit) async {
 
 ## Sharing with widgets
 
-A cubit and a `QueryBuilder` that use the same key share one cache entry. A change made on one screen, like completing a todo, shows up in the cubit and in every widget. The [example app](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) has a list screen built with Fuery widgets and a stats screen built with a cubit, reading the same query.
+A cubit and a `QueryBuilder` that use the same key share one cache entry. A change made on one screen, like marking notifications read, shows up in the cubit and in every widget. The [example app](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) has a notifications screen built with Fuery widgets and a badge counted by a cubit, reading the same query.
 
 ## App lifecycle
 
@@ -88,4 +88,4 @@ An app that uses queries only from blocs has to connect the app lifecycle itself
 
 ## In the example app
 
-The example has a query in a cubit in [the stats cubit](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/todo_stats/todo_stats_cubit.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) lists one screen per case.
+The example has a query in a cubit in [the notifications cubit](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/notifications/notifications_cubit.dart), which counts unread notifications for a badge while the notifications screen shows the same query. Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) maps each screen to what it shows.

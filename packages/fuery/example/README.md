@@ -1,34 +1,32 @@
 # Fuery example
 
-A todo app with one screen per case, so each pattern can be read on its own.
-The home screen lists them; the mock API adds the delays a real one would have.
-
-**[Try it in a browser →](https://galaxykhh.github.io/fuery/demo/)**
+A small social feed: posts, likes, comments, search, and notifications,
+against an in-memory server with real delays. It is the app behind
+[the web demo](https://galaxykhh.github.io/fuery/demo/). Every screen is one
+you would ship, and each shows a part of Fuery in the place it belongs.
 
 ```bash
 flutter run
-flutter test
 ```
 
-The demo is this app built for the web, with the devtools turned on through `--dart-define=fuery.demo=true`.
+The devtools button is on in debug and profile builds, and on the web demo
+through `--dart-define=fuery.demo=true`.
 
-## Cases
+## Screens
 
-| Screen | What it shows |
-|---|---|
-| [List, refresh, and optimistic delete](lib/app/screens/todo_list/todo_list.dart) | `QueryBuilder`, pull-to-refresh and a retry button through `refetch`, a refetch indicator with `buildWhen`, an optimistic delete that rolls back, `MutationBuilder` for a barrier and `MutationListener` for an error snackbar |
-| [Todo detail](lib/app/screens/todo_detail/todo_detail.dart) | A key per todo, opening with the list's copy as `placeholderData` instead of a spinner |
-| [Stats in a cubit](lib/app/screens/todo_stats/todo_stats_cubit.dart) | The same query read from a `Cubit` through its stream, so completing a todo on the list updates the stats |
-| [Paged archive](lib/app/screens/infinite_todos/infinite_todos.dart) | `InfiniteQuery.use` with `fetchNextPage` and `hasNextPage` |
-| [Search as you type](lib/app/screens/search_todos/search_todos.dart) | One observer following every term with `setOptions`, keeping the previous results on screen, and `enabled: false` for an empty term |
-| [Poll a job](lib/app/screens/job_status/job_status.dart) | `refetchInterval` with `refetchWhile`, so polling stops when the job finishes |
-| [Streamed answer](lib/app/screens/streaming_answer/streaming_answer.dart) | `streamedQuery` folding chunks into the cached data |
-| [Prefetch before navigating](lib/app/screens/prefetch/prefetch.dart) | `client.infiniteQuery` outside widgets, so the next screen opens with data |
-| [The case list itself](lib/app/screens/cases/cases_screen.dart) | `client.watch` for an activity indicator, and `QuerySelector` for a count that rebuilds on its own |
+| Screen | What you do | What Fuery does |
+|---|---|---|
+| [Feed](lib/app/screens/feed/feed_screen.dart) | Scroll, pull to refresh, like posts | `InfiniteQuery.use` loads a page at a time. `InfiniteQueryPersist` stores the pages, so a restart shows the feed at once. A like updates the cached pages and the post before the request, and rolls back when it fails (the post that says so always fails). Hovering a card on the web or desktop prefetches the post with `client.query`. |
+| [Post](lib/app/screens/post/post_screen.dart) | Read a post and its comments, comment, summarize the thread | Opens with the feed's copy as `placeholderData`, so there is no spinner. A comment written offline pauses and sends when the app is back online; `MutationBuilder` shows `isPaused`. The summary is a `streamedQuery` that grows word by word and is complete at once when reopened. |
+| [Compose](lib/app/screens/compose/compose_screen.dart) | Write a post | `Mutation.use` with the feed invalidation in the mutation and the screen's own `onSuccess` at the call site. The new post polls with `refetchInterval` until `refetchWhile` sees it published, then stops. |
+| [Search](lib/app/screens/search/search_screen.dart) | Search as you type | One observer follows the term through `setOptions`. `keepPreviousData` keeps the last results on screen while the next ones load, and an empty term is `enabled: false`. |
+| [Notifications](lib/app/screens/notifications/notifications_screen.dart) | See what happened, mark all read | Polls every five seconds while the app is in the foreground. The badge on the tab is a [cubit](lib/app/screens/notifications/notifications_cubit.dart) over the same query, so both share one request. Marking all read updates the cache first. |
+| [Home](lib/app/screens/home/home_shell.dart) | Switch tabs, go offline | `client.watch` drives the activity indicator. The wifi button reports connectivity with `onlineManager.setOnline`, which pauses mutations while offline and resumes them after. |
 
-## How the app is organized
+## Where things live
 
-- [`data/todo_queries.dart`](lib/app/data/todo_queries.dart): every key and query function in one place, so screens and cubits share cache entries. The list query also sets `persist`.
-- [`data/todo_mutations.dart`](lib/app/data/todo_mutations.dart): the same for mutations. The cache work is written once; each screen gets its own pending and error state.
-- [`data/preferences_storage.dart`](lib/app/data/preferences_storage.dart): a `QueryStorage` on shared preferences. [`main.dart`](lib/main.dart) gives it to the client, so the todo list is on screen before the first request finishes.
-- [`test/`](test/): widget tests for each case, and `helpers.dart` to open one from the home screen.
+- [`data/feed_queries.dart`](lib/app/data/feed_queries.dart): every key and query function in one place, so screens and cubits share cache entries.
+- [`data/feed_mutations.dart`](lib/app/data/feed_mutations.dart): the same for mutations. The cache work is written once; each screen gets its own pending and error state.
+- [`data/demo_api.dart`](lib/app/data/demo_api.dart): the in-memory server, with delays and one request that always fails.
+- [`data/preferences_storage.dart`](lib/app/data/preferences_storage.dart): a `QueryStorage` on shared preferences. [`main.dart`](lib/main.dart) gives it to the client.
+- [`test/`](test/): a widget test for each screen, and `helpers.dart` to open one.

@@ -24,5 +24,5 @@ These are covered by tests; keep them:
 
 - Give each test a fresh `QueryClient` with `QueryDefaults(retry: RetryPolicy.never())`, wrapped in `FueryProvider`.
 - End each test with `await tester.pumpWidget(const SizedBox())` and `client.clear()`. Otherwise cache timers are still pending and the test fails.
-- Keep the example app's tests (`example/test/`) passing when the API changes. It is also the web demo, so it must keep building for the web and must not use plugins without web support. Its screens are a case gallery opened from the home screen; `example/test/helpers.dart` opens one by its title. Queries and mutations live in `example/lib/app/data/`, not in the screens.
+- Keep the example app's tests (`example/test/`) passing when the API changes. It is also the web demo, so it must keep building for the web and must not use plugins without web support. It is a social feed with three tabs; `example/test/helpers.dart` opens a tab or a post, and `DemoApi.reset()` gives each test a fresh server. Queries and mutations live in `example/lib/app/data/`, not in the screens.
 - In a cubit or bloc, call `subscription.cancel()` in `close()` without awaiting it. Its future never completes under `testWidgets`, so awaiting it hangs the test.

@@ -71,4 +71,4 @@ stream: (context) {
 
 ## In the example app
 
-The example has a streamed answer in [the streamed answer screen](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/streaming_answer/streaming_answer.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) lists one screen per case.
+The example streams a thread summary in [the post screen](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/post/post_screen.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) maps each screen to what it shows.
