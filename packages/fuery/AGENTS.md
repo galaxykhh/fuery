@@ -19,6 +19,7 @@ These are covered by tests; keep them:
 - Selectors rebuild only when the selected value changes. The value goes through `replaceEqualDeep` and is compared with `identical`, and it is selected again when the parent rebuilds.
 - The first frame uses the observer's optimistic result, so a query that is about to fetch shows loading instead of an empty frame.
 - Results arrive through `notifyManager.batchCalls`, never synchronously. Don't call `setState` from `build` or `initState`.
+- In debug builds, `didUpdateWidget` warns once per key (`debugWarnRecreated`, a `debugPrint`, never an error) when a widget gets a different observer with the same key: that is `Query.use` in `build`. A different key, or the same instance, is silent.
 
 ## Tests
 

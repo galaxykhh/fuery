@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fuery/fuery.dart';
+import 'package:fuery/src/result_subscriber.dart'
+    show debugResetRecreatedWarnings;
 
 const ms10 = Duration(milliseconds: 10);
 
@@ -139,6 +141,159 @@ void main() {
       await tester.pump();
       expect(find.text('b'), findsOneWidget);
       await tearDownApp(tester);
+    });
+
+    testWidgets('warns once when a rebuild brings a new observer for the key',
+        (tester) async {
+      final messages = <String>[];
+      final print = debugPrint;
+      debugPrint = (message, {wrapWidth}) => messages.add(message ?? '');
+      debugResetRecreatedWarnings();
+      try {
+        final rebuild = ValueNotifier(0);
+        final fetcher = Fetcher('a');
+
+        await pumpApp(
+          tester,
+          ValueListenableBuilder(
+            valueListenable: rebuild,
+            // The mistake: a new observer on every build.
+            builder: (context, _, __) => QueryBuilder(
+              query: Query.use(
+                queryKey: ['todos'],
+                queryFn: fetcher.call,
+                client: client,
+              ),
+              builder: (context, state) => Text(state.data ?? 'loading'),
+            ),
+          ),
+        );
+        await tester.pump(ms10);
+        expect(messages, isEmpty);
+
+        rebuild.value++;
+        await tester.pump();
+        expect(messages, hasLength(1));
+        expect(messages.single, contains('["todos"]'));
+        expect(messages.single, contains('troubleshooting'));
+
+        rebuild.value++;
+        await tester.pump();
+        expect(messages, hasLength(1), reason: 'warned once per key');
+        await tester.pump(ms10); // fetches the extra observers started
+        await tester.pumpWidget(const SizedBox());
+        client.clear();
+      } finally {
+        debugPrint = print;
+      }
+    });
+
+    testWidgets('warns for infinite queries and keyed mutations too',
+        (tester) async {
+      final messages = <String>[];
+      final print = debugPrint;
+      debugPrint = (message, {wrapWidth}) => messages.add(message ?? '');
+      debugResetRecreatedWarnings();
+      try {
+        final rebuild = ValueNotifier(0);
+
+        await pumpApp(
+          tester,
+          ValueListenableBuilder(
+            valueListenable: rebuild,
+            builder: (context, _, __) => Column(
+              children: [
+                InfiniteQueryBuilder(
+                  query: InfiniteQuery.use(
+                    queryKey: ['pages'],
+                    queryFn: (context) async => 'page ${context.pageParam}',
+                    initialPageParam: 1,
+                    getNextPageParam: (data) => null,
+                    client: client,
+                  ),
+                  builder: (context, state) => const Text('pages'),
+                ),
+                MutationBuilder(
+                  mutation: Mutation.use(
+                    mutationKey: ['save'],
+                    mutationFn: (int value) async => value,
+                    client: client,
+                  ),
+                  builder: (context, state) => const Text('keyed'),
+                ),
+                MutationBuilder(
+                  mutation: Mutation.use(
+                    mutationFn: (int value) async => value,
+                    client: client,
+                  ),
+                  builder: (context, state) => const Text('unkeyed'),
+                ),
+              ],
+            ),
+          ),
+        );
+        await tester.pump(ms10);
+        rebuild.value++;
+        await tester.pump();
+        // The mutation without a key can't be told apart, so it is silent.
+        expect(messages, hasLength(2));
+        expect(messages[0], contains('["pages"]'));
+        expect(messages[1], contains('["save"]'));
+        await tester.pump(ms10); // fetches the extra observers started
+        await tester.pumpWidget(const SizedBox());
+        client.clear();
+      } finally {
+        debugPrint = print;
+      }
+    });
+
+    testWidgets('does not warn when the observer or the key changes on purpose',
+        (tester) async {
+      final messages = <String>[];
+      final print = debugPrint;
+      debugPrint = (message, {wrapWidth}) => messages.add(message ?? '');
+      debugResetRecreatedWarnings();
+      try {
+        final key = ValueNotifier('a');
+        final fetcher = Fetcher('a');
+        final same = Query.use(
+          queryKey: ['same'],
+          queryFn: fetcher.call,
+          client: client,
+        );
+
+        await pumpApp(
+          tester,
+          ValueListenableBuilder(
+            valueListenable: key,
+            builder: (context, value, _) => Column(
+              children: [
+                QueryBuilder(
+                  query: same,
+                  builder: (context, state) => const Text('same'),
+                ),
+                QueryBuilder(
+                  query: Query.use(
+                    queryKey: ['todos', value],
+                    queryFn: fetcher.call,
+                    client: client,
+                  ),
+                  builder: (context, state) => const Text('keyed'),
+                ),
+              ],
+            ),
+          ),
+        );
+        await tester.pump(ms10);
+        key.value = 'b';
+        await tester.pump(ms10);
+        expect(messages, isEmpty);
+        await tester.pump(ms10); // fetches the extra observers started
+        await tester.pumpWidget(const SizedBox());
+        client.clear();
+      } finally {
+        debugPrint = print;
+      }
     });
 
     testWidgets('switches to a new query', (tester) async {
