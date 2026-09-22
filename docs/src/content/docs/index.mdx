@@ -68,6 +68,14 @@ QueryBuilder(
 	</Card>
 </CardGrid>
 
-<p style="margin-top: 3rem; font-size: var(--sl-text-sm); color: var(--sl-color-gray-3);">
+<p style="margin-top: 3rem;">
+	<strong>Tested.</strong> Both packages have 100% line coverage, enforced in CI on the
+	oldest supported Flutter and the latest. The core's tests run under fake time, and a
+	regression suite keeps fixed edge cases fixed. Every timer is cancelled on its destroy
+	path and time comes from <code>package:clock</code>, so your own <code>fake_async</code>
+	and widget tests don't leak timers. See <a href="guides/testing/">Testing</a>.
+</p>
+
+<p style="font-size: var(--sl-text-sm); color: var(--sl-color-gray-3);">
 	Fuery's caching and refetching model is inspired by <a href="https://tanstack.com/query">TanStack Query</a>.
 </p>

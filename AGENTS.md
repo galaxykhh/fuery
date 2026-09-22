@@ -22,16 +22,17 @@ dart format packages                              # keep formatting clean
 (cd packages/fuery/example && flutter test)
 ```
 
-Coverage (both packages are at 100% line coverage):
+Coverage (both packages are at 100% line coverage, and CI fails otherwise):
 
 ```bash
 (cd packages/fuery_core && dart pub global run coverage:test_with_coverage)  # needs: dart pub global activate coverage
 (cd packages/fuery && flutter test --coverage)                               # writes coverage/lcov.info
+python3 tool/check_coverage.py packages/fuery_core packages/fuery            # lists any uncovered line
 ```
 
 `coverage/` is gitignored.
 
-CI (`.github/workflows/ci.yml`) runs format, analyze, and all three test suites on the latest stable Flutter, and analyze and the tests on the oldest supported version (Flutter 3.27, Dart 3.6), for every pull request and every push to `main`. Raise the pubspec constraints and that CI version together. `.github/workflows/docs.yml` builds the example for the web into `docs/public/demo`, builds the docs site, and deploys both to GitHub Pages from `main`. It runs on pull requests that touch the docs, the example, or either package's `lib/`. The demo passes `--dart-define=fuery.demo=true`, which turns the devtools on in that release build.
+CI (`.github/workflows/ci.yml`) runs format, analyze, all three test suites, and the coverage check on the latest stable Flutter, and analyze and the tests on the oldest supported version (Flutter 3.27, Dart 3.6), for every pull request and every push to `main`. Raise the pubspec constraints and that CI version together. `.github/workflows/docs.yml` builds the example for the web into `docs/public/demo`, builds the docs site, and deploys both to GitHub Pages from `main`. It runs on pull requests that touch the docs, the example, or either package's `lib/`. The demo passes `--dart-define=fuery.demo=true`, which turns the devtools on in that release build.
 
 ## Rules for every change
 
