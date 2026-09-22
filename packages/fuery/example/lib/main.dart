@@ -7,12 +7,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Queries with `persist` are stored here, so the todo list is on screen
-  // before the first request finishes.
+  // Queries with `persist` are stored here, so the feed is on screen before
+  // the first request finishes.
   final preferences = await SharedPreferencesWithCache.create(
     cacheOptions: const SharedPreferencesWithCacheOptions(),
   );
   Fuery.client = QueryClient(storage: PreferencesStorage(preferences));
 
-  runApp(const TodoApp());
+  runApp(const FeedApp());
 }

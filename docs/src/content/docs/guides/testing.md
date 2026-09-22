@@ -69,4 +69,4 @@ Cubits and blocs that use queries work in `testWidgets` or `fakeAsync` as well. 
 
 ## In the example app
 
-The example's tests open one case at a time with [a small helper](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/test/helpers.dart), and its [test folder](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/test) has a widget test per case.
+The example's tests open a tab or a post with [a small helper](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/test/helpers.dart), and its [test folder](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/test) has a widget test per screen.

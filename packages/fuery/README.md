@@ -304,7 +304,7 @@ class TodoCubit extends Cubit<TodoState> {
 }
 ```
 
-In a `Bloc`, use `emit.forEach(todos.stream, onData: ...)`. The example app's [stats screen](example/lib/app/screens/todo_stats/) shows a cubit and Fuery widgets sharing one query. If you don't use any Fuery widgets, call `FueryBinding.ensureInitialized()` once so queries refetch when the app resumes.
+In a `Bloc`, use `emit.forEach(todos.stream, onData: ...)`. The example app's [notifications cubit](example/lib/app/screens/notifications/notifications_cubit.dart) and notifications screen share one query. If you don't use any Fuery widgets, call `FueryBinding.ensureInitialized()` once so queries refetch when the app resumes.
 
 ## QueryClient
 

@@ -131,4 +131,4 @@ A `MutationListener` does the same for a snackbar or a dialog, with the screen's
 
 ## In the example app
 
-The example has query and mutation factories in [the todo queries](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/data/todo_queries.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) lists one screen per case.
+The example has query and mutation factories in [the feed queries](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/data/feed_queries.dart) and [the feed mutations](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/data/feed_mutations.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) maps each screen to what it shows.

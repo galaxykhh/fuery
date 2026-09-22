@@ -342,4 +342,4 @@ late final todos = Query.use(
 
 ## In the example app
 
-The example has prefetching and watching in [the prefetch screen](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/prefetch/prefetch.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) lists one screen per case.
+The example prefetches a post when the pointer hovers its card in [the feed](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/feed/feed_screen.dart), and watches the client for an activity indicator in [the home shell](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/home/home_shell.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) maps each screen to what it shows.

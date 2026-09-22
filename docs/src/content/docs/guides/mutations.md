@@ -168,4 +168,4 @@ Use `MutateOptions(onError: ...)` instead when only one call site shows the fail
 
 ## In the example app
 
-The example has an optimistic delete in [the todo mutations](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/data/todo_mutations.dart), and the snackbar above in [the todo list screen](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/todo_list/todo_list.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) lists one screen per case.
+The example has an optimistic like with a rollback and a comment that pauses while offline in [the feed mutations](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/data/feed_mutations.dart), and the snackbar above in [the feed](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/feed/feed_screen.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) maps each screen to what it shows.

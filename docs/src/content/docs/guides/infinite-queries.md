@@ -132,4 +132,4 @@ InfiniteQueryObserver<PostPage, int> postsQuery() {
 
 ## In the example app
 
-The example has a paged archive in [the archive screen](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/infinite_todos/infinite_todos.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) lists one screen per case.
+The example loads the feed a page at a time, as the list scrolls near the end, in [the feed](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/feed/feed_screen.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) maps each screen to what it shows.
