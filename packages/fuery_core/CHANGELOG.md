@@ -1,3 +1,6 @@
+## 1.0.0
+- The public API is stable: from here, a breaking change bumps the major version. No changes since 0.10.0.
+
 ## 0.10.0
 - Add persisted mutations: give a mutation with a `mutationKey` a `persist: MutationPersist(...)`, and `client.restore(mutations: [...])` runs the ones that were paused or in flight when the app closed.
 - `QueryClient.restore` takes `mutations`, and `AnyMutationOptions` names their type.
