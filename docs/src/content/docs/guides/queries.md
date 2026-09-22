@@ -58,6 +58,12 @@ Set `staleTime: infiniteDuration` to keep data fresh until you invalidate it. Se
 
 Data that nothing uses stays cached for `gcTime` (default: 5 minutes), so returning to a screen shows it instantly.
 
+## Rebuilding only what changed
+
+A refetch usually returns the same data it returned before. Fuery compares the new data with the old one, deeply, and keeps every list, map, and set that didn't change as the same object. A list that came back with one new item is a new list whose other items are the previous objects.
+
+For widgets that means a background refetch of a 50-item list rebuilds the row for the item that changed, and nothing else, as long as the rows take their item as a parameter and the item type has `==`. A `QuerySelector` or a `buildWhen` that compares data sees the same object and doesn't rebuild at all. Structural sharing is on by default; `structuralSharing: false` turns it off for a query whose data is expensive to compare.
+
 ## QueryResult fields
 
 Builders and streams receive a `QueryResult`. Two enums carry the state, and the rest are named questions about them:
@@ -233,7 +239,9 @@ queryFn: (context) {
 
 Without the signal, the request finishes and Fuery caches its result for next time.
 
-`context.signal` is an `AbortSignal`. A query function that works in steps can check `signal.aborted` between them, call `signal.throwIfAborted()` to stop with an `AbortedException`, or race `signal.whenAborted` against its own work. A fetch that `cancelQueries` stops fails with a `CancelledError`, which is worth filtering out before reporting errors to a crash reporter.
+`context.signal` is an `AbortSignal`. A query function that works in steps can check `signal.aborted` between them, call `signal.throwIfAborted()` to stop with an `AbortedException`, or race `signal.whenAborted` against its own work.
+
+A cancellation is not a failure. [`cancelQueries`](../query-client/#the-extra-arguments) puts the query back in the state it had before the fetch, the `CancelledError` never reaches `QueryCacheConfig.onError`, and a cancelled fetch that finishes late never overwrites data that was fetched or written after it. Only a query function that swallows the abort and returns a value can put stale data in the cache.
 
 ## In the example app
 

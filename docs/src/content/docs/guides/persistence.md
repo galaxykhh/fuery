@@ -132,6 +132,13 @@ runApp(const App());
 
 A failing storage behaves like an empty one; Fuery ignores its errors. Fuery doesn't persist mutations.
 
+## What Fuery guarantees
+
+- Reads and writes wait for a deletion that is still running, so a query that was removed is never restored from data that was about to be deleted, and never writes over its own deletion.
+- A restore that is still running when the query is reset or removed doesn't bring the old data back.
+- A query decides whether to fetch on mount after an asynchronous restore finishes, so `refetchOnMount` and `staleTime` apply to restored data the same way they apply to cached data.
+- Storage methods may be synchronous or asynchronous, and their errors never reach the query. A query with a broken storage loads as if nothing was stored.
+
 ## In the example app
 
 The example has a storage adapter in [the preferences storage](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/data/preferences_storage.dart), and persists the feed's pages in [the feed queries](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/data/feed_queries.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) maps each screen to what it shows.
