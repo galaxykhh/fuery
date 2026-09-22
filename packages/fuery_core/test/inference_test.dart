@@ -236,6 +236,22 @@ void main() {
     expect(typed.result.data!.title, 'b');
   });
 
+  fakeTest('Mutation.use infers the variables of a persisted mutation',
+      (async) {
+    final addTodo = Mutation.use(
+      mutationKey: const ['todos', 'add'],
+      mutationFn: (String title) async => Todo(title),
+      persist: MutationPersist(
+        toJson: (title) => title,
+        fromJson: (json) => json! as String,
+      ),
+      client: client,
+    );
+
+    final MutationObserver<Todo, String, Object?> typed = addTodo;
+    expect(typed.options.persist, isNotNull);
+  });
+
   fakeTest('Mutation.noParam infers the data type', (async) {
     final refresh = Mutation.noParam(
       mutationFn: () async => 42,

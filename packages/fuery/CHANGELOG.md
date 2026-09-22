@@ -1,3 +1,6 @@
+## 0.10.0
+- Includes `fuery_core` 0.10.0: mutations with `persist` survive a restart. The example's offline comment is sent after the app is opened again.
+
 ## 0.9.0
 - **Breaking:** includes `fuery_core` 0.9.0: boolean reads such as `query.isStale` and `focusManager.isFocused` are getters, and API that only the package called is removed.
 

@@ -124,7 +124,7 @@ final saveDraft = Mutation.use(
 );
 ```
 
-A mutation that waits for its turn in the scope reports `isPaused`, and so does one waiting for the network.
+A mutation that waits for its turn in the scope reports `isPaused`, and so does one waiting for the network. To keep a waiting mutation across a restart, give it a `persist`: see [persisting mutations](../persistence/#persisting-mutations).
 
 ## Showing mutation state
 

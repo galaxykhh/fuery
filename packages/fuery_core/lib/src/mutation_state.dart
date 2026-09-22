@@ -187,7 +187,12 @@ class MutationOptions<TData, TVariables, TContext> {
     this.onSuccess,
     this.onError,
     this.onSettled,
-  }) : _defaulted = false;
+    this.persist,
+  })  : assert(
+          persist == null || mutationKey != null,
+          'A persisted mutation needs a mutationKey, so restore can find it',
+        ),
+        _defaulted = false;
 
   const MutationOptions._defaulted({
     required this.mutationFn,
@@ -202,6 +207,7 @@ class MutationOptions<TData, TVariables, TContext> {
     required this.onSuccess,
     required this.onError,
     required this.onSettled,
+    required this.persist,
   }) : _defaulted = true;
 
   final MutationFn<TData, TVariables>? mutationFn;
@@ -221,6 +227,10 @@ class MutationOptions<TData, TVariables, TContext> {
   final MutationOnError<TVariables, TContext>? onError;
   final MutationOnSettled<TData, TVariables, TContext>? onSettled;
 
+  /// Stores the variables while the mutation runs, so it can be restored
+  /// after a restart. Needs [mutationKey].
+  final MutationPersist<TVariables>? persist;
+
   final bool _defaulted;
 
   /// Whether every option is equal, comparing functions with `==`.
@@ -237,7 +247,8 @@ class MutationOptions<TData, TVariables, TContext> {
         onMutate == other.onMutate &&
         onSuccess == other.onSuccess &&
         onError == other.onError &&
-        onSettled == other.onSettled;
+        onSettled == other.onSettled &&
+        persist == other.persist;
   }
 
   static String? _keyHash(MutationKey? key) =>
@@ -259,7 +270,29 @@ class MutationOptions<TData, TVariables, TContext> {
       onSuccess: onSuccess,
       onError: onError,
       onSettled: onSettled,
+      persist: persist,
     );
+  }
+
+  /// Runs a mutation stored by a previous run with these options. It is
+  /// typed here, where [TVariables] is known, so the decoded variables reach
+  /// [mutationFn] and the callbacks with their real types.
+  AnyMutation _restore(
+    QueryClient client,
+    String storageKey,
+    Object? variablesJson,
+    int submittedAt,
+  ) {
+    final variables = persist!._decode(variablesJson);
+    final mutation = client.mutationCache._build<TData, TVariables, TContext>(
+      client,
+      this,
+    );
+    mutation._execute(
+      variables,
+      restored: (storageKey: storageKey, submittedAt: submittedAt),
+    ).ignore();
+    return mutation;
   }
 }
 
@@ -289,10 +322,14 @@ final class _MutationPendingAction extends _MutationAction {
     required this.isPaused,
     required this.variables,
     this.context,
+    this.submittedAt,
   });
   final bool isPaused;
   final Object? variables;
   final Object? context;
+
+  /// Kept from the run that stored the mutation; null means now.
+  final int? submittedAt;
 }
 
 final class _MutationSuccessAction extends _MutationAction {

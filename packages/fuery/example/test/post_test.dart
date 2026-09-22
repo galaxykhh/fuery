@@ -1,3 +1,5 @@
+import 'package:example/app/app.dart';
+import 'package:example/app/data/feed_mutations.dart';
 import 'package:example/app/screens/post/post_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -64,6 +66,43 @@ void main() {
     expect(find.text('Sending…'), findsNothing);
 
     await tearDownApp(tester);
+  });
+
+  testWidgets('a comment written offline is sent after the app restarts',
+      (tester) async {
+    final storage = MemoryStorage();
+    final firstRun = Fuery.client = QueryClient(storage: storage);
+    await pumpApp(tester);
+    await loadFeed(tester);
+    await tester.tap(find.byIcon(Icons.wifi));
+    await tester.pump();
+    await openPost(tester, topPost);
+    await tester.enterText(find.byType(TextField), 'Sent after a restart');
+    await tester.tap(find.byIcon(Icons.send));
+    await tester.pump();
+    expect(
+      find.text('Comment will send when you\'re back online'),
+      findsOneWidget,
+    );
+
+    // The app is closed with the comment still waiting, and opened again
+    // online. main.dart restores the stored mutation the same way.
+    await tester.pumpWidget(const SizedBox());
+    Fuery.client = QueryClient(storage: storage);
+    onlineManager.setOnline(true);
+    await Fuery.client.restore(mutations: [addCommentOptions()]);
+    await tester.pumpWidget(const FeedApp());
+    await tester.pump(const Duration(milliseconds: 300)); // the comment
+    await tester.pump(const Duration(milliseconds: 400)); // the feed
+    await openPost(tester, topPost);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Sent after a restart'), findsOneWidget);
+    expect(storage.entries.keys.where((k) => k.contains('mutation')), isEmpty);
+
+    await tearDownApp(tester);
+    // The first run's cache still holds timers; a real restart wouldn't.
+    firstRun.clear();
+    Fuery.client = QueryClient();
   });
 
   testWidgets('a thread summary streams in, and is cached when reopened',

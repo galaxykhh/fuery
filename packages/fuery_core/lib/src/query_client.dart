@@ -52,6 +52,10 @@ class QueryClient {
   /// Changes whenever persisted data is deleted, so a [restore] that was
   /// reading at the time drops what it read.
   int _deletionEpoch = 0;
+
+  /// Storage keys of stored mutations that [restore] has loaded, so a
+  /// second restore doesn't run them again.
+  final Set<String> _loadedMutationKeys = {};
   final Map<String, (QueryKey, QueryDefaults)> _queryDefaults = {};
   final Map<String, (MutationKey, MutationDefaults)> _mutationDefaults = {};
   int _mountCount = 0;
@@ -125,14 +129,21 @@ class QueryClient {
 
   /// Reads every persisted query ahead of time, so queries created afterwards
   /// restore their data right away, even with a storage that reads
-  /// asynchronously. Optional: without it, each query restores when it's
-  /// first used.
+  /// asynchronously. Optional for queries: without it, each query restores
+  /// when it's first used.
+  ///
+  /// Stored mutations only come back this way. Pass the options of every
+  /// mutation with a `persist`, and each stored run of them is started again
+  /// with its stored variables: right away while online, or when the network
+  /// is back.
   ///
   /// ```dart
-  /// await Fuery.client.restore();
+  /// await Fuery.client.restore(mutations: [addCommentOptions()]);
   /// runApp(const App());
   /// ```
-  Future<void> restore() async {
+  Future<void> restore({
+    List<AnyMutationOptions> mutations = const [],
+  }) async {
     final storage = this.storage;
     if (storage == null) return;
     await _deletionsDone();
@@ -147,14 +158,66 @@ class QueryClient {
     if (epoch != _deletionEpoch) return;
     _preloaded = {
       for (final MapEntry(:key, :value) in entries.entries)
-        if (key.startsWith(persistKeyPrefix))
+        if (key.startsWith(persistKeyPrefix) &&
+            !key.startsWith(_mutationKeyPrefix))
           key.substring(persistKeyPrefix.length): value,
     };
     notifyManager.batch(() {
       for (final query in queryCache.getAll()) {
         query._restoreFromPreload();
       }
+      _restoreMutations(entries, mutations);
     });
+  }
+
+  /// Starts the stored mutations in [entries] that have options in
+  /// [mutations], oldest first. Entries that can't be read, or were stored
+  /// by another version of their options, are deleted.
+  void _restoreMutations(
+    Map<String, String> entries,
+    List<AnyMutationOptions> mutations,
+  ) {
+    final stored =
+        <(int submittedAt, String key, Map<String, Object?> entry)>[];
+    for (final MapEntry(:key, :value) in entries.entries) {
+      if (!key.startsWith(_mutationKeyPrefix) ||
+          _loadedMutationKeys.contains(key)) {
+        continue;
+      }
+      try {
+        final entry = jsonDecode(value) as Map<String, Object?>;
+        stored.add((entry['t']! as int, key, entry));
+      } catch (_) {
+        _deleteStored(key); // Entries that can't be read are discarded.
+      }
+    }
+    stored.sort((a, b) {
+      final byTime = a.$1.compareTo(b.$1);
+      return byTime != 0 ? byTime : a.$2.compareTo(b.$2);
+    });
+
+    for (final (submittedAt, key, entry) in stored) {
+      try {
+        final mutationKey = entry['k']! as List<Object?>;
+        final options = mutations.firstWhereOrNull((options) {
+          final key = options.mutationKey;
+          return key != null && hashKey(key) == hashKey(mutationKey);
+        });
+        // An entry nothing was passed for is kept: the app may restore it
+        // later, with the options it belongs to.
+        if (options == null) continue;
+        if (options.persist?.version != entry['v']) {
+          _deleteStored(key);
+          continue;
+        }
+        _loadedMutationKeys.add(key);
+        options._restore(this, key, entry['d'], submittedAt);
+      } catch (_) {
+        // Variables that can't be decoded are discarded.
+        _loadedMutationKeys.remove(key);
+        _deleteStored(key);
+      }
+    }
   }
 
   String? _takePreloaded(String queryHash) => _preloaded?.remove(queryHash);
@@ -190,8 +253,13 @@ class QueryClient {
   }
 
   /// Deletes the persisted data of [queries]. When [filters] only select by
-  /// key, persisted queries that aren't loaded are deleted as well.
-  void _forgetStored(QueryFilters filters, Iterable<Query<Object>> queries) {
+  /// key, persisted queries that aren't loaded are deleted as well, and with
+  /// [mutations] the stored mutations too.
+  void _forgetStored(
+    QueryFilters filters,
+    Iterable<Query<Object>> queries, {
+    bool mutations = false,
+  }) {
     final storage = this.storage;
     if (storage == null) return;
 
@@ -225,8 +293,10 @@ class QueryClient {
       FutureOr<void> deleteMatching(Map<String, String> entries) {
         final deletions = [
           for (final key in entries.keys)
-            if (key.startsWith(persistKeyPrefix) &&
-                matches(key.substring(persistKeyPrefix.length)))
+            if (key.startsWith(_mutationKeyPrefix)
+                ? mutations
+                : key.startsWith(persistKeyPrefix) &&
+                    matches(key.substring(persistKeyPrefix.length)))
               Future<void>.sync(() => storage.delete(key)),
         ];
         return Future.wait(deletions).then((_) {}, onError: (Object _) {});
@@ -648,7 +718,8 @@ class QueryClient {
       final queries = queryCache.getAll();
       queryCache._clear();
       mutationCache._clear();
-      _forgetStored(const QueryFilters(), const []);
+      _loadedMutationKeys.clear();
+      _forgetStored(const QueryFilters(), const [], mutations: true);
       _moveObservers(queries);
     });
   }

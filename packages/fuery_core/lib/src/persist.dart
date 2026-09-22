@@ -21,6 +21,10 @@ abstract interface class QueryStorage {
 /// Storage keys of persisted queries start with this prefix.
 const String persistKeyPrefix = 'fuery:';
 
+/// Storage keys of persisted mutations start with this prefix, so they
+/// never collide with a query hash.
+const String _mutationKeyPrefix = '${persistKeyPrefix}mutation:';
+
 /// Persists a query's data with the client's [QueryStorage].
 ///
 /// `toJson` must return a value that `jsonEncode` accepts, and `fromJson`
@@ -110,6 +114,43 @@ class InfiniteQueryPersist<TPage, TParam extends Object?> {
     );
   }
 }
+
+/// Persists a mutation's variables with the client's [QueryStorage] while it
+/// runs, so a mutation that was paused or in flight when the app was closed
+/// runs again after [QueryClient.restore].
+///
+/// The mutation needs a `mutationKey`: that is how `restore` finds the
+/// options to run it with. `toJson` must return a value that `jsonEncode`
+/// accepts, and `fromJson` must turn it back into the variables.
+class MutationPersist<TVariables> {
+  const MutationPersist({
+    required Object? Function(TVariables variables) toJson,
+    required TVariables Function(Object? json) fromJson,
+    this.version = 1,
+  })  : _toJson = toJson,
+        _fromJson = fromJson;
+
+  /// For `Mutation.noParam`, which has no variables to store.
+  static const MutationPersist<void> noVariables = MutationPersist<void>(
+    toJson: _noVariablesToJson,
+    fromJson: _noVariablesFromJson,
+  );
+
+  final Object? Function(TVariables variables) _toJson;
+  final TVariables Function(Object? json) _fromJson;
+
+  /// Stored mutations with another version are discarded. Increase it when
+  /// the JSON format changes.
+  final int version;
+
+  Object? _encode(TVariables variables) => _toJson(variables);
+
+  TVariables _decode(Object? json) => _fromJson(json);
+}
+
+Object? _noVariablesToJson(void variables) => null;
+
+void _noVariablesFromJson(Object? json) {}
 
 /// Runs a storage call and ignores its errors, so a failing storage never
 /// breaks a query.
