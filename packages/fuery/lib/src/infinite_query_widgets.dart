@@ -41,6 +41,7 @@ class InfiniteQueryBuilder<TPage, TParam> extends StatelessWidget {
       source: query,
       initialResult: _initialResult,
       subscribe: _subscribe,
+      debugKey: _debugKey,
       builder: builder,
       buildWhen: buildWhen,
     );
@@ -69,6 +70,7 @@ class InfiniteQueryListener<TPage, TParam> extends StatelessWidget {
       source: query,
       initialResult: _initialResult,
       subscribe: _subscribe,
+      debugKey: _debugKey,
       listener: listener,
       listenWhen: listenWhen,
       child: child,
@@ -99,6 +101,7 @@ class InfiniteQueryConsumer<TPage, TParam> extends StatelessWidget {
       source: query,
       initialResult: _initialResult,
       subscribe: _subscribe,
+      debugKey: _debugKey,
       builder: builder,
       buildWhen: buildWhen,
       listener: listener,
@@ -135,6 +138,7 @@ class InfiniteQuerySelector<TPage, TParam, T> extends StatelessWidget {
       source: query,
       initialResult: _initialResult,
       subscribe: _subscribe,
+      debugKey: _debugKey,
       selector: selector,
       builder: builder,
     );
@@ -155,3 +159,6 @@ void Function() _subscribe<TPage, TParam>(
     (result) => listener(result as _Result<TPage, TParam>),
   );
 }
+
+String _debugKey<TPage, TParam>(InfiniteQueryObserver<TPage, TParam> query) =>
+    hashKey(query.options.queryKey);

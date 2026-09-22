@@ -36,6 +36,7 @@ class MutationBuilder<TData, TVariables, TContext> extends StatelessWidget {
       source: mutation,
       initialResult: _initialResult,
       subscribe: _subscribe,
+      debugKey: _debugKey,
       builder: builder,
       buildWhen: buildWhen,
     );
@@ -75,6 +76,7 @@ class MutationListener<TData, TVariables, TContext> extends StatelessWidget {
       source: mutation,
       initialResult: _initialResult,
       subscribe: _subscribe,
+      debugKey: _debugKey,
       listener: listener,
       listenWhen: listenWhen,
       child: child,
@@ -107,6 +109,7 @@ class MutationConsumer<TData, TVariables, TContext> extends StatelessWidget {
       source: mutation,
       initialResult: _initialResult,
       subscribe: _subscribe,
+      debugKey: _debugKey,
       builder: builder,
       buildWhen: buildWhen,
       listener: listener,
@@ -147,6 +150,7 @@ class MutationSelector<TData, TVariables, TContext, T> extends StatelessWidget {
       source: mutation,
       initialResult: _initialResult,
       subscribe: _subscribe,
+      debugKey: _debugKey,
       selector: selector,
       builder: builder,
     );
@@ -164,4 +168,11 @@ void Function() _subscribe<TData, TVariables, TContext>(
   void Function(_State<TData, TVariables, TContext>) listener,
 ) {
   return mutation.subscribe(listener);
+}
+
+String? _debugKey<TData, TVariables, TContext>(
+  _Observer<TData, TVariables, TContext> mutation,
+) {
+  final key = mutation.options.mutationKey;
+  return key == null ? null : hashKey(key);
 }

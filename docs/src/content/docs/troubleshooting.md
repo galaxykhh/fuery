@@ -48,6 +48,8 @@ client.clear();
 
 Unsubscribe any observer you subscribed by hand before `clear()`. Clearing moves observers that are still subscribed to new queries, which start loading again.
 
+`addTearDown(Fuery.client.clear)` is not enough: `testWidgets` checks for pending timers before the tear-downs run, and the tree it unmounts on its own at that point is what starts the timer. The two lines belong at the end of the test body.
+
 ## The test client stays empty, or a test only passes when it runs first
 
 A query captures its client when you create it. A query declared at the top level of a file therefore keeps the client from the first test that used it, while later tests create fresh clients that never see it.
@@ -136,6 +138,8 @@ class _TodosScreenState extends State<TodosScreen> {
 ```
 
 The same happens when the object is created inline, as in `QueryBuilder(query: Query.use(...))`, or by a factory such as `todosQuery()` called from `build`. Call the factory once, store the result, and pass that down.
+
+In debug builds, a Fuery widget that gets a new observer for the same key on a rebuild prints a warning to the console, once per key, with a link here.
 
 ## A mutation stays pending after the request finished
 

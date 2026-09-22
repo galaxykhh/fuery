@@ -1,3 +1,7 @@
+## 1.1.0
+- In debug builds, a Fuery widget that gets a new observer for the same key on a rebuild, which is what `Query.use` in `build` looks like, prints a warning once per key with a link to the fix.
+- Getting started ends with the first widget test, including the two lines that keep cache timers from failing it.
+
 ## 1.0.0
 - The public API is stable: from here, a breaking change bumps the major version. No changes since 0.10.0.
 

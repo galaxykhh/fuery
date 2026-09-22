@@ -44,6 +44,7 @@ class QueryBuilder<TData extends Object> extends StatelessWidget {
       source: query,
       initialResult: _initialResult,
       subscribe: _subscribe,
+      debugKey: _debugKey,
       builder: builder,
       buildWhen: buildWhen,
     );
@@ -84,6 +85,7 @@ class QueryListener<TData extends Object> extends StatelessWidget {
       source: query,
       initialResult: _initialResult,
       subscribe: _subscribe,
+      debugKey: _debugKey,
       listener: listener,
       listenWhen: listenWhen,
       child: child,
@@ -114,6 +116,7 @@ class QueryConsumer<TData extends Object> extends StatelessWidget {
       source: query,
       initialResult: _initialResult,
       subscribe: _subscribe,
+      debugKey: _debugKey,
       builder: builder,
       buildWhen: buildWhen,
       listener: listener,
@@ -152,6 +155,7 @@ class QuerySelector<TData extends Object, T> extends StatelessWidget {
       source: query,
       initialResult: _initialResult,
       subscribe: _subscribe,
+      debugKey: _debugKey,
       selector: selector,
       builder: builder,
     );
@@ -170,3 +174,6 @@ void Function() _subscribe<TData extends Object>(
 ) {
   return query.subscribe(listener);
 }
+
+String _debugKey<TData extends Object>(QueryObserver<TData> query) =>
+    hashKey(query.options.queryKey);

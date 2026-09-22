@@ -48,6 +48,27 @@ class _TodoListScreenState extends State<TodoListScreen> {
 }
 ```
 
+`api.getTodos()` is any function that returns a `Future<List<Todo>>`, and `TodoList` is your own widget that takes the list.
+
+## 3. Test it
+
+A widget test pumps the screen, waits for the fake request, and checks the list. End it by unmounting the tree and emptying the cache: a cached query keeps a timer for its garbage collection, and `testWidgets` fails on any timer that outlives the test. `addTearDown` runs too late for that check, so the two lines go at the end of the test body:
+
+```dart
+testWidgets('shows todos', (tester) async {
+  await tester.pumpWidget(const MaterialApp(home: TodoListScreen()));
+  expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+  await tester.pump(const Duration(milliseconds: 300)); // the fake request
+  expect(find.text('Buy milk'), findsOneWidget);
+
+  await tester.pumpWidget(const SizedBox());
+  Fuery.client.clear();
+});
+```
+
+[Testing](../guides/testing/) has the same for cubits and plain Dart, and how to turn retries off so failures show up at once.
+
 ## What Fuery does for you
 
 - **No type arguments.** `todos` is a `QueryObserver<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`, and `state` in the builder is a `QueryResult<List<Todo>>`. Mutations, infinite queries, and every widget infer their types the same way.

@@ -3,6 +3,38 @@ import 'package:fuery_core/fuery_core.dart';
 
 import 'fuery_binding.dart';
 
+/// Keys already warned about, so each mistake is reported once.
+final Set<String> _warnedKeys = {};
+
+/// Warns, in debug builds, when a widget got a new observer for the same key
+/// on a rebuild. That is what `Query.use` in `build` looks like, and each new
+/// observer subscribes and refetches again.
+void debugWarnRecreated<S>(
+  String widgetName,
+  String? Function(S source)? key,
+  S previous,
+  S current,
+) {
+  assert(() {
+    if (key == null) return true;
+    final keyHash = key(current);
+    if (keyHash == null || keyHash != key(previous)) return true;
+    if (!_warnedKeys.add(keyHash)) return true;
+    debugPrint(
+      '[fuery] $widgetName received a new observer for the key $keyHash on '
+      'a rebuild. A new observer subscribes and refetches again each time, '
+      'so create it once, in a State field, a cubit, or a function called '
+      'once, and pass that instance. See https://galaxykhh.github.io/fuery/'
+      'troubleshooting/#a-query-fetches-on-every-rebuild',
+    );
+    return true;
+  }());
+}
+
+/// Forgets which keys were warned about, for tests.
+@visibleForTesting
+void debugResetRecreatedWarnings() => _warnedKeys.clear();
+
 typedef ResultWidgetBuilder<R> = Widget Function(
     BuildContext context, R result);
 
@@ -27,11 +59,16 @@ class ResultSubscriber<S, R> extends StatefulWidget {
     this.listener,
     this.listenWhen,
     this.child,
+    this.debugKey,
   }) : assert(builder != null || child != null);
 
   final S source;
   final R Function(S source) initialResult;
   final void Function() Function(S source, void Function(R) listener) subscribe;
+
+  /// The cache key of [source], for the debug warning about observers
+  /// created on every rebuild.
+  final String? Function(S source)? debugKey;
   final ResultWidgetBuilder<R>? builder;
   final ResultCondition<R>? buildWhen;
   final ResultWidgetListener<R>? listener;
@@ -58,6 +95,12 @@ class _ResultSubscriberState<S, R> extends State<ResultSubscriber<S, R>> {
   void didUpdateWidget(ResultSubscriber<S, R> oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.source, widget.source)) {
+      debugWarnRecreated(
+        widget.builder != null ? 'A builder' : 'A listener',
+        widget.debugKey,
+        oldWidget.source,
+        widget.source,
+      );
       _unsubscribe?.call();
       _subscribe();
     }
@@ -120,11 +163,15 @@ class ResultSelector<S, R, T> extends StatefulWidget {
     required this.subscribe,
     required this.selector,
     required this.builder,
+    this.debugKey,
   });
 
   final S source;
   final R Function(S source) initialResult;
   final void Function() Function(S source, void Function(R) listener) subscribe;
+
+  /// See [ResultSubscriber.debugKey].
+  final String? Function(S source)? debugKey;
   final T Function(R result) selector;
   final ResultWidgetBuilder<T> builder;
 
@@ -149,6 +196,12 @@ class _ResultSelectorState<S, R, T> extends State<ResultSelector<S, R, T>> {
   void didUpdateWidget(ResultSelector<S, R, T> oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.source, widget.source)) {
+      debugWarnRecreated(
+        'A selector',
+        widget.debugKey,
+        oldWidget.source,
+        widget.source,
+      );
       _unsubscribe?.call();
       _subscribe();
     } else {

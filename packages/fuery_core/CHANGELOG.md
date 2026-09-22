@@ -1,3 +1,6 @@
+## 1.1.0
+- No changes. Released together with `fuery` 1.1.0.
+
 ## 1.0.0
 - The public API is stable: from here, a breaking change bumps the major version. No changes since 0.10.0.
 
