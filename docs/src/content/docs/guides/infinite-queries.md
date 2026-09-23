@@ -49,7 +49,7 @@ InfiniteQueryBuilder(
 
 The footer reads `isFetchingNextPage` rather than `isFetching`, so a background refetch of the whole list doesn't replace the button with a spinner.
 
-`fetchNextPage()` cancels a fetch that is already running, including a background refetch of every page, and starts again. Check `isFetching` first, as in the example above, or pass `cancelRefetch: false`.
+`fetchNextPage()` does nothing when `hasNextPage` is false, and a call while the next page is loading waits for that page instead of fetching it again, so a scroll listener can call it as often as it likes. Any other fetch that is running, such as a background refetch of every page, is cancelled first. Check `isFetching`, as in the example above, or pass `cancelRefetch: false` to let that fetch finish instead; the call then loads no page. `fetchPreviousPage()` works the same way with `hasPreviousPage`.
 
 ## InfiniteQueryResult fields
 

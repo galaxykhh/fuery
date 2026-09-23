@@ -329,35 +329,59 @@ class InfiniteQueryObserver<TPage, TParam>
 
   /// Fetches the page after the last loaded page.
   ///
-  /// With [cancelRefetch], a fetch that is already running is cancelled and
-  /// restarted. Check `!result.isFetching` first to avoid that.
+  /// Does nothing when [InfiniteQueryResult.hasNextPage] is false, and joins
+  /// a next page that is already loading, so it is safe to call from a
+  /// scroll listener. With [cancelRefetch], any other fetch that is running,
+  /// such as a refetch of every page, is cancelled first; pass false to wait
+  /// for it instead.
   Future<InfiniteQueryResult<TPage, TParam>> fetchNextPage({
     bool cancelRefetch = true,
     bool throwOnError = false,
-  }) async {
-    final result = await _fetch(
-      _FetchOptions(
-        cancelRefetch: cancelRefetch,
-        direction: _FetchDirection.forward,
-      ),
-      throwOnError,
-    );
-    return result as InfiniteQueryResult<TPage, TParam>;
+  }) {
+    return _fetchPage(_FetchDirection.forward, cancelRefetch, throwOnError);
   }
 
-  /// Fetches the page before the first loaded page.
+  /// Fetches the page before the first loaded page. Like [fetchNextPage],
+  /// with [InfiniteQueryResult.hasPreviousPage].
   Future<InfiniteQueryResult<TPage, TParam>> fetchPreviousPage({
     bool cancelRefetch = true,
     bool throwOnError = false,
-  }) async {
-    final result = await _fetch(
-      _FetchOptions(
-        cancelRefetch: cancelRefetch,
-        direction: _FetchDirection.backward,
-      ),
+  }) {
+    return _fetchPage(_FetchDirection.backward, cancelRefetch, throwOnError);
+  }
+
+  Future<InfiniteQueryResult<TPage, TParam>> _fetchPage(
+    _FetchDirection direction,
+    bool cancelRefetch,
+    bool throwOnError,
+  ) async {
+    _updateQuery();
+    final state = currentQuery.state;
+    final data = state.data;
+    if (data != null) {
+      final behavior =
+          options._behavior! as _InfiniteQueryBehavior<TPage, TParam>;
+      final hasPage = direction == _FetchDirection.forward
+          ? behavior.hasNextPage(data)
+          : behavior.hasPreviousPage(data);
+      // Fetching would return the same pages, but still cancel a refetch in
+      // flight and mark the old pages as fresh.
+      if (!hasPage) {
+        _updateResult();
+        return result;
+      }
+      // Restarting would only fetch the same page again.
+      if (state.fetchStatus != FetchStatus.idle &&
+          state._fetchDirection == direction) {
+        cancelRefetch = false;
+      }
+    }
+
+    final fetched = await _fetch(
+      _FetchOptions(cancelRefetch: cancelRefetch, direction: direction),
       throwOnError,
     );
-    return result as InfiniteQueryResult<TPage, TParam>;
+    return fetched as InfiniteQueryResult<TPage, TParam>;
   }
 
   @override

@@ -271,6 +271,38 @@ void main() {
     expect(stale.last, isTrue);
   });
 
+  fakeTest('isFetchedAfterMount counts from the first listener', (async) {
+    final fetcher = FakeFetcher(() => 'todos');
+    // Created at startup, listened to later.
+    final todos = Query.use(
+      queryKey: ['todos'],
+      queryFn: fetcher.call,
+      staleTime: infiniteDuration,
+      client: client,
+    );
+    client
+        .query(QueryOptions(queryKey: ['todos'], queryFn: fetcher.call))
+        .ignore();
+    async.elapse(ms10);
+
+    expect(todos.getOptimisticResult().isFetchedAfterMount, isFalse);
+    var unsubscribe = todos.subscribe((_) {});
+    async.flushMicrotasks();
+    expect(todos.result.isFetchedAfterMount, isFalse);
+
+    client.invalidateQueries(queryKey: ['todos']);
+    async.elapse(ms10);
+    expect(todos.result.isFetchedAfterMount, isTrue);
+
+    // Listened to again, for example by a screen that opens again.
+    unsubscribe();
+    unsubscribe = todos.subscribe((_) {});
+    async.flushMicrotasks();
+    expect(todos.result.isFetchedAfterMount, isFalse);
+    expect(fetcher.calls, 2);
+    unsubscribe();
+  });
+
   group('infinite queries', () {
     Future<String> fetchPage(InfiniteQueryFunctionContext<int> context) async =>
         'page ${context.pageParam}';
@@ -328,6 +360,92 @@ void main() {
       final optimistic = use().getOptimisticResult();
       expect(optimistic.isRefetching, isTrue);
       expect(optimistic.isFetchingNextPage, isFalse);
+    });
+
+    int? noPage(InfiniteData<String, int> data) => null;
+
+    fakeTest('fetchNextPage without a next page leaves a refetch alone',
+        (async) {
+      var version = 1;
+      final posts = InfiniteQuery.use(
+        queryKey: ['posts'],
+        queryFn: (context) async {
+          final value = 'v$version';
+          await Future<void>.delayed(ms10);
+          return value;
+        },
+        initialPageParam: 1,
+        getNextPageParam: noPage,
+        staleTime: const Duration(minutes: 5),
+        client: client,
+      );
+      posts.subscribe((_) {});
+      async.elapse(ms10);
+
+      version = 2;
+      client.invalidateQueries(queryKey: ['posts']);
+      // A scroll listener reaching the end of the list.
+      posts.fetchNextPage();
+      async.elapse(ms10);
+
+      expect(posts.result.pages, ['v2']);
+    });
+
+    fakeTest('fetching a page that does not exist changes nothing', (async) {
+      final posts = InfiniteQuery.use(
+        queryKey: ['posts'],
+        queryFn: fetchPage,
+        initialPageParam: 1,
+        getNextPageParam: noPage,
+        getPreviousPageParam: noPage,
+        client: client,
+      );
+      posts.subscribe((_) {});
+      async.flushMicrotasks();
+      final before = posts.result;
+      final results = <QueryResult<InfiniteData<String, int>>>[];
+      posts.subscribe(results.add);
+
+      InfiniteQueryResult<String, int>? next;
+      InfiniteQueryResult<String, int>? previous;
+      posts.fetchNextPage().then((result) => next = result);
+      posts.fetchPreviousPage().then((result) => previous = result);
+      async.flushMicrotasks();
+
+      expect(results, isEmpty);
+      expect(next, before);
+      expect(previous, before);
+    });
+
+    fakeTest('fetchNextPage joins a next page that is already loading',
+        (async) {
+      final params = <int>[];
+      final posts = InfiniteQuery.use(
+        queryKey: ['posts'],
+        queryFn: (context) async {
+          params.add(context.pageParam);
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          return 'page ${context.pageParam}';
+        },
+        initialPageParam: 1,
+        getNextPageParam: next,
+        client: client,
+      );
+      posts.subscribe((_) {});
+      async.elapse(const Duration(milliseconds: 100));
+
+      final results = <InfiniteQueryResult<String, int>>[];
+      for (var i = 0; i < 3; i++) {
+        posts.fetchNextPage().then(results.add);
+        async.elapse(const Duration(milliseconds: 20));
+      }
+      async.elapse(const Duration(milliseconds: 100));
+
+      expect(params, [1, 2]);
+      expect(posts.result.pages, ['page 1', 'page 2']);
+      expect(results.map((result) => result.pages), [
+        for (var i = 0; i < 3; i++) ['page 1', 'page 2'],
+      ]);
     });
   });
 

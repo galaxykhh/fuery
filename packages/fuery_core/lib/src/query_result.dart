@@ -52,7 +52,9 @@ class QueryResult<TData extends Object> {
   /// Whether the query has resolved at least once.
   final bool isFetched;
 
-  /// Whether the query resolved after this observer started watching it.
+  /// Whether the query resolved since this observer got its first listener.
+  /// Starts over when the observer is listened to again after all its
+  /// listeners left.
   final bool isFetchedAfterMount;
 
   /// Whether [data] comes from `placeholderData`.

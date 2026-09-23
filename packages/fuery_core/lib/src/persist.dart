@@ -152,6 +152,23 @@ Object? _noVariablesToJson(void variables) => null;
 
 void _noVariablesFromJson(Object? json) {}
 
+/// Decodes a stored query entry, or returns null if it can't be read.
+Map<String, Object?>? _decodeEntry(String raw) {
+  try {
+    return jsonDecode(raw) as Map<String, Object?>;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Whether a stored query [entry] is past the expiry it was stored with.
+/// Entries stored before expiries were recorded have none, and only expire
+/// when their query reads them.
+bool _isExpired(Map<String, Object?> entry) {
+  final expires = entry['e'];
+  return expires is int && now() > expires;
+}
+
 /// Runs a storage call and ignores its errors, so a failing storage never
 /// breaks a query.
 void _ignoreErrors(FutureOr<void> Function() call) {

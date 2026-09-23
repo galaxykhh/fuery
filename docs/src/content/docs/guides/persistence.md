@@ -102,6 +102,8 @@ Fuery discards stored data, and the query fetches as if nothing was stored, when
 - its `version` differs from the query's `version`. Increase `version` when the JSON format changes,
 - it can't be decoded.
 
+`restore()` also deletes stored queries that have expired, using the `maxAge` in effect when they were stored, so the data of a key the app no longer uses doesn't stay in the storage.
+
 ```dart
 persist: QueryPersist(
   version: 2,

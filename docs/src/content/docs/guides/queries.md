@@ -86,7 +86,7 @@ Builders and streams receive a `QueryResult`. Two enums carry the state, and the
 | `isPlaceholderData` | `data` comes from `placeholderData` |
 | `isStale` | Older than `staleTime`, so the next trigger refetches |
 | `isEnabled` | The query may fetch on its own |
-| `isFetched`, `isFetchedAfterMount` | It has fetched at all, and since this observer started |
+| `isFetched`, `isFetchedAfterMount` | It has fetched at all, and since this observer got its first listener |
 
 `failureCount` and `failureReason` describe the attempts since the last success, and `dataUpdatedAt`, `errorUpdatedAt`, and `errorUpdateCount` say when each last changed, in milliseconds since epoch.
 

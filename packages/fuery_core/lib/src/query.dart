@@ -521,7 +521,7 @@ class Query<TData extends Object> extends _Removable {
     _restoreAttempted = true;
 
     final preloaded = _client._takePreloaded(queryHash);
-    if (preloaded != null) return _applyRestored(preloaded);
+    if (preloaded != null) return _applyEntry(preloaded);
 
     final deletions = _client._deletionsDone();
     final FutureOr<String?> value;
@@ -550,14 +550,21 @@ class Query<TData extends Object> extends _Removable {
     // Take the entry either way: a query that already has data must not
     // restore this snapshot after it's garbage collected.
     final preloaded = _client._takePreloaded(queryHash);
-    if (preloaded != null) _applyRestored(preloaded);
+    if (preloaded != null) _applyEntry(preloaded);
   }
 
   void _applyRestored(String? raw) {
+    if (raw == null || _options.persist == null || state.data != null) return;
+    final entry = _decodeEntry(raw);
+    // Stored data that can't be read is discarded.
+    if (entry == null) return _client._deleteStored(_storageKey);
+    _applyEntry(entry);
+  }
+
+  void _applyEntry(Map<String, Object?> entry) {
     final persist = _options.persist;
-    if (raw == null || persist == null || state.data != null) return;
+    if (persist == null || state.data != null) return;
     try {
-      final entry = jsonDecode(raw) as Map<String, Object?>;
       final updatedAt = entry['t']! as int;
       final maxAge = persist.maxAge ?? _client.persistMaxAge;
       if (entry['v'] != persist.version ||
@@ -600,11 +607,15 @@ class Query<TData extends Object> extends _Removable {
         !identical(_cache.get(queryHash), this)) {
       return;
     }
+    final maxAge = persist.maxAge ?? _client.persistMaxAge;
     final String value;
     try {
       value = jsonEncode({
         'v': persist.version,
         't': state.dataUpdatedAt,
+        // Lets restore() delete it once expired, even if the query is never
+        // used again.
+        'e': state.dataUpdatedAt + maxAge.inMilliseconds,
         'd': persist._encode(data),
       });
     } catch (_) {
