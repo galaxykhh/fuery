@@ -47,7 +47,7 @@ test('loads todos', () {
         queries: QueryDefaults(retry: RetryPolicy.never()),
       ),
     );
-    final todos = Query.use(
+    final todos = Query.observe(
       queryKey: ['todos'],
       queryFn: (_) async => ['Buy milk'],
       client: client,

@@ -49,8 +49,8 @@ AbortController: Fuery owns the controller; a query function gets the signal
 AbortSignal.reason: throwIfAborted throws it, so apps meet it as the error
 QueryObserver.currentQuery: the observer attaches itself; apps read results
 
-# Built by the entry points, never by hand.
-MutationOptions: mutations are created with Mutation.use
+# Deprecated names, kept until the next major version.
+NoParamMutationObserver: deprecated alias of NoVariablesMutationObserver
 
 # Names a key or a hash never needs.
 QueryKey: a key is a plain list

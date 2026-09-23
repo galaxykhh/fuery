@@ -437,6 +437,45 @@ class QueryClient {
     return setQueryData<TData>(queryKey, data, updatedAt: updatedAt);
   }
 
+  /// The cached data of the query that [options] describe, or `null`. The
+  /// data type comes from [options].
+  ///
+  /// ```dart
+  /// final Post? post = client.getData(postOptions(id));
+  /// ```
+  TData? getData<TData extends Object>(QueryOptions<TData> options) {
+    return getQueryData<TData>(options.queryKey);
+  }
+
+  /// Writes [data] to the query that [options] describe. Like
+  /// [setQueryData], but a query this creates gets all of [options], so it
+  /// persists the data with [QueryOptions.persist] and can refetch.
+  TData setData<TData extends Object>(
+    QueryOptions<TData> options,
+    TData data, {
+    int? updatedAt,
+  }) {
+    final query = queryCache._build<TData>(this, options);
+    return query._setData(data, updatedAt: updatedAt, manual: true);
+  }
+
+  /// Updates the cached data of the query that [options] describe from its
+  /// current value. Returning `null` from [updater] leaves the cache
+  /// unchanged.
+  ///
+  /// ```dart
+  /// client.updateData(postOptions(id), (post) => post?.copyWith(liked: true));
+  /// ```
+  TData? updateData<TData extends Object>(
+    QueryOptions<TData> options,
+    TData? Function(TData? previous) updater, {
+    int? updatedAt,
+  }) {
+    final data = updater(getData(options));
+    if (data == null) return null;
+    return setData(options, data, updatedAt: updatedAt);
+  }
+
   /// Returns the cached data if it is fresh, otherwise fetches it. Throws if
   /// the fetch fails. Does not retry unless `retry` is set.
   ///

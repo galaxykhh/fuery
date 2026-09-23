@@ -16,7 +16,7 @@ class FeedScreen extends StatefulWidget {
 }
 
 class _FeedScreenState extends State<FeedScreen> {
-  final feed = feedQuery();
+  final feed = feedOptions().observe();
   final likePost = likePostMutation();
 
   @override

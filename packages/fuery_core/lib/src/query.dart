@@ -4,7 +4,7 @@ part of 'core.dart';
 /// it.
 ///
 /// Queries are created and owned by the [QueryCache]. Application code usually
-/// works with a [QueryObserver] from [Query.use], or with [QueryClient].
+/// works with a [QueryObserver] from [Query.observe], or with [QueryClient].
 class Query<TData extends Object> extends _Removable {
   Query._({
     required QueryClient client,
@@ -23,13 +23,68 @@ class Query<TData extends Object> extends _Removable {
   ///
   /// The query fetches when the observer gets its first listener, for example
   /// when a `QueryBuilder` mounts or a bloc listens to [QueryObserver.stream].
+  /// Create the observer once, such as in a `State` field or a cubit, not in
+  /// `build`.
   ///
   /// ```dart
-  /// final todos = Query.use(
+  /// final todos = Query.observe(
   ///   queryKey: ['todos'],
   ///   queryFn: (_) => api.getTodos(),
   /// );
   /// ```
+  ///
+  /// The same as `QueryOptions(...).observe()`. Use [QueryOptions] when the
+  /// query is also fetched with [QueryClient.query] or read from the cache.
+  static QueryObserver<TData> observe<TData extends Object>({
+    required QueryKey queryKey,
+    required QueryFn<TData> queryFn,
+    bool? enabled,
+    Duration? staleTime,
+    Duration? gcTime,
+    Duration? refetchInterval,
+    bool? refetchIntervalInBackground,
+    bool Function(QueryResult<TData> result)? refetchWhile,
+    RefetchMode? refetchOnMount,
+    RefetchMode? refetchOnFocus,
+    RefetchMode? refetchOnReconnect,
+    bool? retryOnMount,
+    RetryPolicy? retry,
+    RetryDelay? retryDelay,
+    NetworkMode? networkMode,
+    TData? initialData,
+    int? initialDataUpdatedAt,
+    PlaceholderDataFn<TData>? placeholderData,
+    bool? structuralSharing,
+    QueryPersist<TData>? persist,
+    Map<String, Object?>? meta,
+    QueryClient? client,
+  }) {
+    return QueryOptions<TData>(
+      queryKey: queryKey,
+      queryFn: queryFn,
+      enabled: enabled,
+      staleTime: staleTime,
+      gcTime: gcTime,
+      refetchInterval: refetchInterval,
+      refetchIntervalInBackground: refetchIntervalInBackground,
+      refetchWhile: refetchWhile,
+      refetchOnMount: refetchOnMount,
+      refetchOnFocus: refetchOnFocus,
+      refetchOnReconnect: refetchOnReconnect,
+      retryOnMount: retryOnMount,
+      retry: retry,
+      retryDelay: retryDelay,
+      networkMode: networkMode,
+      initialData: initialData,
+      initialDataUpdatedAt: initialDataUpdatedAt,
+      placeholderData: placeholderData,
+      structuralSharing: structuralSharing,
+      persist: persist,
+      meta: meta,
+    ).observe(client: client);
+  }
+
+  @Deprecated('Use Query.observe, which takes the same arguments.')
   static QueryObserver<TData> use<TData extends Object>({
     required QueryKey queryKey,
     required QueryFn<TData> queryFn,
@@ -54,31 +109,29 @@ class Query<TData extends Object> extends _Removable {
     Map<String, Object?>? meta,
     QueryClient? client,
   }) {
-    return QueryObserver<TData>(
-      client ?? Fuery.client,
-      QueryOptions<TData>(
-        queryKey: queryKey,
-        queryFn: queryFn,
-        enabled: enabled,
-        staleTime: staleTime,
-        gcTime: gcTime,
-        refetchInterval: refetchInterval,
-        refetchIntervalInBackground: refetchIntervalInBackground,
-        refetchWhile: refetchWhile,
-        refetchOnMount: refetchOnMount,
-        refetchOnFocus: refetchOnFocus,
-        refetchOnReconnect: refetchOnReconnect,
-        retryOnMount: retryOnMount,
-        retry: retry,
-        retryDelay: retryDelay,
-        networkMode: networkMode,
-        initialData: initialData,
-        initialDataUpdatedAt: initialDataUpdatedAt,
-        placeholderData: placeholderData,
-        structuralSharing: structuralSharing,
-        persist: persist,
-        meta: meta,
-      ),
+    return observe(
+      queryKey: queryKey,
+      queryFn: queryFn,
+      enabled: enabled,
+      staleTime: staleTime,
+      gcTime: gcTime,
+      refetchInterval: refetchInterval,
+      refetchIntervalInBackground: refetchIntervalInBackground,
+      refetchWhile: refetchWhile,
+      refetchOnMount: refetchOnMount,
+      refetchOnFocus: refetchOnFocus,
+      refetchOnReconnect: refetchOnReconnect,
+      retryOnMount: retryOnMount,
+      retry: retry,
+      retryDelay: retryDelay,
+      networkMode: networkMode,
+      initialData: initialData,
+      initialDataUpdatedAt: initialDataUpdatedAt,
+      placeholderData: placeholderData,
+      structuralSharing: structuralSharing,
+      persist: persist,
+      meta: meta,
+      client: client,
     );
   }
 

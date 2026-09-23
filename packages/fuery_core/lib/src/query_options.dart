@@ -297,6 +297,26 @@ class QueryOptions<TData extends Object> {
 
   final bool _defaulted;
 
+  /// Returns an observer that watches this query, with [Fuery.client] unless
+  /// [client] is given. The query fetches when the observer gets its first
+  /// listener. Create the observer once, not in `build`.
+  ///
+  /// Define a query once as options, then observe it in widgets, fetch it
+  /// with [QueryClient.query], and read or write its data with
+  /// [QueryClient.getData] and [QueryClient.updateData]:
+  ///
+  /// ```dart
+  /// QueryOptions<Post> postOptions(int id) => QueryOptions(
+  ///       queryKey: ['posts', id],
+  ///       queryFn: (_) => api.getPost(id),
+  ///     );
+  ///
+  /// late final post = postOptions(widget.id).observe();
+  /// ```
+  QueryObserver<TData> observe({QueryClient? client}) {
+    return QueryObserver<TData>(client ?? Fuery.client, this);
+  }
+
   QueryOptions<TData> _withDefaults(QueryDefaults defaults) {
     final networkMode = this.networkMode ?? defaults.networkMode;
     return QueryOptions<TData>._defaulted(

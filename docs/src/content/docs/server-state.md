@@ -26,7 +26,7 @@ Hold server data in the same place as app state and you end up writing the cache
 Fuery gives that data a key and keeps it in one cache:
 
 ```dart
-final todos = Query.use(
+final todos = Query.observe(
   queryKey: ['todos'],
   queryFn: (_) => api.getTodos(),
 );

@@ -189,9 +189,9 @@ void main() {
       });
       final onFirst = FakeFetcher(() => 'a');
       final onSecond = FakeFetcher(() => 'b');
-      Query.use(queryKey: ['a'], queryFn: onFirst.call, client: first)
+      Query.observe(queryKey: ['a'], queryFn: onFirst.call, client: first)
           .subscribe((_) {});
-      Query.use(queryKey: ['b'], queryFn: onSecond.call, client: second)
+      Query.observe(queryKey: ['b'], queryFn: onSecond.call, client: second)
           .subscribe((_) {});
       async.elapse(ms10);
 
@@ -215,19 +215,19 @@ void main() {
         Fuery.client = original;
       });
 
-      final query = Query.use(queryKey: ['a'], queryFn: (_) async => 'a');
-      final pages = InfiniteQuery.use(
+      final query = Query.observe(queryKey: ['a'], queryFn: (_) async => 'a');
+      final pages = InfiniteQuery.observe(
         queryKey: ['b'],
         queryFn: (context) async => context.pageParam,
         initialPageParam: 1,
         getNextPageParam: (_) => null,
       );
-      final mutation = Mutation.use(mutationFn: (int x) async => x);
-      final noParam = Mutation.noParam(mutationFn: () async => 1);
+      final mutation = Mutation.observe(mutationFn: (int x) async => x);
+      final refresh = Mutation.noVariables(mutationFn: () async => 1);
       query.subscribe((_) {});
       pages.subscribe((_) {});
       mutation.mutate(1);
-      noParam.mutate();
+      refresh.mutate();
       async.flushMicrotasks();
 
       expect(client.getQueryData<String>(['a']), 'a');
@@ -318,7 +318,7 @@ void main() {
     await runZonedGuarded(
       () async {
         final client = QueryClient();
-        final mutation = Mutation.use(
+        final mutation = Mutation.observe(
           mutationFn: (int x) async => throw StateError('mutation'),
           onError: (_, __, ___) => throw StateError('callback'),
           client: client,

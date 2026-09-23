@@ -320,7 +320,7 @@ void main() {
   fakeTest('polls only while refetchWhile returns true', (async) {
     var status = 'running';
     final fetcher = FakeFetcher(() => status);
-    final observer = Query.use(
+    final observer = Query.observe(
       queryKey: ['job'],
       queryFn: fetcher.call,
       refetchInterval: const Duration(seconds: 1),

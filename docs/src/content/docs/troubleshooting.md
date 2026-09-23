@@ -19,12 +19,14 @@ Dart infers `List<dynamic>` for the empty list, which isn't the `List<Todo>` the
 client.setQueryData<List<Todo>>(['todos'], []);
 ```
 
+`setData` with the query's options takes the type from them, so this can't happen: `client.setData(todosOptions(), [])`. See [Organizing queries](../guides/organizing-queries/).
+
 ## The data type is Object instead of my model
 
-Passing a generic function such as `keepPreviousData` to `Query.use` makes Dart infer the data type from that function rather than from `queryFn`:
+Passing a generic function such as `keepPreviousData` to `Query.observe` makes Dart infer the data type from that function rather than from `queryFn`:
 
 ```dart
-final posts = Query.use(
+final posts = Query.observe(
   queryKey: ['posts', 1],
   queryFn: (_) => api.getPosts(1),
   placeholderData: keepPreviousData, // posts is QueryObserver<Object>
@@ -54,11 +56,11 @@ Unsubscribe any observer you subscribed by hand before `clear()`. Clearing moves
 
 A query captures its client when you create it. A query declared at the top level of a file therefore keeps the client from the first test that used it, while later tests create fresh clients that never see it.
 
-Declare shared queries as functions instead, so each caller gets a query on the current client:
+Declare shared queries as options instead, and observe them where they are used. `observe()` takes the current client each time:
 
 ```dart
-QueryObserver<List<Todo>> todosQuery() =>
-    Query.use(queryKey: ['todos'], queryFn: (_) => api.getTodos());
+QueryOptions<List<Todo>> todosOptions() =>
+    QueryOptions(queryKey: ['todos'], queryFn: (_) => api.getTodos());
 ```
 
 See [Which client a query uses](../guides/query-client/#which-client-a-query-uses).
@@ -113,7 +115,7 @@ A query fails when its query function throws. A repository that returns a result
 A form seeded from a query is overwritten when a background refetch returns. Seed the controllers once, and stop the query refetching while the form is open:
 
 ```dart
-final todo = Query.use(
+final todo = Query.observe(
   queryKey: ['todos', 'detail', id],
   queryFn: (_) => api.getTodo(id),
   refetchOnMount: RefetchMode.never,
@@ -129,15 +131,15 @@ Every widget that starts using a query refetches it when the data is stale, and 
 
 ## A query fetches on every rebuild
 
-`Query.use` in a `build` method creates a new query object each time. Create it once in a `State` field, a cubit, or a function that widgets call:
+`Query.observe` in a `build` method creates a new query object each time. Create it once in a `State` field, a cubit, or a function that widgets call:
 
 ```dart
 class _TodosScreenState extends State<TodosScreen> {
-  final todos = Query.use(queryKey: ['todos'], queryFn: (_) => api.getTodos());
+  final todos = Query.observe(queryKey: ['todos'], queryFn: (_) => api.getTodos());
 }
 ```
 
-The same happens when the object is created inline, as in `QueryBuilder(query: Query.use(...))`, or by a factory such as `todosQuery()` called from `build`. Call the factory once, store the result, and pass that down.
+The same happens when the object is created inline, as in `QueryBuilder(query: Query.observe(...))`, or by `todosOptions().observe()` called from `build`. Options are safe to create anywhere; call `observe()` once, store the observer, and pass that down.
 
 In debug builds, a Fuery widget that gets a new observer for the same key on a rebuild prints a warning to the console, once per key, with a link here.
 

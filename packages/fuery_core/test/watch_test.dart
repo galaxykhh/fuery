@@ -23,7 +23,7 @@ void main() {
     async.flushMicrotasks();
     expect(values, [0]);
 
-    final unsubscribe = Query.use(
+    final unsubscribe = Query.observe(
       queryKey: ['todos'],
       queryFn: FakeFetcher(() => 'todos').call,
       client: client,
@@ -83,7 +83,7 @@ void main() {
   fakeTest('follows mutations', (async) {
     final values = <int>[];
     client.watch((client) => client.isMutating()).listen(values.add);
-    final addTodo = Mutation.use(
+    final addTodo = Mutation.observe(
       mutationFn: (String title) async {
         await Future<void>.delayed(ms10);
         return title;
@@ -145,7 +145,7 @@ void main() {
 
     subscription.cancel();
     client.setQueryData(['a'], 'a');
-    Mutation.use(mutationFn: (int x) async => x, client: client).mutate(1);
+    Mutation.observe(mutationFn: (int x) async => x, client: client).mutate(1);
     async.flushMicrotasks();
     expect(reads, 1);
   });

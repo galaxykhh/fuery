@@ -9,7 +9,7 @@ other, a plain query with
 [placeholder data](../queries/#keeping-the-previous-page-on-screen) fits better.
 
 ```dart
-final posts = InfiniteQuery.use(
+final posts = InfiniteQuery.observe(
   queryKey: ['posts'],
   queryFn: (context) => api.getPosts(page: context.pageParam),
   initialPageParam: 1,
@@ -80,7 +80,7 @@ Builders and streams receive an `InfiniteQueryResult`. It carries every [`QueryR
 APIs that return a cursor for the next page work the same way. If the first request has no cursor, give `null` its type so Dart can infer the param type:
 
 ```dart
-final items = InfiniteQuery.use(
+final items = InfiniteQuery.observe(
   queryKey: ['items'],
   queryFn: (context) => api.getItems(cursor: context.pageParam),
   initialPageParam: null as String?,
@@ -97,7 +97,7 @@ Add `getPreviousPageParam` and call `fetchPreviousPage()` for lists that start i
 `maxPages` caps the number of cached pages. At the cap, loading a next page drops the first page, and loading a previous page drops the last one:
 
 ```dart
-final messages = InfiniteQuery.use(
+final messages = InfiniteQuery.observe(
   queryKey: ['messages', roomId],
   queryFn: (context) => api.getMessages(cursor: context.pageParam),
   initialPageParam: null as String?,
@@ -115,12 +115,12 @@ Refetching an infinite query reloads every loaded page in order. It starts from 
 
 ## Keeping an infinite query in a function
 
-`InfiniteQuery.use` returns an `InfiniteQueryObserver<TPage, TParam>`: the page type first, the page param type second. Name it when you move the query into a function, as [Organizing queries](../organizing-queries/) suggests:
+`InfiniteQuery.observe` returns an `InfiniteQueryObserver<TPage, TParam>`: the page type first, the page param type second. Name it when you move the query into a function, as [Organizing queries](../organizing-queries/) suggests:
 
 ```dart
 // lib/data/post_queries.dart
 InfiniteQueryObserver<PostPage, int> postsQuery() {
-  return InfiniteQuery.use(
+  return InfiniteQuery.observe(
     queryKey: ['posts'],
     queryFn: (context) => api.getPosts(page: context.pageParam),
     initialPageParam: 1,

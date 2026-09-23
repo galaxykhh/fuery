@@ -31,7 +31,7 @@ class TodoListScreen extends StatefulWidget {
 }
 
 class _TodoListScreenState extends State<TodoListScreen> {
-  final todos = Query.use(
+  final todos = Query.observe(
     queryKey: ['todos'],
     queryFn: (_) => api.getTodos(),
   );
@@ -59,7 +59,7 @@ Creating a query does not fetch, so it doesn't need to be `late`. Use `late fina
 ## Queries
 
 ```dart
-final todo = Query.use(
+final todo = Query.observe(
   queryKey: ['todos', id],
   queryFn: (context) => api.getTodo(id),
   staleTime: const Duration(minutes: 1),
@@ -70,11 +70,11 @@ final todo = Query.use(
 
 Query data can't be `null`, because `null` means "no data yet". Use a non-nullable type like `Future<User>`, and throw or return an empty value when there's nothing.
 
-Each key holds one data type. Using a key with a different type, for example `setQueryData(['todos'], [])` for a `List<Todo>` query, throws a `StateError`. Write `setQueryData<List<Todo>>(['todos'], [])` instead.
+Each key holds one data type. Using a key with a different type, for example `setQueryData(['todos'], [])` for a `List<Todo>` query, throws a `StateError`. Write `setQueryData<List<Todo>>(['todos'], [])`, or define the query once as options and write with `setData`, which takes the type from them (see [QueryClient](#queryclient)).
 
 **Freshness.** Data is *fresh* for `staleTime` (default: zero) and *stale* afterwards. Stale data is still shown, and it's refetched in the background when:
 
-- a query object from `Query.use` gets its first listener, for example when the first widget using it mounts,
+- a query object from `Query.observe` gets its first listener, for example when the first widget using it mounts,
 - the app returns to the foreground,
 - the network reconnects,
 - it is invalidated.
@@ -114,7 +114,7 @@ Unused queries stay cached for `gcTime` (default: 5 minutes), so going back to a
 **Polling until done.** `refetchWhile` is checked on every change, so polling stops when it returns false and resumes when it returns true again:
 
 ```dart
-final job = Query.use(
+final job = Query.observe(
   queryKey: ['jobs', id],
   queryFn: (_) => api.getJob(id),
   refetchInterval: const Duration(seconds: 2),
@@ -182,7 +182,7 @@ QuerySelector(
 Mutations create, update, or delete server data:
 
 ```dart
-final addTodo = Mutation.use(
+final addTodo = Mutation.observe(
   mutationFn: (String title) => api.addTodo(title),
   onSuccess: (todo, title, context) {
     return Fuery.client.invalidateQueries(queryKey: ['todos']);
@@ -198,7 +198,7 @@ Returning the `invalidateQueries` future from `onSuccess` keeps the mutation pen
 **Optimistic updates.** Cancel refetches of the data first, then update the cache in `onMutate` and return what you need to roll back. The returned value is passed to the other callbacks as `context`:
 
 ```dart
-final deleteTodo = Mutation.use(
+final deleteTodo = Mutation.observe(
   mutationFn: (int id) => api.deleteTodo(id),
   onMutate: (id) async {
     // Keep a refetch in flight from overwriting the optimistic update.
@@ -216,10 +216,10 @@ final deleteTodo = Mutation.use(
 );
 ```
 
-**Without variables**, use `Mutation.noParam` and call `mutate()`:
+**Without variables**, use `Mutation.noVariables` and call `mutate()`:
 
 ```dart
-final logout = Mutation.noParam(mutationFn: () => api.logout());
+final logout = Mutation.noVariables(mutationFn: () => api.logout());
 logout.mutate();
 ```
 
@@ -228,7 +228,7 @@ Mutations don't retry unless you set `retry`. With a `scope`, mutations that sha
 ## Infinite queries
 
 ```dart
-final posts = InfiniteQuery.use(
+final posts = InfiniteQuery.observe(
   queryKey: ['posts'],
   queryFn: (context) => api.getPosts(page: context.pageParam),
   initialPageParam: 1,
@@ -267,7 +267,7 @@ getNextPageParam: (data) => data.lastPage.nextCursor,
 `streamedQuery` builds a query function from a `Stream` that ends, such as a streamed answer. The query succeeds with the first chunk and keeps fetching until the stream is done, and `combine` folds each chunk into the data:
 
 ```dart
-final answer = Query.use(
+final answer = Query.observe(
   queryKey: ['answer', question],
   queryFn: streamedQuery(
     stream: (context) => api.ask(question),
@@ -291,7 +291,7 @@ class TodoCubit extends Cubit<TodoState> {
     });
   }
 
-  final _todos = Query.use(queryKey: ['todos'], queryFn: (_) => api.getTodos());
+  final _todos = Query.observe(queryKey: ['todos'], queryFn: (_) => api.getTodos());
   late final StreamSubscription<QueryResult<List<Todo>>> _subscription;
 
   Future<void> refresh() => _todos.refetch();
@@ -336,14 +336,25 @@ StreamBuilder(
 )
 ```
 
+**Defining a query once.** `QueryOptions` holds a query's key, function, and options. Observe it, fetch it, and read or write its data from the same options, with the data type taken from them:
+
+```dart
+QueryOptions<List<Todo>> todosOptions() =>
+    QueryOptions(queryKey: ['todos'], queryFn: (_) => api.getTodos());
+
+late final todos = todosOptions().observe();    // like Query.observe
+client.getData(todosOptions());                 // List<Todo>?
+client.updateData(todosOptions(), (todos) => [...?todos, todo]);
+```
+
+A query that `setData` or `updateData` creates gets all of the options, so it persists its data and can refetch. `infiniteQueryOptions(...)` and `MutationOptions(...)` have `observe()` too.
+
 **Fetching outside widgets.** `client.query` returns cached data if it's fresh, and fetches otherwise. It throws on failure and doesn't retry unless you set `retry`:
 
 ```dart
-final todosQuery = QueryOptions(queryKey: ['todos'], queryFn: (_) => api.getTodos());
-
-final todos = await client.query(todosQuery);   // fetch, or use fresh cache
-client.query(todosQuery).ignore();              // prefetch: ignore result and errors
-final cached = await client.query(QueryOptions( // use any cached data
+final todos = await client.query(todosOptions()); // fetch, or use fresh cache
+client.query(todosOptions()).ignore();            // prefetch: ignore result and errors
+final cached = await client.query(QueryOptions(   // use any cached data
   queryKey: ['todos'],
   queryFn: (_) => api.getTodos(),
   staleTime: staticStaleTime,
@@ -372,7 +383,7 @@ Fuery.client.setQueryDefaults(
 ```dart
 FueryProvider(client: QueryClient(), child: const App());
 
-late final todos = Query.use(
+late final todos = Query.observe(
   queryKey: ['todos'],
   queryFn: (_) => api.getTodos(),
   client: context.queryClient,
@@ -388,7 +399,7 @@ Give the client a `QueryStorage`, and add `persist` to the queries worth keeping
 ```dart
 Fuery.client = QueryClient(storage: PreferencesStorage(preferences));
 
-final todos = Query.use(
+final todos = Query.observe(
   queryKey: ['todos'],
   queryFn: (_) => api.getTodos(),
   persist: QueryPersist(

@@ -1,3 +1,8 @@
+## 1.2.0
+- Define a query once as options: `QueryOptions`, `InfiniteQueryOptions`, and `MutationOptions` have `observe()`, which returns their observer, and `QueryClient.getData`, `setData`, and `updateData` read and write a query's data with the type taken from its options. A query that `setData` creates gets all of the options, so it persists its data and can refetch.
+- `Query.observe`, `InfiniteQuery.observe`, and `Mutation.observe` replace `Query.use`, `InfiniteQuery.use`, and `Mutation.use`, and `Mutation.noVariables` with `NoVariablesMutationObserver` replaces `Mutation.noParam` with `NoParamMutationObserver`. The old names are deprecated and keep working until 2.0.
+- Fix: `MutationOptions(...)` infers its types without type arguments in apps that enable `strict-inference`.
+
 ## 1.1.1
 - Fix: `fetchNextPage()` and `fetchPreviousPage()` do nothing when there is no such page, instead of cancelling a refetch in flight and marking the old pages as fresh. A call while that page is already loading waits for it instead of fetching it again.
 - Fix: `isFetchedAfterMount` counts from when the observer gets its first listener, and starts over when it is listened to again, instead of from when the observer was created.

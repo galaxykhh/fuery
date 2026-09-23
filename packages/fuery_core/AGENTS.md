@@ -5,7 +5,8 @@ Pure Dart. Never import Flutter. Runtime dependencies are limited to `clock`, `c
 ## Structure
 
 - `QueryClient` owns a `QueryCache` of `Query`s and a `MutationCache` of `Mutation`s.
-- `QueryObserver` / `InfiniteQueryObserver` / `MutationObserver` hold per-subscriber options and report results. `Query.use`, `InfiniteQuery.use`, and `Mutation.use` return observers; a query fetches when its observer gets its first listener.
+- `QueryObserver` / `InfiniteQueryObserver` / `MutationObserver` hold per-subscriber options and report results. `Query.observe`, `InfiniteQuery.observe`, `Mutation.observe`, and the `observe()` of `QueryOptions`, `InfiniteQueryOptions`, and `MutationOptions` return observers; a query fetches when its observer gets its first listener. The named-argument entry points build options and call `observe()`, so behavior lives in one place.
+- `Query.use`, `InfiniteQuery.use`, `Mutation.use`, `Mutation.noParam`, and `NoParamMutationObserver` are deprecated forwarders kept until 2.0. Don't use them outside `test/deprecated_test.dart`.
 - The query and mutation classes are `part` files of `lib/src/core.dart` so they can share private members. Add related classes there. Anything only the library itself calls (building, adding, and removing cache entries, fetching, state actions, change notifications, garbage collection in `removable.dart`) stays private with a leading `_`. `QueryCache` and `MutationCache` expose only reads (`get`, `getAll`, `find`, `findAll`); `QueryClient.watch` is the only way to observe them. Standalone pieces (`retryer.dart`, `notify_manager.dart`, `focus_manager.dart`, `online_manager.dart`, `utils.dart`, `abort.dart`) are separate libraries.
 - `lib/fuery_core.dart` controls the public API with `show`/`hide`. Export new public types there.
 
@@ -19,7 +20,7 @@ Pure Dart. Never import Flutter. Runtime dependencies are limited to `clock`, `c
 - A future that may be dropped must not leak errors: use `.ignore()` or `then(..., onError: ...)`.
 - Cancel every `Timer` in the matching destroy/clear path. Leftover timers keep Dart processes alive and fail Flutter widget tests.
 - Generics are covariant. Don't read function-typed fields that take `TData` (such as `placeholderData`) through a widened type like `Query<Object>`; do it inside the generic class. `QueryCache._build` compares data types exactly and throws a `StateError` on a mismatch.
-- Put options that need a new type variable for inference on generic functions (see `InfiniteQuery.use` and `infiniteQueryOptions`), not only on constructors.
+- Put options that need a new type variable for inference on generic functions (see `InfiniteQuery.observe` and `infiniteQueryOptions`), not only on constructors.
 - `removeQueries` and `clear` move observers that are still subscribed to a new query for the key, which loads again. They do it after deleting stored data, so the new query can't restore it.
 - A cancel updates the state when it happens (revert, or an error for `revert: false`); a silent cancel that nothing replaces returns the query to idle. Cancel errors never reach the cache callbacks, and a settling fetch never overwrites a fetch or write that came after it.
 - Observers decide whether to fetch on mount after an asynchronous restore finishes, so `refetchOnMount` applies to restored data.

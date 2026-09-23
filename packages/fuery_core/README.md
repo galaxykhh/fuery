@@ -16,12 +16,12 @@ dart pub add fuery_core
 
 ## Queries
 
-`Query.use` returns a `QueryObserver`. It fetches when it gets its first listener, and shares one cache entry and one request with every other observer of the same key.
+`Query.observe` returns a `QueryObserver`. It fetches when it gets its first listener, and shares one cache entry and one request with every other observer of the same key.
 
 ```dart
 import 'package:fuery_core/fuery_core.dart';
 
-final todos = Query.use(
+final todos = Query.observe(
   queryKey: ['todos'],
   queryFn: (context) => api.getTodos(),
   staleTime: const Duration(minutes: 1),
@@ -40,7 +40,7 @@ The stream sends the current `QueryResult` first, then every change. You can als
 To poll until something finishes, combine `refetchInterval` with `refetchWhile`:
 
 ```dart
-final job = Query.use(
+final job = Query.observe(
   queryKey: ['jobs', id],
   queryFn: (_) => api.getJob(id),
   refetchInterval: const Duration(seconds: 2),
@@ -51,7 +51,7 @@ final job = Query.use(
 `streamedQuery` folds a `Stream` that ends into the query data, and the query succeeds with the first chunk:
 
 ```dart
-final answer = Query.use(
+final answer = Query.observe(
   queryKey: ['answer', question],
   queryFn: streamedQuery(
     stream: (context) => api.ask(question),
@@ -64,7 +64,7 @@ final answer = Query.use(
 ## Mutations
 
 ```dart
-final addTodo = Mutation.use(
+final addTodo = Mutation.observe(
   mutationFn: (String title) => api.addTodo(title),
   onSuccess: (todo, title, context) =>
       Fuery.client.invalidateQueries(queryKey: ['todos']),
@@ -77,7 +77,7 @@ addTodo.mutate('Buy milk'); // reports errors in addTodo.result instead
 ## Infinite queries
 
 ```dart
-final posts = InfiniteQuery.use(
+final posts = InfiniteQuery.observe(
   queryKey: ['posts'],
   queryFn: (context) => api.getPosts(page: context.pageParam),
   initialPageParam: 1,
@@ -100,11 +100,13 @@ Fuery.client = QueryClient(
   ),
 );
 
+final todosOptions =
+    QueryOptions(queryKey: ['todos'], queryFn: (_) => api.getTodos());
+
+final todos = todosOptions.observe();              // an observer, like Query.observe
+final data = await Fuery.client.query(todosOptions); // fetch, or use fresh cache
+Fuery.client.updateData(todosOptions, (todos) => [...?todos, todo]);
 Fuery.client.invalidateQueries(queryKey: ['todos']);
-Fuery.client.setQueryData(['todos', 1], todo);
-final data = await Fuery.client.query(
-  QueryOptions(queryKey: ['todos'], queryFn: (_) => api.getTodos()),
-);
 ```
 
 To keep data across restarts, give the client a `QueryStorage` and add `persist` to a query. A mutation takes `persist: MutationPersist(...)` and a `mutationKey` the same way, and `client.restore(mutations: [...])` runs the ones that were still waiting when the process ended:
@@ -112,7 +114,7 @@ To keep data across restarts, give the client a `QueryStorage` and add `persist`
 ```dart
 Fuery.client = QueryClient(storage: myStorage); // your QueryStorage, see the persistence guide
 
-final todos = Query.use(
+final todos = Query.observe(
   queryKey: ['todos'],
   queryFn: (_) => api.getTodos(),
   persist: QueryPersist(

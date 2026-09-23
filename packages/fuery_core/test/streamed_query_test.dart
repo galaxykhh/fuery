@@ -29,7 +29,7 @@ void main() {
     StreamRefetchMode refetchMode = StreamRefetchMode.reset,
     bool readsSignal = false,
   }) {
-    return Query.use(
+    return Query.observe(
       queryKey: queryKey,
       queryFn: streamedQuery(
         stream: (context) {
@@ -70,7 +70,7 @@ void main() {
   });
 
   fakeTest('an empty stream succeeds with the initial value', (async) {
-    final observer = Query.use(
+    final observer = Query.observe(
       queryKey: ['empty'],
       queryFn: streamedQuery(
         stream: (context) => const Stream<String>.empty(),
@@ -174,7 +174,7 @@ void main() {
 
     fakeTest('an error in combine fails the query', (async) {
       final controller = StreamController<String>();
-      final observer = Query.use(
+      final observer = Query.observe(
         queryKey: ['answer'],
         queryFn: streamedQuery(
           stream: (context) => controller.stream,
@@ -195,7 +195,7 @@ void main() {
     fakeTest('handles a stream that fails while it is listened to', (async) {
       final controller = StreamController<String>(sync: true);
       controller.onListen = () => controller.add('bad');
-      final observer = Query.use(
+      final observer = Query.observe(
         queryKey: ['answer'],
         queryFn: streamedQuery(
           stream: (context) => controller.stream,

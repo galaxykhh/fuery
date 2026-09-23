@@ -43,7 +43,7 @@ void main() {
     QueryPersist<List<String>>? persist,
     QueryClient? on,
   }) {
-    return Query.use(
+    return Query.observe(
       queryKey: queryKey,
       queryFn: fetcher.call,
       staleTime: staleTime,
@@ -77,7 +77,7 @@ void main() {
 
     fakeTest('stores a streamed query once the stream is done', (async) {
       final controller = StreamController<String>();
-      Query.use(
+      Query.observe(
         queryKey: ['answer'],
         queryFn: streamedQuery(
           stream: (context) => controller.stream,
@@ -104,7 +104,7 @@ void main() {
     });
 
     fakeTest('stores nothing without persist or without a storage', (async) {
-      Query.use(
+      Query.observe(
         queryKey: ['plain'],
         queryFn: FakeFetcher(() => 'a').call,
         client: client,
@@ -131,6 +131,18 @@ void main() {
 
       expect(memory.entries, isEmpty);
     });
+  });
+
+  fakeTest('setData stores data before anything observes the query', (async) {
+    final todos = QueryOptions(
+      queryKey: ['todos'],
+      queryFn: FakeFetcher(() => ['fetched']).call,
+      persist: todosPersist,
+    );
+    client.setData(todos, ['offline']);
+    async.flushMicrotasks();
+
+    expect(stored(memory, ['todos']), ['offline']);
   });
 
   group('restoring', () {
@@ -210,7 +222,7 @@ void main() {
 
     fakeTest('restores when a persist option is added later', (async) {
       memory.entries[storageKey(['todos'])] = entry(['stored']);
-      final observer = Query.use(
+      final observer = Query.observe(
         queryKey: ['todos'],
         queryFn: FakeFetcher(() => ['fetched']).call,
         client: client,
@@ -505,7 +517,7 @@ void main() {
         FakeFetcher<List<String>> fetcher,
         RefetchMode refetchOnMount,
       ) {
-        return Query.use(
+        return Query.observe(
           queryKey: queryKey,
           queryFn: fetcher.call,
           staleTime: const Duration(minutes: 5),
@@ -567,7 +579,7 @@ void main() {
       memory.entries[storageKey(['todos'])] = entry(['v1']);
       final asyncClient = createClient(AsyncStorage(memory));
       QueryObserver<List<String>> use({Duration? gcTime}) {
-        return Query.use(
+        return Query.observe(
           queryKey: ['todos'],
           queryFn: FakeFetcher(() => ['fetched']).call,
           staleTime: const Duration(minutes: 5),
@@ -610,7 +622,7 @@ void main() {
 
   group('infinite queries', () {
     InfiniteQueryObserver<String, int> pages(QueryClient on) {
-      return InfiniteQuery.use(
+      return InfiniteQuery.observe(
         queryKey: ['pages'],
         queryFn: (context) async => 'page ${context.pageParam}',
         initialPageParam: 1,
@@ -639,7 +651,7 @@ void main() {
 
     fakeTest('uses codecs for params', (async) {
       InfiniteQueryObserver<String, DateTime> byDate(QueryClient on) {
-        return InfiniteQuery.use(
+        return InfiniteQuery.observe(
           queryKey: ['days'],
           queryFn: (context) async => 'day ${context.pageParam.day}',
           initialPageParam: DateTime.utc(2026, 9, 1),

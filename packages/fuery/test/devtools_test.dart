@@ -74,7 +74,7 @@ void main() {
     Duration delay = ms10,
     Duration? staleTime,
   }) {
-    return Query.use(
+    return Query.observe(
       queryKey: key,
       queryFn: (_) async {
         await Future<void>.delayed(delay);
@@ -181,7 +181,7 @@ void main() {
   testWidgets('shows the selected query and runs actions on it',
       (tester) async {
     var fetches = 0;
-    final todos = Query.use(
+    final todos = Query.observe(
       queryKey: ['todos'],
       queryFn: (_) async {
         fetches++;
@@ -222,7 +222,7 @@ void main() {
     tester.view.physicalSize = const Size(1200, 4800);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
-    final failing = Query.use(
+    final failing = Query.observe(
       queryKey: ['broken'],
       queryFn: (_) async => throw StateError('offline'),
       client: client,
@@ -241,12 +241,12 @@ void main() {
   });
 
   testWidgets('lists mutations, newest first', (tester) async {
-    final save = Mutation.use(
+    final save = Mutation.observe(
       mutationKey: ['todos', 'save'],
       mutationFn: (String title) async => title,
       client: client,
     );
-    final fail = Mutation.use(
+    final fail = Mutation.observe(
       mutationFn: (int id) async => throw StateError('nope'),
       client: client,
     );
@@ -333,7 +333,7 @@ void main() {
 
   testWidgets('labels disabled queries and unobserved paused fetches',
       (tester) async {
-    final disabled = Query.use(
+    final disabled = Query.observe(
       queryKey: ['off'],
       queryFn: (_) async => 'data',
       enabled: false,

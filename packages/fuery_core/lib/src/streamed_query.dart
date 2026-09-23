@@ -22,7 +22,7 @@ enum StreamRefetchMode {
 /// to the value so far, starting from [initialValue]:
 ///
 /// ```dart
-/// final answer = Query.use(
+/// final answer = Query.observe(
 ///   queryKey: ['answer', question],
 ///   queryFn: streamedQuery(
 ///     stream: (context) => api.ask(question),

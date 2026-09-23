@@ -144,6 +144,32 @@ void main() {
 
       expect(() => client.setQueryData<int>(['todos'], 1), throwsStateError);
     });
+
+    fakeTest('setData creates a query that can refetch', (async) {
+      final fetcher = FakeFetcher(() => 'fetched');
+      final todos = QueryOptions(queryKey: ['todos'], queryFn: fetcher.call);
+
+      client.setData(todos, 'seeded');
+      expect(client.getData(todos), 'seeded');
+
+      client.refetchQueries(queryKey: ['todos']);
+      async.elapse(ms10);
+      expect(fetcher.calls, 1);
+      expect(client.getData(todos), 'fetched');
+    });
+
+    fakeTest('updateData derives from the previous value', (async) {
+      final numbers = QueryOptions(
+        queryKey: ['numbers'],
+        queryFn: (_) async => <int>[],
+      );
+      client.setData(numbers, [1, 2], updatedAt: 5);
+      expect(client.getQueryState(['numbers'])!.dataUpdatedAt, 5);
+
+      expect(client.updateData(numbers, (old) => [...?old, 3]), [1, 2, 3]);
+      expect(client.updateData(numbers, (old) => null), isNull);
+      expect(client.getData(numbers), [1, 2, 3]);
+    });
   });
 
   group('query', () {
@@ -517,12 +543,12 @@ void main() {
       const MutationDefaults(retry: RetryPolicy.count(2)),
     );
 
-    final todo = Mutation.use(
+    final todo = Mutation.observe(
       mutationFn: (int id) async => id,
       mutationKey: ['todos', 'add'],
       client: client,
     );
-    final other = Mutation.use(
+    final other = Mutation.observe(
       mutationFn: (int id) async => id,
       mutationKey: ['posts'],
       client: client,
@@ -534,7 +560,7 @@ void main() {
 
   fakeTest('resumePausedMutations does nothing while offline', (async) {
     onlineManager.setOnline(false);
-    final mutation = Mutation.use(
+    final mutation = Mutation.observe(
       mutationFn: (int id) async => id,
       client: client,
     );

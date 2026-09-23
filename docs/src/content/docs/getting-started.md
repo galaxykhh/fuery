@@ -29,7 +29,7 @@ class TodoListScreen extends StatefulWidget {
 }
 
 class _TodoListScreenState extends State<TodoListScreen> {
-  final todos = Query.use(
+  final todos = Query.observe(
     queryKey: ['todos'],
     queryFn: (_) => api.getTodos(),
   );

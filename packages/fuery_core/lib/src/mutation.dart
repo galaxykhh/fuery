@@ -3,7 +3,7 @@ part of 'core.dart';
 /// A single execution of a mutation, stored in the [MutationCache].
 ///
 /// Application code usually works with a [MutationObserver] from
-/// [Mutation.use].
+/// [Mutation.observe].
 class Mutation<TData, TVariables, TContext> extends _Removable {
   Mutation._({
     required QueryClient client,
@@ -19,7 +19,7 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
   /// Creates an observer for a mutation that takes [TVariables].
   ///
   /// ```dart
-  /// final addTodo = Mutation.use(
+  /// final addTodo = Mutation.observe(
   ///   mutationFn: (String title) => api.addTodo(title),
   ///   onSuccess: (todo, title, context) {
   ///     Fuery.client.invalidateQueries(queryKey: ['todos']);
@@ -28,6 +28,43 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
   ///
   /// addTodo.mutate('Buy milk');
   /// ```
+  ///
+  /// The same as `MutationOptions(...).observe()`.
+  static MutationObserver<TData, TVariables, TContext>
+      observe<TData, TVariables, TContext extends Object?>({
+    required MutationFn<TData, TVariables> mutationFn,
+    MutationKey? mutationKey,
+    MutationOnMutate<TVariables, TContext>? onMutate,
+    MutationOnSuccess<TData, TVariables, TContext>? onSuccess,
+    MutationOnError<TVariables, TContext>? onError,
+    MutationOnSettled<TData, TVariables, TContext>? onSettled,
+    Duration? gcTime,
+    RetryPolicy? retry,
+    RetryDelay? retryDelay,
+    NetworkMode? networkMode,
+    MutationScope? scope,
+    Map<String, Object?>? meta,
+    MutationPersist<TVariables>? persist,
+    QueryClient? client,
+  }) {
+    return MutationOptions<TData, TVariables, TContext>(
+      mutationFn: mutationFn,
+      mutationKey: mutationKey,
+      onMutate: onMutate,
+      onSuccess: onSuccess,
+      onError: onError,
+      onSettled: onSettled,
+      gcTime: gcTime,
+      retry: retry,
+      retryDelay: retryDelay,
+      networkMode: networkMode,
+      scope: scope,
+      meta: meta,
+      persist: persist,
+    ).observe(client: client);
+  }
+
+  @Deprecated('Use Mutation.observe, which takes the same arguments.')
   static MutationObserver<TData, TVariables, TContext>
       use<TData, TVariables, TContext extends Object?>({
     required MutationFn<TData, TVariables> mutationFn,
@@ -45,30 +82,28 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
     MutationPersist<TVariables>? persist,
     QueryClient? client,
   }) {
-    return MutationObserver<TData, TVariables, TContext>(
-      client ?? Fuery.client,
-      MutationOptions<TData, TVariables, TContext>(
-        mutationFn: mutationFn,
-        mutationKey: mutationKey,
-        onMutate: onMutate,
-        onSuccess: onSuccess,
-        onError: onError,
-        onSettled: onSettled,
-        gcTime: gcTime,
-        retry: retry,
-        retryDelay: retryDelay,
-        networkMode: networkMode,
-        scope: scope,
-        meta: meta,
-        persist: persist,
-      ),
+    return observe(
+      mutationFn: mutationFn,
+      mutationKey: mutationKey,
+      onMutate: onMutate,
+      onSuccess: onSuccess,
+      onError: onError,
+      onSettled: onSettled,
+      gcTime: gcTime,
+      retry: retry,
+      retryDelay: retryDelay,
+      networkMode: networkMode,
+      scope: scope,
+      meta: meta,
+      persist: persist,
+      client: client,
     );
   }
 
   /// Creates an observer for a mutation without variables, so it can be
   /// called as `mutate()`.
-  static NoParamMutationObserver<TData, TContext>
-      noParam<TData, TContext extends Object?>({
+  static NoVariablesMutationObserver<TData, TContext>
+      noVariables<TData, TContext extends Object?>({
     required Future<TData> Function() mutationFn,
     MutationKey? mutationKey,
     FutureOr<TContext?> Function()? onMutate,
@@ -85,7 +120,7 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
     MutationPersist<void>? persist,
     QueryClient? client,
   }) {
-    return NoParamMutationObserver<TData, TContext>(
+    return NoVariablesMutationObserver<TData, TContext>(
       client ?? Fuery.client,
       MutationOptions<TData, void, TContext>(
         mutationFn: (_) => mutationFn(),
@@ -108,6 +143,43 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
         meta: meta,
         persist: persist,
       ),
+    );
+  }
+
+  @Deprecated('Use Mutation.noVariables, which takes the same arguments.')
+  static NoVariablesMutationObserver<TData, TContext>
+      noParam<TData, TContext extends Object?>({
+    required Future<TData> Function() mutationFn,
+    MutationKey? mutationKey,
+    FutureOr<TContext?> Function()? onMutate,
+    FutureOr<void> Function(TData data, TContext? context)? onSuccess,
+    FutureOr<void> Function(Object error, TContext? context)? onError,
+    FutureOr<void> Function(TData? data, Object? error, TContext? context)?
+        onSettled,
+    Duration? gcTime,
+    RetryPolicy? retry,
+    RetryDelay? retryDelay,
+    NetworkMode? networkMode,
+    MutationScope? scope,
+    Map<String, Object?>? meta,
+    MutationPersist<void>? persist,
+    QueryClient? client,
+  }) {
+    return noVariables(
+      mutationFn: mutationFn,
+      mutationKey: mutationKey,
+      onMutate: onMutate,
+      onSuccess: onSuccess,
+      onError: onError,
+      onSettled: onSettled,
+      gcTime: gcTime,
+      retry: retry,
+      retryDelay: retryDelay,
+      networkMode: networkMode,
+      scope: scope,
+      meta: meta,
+      persist: persist,
+      client: client,
     );
   }
 

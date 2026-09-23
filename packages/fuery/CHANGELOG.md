@@ -1,3 +1,6 @@
+## 1.2.0
+- Released together with `fuery_core` 1.2.0, which adds `observe()` to query and mutation options, `QueryClient.getData`, `setData`, and `updateData`, and renames `use` to `observe` and `noParam` to `noVariables`. The example app defines each query once as options.
+
 ## 1.1.1
 - Released together with `fuery_core` 1.1.1, which fixes `fetchNextPage()` cancelling a refetch when there is no next page, `isFetchedAfterMount` for observers listened to after they were created, and expired persisted queries staying in the storage.
 

@@ -6,7 +6,7 @@ description: Create, update, and delete server data in Flutter, with optimistic 
 A mutation changes server data and reports what happened while it runs. This page covers running one, reacting to the result, and updating the cache before the server answers.
 
 ```dart
-final addTodo = Mutation.use(
+final addTodo = Mutation.observe(
   mutationFn: (String title) => api.addTodo(title),
   onSuccess: (todo, title, context) {
     return Fuery.client.invalidateQueries(queryKey: ['todos']);
@@ -66,43 +66,43 @@ addTodo.mutate(
 
 ## Optimistic updates
 
-Cancel refetches of the data first, then update the cache in `onMutate` and return what you need to roll back. If the request fails, `onError` receives it as `context`:
+Cancel refetches of the data first, then update the cache in `onMutate` and return what you need to roll back. If the request fails, `onError` receives it as `context`. `todosOptions` and `todosKey` are the query's [options and key](../organizing-queries/):
 
 ```dart
-final deleteTodo = Mutation.use(
+final deleteTodo = Mutation.observe(
   mutationFn: (int id) => api.deleteTodo(id),
   onMutate: (id) async {
     // Keep a refetch in flight from overwriting the optimistic update.
-    await Fuery.client.cancelQueries(queryKey: ['todos']);
-    final previous = Fuery.client.getQueryData<List<Todo>>(['todos']);
-    Fuery.client.updateQueryData<List<Todo>>(
-      ['todos'],
+    await Fuery.client.cancelQueries(queryKey: todosKey);
+    final previous = Fuery.client.getData(todosOptions());
+    Fuery.client.updateData(
+      todosOptions(),
       (todos) => todos?.where((todo) => todo.id != id).toList(),
     );
     return previous;
   },
   onError: (error, id, previous) {
-    if (previous != null) Fuery.client.setQueryData(['todos'], previous);
+    if (previous != null) Fuery.client.setData(todosOptions(), previous);
   },
   onSettled: (_, __, ___, ____) {
-    return Fuery.client.invalidateQueries(queryKey: ['todos']);
+    return Fuery.client.invalidateQueries(queryKey: todosKey);
   },
 );
 ```
 
 ## Mutations without variables
 
-`Mutation.noParam` returns a `NoParamMutationObserver<TData, TContext>`, whose `mutate()` takes no argument:
+`Mutation.noVariables` returns a `NoVariablesMutationObserver<TData, TContext>`, whose `mutate()` takes no argument:
 
 ```dart
-final logout = Mutation.noParam(mutationFn: () => api.logout());
+final logout = Mutation.noVariables(mutationFn: () => api.logout());
 logout.mutate();
 ```
 
 Its callbacks drop the variables argument as well: `onMutate()`, `onSuccess(data, context)`, `onError(error, context)`, and `onSettled(data, error, context)`.
 
 ```dart
-final logout = Mutation.noParam(
+final logout = Mutation.noVariables(
   mutationFn: () => api.logout(),
   onSuccess: (data, context) => Fuery.client.clear(),
 );
@@ -117,7 +117,7 @@ The state is still a `MutationState`, so a `MutationBuilder` reads `isPending` a
 A mutation never retries unless you set `retry`, because repeating a write is not always safe. `RetryPolicy.count(2)` gives it two more attempts, waiting 1s and then 2s. Mutations that share a `scope` run one after another, in the order they were started:
 
 ```dart
-final saveDraft = Mutation.use(
+final saveDraft = Mutation.observe(
   mutationFn: (Draft draft) => api.saveDraft(draft),
   retry: const RetryPolicy.count(2),
   scope: const MutationScope('drafts'),

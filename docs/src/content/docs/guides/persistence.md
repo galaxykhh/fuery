@@ -55,23 +55,21 @@ Future<void> main() async {
 Add `persist` with a way to convert the data to JSON and back. Only queries with `persist` are stored:
 
 ```dart
-QueryObserver<List<Todo>> todosQuery() {
-  return Query.use(
-    queryKey: ['todos'],
-    queryFn: (_) => api.getTodos(),
-    persist: QueryPersist(
-      toJson: (todos) => [for (final todo in todos) todo.toJson()],
-      fromJson: (json) => [
-        for (final item in json! as List) Todo.fromJson(item),
-      ],
-    ),
-  );
-}
+QueryOptions<List<Todo>> todosOptions() => QueryOptions(
+      queryKey: ['todos'],
+      queryFn: (_) => api.getTodos(),
+      persist: QueryPersist(
+        toJson: (todos) => [for (final todo in todos) todo.toJson()],
+        fromJson: (json) => [
+          for (final item in json! as List) Todo.fromJson(item),
+        ],
+      ),
+    );
 ```
 
 - **The codec:** `toJson` must return a value `jsonEncode` accepts. `fromJson` receives whatever `jsonDecode` produced, so cast that value inside `fromJson` instead of at every call site. `Todo.fromJson` above takes that value; with a generated `Todo.fromJson(Map<String, dynamic> json)`, write `Todo.fromJson(item as Map<String, dynamic>)`.
 - **Restoring:** the first time the query is used, its stored data is restored with the time it was fetched, so `staleTime` decides whether it refetches. Fresh data isn't fetched again.
-- **Storing:** data is stored whenever it changes and no fetch is running, including changes made with `setQueryData`. A [streamed query](../streaming/) is stored once its stream is done.
+- **Storing:** data is stored whenever it changes and no fetch is running, including changes made with `setData`. `client.setData(todosOptions(), todos)` stores even before anything observes the query, because the query it creates gets the `persist` from the options. A [streamed query](../streaming/) is stored once its stream is done.
 - **Offline:** restoring doesn't need the network.
 
 ## Persisting infinite queries
@@ -79,7 +77,7 @@ QueryObserver<List<Todo>> todosQuery() {
 Convert one page, and Fuery stores the list of pages:
 
 ```dart
-final posts = InfiniteQuery.use(
+final posts = InfiniteQuery.observe(
   queryKey: ['posts'],
   queryFn: (context) => api.getPosts(page: context.pageParam),
   initialPageParam: 1,
@@ -158,7 +156,7 @@ MutationOptions<Comment, NewComment, void> addCommentOptions() {
 }
 
 // In a screen:
-final addComment = MutationObserver(Fuery.client, addCommentOptions());
+final addComment = addCommentOptions().observe();
 
 // In main, before runApp:
 await Fuery.client.restore(mutations: [addCommentOptions()]);
@@ -169,7 +167,7 @@ await Fuery.client.restore(mutations: [addCommentOptions()]);
 - A restored run skips `onMutate`, and its callbacks receive `null` as `context`. An optimistic update belongs to the run that made it; the restored run only repeats the request and its `onSuccess`.
 - A stored run is deleted once the mutation succeeds or fails. `clear()` deletes them all.
 - An entry whose options weren't passed to `restore` is kept, so a later `restore` can run it. One stored by another `version` of its `MutationPersist`, or one that can't be read, is deleted.
-- `Mutation.noParam` persists with `MutationPersist.noVariables`.
+- A mutation without variables persists with `MutationPersist.noVariables`. `restore` needs it as options with `void` variables, such as `MutationOptions(mutationKey: ['sync'], mutationFn: (_) => api.sync(), persist: MutationPersist.noVariables)`, and a screen observes those options and calls `mutate(null)`.
 
 A request that had reached the server before the app closed runs again after the restart. Persist mutations whose request is safe to repeat, or make the server treat a repeat as the same write.
 

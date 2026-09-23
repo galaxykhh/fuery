@@ -3,30 +3,34 @@ title: Organizing queries
 description: Keep query keys, query functions, and mutations in one place as a Flutter app grows.
 ---
 
-Put each query in one plain function, in a file next to its API. As an app grows, the same key and query function otherwise show up on several screens and in several blocs:
+Define each query once, as `QueryOptions` returned by a plain function in a file next to its API. As an app grows, the same key and query function otherwise show up on several screens and in several blocs:
 
 ```dart
 // lib/data/todo_queries.dart
 const todosKey = ['todos', 'list'];
 
-QueryObserver<List<Todo>> todosQuery() {
-  return Query.use(
-    queryKey: todosKey,
-    queryFn: (_) => api.getTodos(),
-  );
-}
+QueryOptions<List<Todo>> todosOptions() => QueryOptions(
+      queryKey: todosKey,
+      queryFn: (_) => api.getTodos(),
+    );
 
-QueryObserver<Todo> todoQuery(int id) {
-  return Query.use(
-    queryKey: ['todos', 'detail', id],
-    queryFn: (_) => api.getTodo(id),
-  );
-}
+QueryOptions<Todo> todoOptions(int id) => QueryOptions(
+      queryKey: ['todos', 'detail', id],
+      queryFn: (_) => api.getTodo(id),
+    );
 ```
 
-Screens and blocs call `todosQuery()` and share one cache entry, and mutations invalidate `todosKey` without repeating it.
+The same options serve every use of the query:
 
-- **Types stay checked.** Each function returns a typed observer, so there is nothing to cast.
+```dart
+late final todos = todosOptions().observe();      // in a State or a cubit
+final todo = await client.query(todoOptions(id)); // fetching outside widgets
+client.updateData(todoOptions(id), (todo) => todo?.copyWith(done: true));
+```
+
+Observers of `todosOptions()` share one cache entry, and mutations invalidate `todosKey` without repeating it. Infinite queries work the same way with `infiniteQueryOptions`, whose `observe()` returns an `InfiniteQueryObserver`.
+
+- **Types stay checked.** `observe`, `client.query`, `getData`, `setData`, and `updateData` take the data type from the options, so there is nothing to cast and no way to write another type to the key.
 - **Keys stay consistent.** A typo in a key would silently create a second cache entry; one function per query rules that out.
 - **Hierarchy is explicit.** `['todos', ...]` groups everything about todos, so `invalidateQueries(queryKey: ['todos'])` refreshes the list and every detail at once.
 
@@ -41,31 +45,27 @@ Plain values are fine. An id or a search term belongs in the key and in the requ
 Give the factory the dependency as a parameter:
 
 ```dart
-QueryObserver<List<Todo>> todosQuery(TodoApi api) {
-  return Query.use(
-    queryKey: todosKey,
-    queryFn: (_) => api.getTodos(),
-  );
-}
+QueryOptions<List<Todo>> todosOptions(TodoApi api) => QueryOptions(
+      queryKey: todosKey,
+      queryFn: (_) => api.getTodos(),
+    );
 ```
 
-The screen resolves it once, where it creates the query:
+The screen resolves it once, where it observes the query:
 
 ```dart
 class _TodoScreenState extends State<TodoScreen> {
-  late final todos = todosQuery(locator<TodoApi>());
+  late final todos = todosOptions(locator<TodoApi>()).observe();
 }
 ```
 
 Or look the dependency up inside the query function, which keeps the factory parameterless:
 
 ```dart
-QueryObserver<List<Todo>> todosQuery() {
-  return Query.use(
-    queryKey: todosKey,
-    queryFn: (_) => locator<TodoApi>().getTodos(),
-  );
-}
+QueryOptions<List<Todo>> todosOptions() => QueryOptions(
+      queryKey: todosKey,
+      queryFn: (_) => locator<TodoApi>().getTodos(),
+    );
 ```
 
 `locator` stands for whatever your app resolves dependencies with. Either shape keeps the closure free of anything tied to a widget. Two observers with the same key share one cache entry, so give every call site for a key the same dependency.
@@ -90,27 +90,25 @@ A query function has to throw. Fuery takes the error state from a thrown error a
 Unwrap in the query function and throw the failure:
 
 ```dart
-QueryObserver<List<Todo>> todosQuery(TodoRepository repo) {
-  return Query.use(
-    queryKey: todosKey,
-    queryFn: (_) async => switch (await repo.getTodos()) {
-      Ok(:final value) => value,
-      Err(:final error) => throw error,
-    },
-  );
-}
+QueryOptions<List<Todo>> todosOptions(TodoRepository repo) => QueryOptions(
+      queryKey: todosKey,
+      queryFn: (_) async => switch (await repo.getTodos()) {
+        Ok(:final value) => value,
+        Err(:final error) => throw error,
+      },
+    );
 ```
 
 Having nothing to return isn't a failure either. Query data can't be null, so a function with no result to give throws as well. See [Query data can't be null](../queries/#query-data-cant-be-null).
 
 ## Organizing mutations
 
-Put mutations next to their queries, for the same reason. What they share differs, though. Two widgets that use the same query key share one cache entry, but each `Mutation.use` call keeps its own pending and error state. A mutation factory therefore shares the mutation function and the cache updates, while every screen that calls it keeps its own state:
+Put mutations next to their queries, for the same reason. What they share differs, though. Two widgets that use the same query key share one cache entry, but each `Mutation.observe` call keeps its own pending and error state. A mutation factory therefore shares the mutation function and the cache updates, while every screen that calls it keeps its own state:
 
 ```dart
 // lib/data/todo_mutations.dart
 MutationObserver<Todo, String, void> addTodoMutation() {
-  return Mutation.use(
+  return Mutation.observe(
     mutationFn: (String title) => api.addTodo(title),
     onSuccess: (todo, title, _) =>
         Fuery.client.invalidateQueries(queryKey: todosKey),
@@ -128,6 +126,8 @@ addTodo.mutate(
 ```
 
 A `MutationListener` does the same for a snackbar or a dialog, with the screen's `BuildContext`.
+
+A mutation that [`restore`](../persistence/#persisting-mutations) runs again after a restart is defined as `MutationOptions` instead, so the screen and `restore` share it: the screen calls `addCommentOptions().observe()`.
 
 ## In the example app
 
