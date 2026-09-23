@@ -22,9 +22,9 @@ class QueryFilters {
   final QueryTypeFilter type;
   final bool? stale;
   final FetchStatus? fetchStatus;
-  final bool Function(Query<Object> query)? predicate;
+  final bool Function(CachedQuery<Object> query)? predicate;
 
-  bool matches(Query<Object> query) {
+  bool matches(CachedQuery<Object> query) {
     final queryKey = this.queryKey;
     if (queryKey != null) {
       if (exact) {
@@ -56,7 +56,7 @@ class QueryFilters {
     bool? exact,
     QueryTypeFilter? type,
     FetchStatus? fetchStatus,
-    bool Function(Query<Object> query)? predicate,
+    bool Function(CachedQuery<Object> query)? predicate,
   }) {
     return QueryFilters(
       queryKey: queryKey,
@@ -75,9 +75,9 @@ class QueryFilters {
 class QueryCacheConfig {
   const QueryCacheConfig({this.onError, this.onSuccess, this.onSettled});
 
-  final void Function(Object error, Query<Object> query)? onError;
-  final void Function(Object data, Query<Object> query)? onSuccess;
-  final void Function(Object? data, Object? error, Query<Object> query)?
+  final void Function(Object error, CachedQuery<Object> query)? onError;
+  final void Function(Object data, CachedQuery<Object> query)? onSuccess;
+  final void Function(Object? data, Object? error, CachedQuery<Object> query)?
       onSettled;
 }
 
@@ -89,20 +89,20 @@ class QueryCache {
   QueryCache({this.config = const QueryCacheConfig()});
 
   final QueryCacheConfig config;
-  final Map<String, Query<Object>> _queries = {};
+  final Map<String, CachedQuery<Object>> _queries = {};
   final Set<void Function()> _listeners = {};
 
   /// Returns the query for [options], creating it if needed.
-  Query<TData> _build<TData extends Object>(
+  CachedQuery<TData> _build<TData extends Object>(
     QueryClient client,
-    QueryOptions<TData> options,
+    Query<TData> options,
   ) {
     final defaulted = client._defaultQueryOptions(options);
     final queryHash = defaulted.queryHash!;
     final existing = _queries[queryHash];
 
     if (existing != null) {
-      // Generics are covariant, so `is Query<TData>` would also accept a wider
+      // Generics are covariant, so `is CachedQuery<TData>` would also accept a wider
       // TData and fail later with an unclear cast error.
       if (existing._dataType != TData) {
         throw StateError(
@@ -110,10 +110,10 @@ class QueryCache {
           'as $TData. Use the same data type for the same key.',
         );
       }
-      return existing as Query<TData>;
+      return existing as CachedQuery<TData>;
     }
 
-    final query = Query<TData>._(
+    final query = CachedQuery<TData>._(
       client: client,
       queryKey: defaulted.queryKey,
       queryHash: queryHash,
@@ -124,12 +124,12 @@ class QueryCache {
     return query;
   }
 
-  void _add(Query<Object> query) {
+  void _add(CachedQuery<Object> query) {
     _queries[query.queryHash] = query;
     _notify();
   }
 
-  void _remove(Query<Object> query) {
+  void _remove(CachedQuery<Object> query) {
     if (!identical(_queries[query.queryHash], query)) return;
     query._removed = true;
     query._destroy();
@@ -145,17 +145,18 @@ class QueryCache {
     });
   }
 
-  Query<Object>? get(String queryHash) => _queries[queryHash];
+  CachedQuery<Object>? get(String queryHash) => _queries[queryHash];
 
-  List<Query<Object>> getAll() => _queries.values.toList();
+  List<CachedQuery<Object>> getAll() => _queries.values.toList();
 
   /// Returns the first query matching [filters], comparing keys exactly.
-  Query<Object>? find(QueryFilters filters) {
+  CachedQuery<Object>? find(QueryFilters filters) {
     final exact = filters._copyWith(exact: true);
     return getAll().firstWhereOrNull(exact.matches);
   }
 
-  List<Query<Object>> findAll([QueryFilters filters = const QueryFilters()]) {
+  List<CachedQuery<Object>> findAll(
+      [QueryFilters filters = const QueryFilters()]) {
     return getAll().where(filters.matches).toList();
   }
 

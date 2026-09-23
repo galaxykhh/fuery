@@ -1,3 +1,13 @@
+## 1.3.0
+This release has breaking changes in a minor version, together with `fuery_core` 1.3.0, whose CHANGELOG lists what to write instead.
+
+- Widgets take a definition: `QueryBuilder(query: todoQuery(id))`, `InfiniteQueryBuilder(query: feedQuery)`, `MutationBuilder(mutation: addTodo)`. The widget keeps one observer for it, follows a new key or new options on every rebuild, and shows the new key's cached data in that frame. Widgets still take an observer from `observe()`.
+- Widgets that get a definition use the client of the nearest `FueryProvider`, and follow a provider whose client is replaced.
+- Builders call the actions on the result: `state.refetch()`, `state.fetchNextPage()`, and `state.mutate(...)`.
+- `FueryProvider.of(context, listen: true)` rebuilds the caller when the provided client is replaced, for widgets and hooks of your own.
+- **Breaking:** the `query` and `mutation` fields of the widgets are typed `QuerySource`, `InfiniteQuerySource`, and `MutationSource`, and mutation widgets report a `MutationResult`.
+- The example app defines every query and mutation once and passes them to widgets.
+
 ## 1.2.0
 - Released together with `fuery_core` 1.2.0, which adds `observe()` to query and mutation options, `QueryClient.getData`, `setData`, and `updateData`, and renames `use` to `observe` and `noParam` to `noVariables`. The example app defines each query once as options.
 

@@ -22,7 +22,7 @@ The example app turns them on in [its app widget](https://github.com/galaxykhh/f
 
 ## The Queries tab
 
-The Queries tab lists every query with its key, its status, and how many observers use it. Each `Query.observe` object counts once, however many widgets or listeners it has. Type in the filter to find a key.
+The Queries tab lists every query with its key, its status, and how many observers use it. Each widget that got the query counts once, and so does each observer from `observe()`, however many listeners it has. Type in the filter to find a key.
 
 | Status | Meaning |
 |---|---|

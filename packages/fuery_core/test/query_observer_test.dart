@@ -30,7 +30,7 @@ void main() {
   }) {
     return QueryObserver<T>(
       client,
-      QueryOptions<T>(
+      Query<T>(
         queryKey: key,
         queryFn: queryFn,
         staleTime: staleTime,
@@ -261,7 +261,7 @@ void main() {
     expect(observer.result.isPending, isTrue);
     expect(observer.result.fetchStatus, FetchStatus.idle);
 
-    observer.setOptions(QueryOptions(
+    observer.setOptions(Query(
       queryKey: ['a'],
       queryFn: fetcher.call,
       enabled: true,
@@ -277,13 +277,13 @@ void main() {
     final observer = observe(
       ['todos', 1],
       fetcher.call,
-      placeholderData: (previous) => previous,
+      placeholderData: (previous, client) => previous,
     );
     observer.subscribe((_) {});
     async.elapse(ms10);
 
     page = 2;
-    observer.setOptions(QueryOptions(
+    observer.setOptions(Query(
       queryKey: ['todos', 2],
       queryFn: fetcher.call,
       placeholderData: keepPreviousData,
@@ -320,14 +320,13 @@ void main() {
   fakeTest('polls only while refetchWhile returns true', (async) {
     var status = 'running';
     final fetcher = FakeFetcher(() => status);
-    final observer = Query.observe(
+    final observer = Query(
       queryKey: ['job'],
       queryFn: fetcher.call,
       refetchInterval: const Duration(seconds: 1),
       refetchWhile: (state) => state.data != 'done',
       retry: const RetryPolicy.never(),
-      client: client,
-    );
+    ).observe(client: client);
 
     observer.subscribe((_) {});
     async.elapse(const Duration(milliseconds: 2500));
@@ -532,7 +531,7 @@ void main() {
 
       final observer = QueryObserver<String>(
         client,
-        QueryOptions(
+        Query(
           queryKey: ['a'],
           queryFn: fetcher.call,
           retryOnMount: false,
@@ -557,7 +556,7 @@ void main() {
       async.elapse(ms10);
       expect(observer.result.isStale, isFalse);
 
-      observer.setOptions(QueryOptions(
+      observer.setOptions(Query(
         queryKey: ['a'],
         queryFn: fetcher.call,
         staleTime: const Duration(seconds: 1),
@@ -580,7 +579,7 @@ void main() {
       async.elapse(const Duration(milliseconds: 1500));
       expect(fetcher.calls, 2);
 
-      observer.setOptions(QueryOptions(queryKey: ['a'], queryFn: fetcher.call));
+      observer.setOptions(Query(queryKey: ['a'], queryFn: fetcher.call));
       async.elapse(const Duration(seconds: 5));
       expect(fetcher.calls, 2);
     });
@@ -628,7 +627,7 @@ void main() {
       observer.subscribe((_) {});
       expect(query.future, isNotNull);
       expect(query.observers, [observer]);
-      expect(query.toString(), 'Query(["a"], pending)');
+      expect(query.toString(), 'CachedQuery(["a"], pending)');
 
       async.elapse(ms10);
       expect(query.future, isNull);
@@ -641,7 +640,7 @@ void main() {
       final fetcher = FakeFetcher(() => 'data');
       final observer = QueryObserver<String>(
         client,
-        QueryOptions(
+        Query(
           queryKey: ['a'],
           queryFn: fetcher.call,
           staleTime: staticStaleTime,

@@ -16,8 +16,10 @@ class FeedScreen extends StatefulWidget {
 }
 
 class _FeedScreenState extends State<FeedScreen> {
-  final feed = feedOptions().observe();
-  final likePost = likePostMutation();
+  // Every card likes through this one observer, and the listener below
+  // reports its failures, so it is created once instead of passed as a
+  // definition.
+  final likePost = likePostMutation().observe();
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +35,7 @@ class _FeedScreenState extends State<FeedScreen> {
         children: [
           // Rebuilds only when a background refetch starts or ends.
           InfiniteQueryBuilder(
-            query: feed,
+            query: feedQuery(),
             buildWhen: (previous, current) =>
                 previous.isRefetching != current.isRefetching,
             builder: (context, state) => state.isRefetching
@@ -42,13 +44,13 @@ class _FeedScreenState extends State<FeedScreen> {
           ),
           Expanded(
             child: InfiniteQueryBuilder(
-              query: feed,
+              query: feedQuery(),
               builder: (context, state) {
                 return switch (state) {
                   InfiniteQueryResult(:final data?) => RefreshIndicator(
                       // `refetch` completes when the fetch settles, which is
                       // what RefreshIndicator waits for.
-                      onRefresh: () => feed.refetch(),
+                      onRefresh: () => state.refetch(),
                       child: ListView.builder(
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         itemCount: _count(data.pages) + 1,
@@ -59,7 +61,7 @@ class _FeedScreenState extends State<FeedScreen> {
                               hasNextPage: state.hasNextPage,
                               isFetchingNextPage: state.isFetchingNextPage,
                               isFetchNextPageError: state.isFetchNextPageError,
-                              onLoadMore: feed.fetchNextPage,
+                              onLoadMore: state.fetchNextPage,
                             );
                           }
                           return PostCard(
@@ -72,8 +74,8 @@ class _FeedScreenState extends State<FeedScreen> {
                             // On the web and desktop the pointer reaches a card
                             // before the click does, so the post is often
                             // cached by the time it opens.
-                            onHover: () => Fuery.client.query(
-                              postOptions(post.id),
+                            onHover: () => context.queryClient.query(
+                              postQuery(post.id),
                             ),
                           );
                         },
@@ -86,7 +88,7 @@ class _FeedScreenState extends State<FeedScreen> {
                           Text('Could not load the feed: $error'),
                           const SizedBox(height: 12),
                           FilledButton(
-                            onPressed: feed.refetch,
+                            onPressed: state.refetch,
                             child: const Text('Try again'),
                           ),
                         ],

@@ -29,7 +29,7 @@ void main() {
     List<int>? calls,
     Set<int>? failing,
   }) {
-    return InfiniteQuery.observe(
+    return InfiniteQuery(
       queryKey: ['pages'],
       queryFn: (context) async {
         calls?.add(context.pageParam);
@@ -45,8 +45,7 @@ void main() {
       getPreviousPageParam: (data) =>
           data.firstPageParam > 1 ? data.firstPageParam - 1 : null,
       maxPages: maxPages,
-      client: client,
-    );
+    ).observe(client: client);
   }
 
   fakeTest('fetches the first page, then more on demand', (async) {
@@ -75,7 +74,7 @@ void main() {
   fakeTest('polls only while refetchWhile returns true', (async) {
     var status = 'running';
     var calls = 0;
-    final observer = InfiniteQuery.observe(
+    final observer = InfiniteQuery(
       queryKey: ['job'],
       queryFn: (context) async {
         calls++;
@@ -86,8 +85,7 @@ void main() {
       getNextPageParam: (data) => null,
       refetchInterval: const Duration(seconds: 1),
       refetchWhile: (state) => !state.pages.contains('done'),
-      client: client,
-    );
+    ).observe(client: client);
 
     observer.subscribe((_) {});
     async.elapse(const Duration(milliseconds: 1500));
@@ -181,7 +179,7 @@ void main() {
   fakeTest('infiniteQuery fetches the given number of pages', (async) {
     InfiniteData<String, int>? data;
     client
-        .infiniteQuery(infiniteQueryOptions(
+        .infiniteQuery(InfiniteQuery(
           queryKey: ['pages'],
           queryFn: (context) async => '${context.pageParam}',
           initialPageParam: 1,
@@ -219,7 +217,7 @@ void main() {
 
   fakeTest('stops fetching further pages once cancelled', (async) {
     final fetched = <int>[];
-    final observer = InfiniteQuery.observe(
+    final observer = InfiniteQuery(
       queryKey: ['pages'],
       queryFn: (context) async {
         context.signal;
@@ -229,8 +227,7 @@ void main() {
       },
       initialPageParam: 1,
       getNextPageParam: (data) => data.lastPageParam + 1,
-      client: client,
-    );
+    ).observe(client: client);
     observer.subscribe((_) {});
     async.elapse(ms10);
     observer.fetchNextPage();

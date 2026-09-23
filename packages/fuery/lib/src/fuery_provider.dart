@@ -6,8 +6,10 @@ import 'fuery_binding.dart';
 /// Provides a [QueryClient] to the widgets below and keeps it mounted.
 ///
 /// Optional: without a provider, [FueryProvider.of] returns [Fuery.client].
-/// Queries and mutations use the provided client only when you pass it, as
-/// `client: context.queryClient`; without `client:` they use [Fuery.client].
+/// Fuery widgets that get a definition, such as `QueryBuilder(query:
+/// todosQuery)`, observe it with the provided client. An observer created
+/// with `observe()` keeps the client it was given, [Fuery.client] by
+/// default.
 ///
 /// ```dart
 /// FueryProvider(
@@ -25,11 +27,17 @@ class FueryProvider extends StatefulWidget {
   final QueryClient client;
   final Widget child;
 
-  /// The nearest provided client, or [Fuery.client]. Safe to call in
-  /// `initState` and in `late final` field initializers.
-  static QueryClient of(BuildContext context) {
-    return context.getInheritedWidgetOfExactType<_FueryScope>()?.client ??
-        Fuery.client;
+  /// The nearest provided client, or [Fuery.client].
+  ///
+  /// With [listen], [context] rebuilds when the provided client is replaced,
+  /// which is what widgets and hooks that render queries need. Without it,
+  /// this is safe to call in `initState` and in `late final` field
+  /// initializers.
+  static QueryClient of(BuildContext context, {bool listen = false}) {
+    final scope = listen
+        ? context.dependOnInheritedWidgetOfExactType<_FueryScope>()
+        : context.getInheritedWidgetOfExactType<_FueryScope>();
+    return scope?.client ?? Fuery.client;
   }
 
   @override
@@ -72,13 +80,6 @@ class _FueryScope extends InheritedWidget {
 
   @override
   bool updateShouldNotify(_FueryScope oldWidget) => client != oldWidget.client;
-}
-
-/// Like [FueryProvider.of], and rebuilds [context] when the provided client
-/// changes. Internal to this package.
-QueryClient dependOnQueryClient(BuildContext context) {
-  return context.dependOnInheritedWidgetOfExactType<_FueryScope>()?.client ??
-      Fuery.client;
 }
 
 extension FueryBuildContext on BuildContext {

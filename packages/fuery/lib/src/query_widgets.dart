@@ -5,14 +5,13 @@ import 'result_subscriber.dart';
 
 /// Builds UI from a query.
 ///
-/// Mounting the builder subscribes to [query], which fetches if needed.
-/// Create the query once, for example in a `State` field, not in `build`.
+/// [query] is a [Query] definition, or an observer that is already shared.
+/// A definition can be built in `build`: the widget keeps one observer for
+/// it, and follows a new key or new options on every rebuild. Mounting
+/// subscribes, which fetches if needed.
 ///
 /// ```dart
-/// final todos = Query.observe(
-///   queryKey: ['todos'],
-///   queryFn: (_) => api.getTodos(),
-/// );
+/// final todos = Query(queryKey: ['todos'], queryFn: (_) => api.getTodos());
 ///
 /// QueryBuilder(
 ///   query: todos,
@@ -31,7 +30,7 @@ class QueryBuilder<TData extends Object> extends StatelessWidget {
     this.buildWhen,
   });
 
-  final QueryObserver<TData> query;
+  final QuerySource<TData> query;
   final ResultWidgetBuilder<QueryResult<TData>> builder;
 
   /// Rebuilds only when this returns true for the last built result and the
@@ -40,10 +39,9 @@ class QueryBuilder<TData extends Object> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ResultSubscriber<QueryObserver<TData>, QueryResult<TData>>(
+    return ResultSubscriber<QuerySource<TData>, QueryResult<TData>>(
       source: query,
-      initialResult: _initialResult,
-      subscribe: _subscribe,
+      createSlot: QuerySlot<TData>.new,
       debugKey: _debugKey,
       builder: builder,
       buildWhen: buildWhen,
@@ -71,7 +69,7 @@ class QueryListener<TData extends Object> extends StatelessWidget {
     required this.child,
   });
 
-  final QueryObserver<TData> query;
+  final QuerySource<TData> query;
   final ResultWidgetListener<QueryResult<TData>> listener;
 
   /// Calls [listener] only when this returns true for the previous result and
@@ -81,10 +79,9 @@ class QueryListener<TData extends Object> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ResultSubscriber<QueryObserver<TData>, QueryResult<TData>>(
+    return ResultSubscriber<QuerySource<TData>, QueryResult<TData>>(
       source: query,
-      initialResult: _initialResult,
-      subscribe: _subscribe,
+      createSlot: QuerySlot<TData>.new,
       debugKey: _debugKey,
       listener: listener,
       listenWhen: listenWhen,
@@ -104,7 +101,7 @@ class QueryConsumer<TData extends Object> extends StatelessWidget {
     this.listenWhen,
   });
 
-  final QueryObserver<TData> query;
+  final QuerySource<TData> query;
   final ResultWidgetBuilder<QueryResult<TData>> builder;
   final ResultWidgetListener<QueryResult<TData>> listener;
   final ResultCondition<QueryResult<TData>>? buildWhen;
@@ -112,10 +109,9 @@ class QueryConsumer<TData extends Object> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ResultSubscriber<QueryObserver<TData>, QueryResult<TData>>(
+    return ResultSubscriber<QuerySource<TData>, QueryResult<TData>>(
       source: query,
-      initialResult: _initialResult,
-      subscribe: _subscribe,
+      createSlot: QuerySlot<TData>.new,
       debugKey: _debugKey,
       builder: builder,
       buildWhen: buildWhen,
@@ -145,16 +141,15 @@ class QuerySelector<TData extends Object, T> extends StatelessWidget {
     required this.builder,
   });
 
-  final QueryObserver<TData> query;
+  final QuerySource<TData> query;
   final T Function(QueryResult<TData> state) selector;
   final ResultWidgetBuilder<T> builder;
 
   @override
   Widget build(BuildContext context) {
-    return ResultSelector<QueryObserver<TData>, QueryResult<TData>, T>(
+    return ResultSelector<QuerySource<TData>, QueryResult<TData>, T>(
       source: query,
-      initialResult: _initialResult,
-      subscribe: _subscribe,
+      createSlot: QuerySlot<TData>.new,
       debugKey: _debugKey,
       selector: selector,
       builder: builder,
@@ -162,18 +157,6 @@ class QuerySelector<TData extends Object, T> extends StatelessWidget {
   }
 }
 
-QueryResult<TData> _initialResult<TData extends Object>(
-  QueryObserver<TData> query,
-) {
-  return query.getOptimisticResult();
+String? _debugKey<TData extends Object>(QuerySource<TData> query) {
+  return query is QueryObserver<TData> ? hashKey(query.options.queryKey) : null;
 }
-
-void Function() _subscribe<TData extends Object>(
-  QueryObserver<TData> query,
-  void Function(QueryResult<TData>) listener,
-) {
-  return query.subscribe(listener);
-}
-
-String _debugKey<TData extends Object>(QueryObserver<TData> query) =>
-    hashKey(query.options.queryKey);

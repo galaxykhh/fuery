@@ -1,716 +1,451 @@
 part of 'core.dart';
 
-/// A single cached query: its key, options, state, and the observers watching
-/// it.
-///
-/// Queries are created and owned by the [QueryCache]. Application code usually
-/// works with a [QueryObserver] from [Query.observe], or with [QueryClient].
-class Query<TData extends Object> extends _Removable {
-  Query._({
-    required QueryClient client,
-    required this.queryKey,
-    required this.queryHash,
-    required QueryOptions<TData> options,
-  })  : _client = client,
-        _cache = client.queryCache {
-    _setOptions(options);
-    _initialState = _defaultState(_options);
-    _state = _initialState;
-    _scheduleGc();
-  }
+typedef QueryFn<TData extends Object> = Future<TData> Function(
+  QueryFunctionContext context,
+);
 
-  /// Watches the query for [queryKey] and returns an observer for it.
-  ///
-  /// The query fetches when the observer gets its first listener, for example
-  /// when a `QueryBuilder` mounts or a bloc listens to [QueryObserver.stream].
-  /// Create the observer once, such as in a `State` field or a cubit, not in
-  /// `build`.
+/// Returns data to show while a query is pending. [previousData] is the
+/// data of the key the observer showed before, and [client] is its client,
+/// for example to read a list that holds the item.
+typedef PlaceholderDataFn<TData extends Object> = TData? Function(
+  TData? previousData,
+  QueryClient client,
+);
+
+/// When to refetch on mount, focus, or reconnect.
+enum RefetchMode {
+  /// Never refetch on this event.
+  never,
+
+  /// Refetch only if the data is stale.
+  ifStale,
+
+  /// Always refetch.
+  always,
+}
+
+/// Passed to every query function.
+class QueryFunctionContext {
+  QueryFunctionContext._({
+    required this.client,
+    required this.queryKey,
+    required this.meta,
+    required AbortSignal Function() signal,
+    AbortSignal Function()? peekSignal,
+  })  : _signal = signal,
+        _peekSignal = peekSignal;
+
+  final QueryClient client;
+  final QueryKey queryKey;
+  final Map<String, Object?>? meta;
+  final AbortSignal Function() _signal;
+
+  /// Reads the signal without marking the query function as cancellable.
+  final AbortSignal Function()? _peekSignal;
+
+  /// Aborted when the fetch is cancelled. Reading it marks the query function
+  /// as cancellable.
+  AbortSignal get signal => _signal();
+}
+
+@immutable
+class _FetchOptions {
+  const _FetchOptions({this.cancelRefetch = false, this.direction});
+
+  /// Cancel an in-flight fetch and start a new one, instead of reusing it.
+  final bool cancelRefetch;
+
+  /// Which page an infinite query fetches, or null to refetch every page.
+  final _FetchDirection? direction;
+}
+
+/// Hooks into how a [CachedQuery] fetches. Used by infinite queries to fetch pages.
+abstract interface class _QueryBehavior<TData extends Object> {
+  void onFetch(_FetchContext<TData> context, CachedQuery<TData> query);
+}
+
+class _FetchContext<TData extends Object> {
+  _FetchContext._({
+    required this.fetchFn,
+    required this.fetchOptions,
+    required this.options,
+    required this.client,
+    required this.queryKey,
+    required this.state,
+    required AbortSignal Function() signal,
+  }) : _signal = signal;
+
+  /// The function the retryer runs. Behaviors replace it.
+  Future<TData> Function() fetchFn;
+  final _FetchOptions? fetchOptions;
+  final Query<TData> options;
+  final QueryClient client;
+  final QueryKey queryKey;
+  final QueryState<TData> state;
+  final AbortSignal Function() _signal;
+
+  AbortSignal get signal => _signal();
+}
+
+/// Default values for query options, set on the client or per key prefix.
+@immutable
+class QueryDefaults {
+  const QueryDefaults({
+    this.enabled,
+    this.staleTime,
+    this.gcTime,
+    this.refetchInterval,
+    this.refetchIntervalInBackground,
+    this.refetchOnMount,
+    this.refetchOnFocus,
+    this.refetchOnReconnect,
+    this.retryOnMount,
+    this.retry,
+    this.retryDelay,
+    this.networkMode,
+    this.structuralSharing,
+    this.meta,
+  });
+
+  final bool? enabled;
+  final Duration? staleTime;
+  final Duration? gcTime;
+  final Duration? refetchInterval;
+  final bool? refetchIntervalInBackground;
+  final RefetchMode? refetchOnMount;
+  final RefetchMode? refetchOnFocus;
+  final RefetchMode? refetchOnReconnect;
+  final bool? retryOnMount;
+  final RetryPolicy? retry;
+  final RetryDelay? retryDelay;
+  final NetworkMode? networkMode;
+  final bool? structuralSharing;
+  final Map<String, Object?>? meta;
+
+  /// Returns defaults where values set in [other] win.
+  QueryDefaults merge(QueryDefaults? other) {
+    if (other == null) return this;
+    return QueryDefaults(
+      enabled: other.enabled ?? enabled,
+      staleTime: other.staleTime ?? staleTime,
+      gcTime: other.gcTime ?? gcTime,
+      refetchInterval: other.refetchInterval ?? refetchInterval,
+      refetchIntervalInBackground:
+          other.refetchIntervalInBackground ?? refetchIntervalInBackground,
+      refetchOnMount: other.refetchOnMount ?? refetchOnMount,
+      refetchOnFocus: other.refetchOnFocus ?? refetchOnFocus,
+      refetchOnReconnect: other.refetchOnReconnect ?? refetchOnReconnect,
+      retryOnMount: other.retryOnMount ?? retryOnMount,
+      retry: other.retry ?? retry,
+      retryDelay: other.retryDelay ?? retryDelay,
+      networkMode: other.networkMode ?? networkMode,
+      structuralSharing: other.structuralSharing ?? structuralSharing,
+      meta: other.meta ?? meta,
+    );
+  }
+}
+
+/// Options for a query and the observers watching it.
+///
+/// Unset values fall back to [QueryClient] defaults: data is stale immediately,
+/// unused queries are removed after 5 minutes, failed fetches retry 3 times,
+/// and stale queries refetch on mount, focus, and reconnect.
+class Query<TData extends Object> implements QuerySource<TData> {
+  /// Describes a query. The data type is inferred from [queryFn].
   ///
   /// ```dart
-  /// final todos = Query.observe(
-  ///   queryKey: ['todos'],
-  ///   queryFn: (_) => api.getTodos(),
-  /// );
+  /// final todos = Query(queryKey: ['todos'], queryFn: (_) => api.getTodos());
   /// ```
-  ///
-  /// The same as `QueryOptions(...).observe()`. Use [QueryOptions] when the
-  /// query is also fetched with [QueryClient.query] or read from the cache.
-  static QueryObserver<TData> observe<TData extends Object>({
-    required QueryKey queryKey,
-    required QueryFn<TData> queryFn,
-    bool? enabled,
-    Duration? staleTime,
-    Duration? gcTime,
-    Duration? refetchInterval,
-    bool? refetchIntervalInBackground,
-    bool Function(QueryResult<TData> result)? refetchWhile,
-    RefetchMode? refetchOnMount,
-    RefetchMode? refetchOnFocus,
-    RefetchMode? refetchOnReconnect,
-    bool? retryOnMount,
-    RetryPolicy? retry,
-    RetryDelay? retryDelay,
-    NetworkMode? networkMode,
-    TData? initialData,
-    int? initialDataUpdatedAt,
-    PlaceholderDataFn<TData>? placeholderData,
-    bool? structuralSharing,
-    QueryPersist<TData>? persist,
-    Map<String, Object?>? meta,
-    QueryClient? client,
-  }) {
-    return QueryOptions<TData>(
-      queryKey: queryKey,
-      queryFn: queryFn,
-      enabled: enabled,
-      staleTime: staleTime,
-      gcTime: gcTime,
-      refetchInterval: refetchInterval,
-      refetchIntervalInBackground: refetchIntervalInBackground,
-      refetchWhile: refetchWhile,
-      refetchOnMount: refetchOnMount,
-      refetchOnFocus: refetchOnFocus,
-      refetchOnReconnect: refetchOnReconnect,
-      retryOnMount: retryOnMount,
-      retry: retry,
-      retryDelay: retryDelay,
-      networkMode: networkMode,
-      initialData: initialData,
-      initialDataUpdatedAt: initialDataUpdatedAt,
-      placeholderData: placeholderData,
-      structuralSharing: structuralSharing,
-      persist: persist,
-      meta: meta,
-    ).observe(client: client);
-  }
+  const Query({
+    required this.queryKey,
+    required QueryFn<TData> this.queryFn,
+    this.enabled,
+    this.staleTime,
+    this.gcTime,
+    this.refetchInterval,
+    this.refetchIntervalInBackground,
+    this.refetchWhile,
+    this.refetchOnMount,
+    this.refetchOnFocus,
+    this.refetchOnReconnect,
+    this.retryOnMount,
+    this.retry,
+    this.retryDelay,
+    this.networkMode,
+    this.initialData,
+    this.initialDataUpdatedAt,
+    this.placeholderData,
+    this.structuralSharing,
+    this.persist,
+    this.meta,
+  })  : queryHash = null,
+        _behavior = null,
+        _defaulted = false;
 
-  @Deprecated('Use Query.observe, which takes the same arguments.')
-  static QueryObserver<TData> use<TData extends Object>({
-    required QueryKey queryKey,
-    required QueryFn<TData> queryFn,
-    bool? enabled,
-    Duration? staleTime,
-    Duration? gcTime,
-    Duration? refetchInterval,
-    bool? refetchIntervalInBackground,
-    bool Function(QueryResult<TData> result)? refetchWhile,
-    RefetchMode? refetchOnMount,
-    RefetchMode? refetchOnFocus,
-    RefetchMode? refetchOnReconnect,
-    bool? retryOnMount,
-    RetryPolicy? retry,
-    RetryDelay? retryDelay,
-    NetworkMode? networkMode,
-    TData? initialData,
-    int? initialDataUpdatedAt,
-    PlaceholderDataFn<TData>? placeholderData,
-    bool? structuralSharing,
-    QueryPersist<TData>? persist,
-    Map<String, Object?>? meta,
-    QueryClient? client,
-  }) {
-    return observe(
-      queryKey: queryKey,
-      queryFn: queryFn,
-      enabled: enabled,
-      staleTime: staleTime,
-      gcTime: gcTime,
-      refetchInterval: refetchInterval,
-      refetchIntervalInBackground: refetchIntervalInBackground,
-      refetchWhile: refetchWhile,
-      refetchOnMount: refetchOnMount,
-      refetchOnFocus: refetchOnFocus,
-      refetchOnReconnect: refetchOnReconnect,
-      retryOnMount: retryOnMount,
-      retry: retry,
-      retryDelay: retryDelay,
-      networkMode: networkMode,
-      initialData: initialData,
-      initialDataUpdatedAt: initialDataUpdatedAt,
-      placeholderData: placeholderData,
-      structuralSharing: structuralSharing,
-      persist: persist,
-      meta: meta,
-      client: client,
-    );
-  }
+  /// A query known only by its key, for data written to the cache before
+  /// anything describes the query.
+  const Query._key(this.queryKey)
+      : queryFn = null,
+        enabled = null,
+        staleTime = null,
+        gcTime = null,
+        refetchInterval = null,
+        refetchIntervalInBackground = null,
+        refetchWhile = null,
+        refetchOnMount = null,
+        refetchOnFocus = null,
+        refetchOnReconnect = null,
+        retryOnMount = null,
+        retry = null,
+        retryDelay = null,
+        networkMode = null,
+        initialData = null,
+        initialDataUpdatedAt = null,
+        placeholderData = null,
+        structuralSharing = null,
+        persist = null,
+        meta = null,
+        queryHash = null,
+        _behavior = null,
+        _defaulted = false;
+
+  /// Used by [InfiniteQuery], which fetch pages through [behavior].
+  const Query._withBehavior({
+    required this.queryKey,
+    required _QueryBehavior<TData> behavior,
+    this.enabled,
+    this.staleTime,
+    this.gcTime,
+    this.refetchInterval,
+    this.refetchIntervalInBackground,
+    this.refetchWhile,
+    this.refetchOnMount,
+    this.refetchOnFocus,
+    this.refetchOnReconnect,
+    this.retryOnMount,
+    this.retry,
+    this.retryDelay,
+    this.networkMode,
+    this.initialData,
+    this.initialDataUpdatedAt,
+    this.placeholderData,
+    this.structuralSharing,
+    this.persist,
+    this.meta,
+  })  : queryFn = null,
+        queryHash = null,
+        _behavior = behavior,
+        _defaulted = false;
+
+  const Query._defaulted({
+    required this.queryKey,
+    required this.queryHash,
+    required this.queryFn,
+    required this.enabled,
+    required this.staleTime,
+    required this.gcTime,
+    required this.refetchInterval,
+    required this.refetchIntervalInBackground,
+    required this.refetchWhile,
+    required this.refetchOnMount,
+    required this.refetchOnFocus,
+    required this.refetchOnReconnect,
+    required this.retryOnMount,
+    required this.retry,
+    required this.retryDelay,
+    required this.networkMode,
+    required this.initialData,
+    required this.initialDataUpdatedAt,
+    required this.placeholderData,
+    required this.structuralSharing,
+    required this.persist,
+    required this.meta,
+    required _QueryBehavior<TData>? behavior,
+  })  : _behavior = behavior,
+        _defaulted = true;
 
   final QueryKey queryKey;
-  final String queryHash;
-  final QueryClient _client;
-  final QueryCache _cache;
 
-  late QueryOptions<TData> _options;
-  QueryState<TData>? _state;
-  late QueryState<TData> _initialState;
-  QueryState<TData>? _revertState;
-  Retryer<TData>? _retryer;
-  final List<QueryObserver<TData>> _observers = [];
-  bool _abortSignalConsumed = false;
-  bool _removed = false;
-  bool _restoreAttempted = false;
-  Future<void>? _restoring;
+  /// Fetches the data. Must not resolve to `null`; `null` means "no data".
+  final QueryFn<TData>? queryFn;
 
-  /// Increased by a reset, so a read that started before it is dropped.
-  int _restoreGeneration = 0;
-  bool _persistScheduled = false;
+  /// Set to false to stop the query from fetching automatically.
+  final bool? enabled;
 
-  QueryOptions<TData> get options => _options;
+  /// How long data stays fresh. Fresh data is not refetched on mount, focus,
+  /// or reconnect. Use [infiniteDuration] to stay fresh until invalidated.
+  final Duration? staleTime;
 
-  Type get _dataType => TData;
+  /// How long an unused query stays in the cache.
+  final Duration? gcTime;
 
-  QueryState<TData> get state => _state!;
+  /// Refetch when this much time has passed since the query last changed,
+  /// while observed.
+  final Duration? refetchInterval;
 
-  Map<String, Object?>? get meta => _options.meta;
+  /// Keep polling with [refetchInterval] while the app is in the background.
+  final bool? refetchIntervalInBackground;
 
-  /// The in-flight fetch, if any.
-  Future<TData>? get future => _retryer?.future;
+  /// Polls with [refetchInterval] only while this returns true for the latest
+  /// result, for example until a job finishes. It is checked on every change,
+  /// so polling resumes when it returns true again.
+  final bool Function(QueryResult<TData> result)? refetchWhile;
 
-  List<QueryObserver<TData>> get observers => List.unmodifiable(_observers);
+  final RefetchMode? refetchOnMount;
 
-  void _setOptions(QueryOptions<TData> options) {
-    _options =
-        options._defaulted ? options : _client._defaultQueryOptions(options);
-    _updateGcTime(_options.gcTime);
+  /// Refetch when the app returns to the foreground.
+  final RefetchMode? refetchOnFocus;
 
-    final state = _state;
-    if (state != null && state.data == null) {
-      final defaultState = _defaultState(_options);
-      final initialData = defaultState.data;
-      if (initialData != null) {
-        _setState(state.copyWith(
-          data: initialData,
-          dataUpdatedAt: defaultState.dataUpdatedAt,
-          error: null,
-          isInvalidated: false,
-          status: QueryStatus.success,
-        ));
-        _initialState = defaultState;
-      }
-    }
-    if (state != null) _maybeRestore();
-  }
+  final RefetchMode? refetchOnReconnect;
 
-  @override
-  void _scheduleGc() {
-    // Once removed from the cache, there is nothing left to collect, and a
-    // timer would outlive the query.
-    if (!_removed) super._scheduleGc();
-  }
+  /// Set to false to not retry a query that failed when a new observer mounts.
+  final bool? retryOnMount;
 
-  @override
-  void _optionalRemove() {
-    if (_observers.isEmpty && state.fetchStatus == FetchStatus.idle) {
-      _cache._remove(this);
-    }
-  }
+  final RetryPolicy? retry;
+  final RetryDelay? retryDelay;
+  final NetworkMode? networkMode;
 
-  TData _setData(TData newData, {int? updatedAt, bool manual = false}) {
-    final data = replaceData(
-      state.data,
-      newData,
-      structuralSharing: _options.structuralSharing ?? true,
-    );
-    _dispatch(_QuerySuccessAction<TData>(
-      data: data,
-      dataUpdatedAt: updatedAt,
-      manual: manual,
-    ));
-    return data;
-  }
+  /// Data to seed the cache with. Treated as real, cached data.
+  final TData? initialData;
 
-  /// Replaces the query state and notifies observers.
-  void _setState(QueryState<TData> state) {
-    _dispatch(_QuerySetStateAction<TData>(state));
-  }
+  /// When [initialData] was fetched, in milliseconds since epoch. Defaults to
+  /// now, which makes it fresh for [staleTime].
+  final int? initialDataUpdatedAt;
 
-  /// Cancels the in-flight fetch, if any.
+  /// Data to show while pending, without writing it to the cache. Pass
+  /// [keepPreviousData] to keep showing the previous key's data.
+  final PlaceholderDataFn<TData>? placeholderData;
+
+  /// Reuse the previous data instance when a refetch returns deeply equal
+  /// data. Defaults to true.
+  final bool? structuralSharing;
+
+  /// Stores the data with the client's [QueryStorage] and restores it when
+  /// the query is used again, even after the app restarts.
+  final QueryPersist<TData>? persist;
+
+  final Map<String, Object?>? meta;
+
+  final _QueryBehavior<TData>? _behavior;
+
+  /// Hash of [queryKey]. Set once the options are defaulted by a client.
+  final String? queryHash;
+
+  final bool _defaulted;
+
+  /// Returns an observer that watches this query, with [Fuery.client] unless
+  /// [client] is given. The query fetches when the observer gets its first
+  /// listener. Create the observer once, not in `build`.
   ///
-  /// With [revert], the state goes back to what it was before the fetch.
-  Future<void> _cancel({bool revert = false, bool silent = false}) {
-    final future = _retryer?.future;
-    _retryer?.cancel(revert: revert, silent: silent);
-    if (future == null) return Future.value();
-    return future.then<void>((_) {}, onError: (Object _) {});
-  }
-
-  @override
-  void _destroy() {
-    super._destroy();
-    _cancel(silent: true);
-  }
-
-  /// Resets the query to its initial state.
-  void _reset() {
-    _restoreGeneration++;
-    _destroy();
-    _setState(_initialState);
-    if (_observers.isEmpty) _scheduleGc();
-  }
-
-  /// Whether at least one observer is enabled.
-  bool get isActive => _observers.any((o) => o.options.enabled != false);
-
-  /// Whether the query will not fetch on its own.
-  bool get isDisabled {
-    if (_observers.isNotEmpty) return !isActive;
-    return !isFetched;
-  }
-
-  /// Whether the query resolved with data or an error at least once.
-  bool get isFetched => state.dataUpdateCount + state.errorUpdateCount > 0;
-
-  /// Whether the query is stale, as seen by its observers.
-  bool get isStale {
-    if (_observers.isNotEmpty) {
-      return _observers.any((o) => o.result.isStale);
-    }
-    return state.data == null || state.isInvalidated;
-  }
-
-  /// Whether an observer uses [staticStaleTime], so the query is never stale
-  /// and never refetched.
-  bool get isStatic =>
-      _observers.any((o) => o.options.staleTime == staticStaleTime);
-
-  /// Whether the data is older than [staleTime].
-  bool isStaleByTime([Duration? staleTime]) {
-    if (state.data == null) return true;
-    if (staleTime == staticStaleTime) return false;
-    if (state.isInvalidated) return true;
-    return timeUntilStale(state.dataUpdatedAt, staleTime) == 0;
-  }
-
-  void _onFocus() {
-    _observers
-        .firstWhereOrNull((o) => o._shouldFetchOnFocus())
-        ?.refetch(cancelRefetch: false);
-    _retryer?.resume();
-  }
-
-  void _onOnline() {
-    _observers
-        .firstWhereOrNull((o) => o._shouldFetchOnReconnect())
-        ?.refetch(cancelRefetch: false);
-    _retryer?.resume();
-  }
-
-  void _addObserver(QueryObserver<TData> observer) {
-    if (_observers.contains(observer)) return;
-    _observers.add(observer);
-    _clearGcTimeout();
-    _cache._notify();
-  }
-
-  void _removeObserver(QueryObserver<TData> observer) {
-    if (!_observers.remove(observer)) return;
-
-    if (_observers.isEmpty) {
-      final retryer = _retryer;
-      if (retryer != null) {
-        // Abort only if the query function can be aborted. Otherwise let it
-        // finish so the result is cached.
-        if (_abortSignalConsumed ||
-            (state.fetchStatus == FetchStatus.paused &&
-                state.status == QueryStatus.pending)) {
-          retryer.cancel(revert: true);
-        } else {
-          retryer.cancelRetry();
-        }
-      }
-      _scheduleGc();
-    }
-
-    _cache._notify();
-  }
-
-  int get observersCount => _observers.length;
-
-  /// Marks the query as stale. Does not refetch by itself.
-  void _invalidate() {
-    if (!state.isInvalidated) _dispatch(const _QueryInvalidateAction());
-  }
-
-  /// Refetches with the options of an observer when there is one, so options
-  /// passed to [QueryClient.query], like its retry default, don't stick.
-  Future<TData> _refetch(_FetchOptions fetchOptions) {
-    return _fetch(_observers.firstOrNull?.options, fetchOptions);
-  }
-
-  /// Runs the query function and updates the state with the result.
+  /// Define a query once as options, then observe it in widgets, fetch it
+  /// with [QueryClient.query], and read or write its data with
+  /// [QueryClient.getData] and [QueryClient.updateData]:
   ///
-  /// Returns the in-flight fetch if one is running, unless
-  /// [_FetchOptions.cancelRefetch] is set and the query already has data.
-  Future<TData> _fetch([
-    QueryOptions<TData>? options,
-    _FetchOptions? fetchOptions,
-  ]) async {
-    final restoring = _restoring;
-    if (restoring != null) {
-      await restoring;
-      final data = state.data;
-      // Fresh restored data doesn't need a fetch, unless one was asked for.
-      if (data != null &&
-          !(fetchOptions?.cancelRefetch ?? false) &&
-          !isStaleByTime((options ?? _options).staleTime)) {
-        return data;
-      }
-    }
+  /// ```dart
+  /// Query<Post> postOptions(int id) => Query(
+  ///       queryKey: ['posts', id],
+  ///       queryFn: (_) => api.getPost(id),
+  ///     );
+  ///
+  /// late final post = postOptions(widget.id).observe();
+  /// ```
+  QueryObserver<TData> observe({QueryClient? client}) {
+    return QueryObserver<TData>(client ?? Fuery.client, this);
+  }
 
-    final current = _retryer;
-    if (state.fetchStatus != FetchStatus.idle &&
-        current != null &&
-        current.status != RetryerStatus.rejected) {
-      if (state.data != null && (fetchOptions?.cancelRefetch ?? false)) {
-        _cancel(silent: true);
-      } else {
-        current.continueRetry();
-        return current.future;
-      }
-    }
-
-    if (options != null) _setOptions(options);
-
-    // Queries created by setQueryData have no query function yet.
-    if (_options.queryFn == null && _options._behavior == null) {
-      final observer = _observers.firstWhereOrNull(
-        (o) => o.options.queryFn != null || o.options._behavior != null,
-      );
-      if (observer != null) _setOptions(observer.options);
-    }
-
-    final abortController = AbortController();
-    AbortSignal consumeSignal() {
-      _abortSignalConsumed = true;
-      return abortController.signal;
-    }
-
-    Future<TData> fetchFn() {
-      final queryFn = _options.queryFn;
-      if (queryFn == null) {
-        return Future.error(StateError("Missing queryFn: '$queryHash'"));
-      }
-      _abortSignalConsumed = false;
-      return queryFn(QueryFunctionContext._(
-        client: _client,
-        queryKey: queryKey,
-        meta: meta,
-        signal: consumeSignal,
-        peekSignal: () => abortController.signal,
-      ));
-    }
-
-    final context = _FetchContext<TData>._(
-      fetchFn: fetchFn,
-      fetchOptions: fetchOptions,
-      options: _options,
-      client: _client,
+  Query<TData> _withDefaults(QueryDefaults defaults) {
+    final networkMode = this.networkMode ?? defaults.networkMode;
+    return Query<TData>._defaulted(
       queryKey: queryKey,
-      state: state,
-      signal: consumeSignal,
+      queryHash: queryHash ?? hashKey(queryKey),
+      queryFn: queryFn,
+      enabled: enabled ?? defaults.enabled,
+      staleTime: staleTime ?? defaults.staleTime,
+      gcTime: gcTime ?? defaults.gcTime,
+      refetchInterval: refetchInterval ?? defaults.refetchInterval,
+      refetchIntervalInBackground:
+          refetchIntervalInBackground ?? defaults.refetchIntervalInBackground,
+      refetchWhile: refetchWhile,
+      refetchOnMount: refetchOnMount ?? defaults.refetchOnMount,
+      refetchOnFocus: refetchOnFocus ?? defaults.refetchOnFocus,
+      refetchOnReconnect: refetchOnReconnect ??
+          defaults.refetchOnReconnect ??
+          (networkMode == NetworkMode.always
+              ? RefetchMode.never
+              : RefetchMode.ifStale),
+      retryOnMount: retryOnMount ?? defaults.retryOnMount,
+      retry: retry ?? defaults.retry,
+      retryDelay: retryDelay ?? defaults.retryDelay,
+      networkMode: networkMode,
+      initialData: initialData,
+      initialDataUpdatedAt: initialDataUpdatedAt,
+      placeholderData: placeholderData,
+      structuralSharing: structuralSharing ?? defaults.structuralSharing,
+      persist: persist,
+      meta: meta ?? defaults.meta,
+      behavior: _behavior,
     );
-    _options._behavior?.onFetch(context, this);
+  }
 
-    _revertState = state;
+  /// Whether [other] configures the query the same way, as far as anything
+  /// watching the cache can tell. Functions and codecs are compared only by
+  /// whether they are set: options built again, for example in a widget's
+  /// `build`, have new closures for the same query, and the observer uses the
+  /// latest ones either way.
+  bool _sameConfig(Query<TData> other) {
+    bool sameSet(Object? a, Object? b) => (a == null) == (b == null);
+    return queryHash == other.queryHash &&
+        enabled == other.enabled &&
+        staleTime == other.staleTime &&
+        gcTime == other.gcTime &&
+        refetchInterval == other.refetchInterval &&
+        refetchIntervalInBackground == other.refetchIntervalInBackground &&
+        refetchOnMount == other.refetchOnMount &&
+        refetchOnFocus == other.refetchOnFocus &&
+        refetchOnReconnect == other.refetchOnReconnect &&
+        retryOnMount == other.retryOnMount &&
+        networkMode == other.networkMode &&
+        const DeepCollectionEquality().equals(initialData, other.initialData) &&
+        initialDataUpdatedAt == other.initialDataUpdatedAt &&
+        structuralSharing == other.structuralSharing &&
+        const DeepCollectionEquality().equals(meta, other.meta) &&
+        sameSet(queryFn, other.queryFn) &&
+        sameSet(refetchWhile, other.refetchWhile) &&
+        sameSet(retry, other.retry) &&
+        sameSet(retryDelay, other.retryDelay) &&
+        sameSet(placeholderData, other.placeholderData) &&
+        sameSet(persist, other.persist) &&
+        sameSet(_behavior, other._behavior);
+  }
 
-    // A new retryer starts here, so reset the failure count and fetch status
-    // even if a paused or cancelled fetch left the query non-idle.
-    _dispatch(_QueryFetchAction(fetchOptions?.direction));
-
-    final retryer = _retryer = Retryer<TData>(
-      fn: context.fetchFn,
-      onCancel: (error) {
-        // Update the state right away, so a write or fetch that follows the
-        // cancel isn't overwritten when the cancelled fetch settles.
-        final revertState = _revertState;
-        if (error.revert && revertState != null) {
-          _setState(revertState.copyWith(fetchStatus: FetchStatus.idle));
-        } else if (!error.silent) {
-          _dispatch(_QueryErrorAction(error));
-        }
-        abortController.abort(error);
-      },
-      onFail: (failureCount, error) {
-        _dispatch(_QueryFailedAction(failureCount, error));
-      },
-      onPause: () => _dispatch(const _QueryPauseAction()),
-      onContinue: () => _dispatch(const _QueryContinueAction()),
-      retry: context.options.retry,
-      retryDelay: context.options.retryDelay,
-      networkMode: context.options.networkMode,
-      canRun: () => true,
+  Query<TData> _withRetry(RetryPolicy retry) {
+    return Query<TData>._defaulted(
+      queryKey: queryKey,
+      queryHash: queryHash,
+      queryFn: queryFn,
+      enabled: enabled,
+      staleTime: staleTime,
+      gcTime: gcTime,
+      refetchInterval: refetchInterval,
+      refetchIntervalInBackground: refetchIntervalInBackground,
+      refetchWhile: refetchWhile,
+      refetchOnMount: refetchOnMount,
+      refetchOnFocus: refetchOnFocus,
+      refetchOnReconnect: refetchOnReconnect,
+      retryOnMount: retryOnMount,
+      retry: retry,
+      retryDelay: retryDelay,
+      networkMode: networkMode,
+      initialData: initialData,
+      initialDataUpdatedAt: initialDataUpdatedAt,
+      placeholderData: placeholderData,
+      structuralSharing: structuralSharing,
+      persist: persist,
+      meta: meta,
+      behavior: _behavior,
     );
-
-    try {
-      final data = await retryer.start();
-      _setData(data);
-      _cache.config.onSuccess?.call(data, this);
-      _cache.config.onSettled?.call(data, null, this);
-      return data;
-    } on CancelledError catch (error) {
-      if (error.silent) {
-        // Follow the fetch that replaced this one, if any.
-        final current = _retryer;
-        if (current != null && !identical(current, retryer)) {
-          return current.future;
-        }
-        if (state.fetchStatus != FetchStatus.idle) {
-          _setState(state.copyWith(fetchStatus: FetchStatus.idle));
-        }
-        rethrow;
-      }
-      if (error.revert) {
-        final data = state.data;
-        if (data == null) rethrow;
-        return data;
-      }
-      rethrow;
-    } catch (error) {
-      _onFetchError(error);
-      rethrow;
-    } finally {
-      if (identical(_retryer, retryer)) _retryer = null;
-      _scheduleGc();
-    }
   }
-
-  void _onFetchError(Object error) {
-    _dispatch(_QueryErrorAction(error));
-    _cache.config.onError?.call(error, this);
-    _cache.config.onSettled?.call(state.data, error, this);
-  }
-
-  void _dispatch(_QueryAction action) {
-    _state = _reduce(state, action);
-    if (action is _QuerySuccessAction &&
-        state.fetchStatus == FetchStatus.idle) {
-      _schedulePersist();
-    }
-
-    notifyManager.batch(() {
-      for (final observer in _observers.toList()) {
-        observer._onQueryUpdate();
-      }
-      _cache._notify();
-    });
-  }
-
-  QueryState<TData> _reduce(QueryState<TData> state, _QueryAction action) {
-    switch (action) {
-      case _QueryFailedAction(:final failureCount, :final error):
-        return state.copyWith(
-          fetchFailureCount: failureCount,
-          fetchFailureReason: error,
-        );
-      case _QueryPauseAction():
-        return state.copyWith(fetchStatus: FetchStatus.paused);
-      case _QueryContinueAction():
-        return state.copyWith(fetchStatus: FetchStatus.fetching);
-      case _QueryFetchAction(:final direction):
-        return _fetchState(state, _options.networkMode)
-            ._withFetchDirection(direction);
-      case _QuerySuccessAction<TData>(
-          :final data,
-          :final dataUpdatedAt,
-          :final manual,
-        ):
-        var next = state.copyWith(
-          data: data,
-          dataUpdateCount: state.dataUpdateCount + 1,
-          dataUpdatedAt: dataUpdatedAt ?? now(),
-          error: null,
-          isInvalidated: false,
-          status: QueryStatus.success,
-        );
-        if (!manual) {
-          next = next.copyWith(
-            fetchStatus: FetchStatus.idle,
-            fetchFailureCount: 0,
-            fetchFailureReason: null,
-          );
-        }
-        // After a successful fetch there is nothing to revert to. After a
-        // manual update, a cancelled fetch should revert to this new data.
-        _revertState = manual ? next : null;
-        return next;
-      case _QueryErrorAction(:final error):
-        return state.copyWith(
-          error: error,
-          errorUpdateCount: state.errorUpdateCount + 1,
-          errorUpdatedAt: now(),
-          fetchFailureCount: state.fetchFailureCount + 1,
-          fetchFailureReason: error,
-          fetchStatus: FetchStatus.idle,
-          status: QueryStatus.error,
-          // A background error means the existing data should be refetched.
-          isInvalidated: true,
-        );
-      case _QueryInvalidateAction():
-        return state.copyWith(isInvalidated: true);
-      case _QuerySetStateAction<TData>(state: final newState):
-        return newState;
-      // Actions are created by this query with its own TData, so this only
-      // exists to make the switch exhaustive.
-      // coverage:ignore-start
-      case _QuerySuccessAction() || _QuerySetStateAction():
-        throw StateError('Action data type does not match query $queryHash');
-      // coverage:ignore-end
-    }
-  }
-
-  String get _storageKey => '$persistKeyPrefix$queryHash';
-
-  /// Restores persisted data the first time the query has a [QueryPersist]
-  /// and no data. Synchronous storage restores right away; otherwise [_fetch]
-  /// waits for the restore.
-  void _maybeRestore() {
-    final storage = _client.storage;
-    if (_restoreAttempted ||
-        storage == null ||
-        _options.persist == null ||
-        state.data != null) {
-      return;
-    }
-    _restoreAttempted = true;
-
-    final preloaded = _client._takePreloaded(queryHash);
-    if (preloaded != null) return _applyEntry(preloaded);
-
-    final deletions = _client._deletionsDone();
-    final FutureOr<String?> value;
-    try {
-      value = deletions == null
-          ? storage.read(_storageKey)
-          : deletions.then((_) => storage.read(_storageKey));
-    } catch (_) {
-      return; // A failing storage is treated as empty.
-    }
-    if (value is Future<String?>) {
-      final generation = _restoreGeneration;
-      _restoring = value.then(
-        (raw) {
-          if (generation == _restoreGeneration) _applyRestored(raw);
-        },
-        onError: (Object _) {},
-      ).whenComplete(() => _restoring = null);
-    } else {
-      _applyRestored(value);
-    }
-  }
-
-  /// Restores data that [QueryClient.restore] read ahead of time.
-  void _restoreFromPreload() {
-    // Take the entry either way: a query that already has data must not
-    // restore this snapshot after it's garbage collected.
-    final preloaded = _client._takePreloaded(queryHash);
-    if (preloaded != null) _applyEntry(preloaded);
-  }
-
-  void _applyRestored(String? raw) {
-    if (raw == null || _options.persist == null || state.data != null) return;
-    final entry = _decodeEntry(raw);
-    // Stored data that can't be read is discarded.
-    if (entry == null) return _client._deleteStored(_storageKey);
-    _applyEntry(entry);
-  }
-
-  void _applyEntry(Map<String, Object?> entry) {
-    final persist = _options.persist;
-    if (persist == null || state.data != null) return;
-    try {
-      final updatedAt = entry['t']! as int;
-      final maxAge = persist.maxAge ?? _client.persistMaxAge;
-      if (entry['v'] != persist.version ||
-          now() - updatedAt > maxAge.inMilliseconds) {
-        return _client._deleteStored(_storageKey);
-      }
-      _setState(state.copyWith(
-        data: persist._decode(entry['d']),
-        dataUpdatedAt: updatedAt,
-        error: null,
-        status: QueryStatus.success,
-      ));
-    } catch (_) {
-      // Stored data that can't be read is discarded.
-      _client._deleteStored(_storageKey);
-    }
-  }
-
-  /// Writes the data once the current batch of updates is done.
-  void _schedulePersist() {
-    if (_persistScheduled ||
-        _client.storage == null ||
-        _options.persist == null) {
-      return;
-    }
-    _persistScheduled = true;
-    notifyManager.schedule(() {
-      _persistScheduled = false;
-      _writeStored();
-    });
-  }
-
-  void _writeStored() {
-    final storage = _client.storage!;
-    final persist = _options.persist;
-    final data = state.data;
-    // A removed query must not write back what was just deleted.
-    if (persist == null ||
-        data == null ||
-        !identical(_cache.get(queryHash), this)) {
-      return;
-    }
-    final maxAge = persist.maxAge ?? _client.persistMaxAge;
-    final String value;
-    try {
-      value = jsonEncode({
-        'v': persist.version,
-        't': state.dataUpdatedAt,
-        // Lets restore() delete it once expired, even if the query is never
-        // used again.
-        'e': state.dataUpdatedAt + maxAge.inMilliseconds,
-        'd': persist._encode(data),
-      });
-    } catch (_) {
-      return; // Data that can't be encoded isn't stored.
-    }
-    // A snapshot read by restore() is older than this data now.
-    _client._takePreloaded(queryHash);
-    // Write after deletions in flight, so they can't remove the new data.
-    final deletions = _client._deletionsDone();
-    if (deletions == null) {
-      _ignoreErrors(() => storage.write(_storageKey, value));
-    } else {
-      deletions.then((_) => storage.write(_storageKey, value)).ignore();
-    }
-  }
-
-  @override
-  String toString() => 'Query($queryHash, ${state.status.name})';
 }
 
-QueryState<TData> _fetchState<TData extends Object>(
-  QueryState<TData> state,
-  NetworkMode? networkMode,
-) {
-  final next = state.copyWith(
-    fetchFailureCount: 0,
-    fetchFailureReason: null,
-    fetchStatus:
-        canFetch(networkMode) ? FetchStatus.fetching : FetchStatus.paused,
-  );
-  if (state.data != null) return next;
-  return next.copyWith(error: null, status: QueryStatus.pending);
-}
-
-QueryState<TData> _defaultState<TData extends Object>(
-  QueryOptions<TData> options,
-) {
-  final data = options.initialData;
-  final hasData = data != null;
-  return QueryState<TData>(
-    data: data,
-    dataUpdatedAt: hasData ? (options.initialDataUpdatedAt ?? now()) : 0,
-    status: hasData ? QueryStatus.success : QueryStatus.pending,
-  );
-}
+@Deprecated('Use Query.')
+typedef QueryOptions<TData extends Object> = Query<TData>;

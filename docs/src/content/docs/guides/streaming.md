@@ -6,7 +6,7 @@ description: "Cache a stream in Flutter: show chunks as they arrive, then keep t
 `streamedQuery` turns a `Stream` into a query function and folds each chunk into the query data. Use it when a response arrives in chunks: a streamed answer, a progress log, a file being processed.
 
 ```dart
-final answer = Query.observe(
+final answer = Query(
   queryKey: ['answer', question],
   queryFn: streamedQuery(
     stream: (context) => api.ask(question),
@@ -26,7 +26,7 @@ Use it for streams that end. A connection that stays open, like a live feed, isn
 ## Collecting chunks in a list
 
 ```dart
-final log = Query.observe(
+final log = Query(
   queryKey: ['jobs', id, 'log'],
   queryFn: streamedQuery(
     stream: (context) => api.jobLog(id),

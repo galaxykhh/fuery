@@ -90,7 +90,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     Fuery.client = QueryClient(storage: storage);
     onlineManager.setOnline(true);
-    await Fuery.client.restore(mutations: [addCommentOptions()]);
+    await Fuery.client.restore(mutations: [addCommentMutation()]);
     await tester.pumpWidget(const FeedApp());
     await tester.pump(const Duration(milliseconds: 300)); // the comment
     await tester.pump(const Duration(milliseconds: 400)); // the feed

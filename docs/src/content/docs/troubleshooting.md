@@ -19,24 +19,24 @@ Dart infers `List<dynamic>` for the empty list, which isn't the `List<Todo>` the
 client.setQueryData<List<Todo>>(['todos'], []);
 ```
 
-`setData` with the query's options takes the type from them, so this can't happen: `client.setData(todosOptions(), [])`. See [Organizing queries](../guides/organizing-queries/).
+`setData` takes the type from the query, so this can't happen: `client.setData(todosQuery, [])`. See [Organizing queries](../guides/organizing-queries/).
 
 ## The data type is Object instead of my model
 
-Passing a generic function such as `keepPreviousData` to `Query.observe` makes Dart infer the data type from that function rather than from `queryFn`:
+Passing a generic function such as `keepPreviousData` to a `Query` whose type Dart infers makes it infer the data type from that function rather than from `queryFn`:
 
 ```dart
-final posts = Query.observe(
+final posts = Query(
   queryKey: ['posts', 1],
   queryFn: (_) => api.getPosts(1),
-  placeholderData: keepPreviousData, // posts is QueryObserver<Object>
+  placeholderData: keepPreviousData, // posts is Query<Object>
 );
 ```
 
-Write the closure instead. Inside `QueryOptions`, where the type is already known, `keepPreviousData` is fine:
+Write the closure instead. Where the type is already known, as in a function that returns `Query<List<Post>>`, `keepPreviousData` is fine:
 
 ```dart
-placeholderData: (previous) => previous,
+placeholderData: (previous, client) => previous,
 ```
 
 ## A Timer is still pending even after the widget tree was disposed
@@ -54,16 +54,9 @@ Unsubscribe any observer you subscribed by hand before `clear()`. Clearing moves
 
 ## The test client stays empty, or a test only passes when it runs first
 
-A query captures its client when you create it. A query declared at the top level of a file therefore keeps the client from the first test that used it, while later tests create fresh clients that never see it.
+An observer keeps the client it was created with. An observer created at the top level of a file, as in `final todos = todosQuery.observe();`, therefore keeps the client from the first test that used it, while later tests create fresh clients that never see it.
 
-Declare shared queries as options instead, and observe them where they are used. `observe()` takes the current client each time:
-
-```dart
-QueryOptions<List<Todo>> todosOptions() =>
-    QueryOptions(queryKey: ['todos'], queryFn: (_) => api.getTodos());
-```
-
-See [Which client a query uses](../guides/query-client/#which-client-a-query-uses).
+Keep queries at the top level instead, and pass them to widgets, which use the current client. Call `observe()` where the observer is used, such as in a cubit, so each test gets one on its own client. See [Which client a query uses](../guides/query-client/#which-client-a-query-uses).
 
 ## A test hangs on await subscription.cancel()
 
@@ -92,15 +85,15 @@ With a storage that reads asynchronously, data arrives a frame or two later. To 
 A refetch that was already running finishes after your change and overwrites it. Cancel it first:
 
 ```dart
-onMutate: (id) async {
-  await Fuery.client.cancelQueries(queryKey: ['todos']);
+onMutate: (id, client) async {
+  await client.cancelQueries(queryKey: ['todos']);
   // ... snapshot and update the cache
 },
 ```
 
 ## fetchNextPage cancels a refetch
 
-`fetchNextPage()` cancels a fetch that is already running, such as a background refetch of every page, unless it is loading the next page already or there is no next page. Check `isFetching` before calling it, or pass `cancelRefetch: false`.
+`state.fetchNextPage()` cancels a fetch that is already running, such as a background refetch of every page, unless it is loading the next page already or there is no next page. Check `isFetching` before calling it, or pass `cancelRefetch: false`.
 
 ## The error screen takes several seconds to appear
 
@@ -115,7 +108,7 @@ A query fails when its query function throws. A repository that returns a result
 A form seeded from a query is overwritten when a background refetch returns. Seed the controllers once, and stop the query refetching while the form is open:
 
 ```dart
-final todo = Query.observe(
+final todo = Query(
   queryKey: ['todos', 'detail', id],
   queryFn: (_) => api.getTodo(id),
   refetchOnMount: RefetchMode.never,
@@ -131,24 +124,22 @@ Every widget that starts using a query refetches it when the data is stale, and 
 
 ## A query fetches on every rebuild
 
-`Query.observe` in a `build` method creates a new query object each time. Create it once in a `State` field, a cubit, or a function that widgets call:
+`observe()` in a `build` method creates a new observer each time, as in `QueryBuilder(query: todosQuery.observe())`, and each one subscribes and fetches again. Pass the query itself instead. The widget keeps one observer for it:
 
 ```dart
-class _TodosScreenState extends State<TodosScreen> {
-  final todos = Query.observe(queryKey: ['todos'], queryFn: (_) => api.getTodos());
-}
+QueryBuilder(query: todosQuery, builder: ...)
 ```
 
-The same happens when the object is created inline, as in `QueryBuilder(query: Query.observe(...))`, or by `todosOptions().observe()` called from `build`. Options are safe to create anywhere; call `observe()` once, store the observer, and pass that down.
+When you need the observer, call `observe()` once in a `State` field or a cubit, and pass that down.
 
 In debug builds, a Fuery widget that gets a new observer for the same key on a rebuild prints a warning to the console, once per key, with a link here.
 
 ## A mutation stays pending after the request finished
 
-A callback that returns a future keeps the mutation pending until the future completes. `onSuccess: (_, __, ___) => client.invalidateQueries(...)` returns the invalidation, so the mutation is pending until the refetch is done. That is right for a save button whose spinner should wait for the list. When the screen shouldn't wait, use a block body, which returns nothing:
+A callback that returns a future keeps the mutation pending until the future completes. `onSuccess: (_, __, ___, client) => client.invalidateQueries(...)` returns the invalidation, so the mutation is pending until the refetch is done. That is right for a save button whose spinner should wait for the list. When the screen shouldn't wait, use a block body, which returns nothing:
 
 ```dart
-onSuccess: (post, _, __) {
+onSuccess: (post, _, __, client) {
   client.invalidateQueries(queryKey: ['posts']);
 },
 ```

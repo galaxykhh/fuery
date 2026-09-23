@@ -26,8 +26,8 @@ hero:
 import { Card, CardGrid } from '@astrojs/starlight/components';
 
 ```dart
-// A QueryObserver<List<Todo>>, with no type arguments.
-final todos = Query.observe(
+// A Query<List<Todo>>, with no type arguments.
+final todos = Query(
   queryKey: ['todos'],
   queryFn: (_) => api.getTodos(),
 );

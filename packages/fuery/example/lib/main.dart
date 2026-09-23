@@ -15,7 +15,7 @@ Future<void> main() async {
     cacheOptions: const SharedPreferencesWithCacheOptions(),
   );
   Fuery.client = QueryClient(storage: PreferencesStorage(preferences));
-  await Fuery.client.restore(mutations: [addCommentOptions()]);
+  await Fuery.client.restore(mutations: [addCommentMutation()]);
 
   runApp(const FeedApp());
 }

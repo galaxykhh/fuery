@@ -189,9 +189,11 @@ void main() {
       });
       final onFirst = FakeFetcher(() => 'a');
       final onSecond = FakeFetcher(() => 'b');
-      Query.observe(queryKey: ['a'], queryFn: onFirst.call, client: first)
+      Query(queryKey: ['a'], queryFn: onFirst.call)
+          .observe(client: first)
           .subscribe((_) {});
-      Query.observe(queryKey: ['b'], queryFn: onSecond.call, client: second)
+      Query(queryKey: ['b'], queryFn: onSecond.call)
+          .observe(client: second)
           .subscribe((_) {});
       async.elapse(ms10);
 
@@ -215,15 +217,15 @@ void main() {
         Fuery.client = original;
       });
 
-      final query = Query.observe(queryKey: ['a'], queryFn: (_) async => 'a');
-      final pages = InfiniteQuery.observe(
+      final query = Query(queryKey: ['a'], queryFn: (_) async => 'a').observe();
+      final pages = InfiniteQuery(
         queryKey: ['b'],
         queryFn: (context) async => context.pageParam,
         initialPageParam: 1,
         getNextPageParam: (_) => null,
-      );
-      final mutation = Mutation.observe(mutationFn: (int x) async => x);
-      final refresh = Mutation.noVariables(mutationFn: () async => 1);
+      ).observe();
+      final mutation = Mutation(mutationFn: (int x) async => x).observe();
+      final refresh = NoVariablesMutation(mutationFn: () async => 1).observe();
       query.subscribe((_) {});
       pages.subscribe((_) {});
       mutation.mutate(1);
@@ -318,11 +320,10 @@ void main() {
     await runZonedGuarded(
       () async {
         final client = QueryClient();
-        final mutation = Mutation.observe(
+        final mutation = Mutation(
           mutationFn: (int x) async => throw StateError('mutation'),
-          onError: (_, __, ___) => throw StateError('callback'),
-          client: client,
-        );
+          onError: (_, __, ___, client) => throw StateError('callback'),
+        ).observe(client: client);
         await mutation.mutateAsync(1).then((_) {}, onError: (_) {});
       },
       (error, _) => errors.add(error),

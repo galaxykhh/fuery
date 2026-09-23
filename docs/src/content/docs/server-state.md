@@ -26,7 +26,7 @@ Hold server data in the same place as app state and you end up writing the cache
 Fuery gives that data a key and keeps it in one cache:
 
 ```dart
-final todos = Query.observe(
+final todosQuery = Query(
   queryKey: ['todos'],
   queryFn: (_) => api.getTodos(),
 );
@@ -42,7 +42,7 @@ From that one declaration:
 
 ## Where the cache runs
 
-The cache is a plain Dart object, so it isn't tied to widgets. The same query is read by a `QueryBuilder`, by a cubit through its `stream`, or by a script with `await client.query(...)`. Adding it doesn't replace the state management you already use: see [using it with bloc](../guides/bloc/).
+The cache is a plain Dart object, so it isn't tied to widgets. The same query is read by a `QueryBuilder`, by a cubit through the `stream` of `todosQuery.observe()`, or by a script with `await client.query(todosQuery)`. Adding it doesn't replace the state management you already use: see [using it with bloc](../guides/bloc/).
 
 ## Next steps
 

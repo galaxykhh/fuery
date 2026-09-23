@@ -24,12 +24,12 @@ class PostScreen extends StatefulWidget {
 }
 
 class _PostScreenState extends State<PostScreen> {
-  late final post = postOptions(widget.id).observe();
-  late final comments = commentsOptions(widget.id).observe();
-  final addComment = addCommentMutation();
+  // The text field sends comments and the bar above it shows their state,
+  // so they share one observer.
+  final addComment = addCommentMutation().observe();
   final _draft = TextEditingController();
-  // Created when asked for, so the stream doesn't start until then.
-  QueryObserver<String>? _summary;
+  // Asked for with a button, so the stream doesn't start until then.
+  bool _summarize = false;
 
   @override
   void dispose() {
@@ -56,7 +56,7 @@ class _PostScreenState extends State<PostScreen> {
               padding: const EdgeInsets.all(16),
               children: [
                 QueryBuilder(
-                  query: post,
+                  query: postQuery(widget.id),
                   builder: (context, state) => switch (state) {
                     QueryResult(:final data?) => Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -77,18 +77,17 @@ class _PostScreenState extends State<PostScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-                if (_summary case final summary?)
-                  _Summary(query: summary)
+                if (_summarize)
+                  _Summary(query: summaryQuery(widget.id))
                 else
                   OutlinedButton.icon(
-                    onPressed: () => setState(
-                        () => _summary = summaryOptions(widget.id).observe()),
+                    onPressed: () => setState(() => _summarize = true),
                     icon: const Icon(Icons.auto_awesome),
                     label: const Text('Summarize thread'),
                   ),
                 const Divider(height: 32),
                 QueryBuilder(
-                  query: comments,
+                  query: commentsQuery(widget.id),
                   builder: (context, state) => switch (state) {
                     QueryResult(:final data?) => Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -169,7 +168,7 @@ class _PostScreenState extends State<PostScreen> {
 class _Summary extends StatelessWidget {
   const _Summary({required this.query});
 
-  final QueryObserver<String> query;
+  final Query<String> query;
 
   @override
   Widget build(BuildContext context) {

@@ -4,8 +4,9 @@ Fetch, cache, and keep server data fresh in Flutter.
 
 Fuery fetches, caches, and keeps your server data fresh, with request deduplication, stale-while-revalidate caching, retries, pagination, and optimistic updates. Builder, listener, and consumer widgets, with `buildWhen` and `listenWhen`, turn queries into UI and side effects.
 
-- **Drops into the app you have.** Start with one screen: creating a query needs no `BuildContext`, and nothing else has to change.
-- **Runs where your code runs.** The core is pure Dart, so widgets, cubits, services, CLIs, and servers use the same query object.
+- **One idea to learn.** A query is a definition. Pass it to a widget, fetch it with the client, or read its cached data, all with the same object.
+- **Drops into the app you have.** Start with one screen: a query needs no `BuildContext` and no setup, and it works in a `StatelessWidget`.
+- **Runs where your code runs.** The core is pure Dart, so widgets, cubits, services, CLIs, and servers use the same queries.
 - **No type arguments, no code generation.** Types come from your query and mutation functions.
 - **Built for real networks.** Refetches when the app returns to the foreground, retries failed requests, and pauses while offline once you [report connectivity](#app-lifecycle-and-connectivity).
 - **Devtools in the app.** Inspect the cache on a device, with no separate tooling.
@@ -20,26 +21,21 @@ flutter pub add fuery
 
 ## Quick start
 
-Create a query once, for example in a `State` field, and build UI from it:
+Define a query, and pass it to a widget:
 
 ```dart
-class TodoListScreen extends StatefulWidget {
+final todosQuery = Query(
+  queryKey: ['todos'],
+  queryFn: (_) => api.getTodos(),
+);
+
+class TodoListScreen extends StatelessWidget {
   const TodoListScreen({super.key});
-
-  @override
-  State<TodoListScreen> createState() => _TodoListScreenState();
-}
-
-class _TodoListScreenState extends State<TodoListScreen> {
-  final todos = Query.observe(
-    queryKey: ['todos'],
-    queryFn: (_) => api.getTodos(),
-  );
 
   @override
   Widget build(BuildContext context) {
     return QueryBuilder(
-      query: todos,
+      query: todosQuery,
       builder: (context, state) => switch (state) {
         QueryResult(:final data?) => TodoList(data),
         QueryResult(:final error?) => Text('$error'),
@@ -50,31 +46,31 @@ class _TodoListScreenState extends State<TodoListScreen> {
 }
 ```
 
-No type arguments are needed: `todos` is a `QueryObserver<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`. `QueryResult(:final data?)` matches only when there is data, so `data` is a non-null `List<Todo>` without `!`. Data comes first, so a list that fails to refresh stays on screen, and the error shows only when there is no data yet.
+No type arguments are needed: `todosQuery` is a `Query<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`. `QueryResult(:final data?)` matches only when there is data, so `data` is a non-null `List<Todo>` without `!`. Data comes first, so a list that fails to refresh stays on screen, and the error shows only when there is no data yet.
 
 The query fetches when `QueryBuilder` mounts. Every widget that uses the key `['todos']` shares one cache entry and one request.
 
-Creating a query does not fetch, so it doesn't need to be `late`. Use `late final` only when the query reads `widget` or other fields, for example `queryKey: ['todo', widget.id]`.
+A query is only a description, so building one in `build` is fine. For a query that depends on the widget, write a function and call it there: `QueryBuilder(query: todoQuery(widget.id))`. The widget keeps one observer for it and follows the new key when `id` changes.
 
 ## Queries
 
 ```dart
-final todo = Query.observe(
-  queryKey: ['todos', id],
-  queryFn: (context) => api.getTodo(id),
-  staleTime: const Duration(minutes: 1),
-);
+Query<Todo> todoQuery(int id) => Query(
+      queryKey: ['todos', id],
+      queryFn: (context) => api.getTodo(id),
+      staleTime: const Duration(minutes: 1),
+    );
 ```
 
 **Keys** identify cached data. They are lists compared by value, so `['todos', 1]` from two widgets is the same query. Maps inside keys are compared regardless of key order. A key can contain `null`, `bool`, `num`, `String`, enums, `DateTime`, lists, maps, and objects with a `toJson()` method.
 
 Query data can't be `null`, because `null` means "no data yet". Use a non-nullable type like `Future<User>`, and throw or return an empty value when there's nothing.
 
-Each key holds one data type. Using a key with a different type, for example `setQueryData(['todos'], [])` for a `List<Todo>` query, throws a `StateError`. Write `setQueryData<List<Todo>>(['todos'], [])`, or define the query once as options and write with `setData`, which takes the type from them (see [QueryClient](#queryclient)).
+Each key holds one data type. Write to it with `client.setData(todosQuery, todos)`, which takes the type from the query (see [QueryClient](#queryclient)).
 
 **Freshness.** Data is *fresh* for `staleTime` (default: zero) and *stale* afterwards. Stale data is still shown, and it's refetched in the background when:
 
-- a query object from `Query.observe` gets its first listener, for example when the first widget using it mounts,
+- the first widget using it mounts, or an observer from `observe()` gets its first listener,
 - the app returns to the foreground,
 - the network reconnects,
 - it is invalidated.
@@ -106,7 +102,7 @@ Unused queries stay cached for `gcTime` (default: 5 minutes), so going back to a
 | `refetchInterval` | none | Polls while a widget uses the query, counting from its latest change |
 | `refetchWhile` | none | Polls only while this returns true for the latest result |
 | `initialData` | none | Seeds the cache |
-| `placeholderData` | none | Shown while pending, not cached. `(previous) => previous` keeps the previous key's data while a new key loads. |
+| `placeholderData` | none | Shown while pending, not cached. `keepPreviousData` keeps the previous key's data while a new key loads. The function also gets the client, to read other cached data. |
 | `networkMode` | `NetworkMode.online` | `.always` ignores connectivity. `.offlineFirst` runs the first attempt anyway and pauses retries while offline. |
 | `structuralSharing` | `true` | Keeps unchanged data identical across refetches: the whole value if nothing changed, otherwise the unchanged list items |
 | `persist` | none | Stores the data on the device, see [Persistence](#persistence) |
@@ -114,7 +110,7 @@ Unused queries stay cached for `gcTime` (default: 5 minutes), so going back to a
 **Polling until done.** `refetchWhile` is checked on every change, so polling stops when it returns false and resumes when it returns true again:
 
 ```dart
-final job = Query.observe(
+final job = Query(
   queryKey: ['jobs', id],
   queryFn: (_) => api.getJob(id),
   refetchInterval: const Duration(seconds: 2),
@@ -143,6 +139,8 @@ Each kind of query has a builder, a listener, a consumer, and a selector:
 | Query | `QueryBuilder` | `QueryListener` | `QueryConsumer` | `QuerySelector` |
 | Infinite query | `InfiniteQueryBuilder` | `InfiniteQueryListener` | `InfiniteQueryConsumer` | `InfiniteQuerySelector` |
 | Mutation | `MutationBuilder` | `MutationListener` | `MutationConsumer` | `MutationSelector` |
+
+Each takes a query (or a mutation) and keeps one observer for it. Pass the same definition from several widgets, and they share one cache entry and one request. The result has the actions, too: `state.refetch()`, `state.fetchNextPage()`, and `state.mutate(...)`.
 
 How they update:
 
@@ -179,47 +177,54 @@ QuerySelector(
 
 ## Mutations
 
-Mutations create, update, or delete server data:
+Mutations create, update, or delete server data. Define one, and run it from a `MutationBuilder`:
 
 ```dart
-final addTodo = Mutation.observe(
+final addTodo = Mutation(
   mutationFn: (String title) => api.addTodo(title),
-  onSuccess: (todo, title, context) {
-    return Fuery.client.invalidateQueries(queryKey: ['todos']);
+  onSuccess: (todo, title, context, client) {
+    return client.invalidateQueries(queryKey: ['todos']);
   },
 );
 
-addTodo.mutate('Buy milk');               // errors go to the state and callbacks
-final todo = await addTodo.mutateAsync('Buy milk'); // throws on error
+MutationBuilder(
+  mutation: addTodo,
+  builder: (context, state) => FilledButton(
+    onPressed: state.isPending ? null : () => state.mutate('Buy milk'),
+    child: const Text('Add'),
+  ),
+)
 ```
 
-Returning the `invalidateQueries` future from `onSuccess` keeps the mutation pending until the list has refetched.
+Every callback receives the client that runs the mutation. Returning the `invalidateQueries` future from `onSuccess` keeps the mutation pending until the list has refetched. `state.mutateAsync(title)` returns the data, and throws on error.
+
+When the button and the pending state are in different places, create one observer with `addTodo.observe()` in a `State` field and pass it to both.
 
 **Optimistic updates.** Cancel refetches of the data first, then update the cache in `onMutate` and return what you need to roll back. The returned value is passed to the other callbacks as `context`:
 
 ```dart
-final deleteTodo = Mutation.observe(
+final deleteTodo = Mutation(
   mutationFn: (int id) => api.deleteTodo(id),
-  onMutate: (id) async {
+  onMutate: (id, client) async {
     // Keep a refetch in flight from overwriting the optimistic update.
-    await Fuery.client.cancelQueries(queryKey: ['todos']);
-    final previous = Fuery.client.getQueryData<List<Todo>>(['todos']);
-    Fuery.client.updateQueryData<List<Todo>>(
-      ['todos'],
+    await client.cancelQueries(queryKey: ['todos']);
+    final previous = client.getData(todosQuery);
+    client.updateData(
+      todosQuery,
       (todos) => todos?.where((todo) => todo.id != id).toList(),
     );
     return previous;
   },
-  onError: (error, id, previous) {
-    if (previous != null) Fuery.client.setQueryData(['todos'], previous);
+  onError: (error, id, previous, client) {
+    if (previous != null) client.setData(todosQuery, previous);
   },
 );
 ```
 
-**Without variables**, use `Mutation.noVariables` and call `mutate()`:
+**Without variables**, use `NoVariablesMutation`. Its observer runs it with `mutate()`:
 
 ```dart
-final logout = Mutation.noVariables(mutationFn: () => api.logout());
+final logout = NoVariablesMutation(mutationFn: () => api.logout()).observe();
 logout.mutate();
 ```
 
@@ -228,7 +233,7 @@ Mutations don't retry unless you set `retry`. With a `scope`, mutations that sha
 ## Infinite queries
 
 ```dart
-final posts = InfiniteQuery.observe(
+final posts = InfiniteQuery(
   queryKey: ['posts'],
   queryFn: (context) => api.getPosts(page: context.pageParam),
   initialPageParam: 1,
@@ -243,7 +248,7 @@ InfiniteQueryBuilder(
       for (final page in state.pages) ...page.items.map(PostTile.new),
       if (state.hasNextPage)
         TextButton(
-          onPressed: state.isFetching ? null : posts.fetchNextPage,
+          onPressed: state.isFetching ? null : state.fetchNextPage,
           child: const Text('Load more'),
         ),
     ],
@@ -267,7 +272,7 @@ getNextPageParam: (data) => data.lastPage.nextCursor,
 `streamedQuery` builds a query function from a `Stream` that ends, such as a streamed answer. The query succeeds with the first chunk and keeps fetching until the stream is done, and `combine` folds each chunk into the data:
 
 ```dart
-final answer = Query.observe(
+final answer = Query(
   queryKey: ['answer', question],
   queryFn: streamedQuery(
     stream: (context) => api.ask(question),
@@ -281,7 +286,7 @@ When it fetches again, `refetchMode` decides what happens to the data it has: `S
 
 ## Using with bloc
 
-Queries and mutations don't depend on widgets. Every observer has a `stream` that emits the current result first, then every change. Listening to it is what makes the query fetch.
+Queries and mutations don't depend on widgets. Outside widgets, `observe()` returns an observer with a `stream` that emits the current result first, then every change. Listening to it is what makes the query fetch.
 
 ```dart
 class TodoCubit extends Cubit<TodoState> {
@@ -291,7 +296,7 @@ class TodoCubit extends Cubit<TodoState> {
     });
   }
 
-  final _todos = Query.observe(queryKey: ['todos'], queryFn: (_) => api.getTodos());
+  final _todos = todosQuery.observe();
   late final StreamSubscription<QueryResult<List<Todo>>> _subscription;
 
   Future<void> refresh() => _todos.refetch();
@@ -311,16 +316,18 @@ In a `Bloc`, use `emit.forEach(todos.stream, onData: ...)`. The example app's [n
 `Fuery.client` is the default client. Use it to read, write, and invalidate cached data:
 
 ```dart
-final client = Fuery.client;
+final client = context.queryClient; // or Fuery.client
 
+client.getData(todosQuery);                              // List<Todo>?
+client.setData(todoQuery(1), todo);
+client.updateData(todosQuery, (todos) => [...?todos, todo]);
 client.invalidateQueries(queryKey: ['todos']);          // prefix match
 client.invalidateQueries(queryKey: ['todos'], exact: true);
-client.setQueryData(['todos', 1], todo);
-client.updateQueryData<List<Todo>>(['todos'], (todos) => [...?todos, todo]);
-client.getQueryData<List<Todo>>(['todos']);
 client.cancelQueries(queryKey: ['todos']);
 client.removeQueries(queryKey: ['todos']);
 ```
+
+`getData`, `setData`, and `updateData` take the key and the data type from the query. A query that `setData` creates gets all of its options, so it stores its data with `persist` and can refetch. With only a key, `getQueryData`, `setQueryData`, and `updateQueryData` do the same with the type named: `getQueryData<List<Todo>>(['todos'])`.
 
 `invalidateQueries` marks matching queries stale and refetches the ones in use. The others refetch the next time they're used.
 
@@ -336,32 +343,19 @@ StreamBuilder(
 )
 ```
 
-**Defining a query once.** `QueryOptions` holds a query's key, function, and options. Observe it, fetch it, and read or write its data from the same options, with the data type taken from them:
-
-```dart
-QueryOptions<List<Todo>> todosOptions() =>
-    QueryOptions(queryKey: ['todos'], queryFn: (_) => api.getTodos());
-
-late final todos = todosOptions().observe();    // like Query.observe
-client.getData(todosOptions());                 // List<Todo>?
-client.updateData(todosOptions(), (todos) => [...?todos, todo]);
-```
-
-A query that `setData` or `updateData` creates gets all of the options, so it persists its data and can refetch. `infiniteQueryOptions(...)` and `MutationOptions(...)` have `observe()` too.
-
 **Fetching outside widgets.** `client.query` returns cached data if it's fresh, and fetches otherwise. It throws on failure and doesn't retry unless you set `retry`:
 
 ```dart
-final todos = await client.query(todosOptions()); // fetch, or use fresh cache
-client.query(todosOptions()).ignore();            // prefetch: ignore result and errors
-final cached = await client.query(QueryOptions(   // use any cached data
+final todos = await client.query(todosQuery); // fetch, or use fresh cache
+client.query(todosQuery).ignore();            // prefetch: ignore result and errors
+final cached = await client.query(Query(      // use any cached data
   queryKey: ['todos'],
   queryFn: (_) => api.getTodos(),
   staleTime: staticStaleTime,
 ));
 ```
 
-`client.infiniteQuery(infiniteQueryOptions(...))` does the same for infinite queries. With nothing cached it loads `pages` pages (default: one); otherwise it reloads the pages already cached.
+`client.infiniteQuery(InfiniteQuery(...))` does the same for infinite queries. With nothing cached it loads `pages` pages (default: one); otherwise it reloads the pages already cached.
 
 **Defaults.** Configure every query, or every query under a key prefix:
 
@@ -378,19 +372,13 @@ Fuery.client.setQueryDefaults(
 );
 ```
 
-**FueryProvider.** To give a subtree its own client, for example in widget tests, wrap it in `FueryProvider` and pass `client: context.queryClient` to the entry points:
+**FueryProvider.** To give a subtree its own client, for example in widget tests, wrap it in `FueryProvider`. Widgets below it that get a query or a mutation use that client:
 
 ```dart
 FueryProvider(client: QueryClient(), child: const App());
-
-late final todos = Query.observe(
-  queryKey: ['todos'],
-  queryFn: (_) => api.getTodos(),
-  client: context.queryClient,
-);
 ```
 
-`context.queryClient` returns `Fuery.client` when there is no provider.
+`context.queryClient` returns it, or `Fuery.client` when there is no provider. An observer from `observe()` keeps the client it is given: `todosQuery.observe(client: context.queryClient)`.
 
 ## Persistence
 
@@ -399,7 +387,7 @@ Give the client a `QueryStorage`, and add `persist` to the queries worth keeping
 ```dart
 Fuery.client = QueryClient(storage: PreferencesStorage(preferences));
 
-final todos = Query.observe(
+final todos = Query(
   queryKey: ['todos'],
   queryFn: (_) => api.getTodos(),
   persist: QueryPersist(
@@ -413,7 +401,7 @@ final todos = Query.observe(
 
 `QueryStorage` has `read`, `write`, `delete`, and `readAll`, and can be synchronous or asynchronous. Stored data expires after the client's `persistMaxAge` (default: one day), and `version` discards data in an old format. `clear()` deletes all stored data, for example on logout.
 
-A mutation with `persist: MutationPersist(...)` and a `mutationKey` stores its variables while it runs, so a comment written offline is still sent after the app is closed and opened again. `await Fuery.client.restore(mutations: [addCommentOptions()])` in `main` runs what was stored. The [persistence guide](https://galaxykhh.github.io/fuery/guides/persistence/) has a `shared_preferences` storage, infinite queries, `restore()`, and persisted mutations.
+A mutation with `persist: MutationPersist(...)` and a `mutationKey` stores its variables while it runs, so a comment written offline is still sent after the app is closed and opened again. `await Fuery.client.restore(mutations: [addComment])` in `main` runs what was stored. The [persistence guide](https://galaxykhh.github.io/fuery/guides/persistence/) has a `shared_preferences` storage, infinite queries, `restore()`, and persisted mutations.
 
 ## Devtools
 
@@ -465,7 +453,7 @@ testWidgets('shows todos', (tester) async {
 });
 ```
 
-Queries and mutations without a `client:` argument use `Fuery.client`. If your widgets pass `client: context.queryClient`, wrap the app in `FueryProvider(client: client, child: const App())` instead.
+Widgets that get a query or a mutation use the client of the nearest `FueryProvider`, so `FueryProvider(client: client, child: const App())` works too. Observers created with `observe()` use `Fuery.client` unless they are given another.
 
 ## Acknowledgements
 

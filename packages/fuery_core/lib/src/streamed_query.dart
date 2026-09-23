@@ -22,7 +22,7 @@ enum StreamRefetchMode {
 /// to the value so far, starting from [initialValue]:
 ///
 /// ```dart
-/// final answer = Query.observe(
+/// final answer = Query(
 ///   queryKey: ['answer', question],
 ///   queryFn: streamedQuery(
 ///     stream: (context) => api.ask(question),
@@ -44,7 +44,8 @@ QueryFn<TData> streamedQuery<TChunk, TData extends Object>({
   return (context) {
     final client = context.client;
     final queryKey = context.queryKey;
-    final query = client.queryCache.get(hashKey(queryKey)) as Query<TData>?;
+    final query =
+        client.queryCache.get(hashKey(queryKey)) as CachedQuery<TData>?;
     final hasData = query?.state.data != null;
     final replace = hasData && refetchMode == StreamRefetchMode.replace;
 

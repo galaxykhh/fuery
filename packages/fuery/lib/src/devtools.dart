@@ -134,7 +134,7 @@ class _FueryDevtoolsPanelState extends State<FueryDevtoolsPanel> {
 
   _PanelConfig _read() {
     return (
-      client: widget.client ?? dependOnQueryClient(context),
+      client: widget.client ?? FueryProvider.of(context, listen: true),
       onClose: widget.onClose,
     );
   }
@@ -283,7 +283,7 @@ class _PanelBodyState extends State<_PanelBody> {
     );
   }
 
-  Widget _queries(QueryClient client, List<Query<Object>> queries) {
+  Widget _queries(QueryClient client, List<CachedQuery<Object>> queries) {
     final shown = queries.where((q) => q.queryHash.contains(_filter)).toList();
     final selected =
         _selected == null ? null : client.queryCache.get(_selected!);
@@ -349,7 +349,7 @@ class _PanelBodyState extends State<_PanelBody> {
 /// How the devtools label a query: `fetching`, `paused`, `stale`, `fresh`,
 /// or `inactive` when nothing watches it.
 @visibleForTesting
-String queryStatusLabel(Query<Object> query) {
+String queryStatusLabel(CachedQuery<Object> query) {
   if (query.state.fetchStatus == FetchStatus.fetching) return 'fetching';
   if (query.state.fetchStatus == FetchStatus.paused) return 'paused';
   if (query.observersCount == 0) return 'inactive';
@@ -365,7 +365,7 @@ class _QueryDetail extends StatelessWidget {
   });
 
   final QueryClient client;
-  final Query<Object> query;
+  final CachedQuery<Object> query;
   final VoidCallback onRemoved;
 
   @override
@@ -419,7 +419,7 @@ class _QueryDetail extends StatelessWidget {
 class _MutationList extends StatelessWidget {
   const _MutationList({required this.mutations});
 
-  final List<AnyMutation> mutations;
+  final List<AnyCachedMutation> mutations;
 
   @override
   Widget build(BuildContext context) {

@@ -18,26 +18,21 @@ It needs Dart 3.6 and Flutter 3.27 or newer. There is no native code and no plat
 
 ## 2. Write your first query
 
-A query needs a **key** that identifies the data and a **query function** that fetches it. Create the query once, for example in a `State` field, and build UI from it with `QueryBuilder`:
+A query needs a **key** that identifies the data and a **query function** that fetches it. Define it, and pass it to `QueryBuilder`:
 
 ```dart
-class TodoListScreen extends StatefulWidget {
+final todosQuery = Query(
+  queryKey: ['todos'],
+  queryFn: (_) => api.getTodos(),
+);
+
+class TodoListScreen extends StatelessWidget {
   const TodoListScreen({super.key});
-
-  @override
-  State<TodoListScreen> createState() => _TodoListScreenState();
-}
-
-class _TodoListScreenState extends State<TodoListScreen> {
-  final todos = Query.observe(
-    queryKey: ['todos'],
-    queryFn: (_) => api.getTodos(),
-  );
 
   @override
   Widget build(BuildContext context) {
     return QueryBuilder(
-      query: todos,
+      query: todosQuery,
       builder: (context, state) => switch (state) {
         QueryResult(:final data?) => TodoList(data),
         QueryResult(:final error?) => Text('$error'),
@@ -71,9 +66,9 @@ testWidgets('shows todos', (tester) async {
 
 ## What Fuery does for you
 
-- **No type arguments.** `todos` is a `QueryObserver<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`, and `state` in the builder is a `QueryResult<List<Todo>>`. Mutations, infinite queries, and every widget infer their types the same way.
+- **No type arguments.** `todosQuery` is a `Query<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`, and `state` in the builder is a `QueryResult<List<Todo>>`. Mutations, infinite queries, and every widget infer their types the same way.
 - **No null checks.** `QueryResult(:final data?)` matches only when there is data, so `data` is a `List<Todo>`. That branch comes first, so a list that fails to refresh stays on screen and the error shows only when there is nothing to show.
-- **Creating the query starts nothing.** The fetch begins when `QueryBuilder` mounts, and the first frame already shows loading.
+- **A query is only a description.** Defining one starts nothing, so it can live at the top level or be built in `build`. The fetch begins when `QueryBuilder` mounts, and the first frame already shows loading.
 - **Widgets share data by key.** Another screen that uses `['todos']` gets the cached list immediately and shares the same request.
 - **Stale data refreshes itself.** It refetches in the background when another screen starts using it and when the app returns to the foreground. The old data stays on screen while that happens.
 

@@ -28,21 +28,21 @@ final repository = NameRepository();
 
 Future<void> main() async {
   // A query fetches when its observer gets the first listener.
-  final name = Query.observe(
+  final name = Query(
     queryKey: ['names', 1],
     queryFn: (_) => repository.getOne(1),
-  );
+  ).observe();
   final subscription = name.stream.listen((result) {
     print('name: ${result.status.name} ${result.data}');
   });
 
   // An infinite query loads pages on demand.
-  final names = InfiniteQuery.observe(
+  final names = InfiniteQuery(
     queryKey: ['names', 'list'],
     queryFn: (context) => repository.getPage(context.pageParam),
     initialPageParam: 1,
     getNextPageParam: (data) => data.lastPage.nextCursor,
-  );
+  ).observe();
   names.subscribe((_) {});
   await Future<void>.delayed(Duration.zero);
   while (names.result.hasNextPage) {
@@ -51,19 +51,19 @@ Future<void> main() async {
   print('pages: ${names.result.pages.length}');
 
   // A mutation invalidates the queries it affects.
-  final createName = Mutation.observe(
+  final createName = Mutation(
     mutationFn: (String name) => repository.create(name),
-    onSuccess: (data, name, _) async {
+    onSuccess: (data, name, _, client) async {
       print('$data created');
       await Fuery.client.invalidateQueries(queryKey: ['names']);
     },
-  );
+  ).observe();
   await createName.mutateAsync('New name');
 
-  final removeAll = Mutation.noVariables(
+  final removeAll = NoVariablesMutation(
     mutationFn: () => repository.removeAll(),
-    onSuccess: (_, __) => print('all names removed'),
-  );
+    onSuccess: (_, __, client) => print('all names removed'),
+  ).observe();
   removeAll.mutate();
 
   await subscription.cancel();

@@ -1,3 +1,16 @@
+## 1.3.0
+This release has breaking changes in a minor version. Each **Breaking** entry says what to write instead.
+
+- **Breaking:** a query or mutation is now a definition you build anywhere and pass around. `QueryOptions`, `InfiniteQueryOptions`, and `MutationOptions` are renamed `Query`, `InfiniteQuery`, and `Mutation`; the old names stay as deprecated typedefs. `observe()` on a definition returns its observer. `Query(...)` needs `queryFn`, and `Mutation(...)` needs `mutationFn`.
+- **Breaking:** the cache entries formerly named `Query` and `Mutation` are `CachedQuery` and `CachedMutation`, and `AnyMutation` is `AnyCachedMutation`. `AnyMutation` now names any mutation definition, as `QueryClient.restore` takes them.
+- **Breaking:** removed `Query.observe`/`use`, `InfiniteQuery.observe`/`use`, `Mutation.observe`/`use`, `Mutation.noVariables`/`noParam`, and `NoParamMutationObserver`. Write `Query(...).observe()`, `InfiniteQuery(...).observe()`, `Mutation(...).observe()`, and `NoVariablesMutation(...).observe()`. `infiniteQueryOptions()` is deprecated: the `InfiniteQuery` constructor infers the same types.
+- **Breaking:** mutation callbacks and `MutateOptions` callbacks receive the client that runs the mutation as their last argument, such as `onSuccess: (data, variables, context, client)`. `placeholderData` receives the client as its second argument; `keepPreviousData` still fits.
+- **Breaking:** `MutationObserver.result` and `stream` report a `MutationResult`, a `MutationState` with `mutate`, `mutateAsync`, and `reset`.
+- `QueryResult.refetch()`, and `InfiniteQueryResult.fetchNextPage()` and `fetchPreviousPage()`, act on the query of the observer that reported the result.
+- `QuerySlot`, `InfiniteQuerySlot`, and `MutationSlot` hold the observer for a query or mutation that an adapter, such as a widget or a hook, renders on every build. `QuerySource`, `InfiniteQuerySource`, and `MutationSource` are what they take: a definition or an observer.
+- `InfiniteQuery.getNextPageParam` and `getPreviousPageParam` return `Object?` so the constructor infers its types. A param of another type is reported as an error and counts as no page.
+- Options built again, with new closures, no longer notify cache watchers when nothing a watcher can see changed.
+
 ## 1.2.0
 - Define a query once as options: `QueryOptions`, `InfiniteQueryOptions`, and `MutationOptions` have `observe()`, which returns their observer, and `QueryClient.getData`, `setData`, and `updateData` read and write a query's data with the type taken from its options. A query that `setData` creates gets all of the options, so it persists its data and can refetch.
 - `Query.observe`, `InfiniteQuery.observe`, and `Mutation.observe` replace `Query.use`, `InfiniteQuery.use`, and `Mutation.use`, and `Mutation.noVariables` with `NoVariablesMutationObserver` replaces `Mutation.noParam` with `NoParamMutationObserver`. The old names are deprecated and keep working until 2.0.

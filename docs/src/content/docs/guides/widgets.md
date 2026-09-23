@@ -11,7 +11,21 @@ Every query, infinite query, and mutation has four widgets:
 | Infinite query | `InfiniteQueryBuilder` | `InfiniteQueryListener` | `InfiniteQueryConsumer` | `InfiniteQuerySelector` |
 | Mutation | `MutationBuilder` | `MutationListener` | `MutationConsumer` | `MutationSelector` |
 
-Mounting one subscribes it to its query or mutation. A query fetches if it needs to. Unmounting unsubscribes.
+Each takes a definition: a `Query`, an `InfiniteQuery`, or a `Mutation`. The widget keeps one observer for it while it is mounted, so the definition can be built in `build`:
+
+```dart
+QueryBuilder(
+  query: todoQuery(widget.id),
+  builder: (context, state) => Text(state.data?.title ?? '…'),
+)
+```
+
+- Mounting subscribes, and a query fetches if it needs to. Unmounting unsubscribes.
+- When the widget rebuilds with a definition for another key, the observer follows it, and the new key's cached data shows in that same frame.
+- The observer uses the client of the nearest `FueryProvider`, or `Fuery.client` without one.
+- The result carries the actions: `state.refetch()`, `state.fetchNextPage()` and `state.fetchPreviousPage()` for infinite queries, and `state.mutate(...)`, `state.mutateAsync(...)`, and `state.reset()` for mutations.
+
+A widget can also take an observer you created with `observe()`, to share one handle between widgets. The widget then uses it as it is.
 
 ## When builders and listeners run
 
@@ -25,7 +39,7 @@ Mounting one subscribes it to its query or mutation. A query fetches if it needs
 
 ```dart
 QueryBuilder(
-  query: todos,
+  query: todosQuery,
   buildWhen: (previous, current) => previous.isRefetching != current.isRefetching,
   builder: (context, state) =>
       state.isRefetching ? const LinearProgressIndicator() : const SizedBox(),
@@ -38,7 +52,7 @@ A selector builds from one value of the result and rebuilds only when that value
 
 ```dart
 QuerySelector(
-  query: todos,
+  query: todosQuery,
   selector: (state) => state.data?.where((todo) => todo.done).length ?? 0,
   builder: (context, doneCount) => Text('$doneCount done'),
 )
@@ -54,10 +68,7 @@ The same works for a mutation:
 MutationSelector(
   mutation: saveTodo,
   selector: (state) => state.isPending,
-  builder: (context, saving) => FilledButton(
-    onPressed: saving ? null : save,
-    child: const Text('Save'),
-  ),
+  builder: (context, saving) => Text(saving ? 'Saving…' : 'Saved'),
 )
 ```
 
@@ -67,7 +78,7 @@ Use a listener for navigation, snackbars, and other one-off effects:
 
 ```dart
 QueryListener(
-  query: todos,
+  query: todosQuery,
   listenWhen: (previous, current) => current.isRefetchError,
   listener: (context, state) => ScaffoldMessenger.of(context)
       .showSnackBar(SnackBar(content: Text('Could not refresh: ${state.error}'))),
@@ -86,14 +97,14 @@ MutationListener(
 
 ## Pull to refresh
 
-`refetch()` returns a `Future<QueryResult>` that completes when the fetch settles, which is what `RefreshIndicator` waits for:
+`state.refetch()` returns a `Future<QueryResult>` that completes when the fetch settles, which is what `RefreshIndicator` waits for:
 
 ```dart
 QueryBuilder(
-  query: todos,
+  query: todosQuery,
   builder: (context, state) => switch (state) {
     QueryResult(:final data?) => RefreshIndicator(
-        onRefresh: () => todos.refetch(),
+        onRefresh: () => state.refetch(),
         child: ListView(
           children: [for (final todo in data) TodoTile(todo)],
         ),
@@ -123,11 +134,11 @@ Both return a `Future<void>` that completes when every matching fetch settles, a
 
 ## Retrying after an error
 
-Give the error branch a button that calls `refetch()`:
+Give the error branch a button that calls `state.refetch()`:
 
 ```dart
 QueryBuilder(
-  query: todos,
+  query: todosQuery,
   builder: (context, state) => switch (state) {
     QueryResult(:final data?) => TodoList(data),
     QueryResult(:final error?) => Center(
@@ -136,7 +147,7 @@ QueryBuilder(
           children: [
             Text('$error'),
             FilledButton(
-              onPressed: state.isFetching ? null : () => todos.refetch(),
+              onPressed: state.isFetching ? null : () => state.refetch(),
               child: const Text('Try again'),
             ),
           ],
@@ -157,17 +168,44 @@ A bar that follows every query in the app, not one query, reads the client inste
 
 ## Where to create queries
 
-Create queries in `State` fields, blocs, or other long-lived objects, never in `build`. See [Create the query once](../queries/#create-the-query-once).
+Define queries anywhere, and pass them to widgets; see [Using a query](../queries/#using-a-query). Call `observe()` only outside `build`, in a `State` field, a bloc, or another long-lived object: each call is a new observer.
 
 ## Do queries need disposing?
 
-No. An observer subscribes to its query when it gets its first listener and unsubscribes when the last one leaves. Unmounting the last widget that uses it cancels its stale and refetch timers and detaches it from the query. Mounting a widget with the same observer later subscribes it again, so a `State` field holding a query needs nothing in `dispose`. Mutation observers work the same way.
+No. A widget that gets a definition creates its observer when it mounts and drops it when it unmounts. An observer you created with `observe()` subscribes to its query when it gets its first listener and unsubscribes when the last one leaves. Unmounting the last widget that uses it cancels its stale and refetch timers and detaches it from the query. Mounting a widget with the same observer later subscribes it again, so a `State` field holding an observer needs nothing in `dispose`. Mutation observers work the same way.
 
 A cubit that listens to `stream` cancels that subscription in `close()`, which does the same thing. See [In a cubit](../bloc/#in-a-cubit).
 
 The cached data isn't the observer's to release. It stays for `gcTime` (default: 5 minutes) after the last observer leaves, which is why returning to a screen shows it instantly.
 
 `QueryObserver.destroy()` does by hand what the last unsubscribe does: it drops every listener, cancels the timers, and detaches the observer from its query. Nothing in the widget tree needs it. Reach for it when a long-lived object holds an observer whose listeners it can't reach and has to stop it now.
+
+## Building your own widgets or hooks
+
+The widgets above are built on the public API of `fuery_core`, so a widget of your own, a hook, or an integration with another state library can do the same. Keep one slot per rendered query: `QuerySlot`, `InfiniteQuerySlot`, or `MutationSlot`, all `ObserverSlot`s. With [`flutter_hooks`](https://pub.dev/packages/flutter_hooks), a query hook is:
+
+```dart
+QueryResult<TData> useQuery<TData extends Object>(QuerySource<TData> query) {
+  final client = FueryProvider.of(useContext(), listen: true);
+  final slot = useMemoized(() => QuerySlot(query, client));
+  final changes = useState(0);
+  useEffect(() {
+    final unsubscribe = slot.subscribe((_) => changes.value++);
+    return () {
+      unsubscribe();
+      slot.dispose();
+    };
+  }, [slot]);
+  slot.update(query, client);
+  return slot.result;
+}
+```
+
+- `update(source, client)` takes a `QuerySource`: a definition, whose observer the slot owns and updates, or an observer, which it uses as it is. A new client gets a new observer.
+- `result` is current as soon as `update` returns, so the frame that changed the key shows it.
+- `subscribe` delivers every later change and stays subscribed when the slot's `observer` changes. `dispose` drops it, and the observer if the slot created it.
+
+`InfiniteQuerySource` and `MutationSource` are the sources of the other two slots. `FueryProvider.of(context, listen: true)` rebuilds the caller when the provided client is replaced.
 
 ## In the example app
 

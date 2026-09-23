@@ -14,8 +14,8 @@ import 'utils.dart';
 
 part 'removable.dart';
 part 'query_state.dart';
-part 'query_options.dart';
 part 'query.dart';
+part 'cached_query.dart';
 part 'query_cache.dart';
 part 'query_result.dart';
 part 'query_observer.dart';
@@ -23,10 +23,11 @@ part 'infinite_query.dart';
 part 'streamed_query.dart';
 part 'persist.dart';
 part 'mutation_state.dart';
-part 'mutation.dart';
+part 'cached_mutation.dart';
 part 'mutation_cache.dart';
 part 'mutation_observer.dart';
 part 'query_client.dart';
 part 'fuery.dart';
+part 'slot.dart';
 
 const Object _undefined = Object();

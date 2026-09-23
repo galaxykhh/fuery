@@ -39,15 +39,14 @@ void main() {
       throw StateError('down');
     }
 
-    final observer = Query.observe(
+    final observer = Query(
       queryKey: ['a'],
       queryFn: fetch,
       retryDelay: (_, __) => ms10,
-      client: client,
-    );
+    ).observe(client: client);
     final unsubscribe = observer.subscribe((_) {});
     async.elapse(const Duration(seconds: 1));
-    client.query(QueryOptions(queryKey: ['a'], queryFn: fetch)).ignore();
+    client.query(Query(queryKey: ['a'], queryFn: fetch)).ignore();
     async.elapse(const Duration(seconds: 1));
 
     attempts = 0;
@@ -67,11 +66,10 @@ void main() {
   group('removing queries', () {
     fakeTest('observers follow their key after clear()', (async) {
       var user = 'alice';
-      final me = Query.observe(
+      final me = Query(
         queryKey: ['me'],
         queryFn: (_) async => user,
-        client: client,
-      );
+      ).observe(client: client);
       me.subscribe((_) {});
       async.flushMicrotasks();
       expect(me.result.data, 'alice');
@@ -91,7 +89,8 @@ void main() {
     fakeTest('invalidating and focus reach observers after removeQueries',
         (async) {
       final fetcher = FakeFetcher(() => 'me');
-      Query.observe(queryKey: ['me'], queryFn: fetcher.call, client: client)
+      Query(queryKey: ['me'], queryFn: fetcher.call)
+          .observe(client: client)
           .subscribe((_) {});
       async.elapse(ms10);
 
@@ -110,7 +109,7 @@ void main() {
         (async) {
       final fetcher = FakeFetcher(() => 'data');
       final observer =
-          Query.observe(queryKey: ['a'], queryFn: fetcher.call, client: client);
+          Query(queryKey: ['a'], queryFn: fetcher.call).observe(client: client);
       observer.subscribe((_) {});
       async.elapse(ms10);
 
@@ -134,11 +133,10 @@ void main() {
           config: QueryCacheConfig(onError: (error, _) => errors.add(error)),
         ),
       );
-      final todos = Query.observe(
+      final todos = Query(
         queryKey: ['todos'],
         queryFn: FakeFetcher(() => ['a']).call,
-        client: reporting,
-      );
+      ).observe(client: reporting);
       todos.subscribe((_) {});
       async.elapse(ms10);
       todos.refetch();
@@ -155,11 +153,10 @@ void main() {
     });
 
     fakeTest('cancelQueries(silent: true) ends the fetch', (async) {
-      final observer = Query.observe(
+      final observer = Query(
         queryKey: ['a'],
         queryFn: FakeFetcher(() => 'data').call,
-        client: client,
-      );
+      ).observe(client: client);
       final unsubscribe = observer.subscribe((_) {});
       async.elapse(ms10);
       observer.refetch();
@@ -178,12 +175,11 @@ void main() {
 
   group('retry timers', () {
     fakeTest('clear() cancels a query waiting to retry', (async) {
-      final observer = Query.observe(
+      final observer = Query(
         queryKey: ['a'],
         queryFn: (_) async => throw StateError('boom'),
         retryDelay: (_, __) => const Duration(seconds: 30),
-        client: client,
-      );
+      ).observe(client: client);
       final unsubscribe = observer.subscribe((_) {});
       async.flushMicrotasks();
       expect(observer.result.failureCount, 1);
@@ -195,12 +191,11 @@ void main() {
     });
 
     fakeTest('clear() stops a mutation waiting to retry', (async) {
-      final mutation = Mutation.observe(
+      final mutation = Mutation(
         mutationFn: (int x) async => throw StateError('boom'),
         retry: const RetryPolicy.count(1),
         retryDelay: (_, __) => const Duration(seconds: 30),
-        client: client,
-      );
+      ).observe(client: client);
       Object? error;
       mutation.mutateAsync(1).then((_) {}, onError: (Object e) {
         error = e;
@@ -216,12 +211,11 @@ void main() {
 
   fakeTest('resetQueries refetches an active static query', (async) {
     var calls = 0;
-    final config = Query.observe(
+    final config = Query(
       queryKey: ['config'],
       queryFn: (_) async => 'config ${++calls}',
       staleTime: staticStaleTime,
-      client: client,
-    );
+    ).observe(client: client);
     config.subscribe((_) {});
     async.flushMicrotasks();
 
@@ -233,11 +227,11 @@ void main() {
   fakeTest('a new listener first gets the current result during a fetch',
       (async) {
     final fetcher = FakeFetcher(() => 'todos');
-    final first = Query.observe(
-        queryKey: ['todos'], queryFn: fetcher.call, client: client);
+    final first = Query(queryKey: ['todos'], queryFn: fetcher.call)
+        .observe(client: client);
     // Created before there is any data, for example by a bloc at startup.
-    final second = Query.observe(
-        queryKey: ['todos'], queryFn: fetcher.call, client: client);
+    final second = Query(queryKey: ['todos'], queryFn: fetcher.call)
+        .observe(client: client);
 
     first.subscribe((_) {});
     async.elapse(ms10);
@@ -254,12 +248,11 @@ void main() {
 
   fakeTest('a widget mounting at the stale boundary keeps others updated',
       (async) {
-    final todos = Query.observe(
+    final todos = Query(
       queryKey: ['todos'],
       queryFn: FakeFetcher(() => 'todos').call,
       staleTime: const Duration(milliseconds: 100),
-      client: client,
-    );
+    ).observe(client: client);
     final stale = <bool>[];
     todos.subscribe((result) => stale.add(result.isStale));
     async.elapse(ms10);
@@ -274,15 +267,12 @@ void main() {
   fakeTest('isFetchedAfterMount counts from the first listener', (async) {
     final fetcher = FakeFetcher(() => 'todos');
     // Created at startup, listened to later.
-    final todos = Query.observe(
+    final todos = Query(
       queryKey: ['todos'],
       queryFn: fetcher.call,
       staleTime: infiniteDuration,
-      client: client,
-    );
-    client
-        .query(QueryOptions(queryKey: ['todos'], queryFn: fetcher.call))
-        .ignore();
+    ).observe(client: client);
+    client.query(Query(queryKey: ['todos'], queryFn: fetcher.call)).ignore();
     async.elapse(ms10);
 
     expect(todos.getOptimisticResult().isFetchedAfterMount, isFalse);
@@ -309,13 +299,12 @@ void main() {
     int? next(InfiniteData<String, int> data) => data.lastPageParam + 1;
 
     fakeTest('pages only applies when nothing is cached', (async) {
-      final posts = InfiniteQuery.observe(
+      final posts = InfiniteQuery(
         queryKey: ['posts'],
         queryFn: fetchPage,
         initialPageParam: 1,
         getNextPageParam: next,
-        client: client,
-      );
+      ).observe(client: client);
       posts.subscribe((_) {});
       async.flushMicrotasks();
       posts.fetchNextPage();
@@ -323,7 +312,7 @@ void main() {
       posts.fetchNextPage();
       async.flushMicrotasks();
 
-      final prefetch = infiniteQueryOptions(
+      final prefetch = InfiniteQuery(
         queryKey: ['posts'],
         queryFn: fetchPage,
         initialPageParam: 1,
@@ -343,13 +332,12 @@ void main() {
 
     fakeTest('the first frame of a mount refetch is not a next-page fetch',
         (async) {
-      InfiniteQueryObserver<String, int> use() => InfiniteQuery.observe(
+      InfiniteQueryObserver<String, int> use() => InfiniteQuery(
             queryKey: ['posts'],
             queryFn: fetchPage,
             initialPageParam: 1,
             getNextPageParam: next,
-            client: client,
-          );
+          ).observe(client: client);
       final first = use();
       final unsubscribe = first.subscribe((_) {});
       async.flushMicrotasks();
@@ -367,7 +355,7 @@ void main() {
     fakeTest('fetchNextPage without a next page leaves a refetch alone',
         (async) {
       var version = 1;
-      final posts = InfiniteQuery.observe(
+      final posts = InfiniteQuery(
         queryKey: ['posts'],
         queryFn: (context) async {
           final value = 'v$version';
@@ -377,8 +365,7 @@ void main() {
         initialPageParam: 1,
         getNextPageParam: noPage,
         staleTime: const Duration(minutes: 5),
-        client: client,
-      );
+      ).observe(client: client);
       posts.subscribe((_) {});
       async.elapse(ms10);
 
@@ -392,14 +379,13 @@ void main() {
     });
 
     fakeTest('fetching a page that does not exist changes nothing', (async) {
-      final posts = InfiniteQuery.observe(
+      final posts = InfiniteQuery(
         queryKey: ['posts'],
         queryFn: fetchPage,
         initialPageParam: 1,
         getNextPageParam: noPage,
         getPreviousPageParam: noPage,
-        client: client,
-      );
+      ).observe(client: client);
       posts.subscribe((_) {});
       async.flushMicrotasks();
       final before = posts.result;
@@ -420,7 +406,7 @@ void main() {
     fakeTest('fetchNextPage joins a next page that is already loading',
         (async) {
       final params = <int>[];
-      final posts = InfiniteQuery.observe(
+      final posts = InfiniteQuery(
         queryKey: ['posts'],
         queryFn: (context) async {
           params.add(context.pageParam);
@@ -429,8 +415,7 @@ void main() {
         },
         initialPageParam: 1,
         getNextPageParam: next,
-        client: client,
-      );
+      ).observe(client: client);
       posts.subscribe((_) {});
       async.elapse(const Duration(milliseconds: 100));
 
@@ -451,11 +436,10 @@ void main() {
 
   group('mutations', () {
     fakeTest('a mutation run with mutateAsync is garbage collected', (async) {
-      final addTodo = Mutation.observe(
+      final addTodo = Mutation(
         mutationFn: (String title) async => title,
         gcTime: const Duration(seconds: 1),
-        client: client,
-      );
+      ).observe(client: client);
       addTodo.mutateAsync('Buy milk').ignore();
       async.elapse(ms10);
       expect(addTodo.result.data, 'Buy milk');
@@ -465,13 +449,12 @@ void main() {
     });
 
     fakeTest('result is current while nothing listens', (async) {
-      final save = Mutation.observe(
+      final save = Mutation(
         mutationFn: (String title) async {
           await Future<void>.delayed(ms10);
           return title;
         },
-        client: client,
-      );
+      ).observe(client: client);
       final unsubscribe = save.subscribe((_) {});
       save.mutate('a');
       async.flushMicrotasks();
@@ -483,14 +466,13 @@ void main() {
 
     fakeTest('a pending mutation without observers waits to be collected',
         (async) {
-      final save = Mutation.observe(
+      final save = Mutation(
         mutationFn: (int x) async {
           await Future<void>.delayed(const Duration(milliseconds: 200));
           return x;
         },
         gcTime: Duration.zero,
-        client: client,
-      );
+      ).observe(client: client);
       final unsubscribe = save.subscribe((_) {});
       save.mutate(1);
       unsubscribe();
@@ -508,20 +490,18 @@ void main() {
         return value;
       }
 
-      final first = Mutation.observe(
+      final first = Mutation(
         mutationFn: run,
         scope: const MutationScope('s'),
-        client: client,
-      );
-      final second = Mutation.observe(
+      ).observe(client: client);
+      final second = Mutation(
         mutationFn: run,
-        onMutate: (_) async {
+        onMutate: (_, client) async {
           await Future<void>.delayed(const Duration(milliseconds: 20));
           return null;
         },
         scope: const MutationScope('s'),
-        client: client,
-      );
+      ).observe(client: client);
       first.mutate('a');
       second.mutate('b');
       async.elapse(const Duration(milliseconds: 25));
@@ -537,16 +517,14 @@ void main() {
       return value;
     }
 
-    final first = Mutation.observe(
+    final first = Mutation(
       mutationFn: run,
       scope: const MutationScope('s'),
-      client: client,
-    );
-    final second = Mutation.observe(
+    ).observe(client: client);
+    final second = Mutation(
       mutationFn: run,
       scope: const MutationScope('s'),
-      client: client,
-    );
+    ).observe(client: client);
 
     Object? error;
     first.mutate('a');
@@ -563,7 +541,7 @@ void main() {
     var attempts = 0;
     final observer = QueryObserver<String>(
       client,
-      QueryOptions(
+      Query(
         queryKey: ['a'],
         queryFn: (_) async {
           attempts++;
@@ -603,7 +581,7 @@ void main() {
     expect(
       () => QueryObserver<Object>(
         client,
-        QueryOptions(queryKey: ['todos'], queryFn: (_) async => 1),
+        Query(queryKey: ['todos'], queryFn: (_) async => 1),
       ),
       throwsStateError,
     );
@@ -614,12 +592,12 @@ void main() {
     client.setQueryData(['numbers'], 1);
     final observer = QueryObserver<String>(
       client,
-      QueryOptions(queryKey: ['text'], queryFn: (_) async => 'a'),
+      Query(queryKey: ['text'], queryFn: (_) async => 'a'),
     );
 
     expect(
       () => observer.setOptions(
-        QueryOptions(queryKey: ['numbers'], queryFn: (_) async => 'b'),
+        Query(queryKey: ['numbers'], queryFn: (_) async => 'b'),
       ),
       throwsStateError,
     );
@@ -631,7 +609,7 @@ void main() {
     var items = [for (var i = 0; i < 100; i++) Item(i, 'item $i')];
     final observer = QueryObserver<List<Item>>(
       client,
-      QueryOptions(queryKey: ['items'], queryFn: (_) async => items),
+      Query(queryKey: ['items'], queryFn: (_) async => items),
     );
     observer.subscribe((_) {});
     async.flushMicrotasks();
@@ -659,7 +637,7 @@ void main() {
     ];
     final observer = QueryObserver<List<Object>>(
       client,
-      QueryOptions(queryKey: ['nested'], queryFn: (_) async => data),
+      Query(queryKey: ['nested'], queryFn: (_) async => data),
     );
     observer.subscribe((_) {});
     async.flushMicrotasks();
@@ -694,14 +672,14 @@ void main() {
 
   fakeTest('query observers report only real option changes', (async) {
     Future<String> fetch(QueryFunctionContext _) async => 'a';
-    final options = QueryOptions(queryKey: ['a'], queryFn: fetch);
+    final options = Query(queryKey: ['a'], queryFn: fetch);
     final observer = QueryObserver<String>(client, options);
     final changes = countChanges(async);
 
-    observer.setOptions(QueryOptions(queryKey: ['a'], queryFn: fetch));
+    observer.setOptions(Query(queryKey: ['a'], queryFn: fetch));
     expect(changes(), 0);
 
-    observer.setOptions(QueryOptions(
+    observer.setOptions(Query(
       queryKey: ['a'],
       queryFn: fetch,
       staleTime: const Duration(seconds: 1),
@@ -709,18 +687,106 @@ void main() {
     expect(changes(), 1);
   });
 
+  fakeTest('options built again with new closures are not a change', (async) {
+    // What a widget that builds its options in build() passes each time.
+    Query<String> todoOptions(int id) => Query(
+          queryKey: ['todo', id],
+          queryFn: (_) async => 'todo $id',
+          placeholderData: (previous, client) => previous,
+          refetchWhile: (result) => true,
+          retry: RetryPolicy.when((count, _) => count < 2),
+          retryDelay: (_, __) => ms10,
+          persist: QueryPersist(
+            toJson: (todo) => todo,
+            fromJson: (json) => json! as String,
+          ),
+          meta: {'screen': 'todo'},
+        );
+    final observer = todoOptions(1).observe(client: client);
+    observer.subscribe((_) {});
+    async.elapse(ms10);
+    final changes = countChanges(async);
+
+    observer.setOptions(todoOptions(1));
+    observer.setOptions(todoOptions(1));
+    expect(changes(), 0);
+
+    // The latest query function is still the one that runs.
+    observer.setOptions(Query(
+      queryKey: ['todo', 1],
+      queryFn: (_) async => 'replaced',
+      placeholderData: (previous, client) => previous,
+      refetchWhile: (result) => true,
+      retry: RetryPolicy.when((count, _) => count < 2),
+      retryDelay: (_, __) => ms10,
+      persist: QueryPersist(
+        toJson: (todo) => todo,
+        fromJson: (json) => json! as String,
+      ),
+      meta: {'screen': 'todo'},
+    ));
+    expect(changes(), 0);
+    observer.refetch();
+    async.flushMicrotasks();
+    expect(observer.result.data, 'replaced');
+
+    observer.setOptions(Query(
+      queryKey: ['todo', 1],
+      queryFn: (_) async => 'todo 1',
+      meta: {'screen': 'other'},
+    ));
+    expect(changes(), greaterThan(0));
+  });
+
+  fakeTest('initialData built again with equal content is not a change',
+      (async) {
+    Query<List<String>> tags() => Query(
+          queryKey: ['tags'],
+          queryFn: (_) async => ['a'],
+          initialData: ['a'],
+          staleTime: infiniteDuration,
+        );
+    final observer = tags().observe(client: client);
+    observer.subscribe((_) {});
+    async.flushMicrotasks();
+    final changes = countChanges(async);
+
+    observer.setOptions(tags());
+    expect(changes(), 0);
+  });
+
+  fakeTest('mutation options built again with new closures are not a change',
+      (async) {
+    Mutation<int, int, void> addOptions() => Mutation(
+          mutationKey: ['add'],
+          mutationFn: (x) async => x + 1,
+          onSuccess: (_, __, ___, client) {},
+          retry: RetryPolicy.when((count, _) => false),
+          persist: MutationPersist(
+            toJson: (x) => x,
+            fromJson: (json) => json! as int,
+          ),
+          meta: {'form': 'add'},
+        );
+    final observer = addOptions().observe(client: client);
+    final changes = countChanges(async);
+
+    observer.setOptions(addOptions());
+    expect(changes(), 0);
+  });
+
   fakeTest('mutation observers report only real option changes', (async) {
     Future<int> run(int x) async => x;
     final observer = MutationObserver<int, int, void>(
       client,
-      MutationOptions(mutationFn: run, mutationKey: ['add']),
+      Mutation(mutationFn: run, mutationKey: ['add']),
     );
     final changes = countChanges(async);
 
-    observer.setOptions(MutationOptions(mutationFn: run, mutationKey: ['add']));
+    observer.setOptions(Mutation(mutationFn: run, mutationKey: ['add']));
     expect(changes(), 0);
 
-    observer.setOptions(MutationOptions(
+    observer.setOptions(Mutation(
       mutationFn: run,
       mutationKey: ['add'],
       gcTime: ms10,
@@ -731,15 +797,13 @@ void main() {
   fakeTest('removed queries and mutations keep no garbage collection timer',
       (async) {
     onlineManager.setOnline(false);
-    final query = Query.observe(
+    final query = Query(
       queryKey: ['paused'],
       queryFn: FakeFetcher(() => 'a').call,
-      client: client,
-    );
-    final mutation = Mutation.observe(
+    ).observe(client: client);
+    final mutation = Mutation(
       mutationFn: (int id) async => id,
-      client: client,
-    );
+    ).observe(client: client);
     final unsubscribeQuery = query.subscribe((_) {});
     final unsubscribeMutation = mutation.subscribe((_) {});
     mutation.mutate(1);

@@ -18,18 +18,25 @@ typedef MutationFn<TData, TVariables> = Future<TData> Function(
 
 /// Runs before the mutation function. The returned value is passed as
 /// `context` to the other callbacks, for example to roll back an optimistic
-/// update.
+/// update. [client] is the client running the mutation.
 typedef MutationOnMutate<TVariables, TContext> = FutureOr<TContext?> Function(
   TVariables variables,
+  QueryClient client,
 );
 
 typedef MutationOnSuccess<TData, TVariables, TContext> = FutureOr<void>
-    Function(TData data, TVariables variables, TContext? context);
+    Function(
+  TData data,
+  TVariables variables,
+  TContext? context,
+  QueryClient client,
+);
 
 typedef MutationOnError<TVariables, TContext> = FutureOr<void> Function(
   Object error,
   TVariables variables,
   TContext? context,
+  QueryClient client,
 );
 
 typedef MutationOnSettled<TData, TVariables, TContext> = FutureOr<void>
@@ -38,6 +45,7 @@ typedef MutationOnSettled<TData, TVariables, TContext> = FutureOr<void>
   Object? error,
   TVariables variables,
   TContext? context,
+  QueryClient client,
 );
 
 /// Mutations with the same scope id run one after another.
@@ -144,6 +152,49 @@ class MutationState<TData, TVariables, TContext> {
   }
 }
 
+/// What a [MutationObserver] reports: the state of its latest run, with the
+/// methods to start another, for example from a builder.
+class MutationResult<TData, TVariables, TContext>
+    extends MutationState<TData, TVariables, TContext> {
+  MutationResult._(
+    MutationState<TData, TVariables, TContext> state,
+    this._observer,
+  ) : super(
+          context: state.context,
+          data: state.data,
+          error: state.error,
+          failureCount: state.failureCount,
+          failureReason: state.failureReason,
+          isPaused: state.isPaused,
+          status: state.status,
+          variables: state.variables,
+          submittedAt: state.submittedAt,
+        );
+
+  final MutationObserver<TData, TVariables, TContext> _observer;
+
+  /// Runs the mutation without waiting for it, like
+  /// [MutationObserver.mutate].
+  void mutate(
+    TVariables variables, [
+    MutateOptions<TData, TVariables, TContext>? options,
+  ]) {
+    _observer.mutate(variables, options);
+  }
+
+  /// Runs the mutation and returns its data, like
+  /// [MutationObserver.mutateAsync]. Throws if it fails.
+  Future<TData> mutateAsync(
+    TVariables variables, [
+    MutateOptions<TData, TVariables, TContext>? options,
+  ]) {
+    return _observer.mutateAsync(variables, options);
+  }
+
+  /// Goes back to idle, like [MutationObserver.reset].
+  void reset() => _observer.reset();
+}
+
 /// Default values for mutation options.
 @immutable
 class MutationDefaults {
@@ -173,9 +224,19 @@ class MutationDefaults {
   }
 }
 
-class MutationOptions<TData, TVariables, TContext extends Object?> {
-  const MutationOptions({
-    this.mutationFn,
+/// Describes a mutation: what it runs and what happens around it.
+///
+/// ```dart
+/// final addTodo = Mutation(
+///   mutationFn: (String title) => api.addTodo(title),
+///   onSuccess: (todo, title, context, client) =>
+///       client.invalidateQueries(queryKey: ['todos']),
+/// );
+/// ```
+class Mutation<TData, TVariables, TContext extends Object?>
+    implements MutationSource<TData, TVariables, TContext> {
+  const Mutation({
+    required this.mutationFn,
     this.mutationKey,
     this.gcTime,
     this.retry,
@@ -194,7 +255,7 @@ class MutationOptions<TData, TVariables, TContext extends Object?> {
         ),
         _defaulted = false;
 
-  const MutationOptions._defaulted({
+  const Mutation._defaulted({
     required this.mutationFn,
     required this.mutationKey,
     required this.gcTime,
@@ -210,7 +271,7 @@ class MutationOptions<TData, TVariables, TContext extends Object?> {
     required this.persist,
   }) : _defaulted = true;
 
-  final MutationFn<TData, TVariables>? mutationFn;
+  final MutationFn<TData, TVariables> mutationFn;
   final MutationKey? mutationKey;
 
   /// How long a finished, unobserved mutation stays in the cache.
@@ -240,7 +301,7 @@ class MutationOptions<TData, TVariables, TContext extends Object?> {
   /// persisted mutation is defined once:
   ///
   /// ```dart
-  /// final addComment = addCommentOptions().observe();
+  /// final addComment = addCommentMutation().observe();
   /// ```
   MutationObserver<TData, TVariables, TContext> observe({QueryClient? client}) {
     return MutationObserver<TData, TVariables, TContext>(
@@ -249,31 +310,35 @@ class MutationOptions<TData, TVariables, TContext extends Object?> {
     );
   }
 
-  /// Whether every option is equal, comparing functions with `==`.
-  bool _sameAs(MutationOptions<TData, TVariables, TContext>? other) {
+  /// Whether [other] configures the mutation the same way, as far as
+  /// anything watching the cache can tell. Functions and codecs are compared
+  /// only by whether they are set, like [Query]; the observer uses the
+  /// latest ones either way.
+  bool _sameConfig(Mutation<TData, TVariables, TContext>? other) {
+    bool sameSet(Object? a, Object? b) => (a == null) == (b == null);
     return other != null &&
-        mutationFn == other.mutationFn &&
         _keyHash(mutationKey) == _keyHash(other.mutationKey) &&
         gcTime == other.gcTime &&
-        retry == other.retry &&
-        retryDelay == other.retryDelay &&
         networkMode == other.networkMode &&
-        meta == other.meta &&
+        const DeepCollectionEquality().equals(meta, other.meta) &&
         scope?.id == other.scope?.id &&
-        onMutate == other.onMutate &&
-        onSuccess == other.onSuccess &&
-        onError == other.onError &&
-        onSettled == other.onSettled &&
-        persist == other.persist;
+        sameSet(mutationFn, other.mutationFn) &&
+        sameSet(retry, other.retry) &&
+        sameSet(retryDelay, other.retryDelay) &&
+        sameSet(onMutate, other.onMutate) &&
+        sameSet(onSuccess, other.onSuccess) &&
+        sameSet(onError, other.onError) &&
+        sameSet(onSettled, other.onSettled) &&
+        sameSet(persist, other.persist);
   }
 
   static String? _keyHash(MutationKey? key) =>
       key == null ? null : hashKey(key);
 
-  MutationOptions<TData, TVariables, TContext> _withDefaults(
+  Mutation<TData, TVariables, TContext> _withDefaults(
     MutationDefaults defaults,
   ) {
-    return MutationOptions<TData, TVariables, TContext>._defaulted(
+    return Mutation<TData, TVariables, TContext>._defaulted(
       mutationFn: mutationFn,
       mutationKey: mutationKey,
       gcTime: gcTime ?? defaults.gcTime,
@@ -293,7 +358,7 @@ class MutationOptions<TData, TVariables, TContext extends Object?> {
   /// Runs a mutation stored by a previous run with these options. It is
   /// typed here, where [TVariables] is known, so the decoded variables reach
   /// [mutationFn] and the callbacks with their real types.
-  AnyMutation _restore(
+  AnyCachedMutation _restore(
     QueryClient client,
     String storageKey,
     Object? variablesJson,
@@ -309,6 +374,63 @@ class MutationOptions<TData, TVariables, TContext extends Object?> {
       restored: (storageKey: storageKey, submittedAt: submittedAt),
     ).ignore();
     return mutation;
+  }
+}
+
+/// Describes a mutation that takes no variables. Its observer runs it with
+/// `mutate()`, and its callbacks leave the variables out.
+///
+/// ```dart
+/// final logout = NoVariablesMutation(mutationFn: () => api.logout());
+/// ```
+class NoVariablesMutation<TData, TContext extends Object?>
+    extends Mutation<TData, void, TContext> {
+  NoVariablesMutation({
+    required Future<TData> Function() mutationFn,
+    super.mutationKey,
+    FutureOr<TContext?> Function(QueryClient client)? onMutate,
+    FutureOr<void> Function(TData data, TContext? context, QueryClient client)?
+        onSuccess,
+    FutureOr<void> Function(
+      Object error,
+      TContext? context,
+      QueryClient client,
+    )? onError,
+    FutureOr<void> Function(
+      TData? data,
+      Object? error,
+      TContext? context,
+      QueryClient client,
+    )? onSettled,
+    super.gcTime,
+    super.retry,
+    super.retryDelay,
+    super.networkMode,
+    super.scope,
+    super.meta,
+    super.persist,
+  }) : super(
+          mutationFn: (_) => mutationFn(),
+          onMutate: onMutate == null ? null : (_, client) => onMutate(client),
+          onSuccess: onSuccess == null
+              ? null
+              : (data, _, context, client) => onSuccess(data, context, client),
+          onError: onError == null
+              ? null
+              : (error, _, context, client) => onError(error, context, client),
+          onSettled: onSettled == null
+              ? null
+              : (data, error, _, context, client) =>
+                  onSettled(data, error, context, client),
+        );
+
+  /// Returns an observer that runs this mutation with `mutate()`.
+  @override
+  NoVariablesMutationObserver<TData, TContext> observe({QueryClient? client}) {
+    return NoVariablesMutationObserver<TData, TContext>(
+      client ?? Fuery.client,
+      this,
+    );
   }
 }
 
@@ -365,3 +487,7 @@ final class _MutationPauseAction extends _MutationAction {
 final class _MutationContinueAction extends _MutationAction {
   const _MutationContinueAction();
 }
+
+@Deprecated('Use Mutation.')
+typedef MutationOptions<TData, TVariables, TContext extends Object?>
+    = Mutation<TData, TVariables, TContext>;

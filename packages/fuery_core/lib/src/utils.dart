@@ -141,7 +141,7 @@ Object? replaceEqualDeep(Object? a, Object? b, [int depth = 0]) {
 
 /// Pass as `placeholderData` to keep showing the previous key's data while the
 /// next key is loading.
-T? keepPreviousData<T>(T? previousData) => previousData;
+T? keepPreviousData<T>(T? previousData, [Object? client]) => previousData;
 
 List<T> addToEnd<T>(List<T> items, T item, int? max) {
   final next = [...items, item];

@@ -7,7 +7,7 @@
 Fetch, cache, and keep server data fresh in Flutter.
 
 ```dart
-final todos = Query.observe(queryKey: ['todos'], queryFn: (_) => api.getTodos());
+final todos = Query(queryKey: ['todos'], queryFn: (_) => api.getTodos());
 
 QueryBuilder(
   query: todos,
@@ -18,20 +18,21 @@ QueryBuilder(
 )
 ```
 
-There are no type arguments to write: `todos` is a `QueryObserver<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`, and `data` in the builder is a `List<Todo>`.
+There are no type arguments to write: `todos` is a `Query<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`, and `data` in the builder is a `List<Todo>`.
 
-- **Drops into the app you have.** Start with one screen: creating a query needs no `BuildContext`, and nothing else has to change.
-- **Runs where your code runs.** The core is pure Dart, so widgets, cubits, services, CLIs, and servers use the same query object.
+- **One idea to learn.** A query is a definition: pass it to a widget, fetch it with the client, or read its cached data, all with the same object.
+- **Drops into the app you have.** Start with one screen: a query needs no `BuildContext` and no setup, and it works in a `StatelessWidget`.
+- **Runs where your code runs.** The core is pure Dart, so widgets, cubits, services, CLIs, and servers use the same queries.
 - **No type arguments, no code generation.**
 - **Devtools in the app**, on a device.
 
-Fuery caches server data, deduplicates requests, retries failures, paginates, and refetches stale data in the background. Builder, listener, and consumer widgets turn queries into UI and side effects, and queries are plain objects with a `Stream`, so blocs, cubits, and services can use them as well.
+Fuery caches server data, deduplicates requests, retries failures, paginates, and refetches stale data in the background. Builder, listener, and consumer widgets turn queries into UI and side effects, and `observe()` gives blocs, cubits, and services the same data as a `Stream`.
 
 **[Read the documentation →](https://galaxykhh.github.io/fuery/)** · **[Try the demo →](https://galaxykhh.github.io/fuery/demo/)**
 
 ## Tested
 
-Both packages have 100% line coverage, and CI fails when a line loses it. The core's 218 tests run under `fake_async`, so every retry delay, stale timer, and garbage collection is checked against fake time, and the widget tests run on the oldest supported Flutter (3.27) as well as the latest. A regression suite keeps the edge cases that were found and fixed from coming back, such as a cancelled fetch overwriting the one that replaced it, a restore racing a reset, or a removed query leaving a timer that keeps a test process alive.
+Both packages have 100% line coverage, and CI fails when a line loses it. The core's 269 tests run under `fake_async`, so every retry delay, stale timer, and garbage collection is checked against fake time, and the widget tests run on the oldest supported Flutter (3.27) as well as the latest. A regression suite keeps the edge cases that were found and fixed from coming back, such as a cancelled fetch overwriting the one that replaced it, a restore racing a reset, or a removed query leaving a timer that keeps a test process alive.
 
 Every timer Fuery starts is cancelled on the matching destroy path, and time comes from `package:clock`, so your own tests can use `fake_async` and `testWidgets` without leaked timers. See [Testing](https://galaxykhh.github.io/fuery/guides/testing/).
 

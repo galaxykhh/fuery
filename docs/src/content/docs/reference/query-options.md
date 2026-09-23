@@ -1,9 +1,9 @@
 ---
 title: Query options
-description: Every option of Query.observe and QueryOptions in Flutter, with its default and what it changes.
+description: Every option of Query in Flutter, with its default and what it changes.
 ---
 
-This page lists every option that `Query.observe`, `QueryOptions`, and `client.query` accept. [Queries](../../guides/queries/) explains the ideas behind them; `InfiniteQuery.observe` takes these options too, plus the ones in [Infinite queries](../../guides/infinite-queries/).
+This page lists every option a `Query` takes. [Queries](../../guides/queries/) explains the ideas behind them; `InfiniteQuery` takes these options too, plus the ones in [Infinite queries](../../guides/infinite-queries/).
 
 ## Fetching
 
@@ -12,7 +12,6 @@ This page lists every option that `Query.observe`, `QueryOptions`, and `client.q
 | `queryKey` | required | Identifies the cached data. See [Query keys](../../guides/queries/#query-keys). |
 | `queryFn` | required | Fetches the data. Receives a context with `signal`, `client`, `queryKey`, and `meta`. |
 | `enabled` | `true` | Set `false` to stop the query from fetching on its own. `refetch()` still works. |
-| `client` | `Fuery.client` | The client that holds the data. See [Which client a query uses](../../guides/query-client/#which-client-a-query-uses). |
 | `meta` | none | Any values you want in the query function, read as `context.meta`. |
 
 ## Freshness and caching
@@ -50,4 +49,4 @@ This page lists every option that `Query.observe`, `QueryOptions`, and `client.q
 |---|---|---|
 | `initialData` | none | Seeds the cache as if this data had been fetched. |
 | `initialDataUpdatedAt` | now | When `initialData` was fetched, in milliseconds since epoch. It decides whether the seeded data is already stale. |
-| `placeholderData` | none | Shows data while the query is pending, without writing it to the cache. See [Keeping the previous page](../../guides/queries/#keeping-the-previous-page-on-screen). |
+| `placeholderData` | none | Shows data while the query is pending, without writing it to the cache. Receives the previous key's data and the client. See [Keeping the previous page](../../guides/queries/#keeping-the-previous-page-on-screen). |

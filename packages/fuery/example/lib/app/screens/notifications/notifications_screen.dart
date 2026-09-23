@@ -13,14 +13,15 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  final notifications = notificationsOptions().observe();
-  final markAllRead = markAllReadMutation();
+  // An observer of a mutation without variables runs it with mutate(), so
+  // the button takes its tear-off.
+  final markAllRead = markAllReadMutation().observe();
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return QueryBuilder(
-      query: notifications,
+      query: notificationsQuery(),
       builder: (context, state) => switch (state) {
         QueryResult(:final data?) => Column(
             children: [

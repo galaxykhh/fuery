@@ -3,10 +3,14 @@ import 'package:fuery_core/fuery_core.dart';
 
 import 'result_subscriber.dart';
 
-typedef _Observer<TPage, TParam> = InfiniteQueryObserver<TPage, TParam>;
+typedef _Source<TPage, TParam> = InfiniteQuerySource<TPage, TParam>;
 typedef _Result<TPage, TParam> = InfiniteQueryResult<TPage, TParam>;
 
 /// Builds UI from an infinite query.
+///
+/// [query] is an [InfiniteQuery] definition, or an observer that is already
+/// shared. A definition can be built in `build`: the widget keeps one
+/// observer for it.
 ///
 /// ```dart
 /// InfiniteQueryBuilder(
@@ -16,7 +20,7 @@ typedef _Result<TPage, TParam> = InfiniteQueryResult<TPage, TParam>;
 ///       for (final page in state.pages) ...page.items.map(PostTile.new),
 ///       if (state.hasNextPage)
 ///         TextButton(
-///           onPressed: state.isFetching ? null : posts.fetchNextPage,
+///           onPressed: state.isFetching ? null : state.fetchNextPage,
 ///           child: const Text('Load more'),
 ///         ),
 ///     ],
@@ -31,16 +35,15 @@ class InfiniteQueryBuilder<TPage, TParam> extends StatelessWidget {
     this.buildWhen,
   });
 
-  final InfiniteQueryObserver<TPage, TParam> query;
+  final InfiniteQuerySource<TPage, TParam> query;
   final ResultWidgetBuilder<InfiniteQueryResult<TPage, TParam>> builder;
   final ResultCondition<InfiniteQueryResult<TPage, TParam>>? buildWhen;
 
   @override
   Widget build(BuildContext context) {
-    return ResultSubscriber<_Observer<TPage, TParam>, _Result<TPage, TParam>>(
+    return ResultSubscriber<_Source<TPage, TParam>, _Result<TPage, TParam>>(
       source: query,
-      initialResult: _initialResult,
-      subscribe: _subscribe,
+      createSlot: InfiniteQuerySlot<TPage, TParam>.new,
       debugKey: _debugKey,
       builder: builder,
       buildWhen: buildWhen,
@@ -59,17 +62,16 @@ class InfiniteQueryListener<TPage, TParam> extends StatelessWidget {
     required this.child,
   });
 
-  final InfiniteQueryObserver<TPage, TParam> query;
+  final InfiniteQuerySource<TPage, TParam> query;
   final ResultWidgetListener<InfiniteQueryResult<TPage, TParam>> listener;
   final ResultCondition<InfiniteQueryResult<TPage, TParam>>? listenWhen;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    return ResultSubscriber<_Observer<TPage, TParam>, _Result<TPage, TParam>>(
+    return ResultSubscriber<_Source<TPage, TParam>, _Result<TPage, TParam>>(
       source: query,
-      initialResult: _initialResult,
-      subscribe: _subscribe,
+      createSlot: InfiniteQuerySlot<TPage, TParam>.new,
       debugKey: _debugKey,
       listener: listener,
       listenWhen: listenWhen,
@@ -89,7 +91,7 @@ class InfiniteQueryConsumer<TPage, TParam> extends StatelessWidget {
     this.listenWhen,
   });
 
-  final InfiniteQueryObserver<TPage, TParam> query;
+  final InfiniteQuerySource<TPage, TParam> query;
   final ResultWidgetBuilder<InfiniteQueryResult<TPage, TParam>> builder;
   final ResultWidgetListener<InfiniteQueryResult<TPage, TParam>> listener;
   final ResultCondition<InfiniteQueryResult<TPage, TParam>>? buildWhen;
@@ -97,10 +99,9 @@ class InfiniteQueryConsumer<TPage, TParam> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ResultSubscriber<_Observer<TPage, TParam>, _Result<TPage, TParam>>(
+    return ResultSubscriber<_Source<TPage, TParam>, _Result<TPage, TParam>>(
       source: query,
-      initialResult: _initialResult,
-      subscribe: _subscribe,
+      createSlot: InfiniteQuerySlot<TPage, TParam>.new,
       debugKey: _debugKey,
       builder: builder,
       buildWhen: buildWhen,
@@ -128,16 +129,15 @@ class InfiniteQuerySelector<TPage, TParam, T> extends StatelessWidget {
     required this.builder,
   });
 
-  final InfiniteQueryObserver<TPage, TParam> query;
+  final InfiniteQuerySource<TPage, TParam> query;
   final T Function(InfiniteQueryResult<TPage, TParam> state) selector;
   final ResultWidgetBuilder<T> builder;
 
   @override
   Widget build(BuildContext context) {
-    return ResultSelector<_Observer<TPage, TParam>, _Result<TPage, TParam>, T>(
+    return ResultSelector<_Source<TPage, TParam>, _Result<TPage, TParam>, T>(
       source: query,
-      initialResult: _initialResult,
-      subscribe: _subscribe,
+      createSlot: InfiniteQuerySlot<TPage, TParam>.new,
       debugKey: _debugKey,
       selector: selector,
       builder: builder,
@@ -145,20 +145,8 @@ class InfiniteQuerySelector<TPage, TParam, T> extends StatelessWidget {
   }
 }
 
-_Result<TPage, TParam> _initialResult<TPage, TParam>(
-  _Observer<TPage, TParam> query,
-) {
-  return query.getOptimisticResult();
+String? _debugKey<TPage, TParam>(InfiniteQuerySource<TPage, TParam> query) {
+  return query is InfiniteQueryObserver<TPage, TParam>
+      ? hashKey(query.options.queryKey)
+      : null;
 }
-
-void Function() _subscribe<TPage, TParam>(
-  _Observer<TPage, TParam> query,
-  void Function(_Result<TPage, TParam>) listener,
-) {
-  return query.subscribe(
-    (result) => listener(result as _Result<TPage, TParam>),
-  );
-}
-
-String _debugKey<TPage, TParam>(InfiniteQueryObserver<TPage, TParam> query) =>
-    hashKey(query.options.queryKey);

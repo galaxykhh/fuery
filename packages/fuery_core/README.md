@@ -16,16 +16,18 @@ dart pub add fuery_core
 
 ## Queries
 
-`Query.observe` returns a `QueryObserver`. It fetches when it gets its first listener, and shares one cache entry and one request with every other observer of the same key.
+A `Query` describes the data: its key, how to fetch it, and how long it stays fresh. `observe()` returns a `QueryObserver`, which fetches when it gets its first listener, and shares one cache entry and one request with every other observer of the same key.
 
 ```dart
 import 'package:fuery_core/fuery_core.dart';
 
-final todos = Query.observe(
+final todosQuery = Query(
   queryKey: ['todos'],
   queryFn: (context) => api.getTodos(),
   staleTime: const Duration(minutes: 1),
 );
+
+final todos = todosQuery.observe();
 
 final subscription = todos.stream.listen((result) {
   if (result.isSuccess) print(result.data);
@@ -40,7 +42,7 @@ The stream sends the current `QueryResult` first, then every change. You can als
 To poll until something finishes, combine `refetchInterval` with `refetchWhile`:
 
 ```dart
-final job = Query.observe(
+final job = Query(
   queryKey: ['jobs', id],
   queryFn: (_) => api.getJob(id),
   refetchInterval: const Duration(seconds: 2),
@@ -51,7 +53,7 @@ final job = Query.observe(
 `streamedQuery` folds a `Stream` that ends into the query data, and the query succeeds with the first chunk:
 
 ```dart
-final answer = Query.observe(
+final answer = Query(
   queryKey: ['answer', question],
   queryFn: streamedQuery(
     stream: (context) => api.ask(question),
@@ -64,11 +66,11 @@ final answer = Query.observe(
 ## Mutations
 
 ```dart
-final addTodo = Mutation.observe(
+final addTodo = Mutation(
   mutationFn: (String title) => api.addTodo(title),
-  onSuccess: (todo, title, context) =>
-      Fuery.client.invalidateQueries(queryKey: ['todos']),
-);
+  onSuccess: (todo, title, context, client) =>
+      client.invalidateQueries(queryKey: ['todos']),
+).observe();
 
 final todo = await addTodo.mutateAsync('Buy milk'); // throws on error
 addTodo.mutate('Buy milk'); // reports errors in addTodo.result instead
@@ -77,13 +79,13 @@ addTodo.mutate('Buy milk'); // reports errors in addTodo.result instead
 ## Infinite queries
 
 ```dart
-final posts = InfiniteQuery.observe(
+final posts = InfiniteQuery(
   queryKey: ['posts'],
   queryFn: (context) => api.getPosts(page: context.pageParam),
   initialPageParam: 1,
   getNextPageParam: (data) =>
       data.lastPage.hasMore ? data.lastPageParam + 1 : null,
-);
+).observe();
 
 posts.stream.listen((result) => print(result.pages));
 await posts.fetchNextPage();
@@ -100,12 +102,8 @@ Fuery.client = QueryClient(
   ),
 );
 
-final todosOptions =
-    QueryOptions(queryKey: ['todos'], queryFn: (_) => api.getTodos());
-
-final todos = todosOptions.observe();              // an observer, like Query.observe
-final data = await Fuery.client.query(todosOptions); // fetch, or use fresh cache
-Fuery.client.updateData(todosOptions, (todos) => [...?todos, todo]);
+final data = await Fuery.client.query(todosQuery); // fetch, or use fresh cache
+Fuery.client.updateData(todosQuery, (todos) => [...?todos, todo]);
 Fuery.client.invalidateQueries(queryKey: ['todos']);
 ```
 
@@ -114,7 +112,7 @@ To keep data across restarts, give the client a `QueryStorage` and add `persist`
 ```dart
 Fuery.client = QueryClient(storage: myStorage); // your QueryStorage, see the persistence guide
 
-final todos = Query.observe(
+final todos = Query(
   queryKey: ['todos'],
   queryFn: (_) => api.getTodos(),
   persist: QueryPersist(
@@ -133,7 +131,9 @@ final todos = Query.observe(
 Fuery.client.watch((client) => client.isFetching()).listen(print);
 ```
 
-A mounted client refetches when `focusManager` or `onlineManager` report that the app is focused or back online. Assigning `Fuery.client` mounts the new client; a client you pass as `client:` yourself, for example in a test, needs `client.mount()`. Pure Dart has no focus or connectivity events, so set them yourself with `setEventListener`, or call `setFocused` and `setOnline`.
+To build an adapter for another framework, such as hooks, keep a `QuerySlot` (or `InfiniteQuerySlot`, `MutationSlot`) per rendered query: call `update(query, client)` on every render and read `result`. The Flutter widgets in `fuery` are built this way.
+
+A mounted client refetches when `focusManager` or `onlineManager` report that the app is focused or back online. Assigning `Fuery.client` mounts the new client; a client you pass to `observe(client:)` yourself, for example in a test, needs `client.mount()`. Pure Dart has no focus or connectivity events, so set them yourself with `setEventListener`, or call `setFocused` and `setOnline`.
 
 Cached queries keep garbage collection timers running, which keeps a Dart process alive. When a CLI is done, cancel its subscriptions, then call `Fuery.client.clear()`.
 

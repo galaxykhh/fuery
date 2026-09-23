@@ -3,18 +3,25 @@ import 'package:fuery_core/fuery_core.dart';
 
 import 'result_subscriber.dart';
 
-typedef _Observer<TData, TVariables, TContext>
-    = MutationObserver<TData, TVariables, TContext>;
-typedef _State<TData, TVariables, TContext>
-    = MutationState<TData, TVariables, TContext>;
+typedef _Source<TData, TVariables, TContext>
+    = MutationSource<TData, TVariables, TContext>;
+typedef _Result<TData, TVariables, TContext>
+    = MutationResult<TData, TVariables, TContext>;
 
-/// Builds UI from a mutation.
+/// Builds UI from a mutation, and runs it from the builder with
+/// `state.mutate`.
+///
+/// [mutation] is a [Mutation] definition, or an observer that is already
+/// shared. A definition can be built in `build`: the widget keeps one
+/// observer for it.
 ///
 /// ```dart
 /// MutationBuilder(
 ///   mutation: deleteTodo,
-///   builder: (context, state) =>
-///       state.isPending ? const LoadingBarrier() : const SizedBox(),
+///   builder: (context, state) => IconButton(
+///     onPressed: state.isPending ? null : () => state.mutate(todo.id),
+///     icon: const Icon(Icons.delete),
+///   ),
 /// )
 /// ```
 class MutationBuilder<TData, TVariables, TContext> extends StatelessWidget {
@@ -25,17 +32,17 @@ class MutationBuilder<TData, TVariables, TContext> extends StatelessWidget {
     this.buildWhen,
   });
 
-  final MutationObserver<TData, TVariables, TContext> mutation;
-  final ResultWidgetBuilder<MutationState<TData, TVariables, TContext>> builder;
-  final ResultCondition<MutationState<TData, TVariables, TContext>>? buildWhen;
+  final MutationSource<TData, TVariables, TContext> mutation;
+  final ResultWidgetBuilder<MutationResult<TData, TVariables, TContext>>
+      builder;
+  final ResultCondition<MutationResult<TData, TVariables, TContext>>? buildWhen;
 
   @override
   Widget build(BuildContext context) {
-    return ResultSubscriber<_Observer<TData, TVariables, TContext>,
-        _State<TData, TVariables, TContext>>(
+    return ResultSubscriber<_Source<TData, TVariables, TContext>,
+        _Result<TData, TVariables, TContext>>(
       source: mutation,
-      initialResult: _initialResult,
-      subscribe: _subscribe,
+      createSlot: MutationSlot<TData, TVariables, TContext>.new,
       debugKey: _debugKey,
       builder: builder,
       buildWhen: buildWhen,
@@ -63,19 +70,19 @@ class MutationListener<TData, TVariables, TContext> extends StatelessWidget {
     required this.child,
   });
 
-  final MutationObserver<TData, TVariables, TContext> mutation;
-  final ResultWidgetListener<MutationState<TData, TVariables, TContext>>
+  final MutationSource<TData, TVariables, TContext> mutation;
+  final ResultWidgetListener<MutationResult<TData, TVariables, TContext>>
       listener;
-  final ResultCondition<MutationState<TData, TVariables, TContext>>? listenWhen;
+  final ResultCondition<MutationResult<TData, TVariables, TContext>>?
+      listenWhen;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    return ResultSubscriber<_Observer<TData, TVariables, TContext>,
-        _State<TData, TVariables, TContext>>(
+    return ResultSubscriber<_Source<TData, TVariables, TContext>,
+        _Result<TData, TVariables, TContext>>(
       source: mutation,
-      initialResult: _initialResult,
-      subscribe: _subscribe,
+      createSlot: MutationSlot<TData, TVariables, TContext>.new,
       debugKey: _debugKey,
       listener: listener,
       listenWhen: listenWhen,
@@ -95,20 +102,21 @@ class MutationConsumer<TData, TVariables, TContext> extends StatelessWidget {
     this.listenWhen,
   });
 
-  final MutationObserver<TData, TVariables, TContext> mutation;
-  final ResultWidgetBuilder<MutationState<TData, TVariables, TContext>> builder;
-  final ResultWidgetListener<MutationState<TData, TVariables, TContext>>
+  final MutationSource<TData, TVariables, TContext> mutation;
+  final ResultWidgetBuilder<MutationResult<TData, TVariables, TContext>>
+      builder;
+  final ResultWidgetListener<MutationResult<TData, TVariables, TContext>>
       listener;
-  final ResultCondition<MutationState<TData, TVariables, TContext>>? buildWhen;
-  final ResultCondition<MutationState<TData, TVariables, TContext>>? listenWhen;
+  final ResultCondition<MutationResult<TData, TVariables, TContext>>? buildWhen;
+  final ResultCondition<MutationResult<TData, TVariables, TContext>>?
+      listenWhen;
 
   @override
   Widget build(BuildContext context) {
-    return ResultSubscriber<_Observer<TData, TVariables, TContext>,
-        _State<TData, TVariables, TContext>>(
+    return ResultSubscriber<_Source<TData, TVariables, TContext>,
+        _Result<TData, TVariables, TContext>>(
       source: mutation,
-      initialResult: _initialResult,
-      subscribe: _subscribe,
+      createSlot: MutationSlot<TData, TVariables, TContext>.new,
       debugKey: _debugKey,
       builder: builder,
       buildWhen: buildWhen,
@@ -139,17 +147,16 @@ class MutationSelector<TData, TVariables, TContext, T> extends StatelessWidget {
     required this.builder,
   });
 
-  final MutationObserver<TData, TVariables, TContext> mutation;
-  final T Function(MutationState<TData, TVariables, TContext> state) selector;
+  final MutationSource<TData, TVariables, TContext> mutation;
+  final T Function(MutationResult<TData, TVariables, TContext> state) selector;
   final ResultWidgetBuilder<T> builder;
 
   @override
   Widget build(BuildContext context) {
-    return ResultSelector<_Observer<TData, TVariables, TContext>,
-        _State<TData, TVariables, TContext>, T>(
+    return ResultSelector<_Source<TData, TVariables, TContext>,
+        _Result<TData, TVariables, TContext>, T>(
       source: mutation,
-      initialResult: _initialResult,
-      subscribe: _subscribe,
+      createSlot: MutationSlot<TData, TVariables, TContext>.new,
       debugKey: _debugKey,
       selector: selector,
       builder: builder,
@@ -157,22 +164,10 @@ class MutationSelector<TData, TVariables, TContext, T> extends StatelessWidget {
   }
 }
 
-_State<TData, TVariables, TContext> _initialResult<TData, TVariables, TContext>(
-  _Observer<TData, TVariables, TContext> mutation,
-) {
-  return mutation.result;
-}
-
-void Function() _subscribe<TData, TVariables, TContext>(
-  _Observer<TData, TVariables, TContext> mutation,
-  void Function(_State<TData, TVariables, TContext>) listener,
-) {
-  return mutation.subscribe(listener);
-}
-
 String? _debugKey<TData, TVariables, TContext>(
-  _Observer<TData, TVariables, TContext> mutation,
+  _Source<TData, TVariables, TContext> mutation,
 ) {
+  if (mutation is! MutationObserver<TData, TVariables, TContext>) return null;
   final key = mutation.options.mutationKey;
   return key == null ? null : hashKey(key);
 }
