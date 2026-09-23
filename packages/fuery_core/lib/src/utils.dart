@@ -46,7 +46,10 @@ int timeUntilStale(int updatedAt, Duration? staleTime) {
 /// affect the hash.
 ///
 /// Supported values are `null`, [bool], [num], [String], [Enum], [DateTime],
-/// [Iterable], [Map], and objects that implement `toJson()`.
+/// [Iterable], [Map], and objects that implement `toJson()`. An enum is
+/// hashed by its `name`, without its type, whose name obfuscated and minified
+/// builds change; enums of different types with the same name in the same
+/// place are therefore the same key.
 String hashKey(List<Object?> key) => jsonEncode(_canonicalize(key));
 
 /// Returns true when [b] is a prefix (for lists) or subset (for maps) of [a].
@@ -79,12 +82,12 @@ Object? _canonicalize(Object? value) {
   if (value == null || value is bool || value is num || value is String) {
     return value;
   }
-  if (value is Enum) return '${value.runtimeType}.${value.name}';
+  if (value is Enum) return value.name;
   if (value is DateTime) return value.toIso8601String();
   if (value is Iterable) return [for (final item in value) _canonicalize(item)];
   if (value is Map) {
-    final keys = value.keys.map((k) => k.toString()).toList()..sort();
-    final byString = {for (final e in value.entries) e.key.toString(): e.value};
+    final keys = value.keys.map(_mapKey).toList()..sort();
+    final byString = {for (final e in value.entries) _mapKey(e.key): e.value};
     return {for (final k in keys) k: _canonicalize(byString[k])};
   }
 
@@ -100,6 +103,10 @@ Object? _canonicalize(Object? value) {
     );
   }
 }
+
+/// A map key as a string. An enum's `toString()` includes its type, which
+/// obfuscated builds rename, so it uses the name.
+String _mapKey(Object? key) => key is Enum ? key.name : key.toString();
 
 /// Reuses parts of [prevData] that are equal to [data], so listeners can skip
 /// work for data that did not change.

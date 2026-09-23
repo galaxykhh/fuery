@@ -18,6 +18,8 @@ class Item {
   int get hashCode => Object.hash(id, name);
 }
 
+enum Sort { newest }
+
 void main() {
   late QueryClient client;
 
@@ -291,6 +293,20 @@ void main() {
     expect(todos.result.isFetchedAfterMount, isFalse);
     expect(fetcher.calls, 2);
     unsubscribe();
+  });
+
+  test('keys with enums hash the same in obfuscated builds', () {
+    // Obfuscated and minified builds rename types, so a hash with the type
+    // name would change with every build, and persisted queries under keys
+    // with enums would not be restored after an app update.
+    expect(hashKey(['posts', Sort.newest]), isNot(contains('Sort')));
+    expect(
+        hashKey([
+          'posts',
+          {Sort.newest: true}
+        ]),
+        isNot(contains('Sort')));
+    expect(hashKey(['posts', Sort.newest]), '["posts","newest"]');
   });
 
   group('infinite queries', () {
