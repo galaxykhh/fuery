@@ -23,7 +23,7 @@ The example app shows both: a list screen built with Fuery widgets, and a stats 
 
 ## In a cubit
 
-`todosOptions()` returns the query's options, as in [Organizing queries](../organizing-queries/).
+Outside widgets, `observe()` turns a query into an observer with a `stream`. `todosQuery` is the query, as in [Organizing queries](../organizing-queries/).
 
 ```dart
 class TodoCubit extends Cubit<TodoState> {
@@ -33,7 +33,7 @@ class TodoCubit extends Cubit<TodoState> {
     });
   }
 
-  final _todos = todosOptions().observe();
+  final _todos = todosQuery.observe();
   late final StreamSubscription<QueryResult<List<Todo>>> _subscription;
 
   Future<void> refresh() => _todos.refetch();
@@ -57,7 +57,7 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
   TodoBloc() : super(const TodoState()) {
     on<TodosSubscribed>((event, emit) {
       return emit.forEach(
-        todosOptions().observe().stream,
+        todosQuery.observe().stream,
         onData: (result) =>
             state.copyWith(todos: result.data, loading: result.isLoading),
       );
@@ -68,7 +68,7 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
 
 ## Mutations from a bloc
 
-`mutateAsync` returns the data or throws, which fits event handlers:
+Create the observer once in the bloc, with `final _addTodo = addTodo.observe();`. `mutateAsync` returns the data or throws, which fits event handlers:
 
 ```dart
 on<TodoAdded>((event, emit) async {

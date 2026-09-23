@@ -55,21 +55,21 @@ Future<void> main() async {
 Add `persist` with a way to convert the data to JSON and back. Only queries with `persist` are stored:
 
 ```dart
-QueryOptions<List<Todo>> todosOptions() => QueryOptions(
-      queryKey: ['todos'],
-      queryFn: (_) => api.getTodos(),
-      persist: QueryPersist(
-        toJson: (todos) => [for (final todo in todos) todo.toJson()],
-        fromJson: (json) => [
-          for (final item in json! as List) Todo.fromJson(item),
-        ],
-      ),
-    );
+final todosQuery = Query(
+  queryKey: ['todos'],
+  queryFn: (_) => api.getTodos(),
+  persist: QueryPersist(
+    toJson: (todos) => [for (final todo in todos) todo.toJson()],
+    fromJson: (json) => [
+      for (final item in json! as List) Todo.fromJson(item),
+    ],
+  ),
+);
 ```
 
 - **The codec:** `toJson` must return a value `jsonEncode` accepts. `fromJson` receives whatever `jsonDecode` produced, so cast that value inside `fromJson` instead of at every call site. `Todo.fromJson` above takes that value; with a generated `Todo.fromJson(Map<String, dynamic> json)`, write `Todo.fromJson(item as Map<String, dynamic>)`.
 - **Restoring:** the first time the query is used, its stored data is restored with the time it was fetched, so `staleTime` decides whether it refetches. Fresh data isn't fetched again.
-- **Storing:** data is stored whenever it changes and no fetch is running, including changes made with `setData`. `client.setData(todosOptions(), todos)` stores even before anything observes the query, because the query it creates gets the `persist` from the options. A [streamed query](../streaming/) is stored once its stream is done.
+- **Storing:** data is stored whenever it changes and no fetch is running, including changes made with `setData`. `client.setData(todosQuery, todos)` stores even before anything uses the query, because the query it creates gets the `persist` from the definition. A [streamed query](../streaming/) is stored once its stream is done.
 - **Offline:** restoring doesn't need the network.
 
 ## Persisting infinite queries
@@ -77,7 +77,7 @@ QueryOptions<List<Todo>> todosOptions() => QueryOptions(
 Convert one page, and Fuery stores the list of pages:
 
 ```dart
-final posts = InfiniteQuery.observe(
+final posts = InfiniteQuery(
   queryKey: ['posts'],
   queryFn: (context) => api.getPosts(page: context.pageParam),
   initialPageParam: 1,
@@ -90,7 +90,7 @@ final posts = InfiniteQuery.observe(
 );
 ```
 
-Page params are stored as they are, so they must be JSON values like numbers, strings, or `null`. Otherwise, add `paramToJson` and `paramFromJson`.
+Page params are stored as they are, so they must be JSON values like numbers, strings, or `null`. Otherwise, add `paramToJson` and `paramFromJson`. Params reach those as `Object?`, so cast them: `paramToJson: (date) => (date! as DateTime).toIso8601String()`.
 
 ## When stored data is discarded
 
@@ -134,11 +134,11 @@ A failing storage behaves like an empty one; Fuery ignores its errors.
 
 ## Persisting mutations
 
-A mutation with `persist` stores its variables from the moment it starts until it settles. A mutation that was paused offline, or still running, when the app was closed is therefore still there at the next start. `restore` runs it again with the options you pass, so keep those options in a function that both the screen and `main` call:
+A mutation with `persist` stores its variables from the moment it starts until it settles. A mutation that was paused offline, or still running, when the app was closed is therefore still there at the next start. `restore` runs it again with the mutation you pass, so the screen and `main` use the same definition:
 
 ```dart
-MutationOptions<Comment, NewComment, void> addCommentOptions() {
-  return MutationOptions(
+Mutation<Comment, NewComment, void> addCommentMutation() {
+  return Mutation(
     mutationKey: ['comments', 'add'],
     mutationFn: (NewComment comment) => api.addComment(comment),
     scope: const MutationScope('comments'),
@@ -149,25 +149,25 @@ MutationOptions<Comment, NewComment, void> addCommentOptions() {
         return (postId: map['postId']! as int, body: map['body']! as String);
       },
     ),
-    onSuccess: (_, comment, __) {
-      Fuery.client.invalidateQueries(queryKey: ['comments', comment.postId]);
+    onSuccess: (_, comment, __, client) {
+      client.invalidateQueries(queryKey: ['comments', comment.postId]);
     },
   );
 }
 
 // In a screen:
-final addComment = addCommentOptions().observe();
+MutationBuilder(mutation: addCommentMutation(), builder: ...)
 
 // In main, before runApp:
-await Fuery.client.restore(mutations: [addCommentOptions()]);
+await Fuery.client.restore(mutations: [addCommentMutation()]);
 ```
 
-- A persisted mutation needs a `mutationKey`. That is how `restore` matches a stored run to its options. `mutations` is a list of `AnyMutationOptions`, which every `MutationOptions` is, so options with different types go in one list.
+- A persisted mutation needs a `mutationKey`. That is how `restore` matches a stored run to its definition. `mutations` is a list of `AnyMutation`, which every `Mutation` is, so options with different types go in one list.
 - `restore` is the only way stored mutations come back. Each stored run is started again with its stored variables: right away while online, or when the network is back. Runs that share a scope go one at a time, oldest first.
 - A restored run skips `onMutate`, and its callbacks receive `null` as `context`. An optimistic update belongs to the run that made it; the restored run only repeats the request and its `onSuccess`.
 - A stored run is deleted once the mutation succeeds or fails. `clear()` deletes them all.
-- An entry whose options weren't passed to `restore` is kept, so a later `restore` can run it. One stored by another `version` of its `MutationPersist`, or one that can't be read, is deleted.
-- A mutation without variables persists with `MutationPersist.noVariables`. `restore` needs it as options with `void` variables, such as `MutationOptions(mutationKey: ['sync'], mutationFn: (_) => api.sync(), persist: MutationPersist.noVariables)`, and a screen observes those options and calls `mutate(null)`.
+- An entry whose mutation wasn't passed to `restore` is kept, so a later `restore` can run it. One stored by another `version` of its `MutationPersist`, or one that can't be read, is deleted.
+- A mutation without variables persists with `MutationPersist.noVariables`: `NoVariablesMutation(mutationKey: ['sync'], mutationFn: () => api.sync(), persist: MutationPersist.noVariables)`.
 
 A request that had reached the server before the app closed runs again after the restart. Persist mutations whose request is safe to repeat, or make the server treat a repeat as the same write.
 

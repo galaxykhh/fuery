@@ -5,20 +5,20 @@ description: Read, write, invalidate, and prefetch the Flutter cache, set defaul
 
 The `QueryClient` owns the cache. Use it to read and write cached data, to invalidate or refetch it, and to fetch outside widgets.
 
-`Fuery.client` is the client every query uses unless you pass `client:`. It is created the first time something needs it, so an app that never configures one still works.
+`Fuery.client` is the client every widget uses without a `FueryProvider`, and every observer from `observe()` uses unless you pass `client:`. It is created the first time something needs it, so an app that never configures one still works. In a widget, `context.queryClient` returns the client of the nearest provider, or `Fuery.client`.
 
 ## Reading and writing the cache
 
 ```dart
 final client = Fuery.client;
 
-client.getData(todosOptions());                         // the data, or null
-client.setData(todoOptions(1), todo);
-client.updateData(todosOptions(), (todos) => [...?todos, todo]);
+client.getData(todosQuery);                             // the data, or null
+client.setData(todoQuery(1), todo);
+client.updateData(todosQuery, (todos) => [...?todos, todo]);
 client.getQueryState(['todos'])?.dataUpdatedAt;         // the whole QueryState
 ```
 
-`getData`, `setData`, and `updateData` take the key and the data type from the query's [options](../organizing-queries/), so there is nothing to cast. A query that `setData` creates gets all of the options, so it stores its data with `persist` and can refetch. Every widget using the key rebuilds with the new data, and returning `null` from the `updateData` updater leaves the cache unchanged.
+`getData`, `setData`, and `updateData` take the key and the data type from the [query](../organizing-queries/), so there is nothing to cast. A query that `setData` creates gets all of its options, so it stores its data with `persist` and can refetch. Every widget using the key rebuilds with the new data, and returning `null` from the `updateData` updater leaves the cache unchanged.
 
 With only a key, use `getQueryData`, `setQueryData`, and `updateQueryData`, and name the data type: `client.getQueryData<List<Todo>>(['todos'])`.
 
@@ -57,7 +57,7 @@ final saving = client.mutationCache.findAll(
 );
 ```
 
-A `Query` from the cache exposes `queryKey`, `state`, `options`, and `meta`. The caches only read. Change queries through the client.
+A `CachedQuery` from the cache exposes `queryKey`, `state`, `options`, and `meta`, and a `CachedMutation` the same for a mutation. The caches only read. Change queries through the client.
 
 ## Invalidating
 
@@ -83,7 +83,7 @@ Six calls pick their queries with the same filters. Each adds arguments of its o
 | `removeQueries` | Deletes the matches from the cache. | none |
 | `isFetching` | Counts the matches that are fetching. | none |
 
-`isMutating` counts pending mutations instead, and takes the mutation filters: `mutationKey`, `exact`, and a `predicate` that receives an `AnyMutation`.
+`isMutating` counts pending mutations instead, and takes the mutation filters: `mutationKey`, `exact`, and a `predicate` that receives an `AnyCachedMutation`.
 
 ### The filters
 
@@ -95,7 +95,7 @@ Every filter you set has to match.
 | `exact` | `bool` | `false` | `true` matches the single query with exactly this key. |
 | `type` | `QueryTypeFilter` | `.all` | `.active`: an enabled widget or subscriber is using the query. `.inactive`: nothing is using it. |
 | `stale` | `bool?` | unset | `true` for stale queries only, `false` for fresh ones. |
-| `predicate` | `bool Function(Query<Object>)` | unset | Queries this returns `true` for. |
+| `predicate` | `bool Function(CachedQuery<Object>)` | unset | Queries this returns `true` for. |
 
 ### The extra arguments
 
@@ -130,7 +130,7 @@ client.removeQueries(
 );
 ```
 
-The predicate receives the `Query`, so it can read `query.state` and `query.options` as well, for example to drop every query that failed.
+The predicate receives the `CachedQuery`, so it can read `query.state` and `query.options` as well, for example to drop every query that failed.
 
 ## Watching the cache
 
@@ -176,20 +176,18 @@ In a bloc, listen to the stream like any other.
 `client.query` returns cached data if it's fresh, and fetches otherwise. It throws on failure and doesn't retry unless you set `retry`:
 
 ```dart
-final todosOptions = QueryOptions(queryKey: ['todos'], queryFn: (_) => api.getTodos());
-
-final todos = await client.query(todosOptions); // fetch, or use fresh cache
-client.query(todosOptions).ignore(); // prefetch: ignore the result and errors
+final todos = await client.query(todosQuery); // fetch, or use fresh cache
+client.query(todosQuery).ignore(); // prefetch: ignore the result and errors
 ```
 
 To use whatever is cached, however old, set `staleTime: staticStaleTime`. Route guards and startup code use it to read the cache without waiting for a fetch.
 
 ## Fetching an infinite query outside widgets
 
-`client.infiniteQuery` does the same for [infinite queries](../infinite-queries/). Build its options with `infiniteQueryOptions`, which takes the same options as `InfiniteQuery.observe`, plus `pages`:
+`client.infiniteQuery` does the same for [infinite queries](../infinite-queries/). `pages` sets how many pages it loads:
 
 ```dart
-InfiniteQueryOptions<TodoPage, int> pagedTodosOptions() => infiniteQueryOptions(
+InfiniteQuery<TodoPage, int> pagedTodosQuery() => InfiniteQuery(
       queryKey: ['todos', 'paged'],
       queryFn: (context) => api.getPage(context.pageParam),
       initialPageParam: 1,
@@ -198,10 +196,10 @@ InfiniteQueryOptions<TodoPage, int> pagedTodosOptions() => infiniteQueryOptions(
       pages: 3,
     );
 
-await client.infiniteQuery(pagedTodosOptions());
+await client.infiniteQuery(pagedTodosQuery());
 ```
 
-`pages` is how many pages to load when nothing is cached, one by default. When pages are already cached, `client.infiniteQuery` reloads those instead and ignores `pages`. `InfiniteQuery.observe` doesn't take it: a widget loads the first page, then whatever `fetchNextPage()` asks for.
+`pages` is how many pages to load when nothing is cached, one by default. When pages are already cached, `client.infiniteQuery` reloads those instead and ignores `pages`. Widgets and observers ignore it: they load the first page, then whatever `fetchNextPage()` asks for.
 
 ## Setting defaults for every query and mutation
 
@@ -264,7 +262,7 @@ Fuery.client = QueryClient(
 
 A cache keeps its config for its whole life, so pass it when you construct the client.
 
-`QueryCacheConfig` takes three callbacks, each with the `Query` as its last argument:
+`QueryCacheConfig` takes three callbacks, each with the `CachedQuery` as its last argument:
 
 | Callback | Runs |
 |---|---|
@@ -283,7 +281,7 @@ A cancelled fetch is not a failure and reaches none of them.
 | `onError(error, variables, context, mutation)` | After failure |
 | `onSettled(data, error, variables, context, mutation)` | After either |
 
-Each of these runs before the matching [callback on the mutation itself](../mutations/#callbacks), and Fuery awaits a future it returns. The mutation arrives as `AnyMutation`, a mutation of unknown types, so `data`, `variables`, and `context` come in as `Object?`. Identify it by `mutation.options.mutationKey` or `mutation.options.meta`.
+Each of these runs before the matching [callback on the mutation itself](../mutations/#callbacks), and Fuery awaits a future it returns. The mutation arrives as `AnyCachedMutation`, a mutation of unknown types, so `data`, `variables`, and `context` come in as `Object?`. Identify it by `mutation.options.mutationKey` or `mutation.options.meta`.
 
 ## Resuming mutations that paused offline
 
@@ -310,21 +308,13 @@ Clear once the screens that use queries are gone. An observer still subscribed w
 
 ## Which client a query uses
 
-A query takes its client when you create it: the one you pass as `client:`, or `Fuery.client` at that moment. It keeps that client for its whole life, so assigning `Fuery.client` later leaves existing queries where they are.
+A `Query` holds no client. The client is chosen where the query is used:
 
-Two rules follow:
+- A widget that gets a query or a mutation uses the client of the nearest `FueryProvider`, or `Fuery.client` without one. It follows a provider whose client is replaced.
+- `observe()` uses the client you pass as `client:`, or `Fuery.client` at that moment, and keeps it for the observer's whole life.
+- Query functions, `placeholderData`, and mutation callbacks receive the client that runs them.
 
-- **Configure the client first.** A storage or defaults set after a query exists don't reach it.
-- **Share queries as options, not as observers.** A top-level `final todos = Query.observe(...)` keeps the client it first saw, which breaks tests that use a fresh client per test. Options hold no client, and `observe()` takes the current one each time it is called:
-
-  ```dart
-  QueryOptions<List<Todo>> todosOptions() =>
-      QueryOptions(queryKey: ['todos'], queryFn: (_) => api.getTodos());
-
-  late final todos = todosOptions().observe();
-  ```
-
-  Observers still share one cache entry and one request, because that comes from the key. [Organizing queries](../organizing-queries/) covers the pattern.
+So queries can be top-level values, and a test that gives each widget test a fresh client through `Fuery.client` or a `FueryProvider` needs nothing else. Configure the client before creating observers: a storage or defaults set afterwards don't reach an observer that already exists.
 
 ## Giving a subtree its own client
 
@@ -334,15 +324,13 @@ To run part of the app on another client, for example in a widget test, wrap it 
 FueryProvider(client: QueryClient(), child: const App());
 ```
 
-`context.queryClient` reads it, and falls back to `Fuery.client` when there is no provider. A query uses it only when it is passed as `client:`:
+Widgets below it use that client. `context.queryClient` returns it, and falls back to `Fuery.client` when there is no provider. Pass it to `observe` for an observer of your own:
 
 ```dart
-late final todos = Query.observe(
-  queryKey: ['todos'],
-  queryFn: (_) => api.getTodos(),
-  client: context.queryClient,
-);
+late final todos = todosQuery.observe(client: context.queryClient);
 ```
+
+An adapter for another way of building widgets, such as hooks, reads the client with `FueryProvider.of(context, listen: true)`, which rebuilds when the provider's client is replaced.
 
 ## In the example app
 

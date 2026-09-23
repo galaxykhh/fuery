@@ -86,7 +86,7 @@ class _InfiniteQueryBehavior<TPage, TParam>
   @override
   void onFetch(
     _FetchContext<InfiniteData<TPage, TParam>> context,
-    Query<InfiniteData<TPage, TParam>> query,
+    CachedQuery<InfiniteData<TPage, TParam>> query,
   ) {
     final direction = context.fetchOptions?.direction;
     final oldPages = context.state.data?.pages ?? <TPage>[];
@@ -185,14 +185,43 @@ class _InfiniteQueryBehavior<TPage, TParam>
 }
 
 /// Options for an infinite query.
-class InfiniteQueryOptions<TPage, TParam>
-    extends QueryOptions<InfiniteData<TPage, TParam>> {
-  InfiniteQueryOptions({
+class InfiniteQuery<TPage, TParam> extends Query<InfiniteData<TPage, TParam>>
+    implements InfiniteQuerySource<TPage, TParam> {
+  /// Describes an infinite query. The page and param types are inferred from
+  /// [queryFn] and [initialPageParam].
+  ///
+  /// [getNextPageParam] returns the param for the page after `data.lastPage`,
+  /// or `null` when there are no more pages. It must return a [TParam]:
+  /// Dart can't check that here without breaking inference, so another type
+  /// is reported as an error when the next page is looked up, and treated as
+  /// no next page.
+  ///
+  /// ```dart
+  /// final posts = InfiniteQuery(
+  ///   queryKey: ['posts'],
+  ///   queryFn: (context) => api.getPosts(page: context.pageParam),
+  ///   initialPageParam: 1,
+  ///   getNextPageParam: (data) =>
+  ///       data.lastPage.hasMore ? data.lastPageParam + 1 : null,
+  /// );
+  /// ```
+  ///
+  /// When the first page has no param, give `null` its type so the param type
+  /// can be inferred: `initialPageParam: null as String?`. [pages] sets how
+  /// many pages to load when nothing is cached, for example to prefetch
+  /// several pages with [QueryClient.infiniteQuery].
+  //
+  // The page param functions return Object?: a return type of TParam? makes
+  // Dart infer the page type before queryFn fixes it, which would make
+  // `data.lastPage` nullable. `persist` is typed by Object? params, so a
+  // persist without param codecs can't widen the inferred param type.
+  InfiniteQuery({
     required super.queryKey,
     required InfiniteQueryFn<TPage, TParam> queryFn,
     required TParam initialPageParam,
-    required GetNextPageParam<TPage, TParam> getNextPageParam,
-    GetPreviousPageParam<TPage, TParam>? getPreviousPageParam,
+    required Object? Function(InfiniteData<TPage, TParam> data)
+        getNextPageParam,
+    Object? Function(InfiniteData<TPage, TParam> data)? getPreviousPageParam,
     int? maxPages,
     int? pages,
     bool Function(InfiniteQueryResult<TPage, TParam> result)? refetchWhile,
@@ -225,15 +254,25 @@ class InfiniteQueryOptions<TPage, TParam>
           behavior: _InfiniteQueryBehavior<TPage, TParam>(
             queryFn: queryFn,
             initialPageParam: initialPageParam,
-            getNextPageParam: getNextPageParam,
-            getPreviousPageParam: getPreviousPageParam,
+            getNextPageParam: _PageParamCheck<TPage, TParam>(
+              'getNextPageParam',
+              getNextPageParam,
+              queryKey,
+            ).call,
+            getPreviousPageParam: getPreviousPageParam == null
+                ? null
+                : _PageParamCheck<TPage, TParam>(
+                    'getPreviousPageParam',
+                    getPreviousPageParam,
+                    queryKey,
+                  ).call,
             maxPages: maxPages,
             pages: pages,
           ),
         );
 
   /// Returns an observer that watches this infinite query. See
-  /// [QueryOptions.observe].
+  /// [Query.observe].
   @override
   InfiniteQueryObserver<TPage, TParam> observe({QueryClient? client}) {
     return InfiniteQueryObserver<TPage, TParam>(client ?? Fuery.client, this);
@@ -251,22 +290,7 @@ class InfiniteQueryResult<TPage, TParam>
     required this.isFetchingPreviousPage,
     required this.isFetchNextPageError,
     required this.isFetchPreviousPageError,
-  }) : super(
-          status: base.status,
-          fetchStatus: base.fetchStatus,
-          data: base.data,
-          dataUpdatedAt: base.dataUpdatedAt,
-          error: base.error,
-          errorUpdatedAt: base.errorUpdatedAt,
-          errorUpdateCount: base.errorUpdateCount,
-          failureCount: base.failureCount,
-          failureReason: base.failureReason,
-          isFetched: base.isFetched,
-          isFetchedAfterMount: base.isFetchedAfterMount,
-          isPlaceholderData: base.isPlaceholderData,
-          isStale: base.isStale,
-          isEnabled: base.isEnabled,
-        );
+  }) : super._copy(base, base._observer);
 
   final bool hasNextPage;
   final bool hasPreviousPage;
@@ -277,6 +301,45 @@ class InfiniteQueryResult<TPage, TParam>
 
   /// All pages, or an empty list if there is no data yet.
   List<TPage> get pages => data?.pages ?? const [];
+
+  InfiniteQueryObserver<TPage, TParam> get _infiniteReporter =>
+      _reporter as InfiniteQueryObserver<TPage, TParam>;
+
+  /// Fetches the page after the last one, like
+  /// [InfiniteQueryObserver.fetchNextPage] on the observer that reported this
+  /// result.
+  Future<InfiniteQueryResult<TPage, TParam>> fetchNextPage({
+    bool cancelRefetch = true,
+    bool throwOnError = false,
+  }) {
+    return _infiniteReporter.fetchNextPage(
+      cancelRefetch: cancelRefetch,
+      throwOnError: throwOnError,
+    );
+  }
+
+  /// Fetches the page before the first one, like
+  /// [InfiniteQueryObserver.fetchPreviousPage].
+  Future<InfiniteQueryResult<TPage, TParam>> fetchPreviousPage({
+    bool cancelRefetch = true,
+    bool throwOnError = false,
+  }) {
+    return _infiniteReporter.fetchPreviousPage(
+      cancelRefetch: cancelRefetch,
+      throwOnError: throwOnError,
+    );
+  }
+
+  @override
+  Future<InfiniteQueryResult<TPage, TParam>> refetch({
+    bool cancelRefetch = true,
+    bool throwOnError = false,
+  }) {
+    return _infiniteReporter.refetch(
+      cancelRefetch: cancelRefetch,
+      throwOnError: throwOnError,
+    );
+  }
 
   @override
   bool get isRefetching =>
@@ -314,10 +377,11 @@ class InfiniteQueryResult<TPage, TParam>
 
 /// Watches an infinite query and loads more pages on demand.
 class InfiniteQueryObserver<TPage, TParam>
-    extends QueryObserver<InfiniteData<TPage, TParam>> {
+    extends QueryObserver<InfiniteData<TPage, TParam>>
+    implements InfiniteQuerySource<TPage, TParam> {
   InfiniteQueryObserver(
     super.client,
-    InfiniteQueryOptions<TPage, TParam> super.options,
+    InfiniteQuery<TPage, TParam> super.options,
   );
 
   late final Stream<InfiniteQueryResult<TPage, TParam>> _infiniteStream =
@@ -406,7 +470,7 @@ class InfiniteQueryObserver<TPage, TParam>
   @override
   QueryResult<InfiniteData<TPage, TParam>> _buildResult(
     QueryState<InfiniteData<TPage, TParam>> state,
-    QueryOptions<InfiniteData<TPage, TParam>> options,
+    Query<InfiniteData<TPage, TParam>> options,
     QueryResult<InfiniteData<TPage, TParam>> base,
   ) {
     final behavior =
@@ -428,14 +492,44 @@ class InfiniteQueryObserver<TPage, TParam>
   }
 }
 
-/// Builds [InfiniteQueryOptions] with the page and param types inferred from
-/// the arguments, for example for [QueryClient.infiniteQuery].
+/// Checks the page params that `getNextPageParam` or `getPreviousPageParam`
+/// return, which the [InfiniteQuery] constructor can't check statically.
 ///
-/// Prefer this over the [InfiniteQueryOptions] constructor, which needs
-/// explicit type arguments. See [InfiniteQuery.observe] for the parameters.
-/// [pages] sets how many pages to load when nothing is cached, for example
-/// to prefetch several pages with [QueryClient.infiniteQuery].
-InfiniteQueryOptions<TPage, TParam> infiniteQueryOptions<
+/// A param of another type means there is no such page, and is reported
+/// once per function and query key as an uncaught error, however often the
+/// definition is built again. Throwing instead would stop the result that
+/// asked for it from being built, and the error would be lost with it.
+class _PageParamCheck<TPage, TParam> {
+  _PageParamCheck(this._name, this._getParam, this._queryKey);
+
+  /// What was reported, by function name and query hash.
+  static final Set<String> _reported = {};
+
+  final String _name;
+  final Object? Function(InfiniteData<TPage, TParam> data) _getParam;
+  final QueryKey _queryKey;
+
+  TParam? call(InfiniteData<TPage, TParam> data) {
+    final param = _getParam(data);
+    if (param is TParam?) return param;
+    final queryHash = hashKey(_queryKey);
+    if (_reported.add('$_name $queryHash')) {
+      Zone.current.handleUncaughtError(
+        StateError(
+          '$_name returned ${param.runtimeType}, but the page params of the '
+          'query $queryHash are $TParam.',
+        ),
+        StackTrace.current,
+      );
+    }
+    return null;
+  }
+}
+
+/// Builds an [InfiniteQuery], like its constructor.
+@Deprecated(
+    'Use the InfiniteQuery constructor, which takes the same arguments.')
+InfiniteQuery<TPage, TParam> infiniteQueryOptions<
     TPage,
     TParam,
     TNext extends TParam?,
@@ -468,7 +562,7 @@ InfiniteQueryOptions<TPage, TParam> infiniteQueryOptions<
   InfiniteQueryPersist<TPage, TPersistParam>? persist,
   Map<String, Object?>? meta,
 }) {
-  return InfiniteQueryOptions<TPage, TParam>(
+  return InfiniteQuery<TPage, TParam>(
     queryKey: queryKey,
     queryFn: queryFn,
     initialPageParam: initialPageParam,
@@ -498,151 +592,5 @@ InfiniteQueryOptions<TPage, TParam> infiniteQueryOptions<
   );
 }
 
-/// Entry point for infinite queries.
-abstract final class InfiniteQuery {
-  /// Watches the infinite query for [queryKey].
-  ///
-  /// [getNextPageParam] returns the param for the page after `data.lastPage`,
-  /// or `null` when there are no more pages. The page and param types are
-  /// inferred from [queryFn] and [initialPageParam].
-  ///
-  /// ```dart
-  /// final posts = InfiniteQuery.observe(
-  ///   queryKey: ['posts'],
-  ///   queryFn: (context) => api.getPosts(page: context.pageParam),
-  ///   initialPageParam: 1,
-  ///   getNextPageParam: (data) =>
-  ///       data.lastPage.hasMore ? data.lastPageParam + 1 : null,
-  /// );
-  /// ```
-  ///
-  /// When the first page has no param, give `null` its type so the param type
-  /// can be inferred: `initialPageParam: null as String?`.
-  ///
-  /// The same as `infiniteQueryOptions(...).observe()`.
-  static InfiniteQueryObserver<TPage, TParam> observe<
-      TPage,
-      TParam,
-      TNext extends TParam?,
-      TPrev extends TParam?,
-      TPersistParam extends Object?>({
-    required QueryKey queryKey,
-    required InfiniteQueryFn<TPage, TParam> queryFn,
-    required TParam initialPageParam,
-    required TNext Function(InfiniteData<TPage, TParam> data) getNextPageParam,
-    TPrev Function(InfiniteData<TPage, TParam> data)? getPreviousPageParam,
-    int? maxPages,
-    bool? enabled,
-    Duration? staleTime,
-    Duration? gcTime,
-    Duration? refetchInterval,
-    bool? refetchIntervalInBackground,
-    bool Function(InfiniteQueryResult<TPage, TParam> result)? refetchWhile,
-    RefetchMode? refetchOnMount,
-    RefetchMode? refetchOnFocus,
-    RefetchMode? refetchOnReconnect,
-    bool? retryOnMount,
-    RetryPolicy? retry,
-    RetryDelay? retryDelay,
-    NetworkMode? networkMode,
-    InfiniteData<TPage, TParam>? initialData,
-    int? initialDataUpdatedAt,
-    PlaceholderDataFn<InfiniteData<TPage, TParam>>? placeholderData,
-    bool? structuralSharing,
-    InfiniteQueryPersist<TPage, TPersistParam>? persist,
-    Map<String, Object?>? meta,
-    QueryClient? client,
-  }) {
-    return infiniteQueryOptions(
-      queryKey: queryKey,
-      queryFn: queryFn,
-      initialPageParam: initialPageParam,
-      getNextPageParam: getNextPageParam,
-      getPreviousPageParam: getPreviousPageParam,
-      maxPages: maxPages,
-      enabled: enabled,
-      staleTime: staleTime,
-      gcTime: gcTime,
-      refetchInterval: refetchInterval,
-      refetchIntervalInBackground: refetchIntervalInBackground,
-      refetchWhile: refetchWhile,
-      refetchOnMount: refetchOnMount,
-      refetchOnFocus: refetchOnFocus,
-      refetchOnReconnect: refetchOnReconnect,
-      retryOnMount: retryOnMount,
-      retry: retry,
-      retryDelay: retryDelay,
-      networkMode: networkMode,
-      initialData: initialData,
-      initialDataUpdatedAt: initialDataUpdatedAt,
-      placeholderData: placeholderData,
-      structuralSharing: structuralSharing,
-      persist: persist,
-      meta: meta,
-    ).observe(client: client);
-  }
-
-  @Deprecated('Use InfiniteQuery.observe, which takes the same arguments.')
-  static InfiniteQueryObserver<TPage, TParam> use<
-      TPage,
-      TParam,
-      TNext extends TParam?,
-      TPrev extends TParam?,
-      TPersistParam extends Object?>({
-    required QueryKey queryKey,
-    required InfiniteQueryFn<TPage, TParam> queryFn,
-    required TParam initialPageParam,
-    required TNext Function(InfiniteData<TPage, TParam> data) getNextPageParam,
-    TPrev Function(InfiniteData<TPage, TParam> data)? getPreviousPageParam,
-    int? maxPages,
-    bool? enabled,
-    Duration? staleTime,
-    Duration? gcTime,
-    Duration? refetchInterval,
-    bool? refetchIntervalInBackground,
-    bool Function(InfiniteQueryResult<TPage, TParam> result)? refetchWhile,
-    RefetchMode? refetchOnMount,
-    RefetchMode? refetchOnFocus,
-    RefetchMode? refetchOnReconnect,
-    bool? retryOnMount,
-    RetryPolicy? retry,
-    RetryDelay? retryDelay,
-    NetworkMode? networkMode,
-    InfiniteData<TPage, TParam>? initialData,
-    int? initialDataUpdatedAt,
-    PlaceholderDataFn<InfiniteData<TPage, TParam>>? placeholderData,
-    bool? structuralSharing,
-    InfiniteQueryPersist<TPage, TPersistParam>? persist,
-    Map<String, Object?>? meta,
-    QueryClient? client,
-  }) {
-    return observe(
-      queryKey: queryKey,
-      queryFn: queryFn,
-      initialPageParam: initialPageParam,
-      getNextPageParam: getNextPageParam,
-      getPreviousPageParam: getPreviousPageParam,
-      maxPages: maxPages,
-      enabled: enabled,
-      staleTime: staleTime,
-      gcTime: gcTime,
-      refetchInterval: refetchInterval,
-      refetchIntervalInBackground: refetchIntervalInBackground,
-      refetchWhile: refetchWhile,
-      refetchOnMount: refetchOnMount,
-      refetchOnFocus: refetchOnFocus,
-      refetchOnReconnect: refetchOnReconnect,
-      retryOnMount: retryOnMount,
-      retry: retry,
-      retryDelay: retryDelay,
-      networkMode: networkMode,
-      initialData: initialData,
-      initialDataUpdatedAt: initialDataUpdatedAt,
-      placeholderData: placeholderData,
-      structuralSharing: structuralSharing,
-      persist: persist,
-      meta: meta,
-      client: client,
-    );
-  }
-}
+@Deprecated('Use InfiniteQuery.')
+typedef InfiniteQueryOptions<TPage, TParam> = InfiniteQuery<TPage, TParam>;

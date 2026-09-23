@@ -48,12 +48,11 @@ void main() {
   }
 
   QueryObserver<String> todos(Fetcher fetcher, {Duration? staleTime}) {
-    return Query.observe(
+    return Query(
       queryKey: ['todos'],
       queryFn: fetcher.call,
       staleTime: staleTime,
-      client: client,
-    );
+    ).observe(client: client);
   }
 
   Widget text(QueryResult<String> state) {
@@ -159,11 +158,10 @@ void main() {
             valueListenable: rebuild,
             // The mistake: a new observer on every build.
             builder: (context, _, __) => QueryBuilder(
-              query: Query.observe(
+              query: Query(
                 queryKey: ['todos'],
                 queryFn: fetcher.call,
-                client: client,
-              ),
+              ).observe(client: client),
               builder: (context, state) => Text(state.data ?? 'loading'),
             ),
           ),
@@ -204,28 +202,25 @@ void main() {
             builder: (context, _, __) => Column(
               children: [
                 InfiniteQueryBuilder(
-                  query: InfiniteQuery.observe(
+                  query: InfiniteQuery(
                     queryKey: ['pages'],
                     queryFn: (context) async => 'page ${context.pageParam}',
                     initialPageParam: 1,
                     getNextPageParam: (data) => null,
-                    client: client,
-                  ),
+                  ).observe(client: client),
                   builder: (context, state) => const Text('pages'),
                 ),
                 MutationBuilder(
-                  mutation: Mutation.observe(
+                  mutation: Mutation(
                     mutationKey: ['save'],
                     mutationFn: (int value) async => value,
-                    client: client,
-                  ),
+                  ).observe(client: client),
                   builder: (context, state) => const Text('keyed'),
                 ),
                 MutationBuilder(
-                  mutation: Mutation.observe(
+                  mutation: Mutation(
                     mutationFn: (int value) async => value,
-                    client: client,
-                  ),
+                  ).observe(client: client),
                   builder: (context, state) => const Text('unkeyed'),
                 ),
               ],
@@ -256,11 +251,10 @@ void main() {
       try {
         final key = ValueNotifier('a');
         final fetcher = Fetcher('a');
-        final same = Query.observe(
+        final same = Query(
           queryKey: ['same'],
           queryFn: fetcher.call,
-          client: client,
-        );
+        ).observe(client: client);
 
         await pumpApp(
           tester,
@@ -273,11 +267,10 @@ void main() {
                   builder: (context, state) => const Text('same'),
                 ),
                 QueryBuilder(
-                  query: Query.observe(
+                  query: Query(
                     queryKey: ['todos', value],
                     queryFn: fetcher.call,
-                    client: client,
-                  ),
+                  ).observe(client: client),
                   builder: (context, state) => const Text('keyed'),
                 ),
               ],
@@ -297,16 +290,14 @@ void main() {
     });
 
     testWidgets('switches to a new query', (tester) async {
-      final first = Query.observe(
+      final first = Query(
         queryKey: ['a'],
         queryFn: Fetcher('first').call,
-        client: client,
-      );
-      final second = Query.observe(
+      ).observe(client: client);
+      final second = Query(
         queryKey: ['b'],
         queryFn: Fetcher('second').call,
-        client: client,
-      );
+      ).observe(client: client);
       final current = ValueNotifier(first);
       await pumpApp(
         tester,
@@ -377,7 +368,7 @@ void main() {
 
   group('InfiniteQueryBuilder', () {
     testWidgets('shows pages and loads more', (tester) async {
-      final posts = InfiniteQuery.observe(
+      final posts = InfiniteQuery(
         queryKey: ['posts'],
         queryFn: (context) async {
           await Future<void>.delayed(ms10);
@@ -386,8 +377,7 @@ void main() {
         initialPageParam: 1,
         getNextPageParam: (data) =>
             data.lastPageParam < 2 ? data.lastPageParam + 1 : null,
-        client: client,
-      );
+      ).observe(client: client);
       await pumpApp(
         tester,
         InfiniteQueryBuilder(
@@ -417,7 +407,7 @@ void main() {
 
   group('InfiniteQuery listener and consumer', () {
     InfiniteQueryObserver<String, int> posts() {
-      return InfiniteQuery.observe(
+      return InfiniteQuery(
         queryKey: ['posts'],
         queryFn: (context) async {
           await Future<void>.delayed(ms10);
@@ -425,8 +415,7 @@ void main() {
         },
         initialPageParam: 1,
         getNextPageParam: (data) => data.lastPageParam + 1,
-        client: client,
-      );
+      ).observe(client: client);
     }
 
     testWidgets('InfiniteQueryListener hears new pages', (tester) async {
@@ -470,13 +459,12 @@ void main() {
 
   group('Mutation widgets', () {
     testWidgets('MutationBuilder shows each status', (tester) async {
-      final addTodo = Mutation.observe(
+      final addTodo = Mutation(
         mutationFn: (String title) async {
           await Future<void>.delayed(ms10);
           return title;
         },
-        client: client,
-      );
+      ).observe(client: client);
       await pumpApp(
         tester,
         MutationBuilder(
@@ -497,13 +485,12 @@ void main() {
 
     testWidgets('MutationBuilder shows the latest state when it mounts again',
         (tester) async {
-      final save = Mutation.observe(
+      final save = Mutation(
         mutationFn: (String title) async {
           await Future<void>.delayed(ms10);
           return title;
         },
-        client: client,
-      );
+      ).observe(client: client);
       final visible = ValueNotifier(true);
       await pumpApp(
         tester,
@@ -533,10 +520,9 @@ void main() {
     });
 
     testWidgets('MutationListener reacts to success', (tester) async {
-      final addTodo = Mutation.observe(
+      final addTodo = Mutation(
         mutationFn: (String title) async => title,
-        client: client,
-      );
+      ).observe(client: client);
       final created = <String>[];
       await pumpApp(
         tester,
@@ -556,10 +542,9 @@ void main() {
   });
 
   testWidgets('MutationConsumer builds and listens', (tester) async {
-    final addTodo = Mutation.observe(
+    final addTodo = Mutation(
       mutationFn: (String title) async => title,
-      client: client,
-    );
+    ).observe(client: client);
     final heard = <MutationStatus>[];
     await pumpApp(
       tester,
@@ -652,11 +637,10 @@ void main() {
       await pumpApp(tester, selector(query, '2'));
       expect(find.text('a2'), findsOneWidget);
 
-      final other = Query.observe(
+      final other = Query(
         queryKey: ['other'],
         queryFn: Fetcher('b').call,
-        client: client,
-      );
+      ).observe(client: client);
       await pumpApp(tester, selector(other, '2'));
       await tester.pump(ms10);
       expect(find.text('b2'), findsOneWidget);
@@ -664,7 +648,7 @@ void main() {
     });
 
     testWidgets('InfiniteQuerySelector and MutationSelector', (tester) async {
-      final posts = InfiniteQuery.observe(
+      final posts = InfiniteQuery(
         queryKey: ['posts'],
         queryFn: (context) async {
           await Future<void>.delayed(ms10);
@@ -673,15 +657,13 @@ void main() {
         initialPageParam: 1,
         getNextPageParam: (data) =>
             data.lastPageParam < 2 ? data.lastPageParam + 1 : null,
-        client: client,
-      );
-      final addTodo = Mutation.observe(
+      ).observe(client: client);
+      final addTodo = Mutation(
         mutationFn: (String title) async {
           await Future<void>.delayed(ms10);
           return title;
         },
-        client: client,
-      );
+      ).observe(client: client);
       await pumpApp(
         tester,
         Column(
@@ -768,7 +750,7 @@ void main() {
       final fetcher = Fetcher('a');
       final unsubscribe = QueryObserver<String>(
         other,
-        QueryOptions(queryKey: ['todos'], queryFn: fetcher.call),
+        Query(queryKey: ['todos'], queryFn: fetcher.call),
       ).subscribe((_) {});
       await tester.pump(ms10);
       focusManager.setFocused(false);

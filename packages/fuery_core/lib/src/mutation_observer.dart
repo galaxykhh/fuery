@@ -2,37 +2,38 @@ part of 'core.dart';
 
 /// Runs mutations and reports the state of the latest one.
 class MutationObserver<TData, TVariables, TContext>
-    extends Subscribable<MutationState<TData, TVariables, TContext>> {
+    extends Subscribable<MutationResult<TData, TVariables, TContext>>
+    implements MutationSource<TData, TVariables, TContext> {
   MutationObserver(
     this._client,
-    MutationOptions<TData, TVariables, TContext> options,
+    Mutation<TData, TVariables, TContext> options,
   ) {
     setOptions(options);
     _updateResult();
   }
 
   final QueryClient _client;
-  MutationOptions<TData, TVariables, TContext>? _options;
-  late MutationState<TData, TVariables, TContext> _currentResult;
-  Mutation<TData, TVariables, TContext>? _currentMutation;
+  Mutation<TData, TVariables, TContext>? _options;
+  late MutationResult<TData, TVariables, TContext> _currentResult;
+  CachedMutation<TData, TVariables, TContext>? _currentMutation;
   MutateOptions<TData, TVariables, TContext>? _mutateOptions;
 
-  MutationOptions<TData, TVariables, TContext> get options => _options!;
+  Mutation<TData, TVariables, TContext> get options => _options!;
 
-  /// The state of the latest mutation, or idle if none ran yet. Up to date
-  /// even while nothing listens.
-  MutationState<TData, TVariables, TContext> get result {
+  /// The state of the latest mutation, or idle if none ran yet, with the
+  /// methods to run it again. Up to date even while nothing listens.
+  MutationResult<TData, TVariables, TContext> get result {
     _updateResult();
     return _currentResult;
   }
 
   /// States as a stream. Each listener first receives the current state, then
   /// every change.
-  late final Stream<MutationState<TData, TVariables, TContext>> stream =
+  late final Stream<MutationResult<TData, TVariables, TContext>> stream =
       Stream.multi(
     (controller) {
-      MutationState<TData, TVariables, TContext>? last;
-      void emit(MutationState<TData, TVariables, TContext> state) {
+      MutationResult<TData, TVariables, TContext>? last;
+      void emit(MutationResult<TData, TVariables, TContext> state) {
         if (state == last) return;
         last = state;
         controller.add(state);
@@ -45,11 +46,11 @@ class MutationObserver<TData, TVariables, TContext>
     isBroadcast: true,
   );
 
-  void setOptions(MutationOptions<TData, TVariables, TContext> options) {
+  void setOptions(Mutation<TData, TVariables, TContext> options) {
     final prevOptions = _options;
     _options = _client._defaultMutationOptions(options);
 
-    if (!this.options._sameAs(prevOptions)) {
+    if (!this.options._sameConfig(prevOptions)) {
       _client.mutationCache._notify();
     }
 
@@ -121,9 +122,15 @@ class MutationObserver<TData, TVariables, TContext>
   }
 
   void _updateResult() {
-    _currentResult =
-        _currentMutation?.state ?? MutationState<TData, TVariables, TContext>();
+    final state = _currentMutation?.state ?? _idle;
+    // Reading result must not create a new object while the state is the same.
+    if (_resultState != null && identical(state, _resultState)) return;
+    _resultState = state;
+    _currentResult = MutationResult<TData, TVariables, TContext>._(state, this);
   }
+
+  MutationState<TData, TVariables, TContext>? _resultState;
+  final _idle = MutationState<TData, TVariables, TContext>();
 
   void _notify([_MutationAction? action]) {
     notifyManager.batch(() {
@@ -139,6 +146,7 @@ class MutationObserver<TData, TVariables, TContext>
                 data as TData,
                 variables(),
                 context,
+                _client,
               ),
             );
             _guardSync(
@@ -147,11 +155,17 @@ class MutationObserver<TData, TVariables, TContext>
                 null,
                 variables(),
                 context,
+                _client,
               ),
             );
           case _MutationErrorAction(:final error):
             _guardSync(
-              () => mutateOptions.onError?.call(error, variables(), context),
+              () => mutateOptions.onError?.call(
+                error,
+                variables(),
+                context,
+                _client,
+              ),
             );
             _guardSync(
               () => mutateOptions.onSettled?.call(
@@ -159,6 +173,7 @@ class MutationObserver<TData, TVariables, TContext>
                 error,
                 variables(),
                 context,
+                _client,
               ),
             );
           default:
@@ -174,7 +189,7 @@ class MutationObserver<TData, TVariables, TContext>
 }
 
 /// A [MutationObserver] for mutations without variables, called as
-/// `mutate()`. Created by [Mutation.noVariables].
+/// `mutate()`. Created by [NoVariablesMutation.observe].
 class NoVariablesMutationObserver<TData, TContext>
     extends MutationObserver<TData, void, TContext> {
   NoVariablesMutationObserver(super.client, super.options);
@@ -203,7 +218,3 @@ void _guardSync(void Function() callback) {
     Zone.current.handleUncaughtError(error, stackTrace);
   }
 }
-
-@Deprecated('Use NoVariablesMutationObserver.')
-typedef NoParamMutationObserver<TData, TContext>
-    = NoVariablesMutationObserver<TData, TContext>;

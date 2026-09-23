@@ -33,7 +33,7 @@ To test what happens when the app leaves the foreground, tell the focus manager:
 
 - Pump the time your fake API takes, or `await tester.pump()` for instant fakes.
 - End each test by unmounting the widgets and calling `client.clear()`. Otherwise cache timers are still pending and the test fails.
-- Queries and mutations without a `client:` argument use `Fuery.client`. If your widgets pass `client: context.queryClient`, wrap the app in `FueryProvider(client: client, child: const App())` instead.
+- Widgets that get a query or a mutation use the client of the nearest `FueryProvider`, so `FueryProvider(client: client, child: const App())` works as well as assigning `Fuery.client`. Observers from `observe()` use `Fuery.client` unless they are given one.
 
 ## Testing without a widget tree
 
@@ -47,11 +47,10 @@ test('loads todos', () {
         queries: QueryDefaults(retry: RetryPolicy.never()),
       ),
     );
-    final todos = Query.observe(
+    final todos = Query(
       queryKey: ['todos'],
       queryFn: (_) async => ['Buy milk'],
-      client: client,
-    );
+    ).observe(client: client);
 
     final subscription = todos.stream.listen((_) {});
     async.flushMicrotasks();

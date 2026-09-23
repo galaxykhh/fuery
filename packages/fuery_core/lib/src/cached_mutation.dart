@@ -4,183 +4,16 @@ part of 'core.dart';
 ///
 /// Application code usually works with a [MutationObserver] from
 /// [Mutation.observe].
-class Mutation<TData, TVariables, TContext> extends _Removable {
-  Mutation._({
+class CachedMutation<TData, TVariables, TContext> extends _Removable {
+  CachedMutation._({
     required QueryClient client,
     required MutationCache mutationCache,
     required this.mutationId,
-    required MutationOptions<TData, TVariables, TContext> options,
+    required Mutation<TData, TVariables, TContext> options,
   })  : _client = client,
         _mutationCache = mutationCache {
     _setOptions(options);
     _scheduleGc();
-  }
-
-  /// Creates an observer for a mutation that takes [TVariables].
-  ///
-  /// ```dart
-  /// final addTodo = Mutation.observe(
-  ///   mutationFn: (String title) => api.addTodo(title),
-  ///   onSuccess: (todo, title, context) {
-  ///     Fuery.client.invalidateQueries(queryKey: ['todos']);
-  ///   },
-  /// );
-  ///
-  /// addTodo.mutate('Buy milk');
-  /// ```
-  ///
-  /// The same as `MutationOptions(...).observe()`.
-  static MutationObserver<TData, TVariables, TContext>
-      observe<TData, TVariables, TContext extends Object?>({
-    required MutationFn<TData, TVariables> mutationFn,
-    MutationKey? mutationKey,
-    MutationOnMutate<TVariables, TContext>? onMutate,
-    MutationOnSuccess<TData, TVariables, TContext>? onSuccess,
-    MutationOnError<TVariables, TContext>? onError,
-    MutationOnSettled<TData, TVariables, TContext>? onSettled,
-    Duration? gcTime,
-    RetryPolicy? retry,
-    RetryDelay? retryDelay,
-    NetworkMode? networkMode,
-    MutationScope? scope,
-    Map<String, Object?>? meta,
-    MutationPersist<TVariables>? persist,
-    QueryClient? client,
-  }) {
-    return MutationOptions<TData, TVariables, TContext>(
-      mutationFn: mutationFn,
-      mutationKey: mutationKey,
-      onMutate: onMutate,
-      onSuccess: onSuccess,
-      onError: onError,
-      onSettled: onSettled,
-      gcTime: gcTime,
-      retry: retry,
-      retryDelay: retryDelay,
-      networkMode: networkMode,
-      scope: scope,
-      meta: meta,
-      persist: persist,
-    ).observe(client: client);
-  }
-
-  @Deprecated('Use Mutation.observe, which takes the same arguments.')
-  static MutationObserver<TData, TVariables, TContext>
-      use<TData, TVariables, TContext extends Object?>({
-    required MutationFn<TData, TVariables> mutationFn,
-    MutationKey? mutationKey,
-    MutationOnMutate<TVariables, TContext>? onMutate,
-    MutationOnSuccess<TData, TVariables, TContext>? onSuccess,
-    MutationOnError<TVariables, TContext>? onError,
-    MutationOnSettled<TData, TVariables, TContext>? onSettled,
-    Duration? gcTime,
-    RetryPolicy? retry,
-    RetryDelay? retryDelay,
-    NetworkMode? networkMode,
-    MutationScope? scope,
-    Map<String, Object?>? meta,
-    MutationPersist<TVariables>? persist,
-    QueryClient? client,
-  }) {
-    return observe(
-      mutationFn: mutationFn,
-      mutationKey: mutationKey,
-      onMutate: onMutate,
-      onSuccess: onSuccess,
-      onError: onError,
-      onSettled: onSettled,
-      gcTime: gcTime,
-      retry: retry,
-      retryDelay: retryDelay,
-      networkMode: networkMode,
-      scope: scope,
-      meta: meta,
-      persist: persist,
-      client: client,
-    );
-  }
-
-  /// Creates an observer for a mutation without variables, so it can be
-  /// called as `mutate()`.
-  static NoVariablesMutationObserver<TData, TContext>
-      noVariables<TData, TContext extends Object?>({
-    required Future<TData> Function() mutationFn,
-    MutationKey? mutationKey,
-    FutureOr<TContext?> Function()? onMutate,
-    FutureOr<void> Function(TData data, TContext? context)? onSuccess,
-    FutureOr<void> Function(Object error, TContext? context)? onError,
-    FutureOr<void> Function(TData? data, Object? error, TContext? context)?
-        onSettled,
-    Duration? gcTime,
-    RetryPolicy? retry,
-    RetryDelay? retryDelay,
-    NetworkMode? networkMode,
-    MutationScope? scope,
-    Map<String, Object?>? meta,
-    MutationPersist<void>? persist,
-    QueryClient? client,
-  }) {
-    return NoVariablesMutationObserver<TData, TContext>(
-      client ?? Fuery.client,
-      MutationOptions<TData, void, TContext>(
-        mutationFn: (_) => mutationFn(),
-        mutationKey: mutationKey,
-        onMutate: onMutate == null ? null : (_) => onMutate(),
-        onSuccess: onSuccess == null
-            ? null
-            : (data, _, context) => onSuccess(data, context),
-        onError: onError == null
-            ? null
-            : (error, _, context) => onError(error, context),
-        onSettled: onSettled == null
-            ? null
-            : (data, error, _, context) => onSettled(data, error, context),
-        gcTime: gcTime,
-        retry: retry,
-        retryDelay: retryDelay,
-        networkMode: networkMode,
-        scope: scope,
-        meta: meta,
-        persist: persist,
-      ),
-    );
-  }
-
-  @Deprecated('Use Mutation.noVariables, which takes the same arguments.')
-  static NoVariablesMutationObserver<TData, TContext>
-      noParam<TData, TContext extends Object?>({
-    required Future<TData> Function() mutationFn,
-    MutationKey? mutationKey,
-    FutureOr<TContext?> Function()? onMutate,
-    FutureOr<void> Function(TData data, TContext? context)? onSuccess,
-    FutureOr<void> Function(Object error, TContext? context)? onError,
-    FutureOr<void> Function(TData? data, Object? error, TContext? context)?
-        onSettled,
-    Duration? gcTime,
-    RetryPolicy? retry,
-    RetryDelay? retryDelay,
-    NetworkMode? networkMode,
-    MutationScope? scope,
-    Map<String, Object?>? meta,
-    MutationPersist<void>? persist,
-    QueryClient? client,
-  }) {
-    return noVariables(
-      mutationFn: mutationFn,
-      mutationKey: mutationKey,
-      onMutate: onMutate,
-      onSuccess: onSuccess,
-      onError: onError,
-      onSettled: onSettled,
-      gcTime: gcTime,
-      retry: retry,
-      retryDelay: retryDelay,
-      networkMode: networkMode,
-      scope: scope,
-      meta: meta,
-      persist: persist,
-      client: client,
-    );
   }
 
   final int mutationId;
@@ -194,17 +27,17 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
   /// The write in flight, so the delete after settling can wait for it.
   Future<void>? _storeWrite;
   final List<MutationObserver<TData, TVariables, TContext>> _observers = [];
-  late MutationOptions<TData, TVariables, TContext> _options;
+  late Mutation<TData, TVariables, TContext> _options;
   var _state = MutationState<TData, TVariables, TContext>();
   Retryer<TData>? _retryer;
 
-  MutationOptions<TData, TVariables, TContext> get options => _options;
+  Mutation<TData, TVariables, TContext> get options => _options;
 
   MutationState<TData, TVariables, TContext> get state => _state;
 
   Map<String, Object?>? get meta => _options.meta;
 
-  void _setOptions(MutationOptions<TData, TVariables, TContext> options) {
+  void _setOptions(Mutation<TData, TVariables, TContext> options) {
     _options = options;
     _updateGcTime(_options.gcTime);
   }
@@ -255,13 +88,7 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
     ({String storageKey, int submittedAt})? restored,
   }) async {
     final retryer = _retryer = Retryer<TData>(
-      fn: () {
-        final mutationFn = _options.mutationFn;
-        if (mutationFn == null) {
-          return Future.error(StateError('No mutationFn found'));
-        }
-        return mutationFn(variables);
-      },
+      fn: () => _options.mutationFn(variables),
       onFail: (failureCount, error) {
         _dispatch(_MutationFailedAction(failureCount, error));
       },
@@ -287,7 +114,7 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
       } else {
         _writeStored();
         await cacheConfig.onMutate?.call(variables, this);
-        final context = await _options.onMutate?.call(variables);
+        final context = await _options.onMutate?.call(variables, _client);
         if (context != _state.context) {
           _dispatch(_MutationPendingAction(
             isPaused: isPaused,
@@ -304,10 +131,21 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
       final data = await retryer.start();
 
       await cacheConfig.onSuccess?.call(data, variables, _state.context, this);
-      await _options.onSuccess?.call(data, variables, _state.context);
+      await _options.onSuccess?.call(
+        data,
+        variables,
+        _state.context,
+        _client,
+      );
       await cacheConfig.onSettled
           ?.call(data, null, _state.variables, _state.context, this);
-      await _options.onSettled?.call(data, null, variables, _state.context);
+      await _options.onSettled?.call(
+        data,
+        null,
+        variables,
+        _state.context,
+        _client,
+      );
 
       _dispatch(_MutationSuccessAction(data));
       return data;
@@ -317,7 +155,12 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
         () => cacheConfig.onError?.call(error, variables, _state.context, this),
       );
       await _guard(
-        () => _options.onError?.call(error, variables, _state.context),
+        () => _options.onError?.call(
+          error,
+          variables,
+          _state.context,
+          _client,
+        ),
       );
       await _guard(
         () => cacheConfig.onSettled?.call(
@@ -329,7 +172,13 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
         ),
       );
       await _guard(
-        () => _options.onSettled?.call(null, error, variables, _state.context),
+        () => _options.onSettled?.call(
+          null,
+          error,
+          variables,
+          _state.context,
+          _client,
+        ),
       );
 
       _dispatch(_MutationErrorAction(error));
@@ -432,7 +281,7 @@ class Mutation<TData, TVariables, TContext> extends _Removable {
   }
 
   @override
-  String toString() => 'Mutation($mutationId, ${_state.status.name})';
+  String toString() => 'CachedMutation($mutationId, ${_state.status.name})';
 }
 
 Future<void> _guard(FutureOr<void> Function() callback) async {

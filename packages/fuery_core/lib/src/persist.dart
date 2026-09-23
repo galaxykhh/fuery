@@ -130,7 +130,7 @@ class MutationPersist<TVariables> {
   })  : _toJson = toJson,
         _fromJson = fromJson;
 
-  /// For [Mutation.noVariables], which has no variables to store.
+  /// For a [NoVariablesMutation], which has no variables to store.
   static const MutationPersist<void> noVariables = MutationPersist<void>(
     toJson: _noVariablesToJson,
     fromJson: _noVariablesFromJson,

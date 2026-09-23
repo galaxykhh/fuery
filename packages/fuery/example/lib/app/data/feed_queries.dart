@@ -17,24 +17,22 @@ QueryKey summaryKey(int postId) => ['posts', 'summary', postId];
 
 Future<PostPage> _fetchFeed(int cursor) => DemoApi().getFeed(cursor);
 
-int? _nextCursor(InfiniteData<PostPage, int> data) => data.lastPage.nextCursor;
+/// Each query is defined once. Screens pass the definition to a widget, such
+/// as `QueryBuilder(query: postQuery(id))`, which keeps one observer for it;
+/// `client.query` fetches it; and mutations read and write its data with
+/// `client.getData` and `client.updateData`, typed by the definition.
 
-/// Each query is defined once, as options. Screens observe them with
-/// `observe()`, `client.query` fetches them, and mutations read and write
-/// their data with `client.getData` and `client.updateData`, all with the
-/// data type taken from the options.
-
-/// The feed, a page at a time. Every observer of it shares one cache entry,
-/// so a like on one screen shows on the others.
+/// The feed, a page at a time. Every widget and cubit that uses it shares
+/// one cache entry, so a like on one screen shows on the others.
 ///
 /// `persist` stores the loaded pages with the client's storage, so a restart
 /// shows the feed before the request finishes. See `main.dart`.
-InfiniteQueryOptions<PostPage, int> feedOptions() {
-  return infiniteQueryOptions(
+InfiniteQuery<PostPage, int> feedQuery() {
+  return InfiniteQuery(
     queryKey: feedKey,
     queryFn: (context) => _fetchFeed(context.pageParam),
     initialPageParam: 0,
-    getNextPageParam: _nextCursor,
+    getNextPageParam: (data) => data.lastPage.nextCursor,
     staleTime: const Duration(seconds: 30),
     persist: InfiniteQueryPersist(
       pageToJson: (page) => page.toJson(),
@@ -48,13 +46,13 @@ Future<Post> _fetchPost(int id) => DemoApi().getPost(id);
 /// One post. While it loads, the feed's copy is shown as placeholder data, so
 /// opening a post never shows a spinner. The feed also prefetches it with
 /// `client.query` when the pointer hovers its card.
-QueryOptions<Post> postOptions(int id) {
-  return QueryOptions(
+Query<Post> postQuery(int id) {
+  return Query(
     queryKey: postKey(id),
     queryFn: (_) => _fetchPost(id),
-    placeholderData: (previous) {
+    placeholderData: (previous, client) {
       if (previous != null) return previous;
-      final feed = Fuery.client.getData(feedOptions());
+      final feed = client.getData(feedQuery());
       for (final page in feed?.pages ?? const <PostPage>[]) {
         for (final post in page.posts) {
           if (post.id == id) return post;
@@ -67,8 +65,8 @@ QueryOptions<Post> postOptions(int id) {
 
 /// A post that was just created. It polls until the server has published it,
 /// then stops.
-QueryOptions<Post> publishingPostOptions(int id) {
-  return QueryOptions(
+Query<Post> publishingPostQuery(int id) {
+  return Query(
     queryKey: postKey(id),
     queryFn: (_) => _fetchPost(id),
     refetchInterval: const Duration(milliseconds: 500),
@@ -76,21 +74,19 @@ QueryOptions<Post> publishingPostOptions(int id) {
   );
 }
 
-QueryOptions<List<Comment>> commentsOptions(int postId) {
-  return QueryOptions(
+Query<List<Comment>> commentsQuery(int postId) {
+  return Query(
     queryKey: commentsKey(postId),
     queryFn: (_) => DemoApi().getComments(postId),
   );
 }
 
 /// Search results for [term]. Each term is its own cache entry, and an empty
-/// term doesn't fetch at all.
-///
-/// One observer follows the typing: pass the next term's options to its
-/// `setOptions`, so `placeholderData` can keep the previous term's results on
-/// screen. A new observer per term would have nothing to keep.
-QueryOptions<List<Post>> searchOptions(String term) {
-  return QueryOptions(
+/// term doesn't fetch at all. A widget that gets the next term's definition
+/// keeps its observer, so `keepPreviousData` shows the previous term's
+/// results until the next ones arrive.
+Query<List<Post>> searchQuery(String term) {
+  return Query(
     queryKey: searchKey(term),
     queryFn: (_) => DemoApi().search(term),
     enabled: term.isNotEmpty,
@@ -102,8 +98,8 @@ QueryOptions<List<Post>> searchOptions(String term) {
 /// Notifications, checked every five seconds while the app is in the
 /// foreground. The badge in the navigation bar and the notifications screen
 /// share this query.
-QueryOptions<List<FeedNotification>> notificationsOptions() {
-  return QueryOptions(
+Query<List<FeedNotification>> notificationsQuery() {
+  return Query(
     queryKey: notificationsKey,
     queryFn: (_) => DemoApi().getNotifications(),
     refetchInterval: const Duration(seconds: 5),
@@ -113,8 +109,8 @@ QueryOptions<List<FeedNotification>> notificationsOptions() {
 
 /// Folds a stream of words into the query's data, so the summary grows while
 /// it arrives and stays cached afterwards.
-QueryOptions<String> summaryOptions(int postId) {
-  return QueryOptions(
+Query<String> summaryQuery(int postId) {
+  return Query(
     queryKey: summaryKey(postId),
     queryFn: streamedQuery(
       stream: (context) => DemoApi().summarize(postId),

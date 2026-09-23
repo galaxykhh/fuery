@@ -5,8 +5,9 @@ import 'package:example/app/screens/post/post_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:fuery/fuery.dart';
 
-/// Search as you type. One observer follows the term, and the previous
-/// results stay on screen until the next ones arrive.
+/// Search as you type. The widgets get the current term's query and keep
+/// their observers, so the previous results stay on screen until the next
+/// ones arrive.
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
@@ -15,7 +16,7 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  final results = searchOptions('').observe();
+  String _term = '';
   Timer? _debounce;
 
   @override
@@ -29,7 +30,7 @@ class _SearchScreenState extends State<SearchScreen> {
     _debounce = Timer(const Duration(milliseconds: 300), () {
       // Every term is its own cache entry. A term typed before is shown at
       // once, and a new one keeps the old results as placeholder data.
-      results.setOptions(searchOptions(term.trim()));
+      setState(() => _term = term.trim());
     });
   }
 
@@ -50,7 +51,7 @@ class _SearchScreenState extends State<SearchScreen> {
         ),
         // Shows only while a new term loads behind the previous results.
         QueryBuilder(
-          query: results,
+          query: searchQuery(_term),
           buildWhen: (previous, current) =>
               previous.isPlaceholderData != current.isPlaceholderData,
           builder: (context, state) => state.isPlaceholderData
@@ -59,7 +60,7 @@ class _SearchScreenState extends State<SearchScreen> {
         ),
         Expanded(
           child: QueryBuilder(
-            query: results,
+            query: searchQuery(_term),
             builder: (context, state) => switch (state) {
               QueryResult(:final data?) when data.isEmpty => const Center(
                   child: Text('No posts match'),

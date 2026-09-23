@@ -1,9 +1,12 @@
 part of 'core.dart';
 
+typedef AnyCachedMutation = CachedMutation<Object?, Object?, Object?>;
+
+/// Any mutation definition, as [QueryClient.restore] takes them.
 typedef AnyMutation = Mutation<Object?, Object?, Object?>;
 
-/// Options of any mutation, as [QueryClient.restore] takes them.
-typedef AnyMutationOptions = MutationOptions<Object?, Object?, Object?>;
+@Deprecated('Use AnyMutation.')
+typedef AnyMutationOptions = AnyMutation;
 
 /// Selects mutations, for example in [QueryClient.isMutating].
 @immutable
@@ -18,9 +21,9 @@ class MutationFilters {
   final MutationKey? mutationKey;
   final bool exact;
   final MutationStatus? status;
-  final bool Function(AnyMutation mutation)? predicate;
+  final bool Function(AnyCachedMutation mutation)? predicate;
 
-  bool matches(AnyMutation mutation) {
+  bool matches(AnyCachedMutation mutation) {
     final mutationKey = this.mutationKey;
     if (mutationKey != null) {
       final key = mutation.options.mutationKey;
@@ -51,26 +54,26 @@ class MutationCacheConfig {
     this.onSettled,
   });
 
-  final FutureOr<void> Function(Object? variables, AnyMutation mutation)?
+  final FutureOr<void> Function(Object? variables, AnyCachedMutation mutation)?
       onMutate;
   final FutureOr<void> Function(
     Object? data,
     Object? variables,
     Object? context,
-    AnyMutation mutation,
+    AnyCachedMutation mutation,
   )? onSuccess;
   final FutureOr<void> Function(
     Object error,
     Object? variables,
     Object? context,
-    AnyMutation mutation,
+    AnyCachedMutation mutation,
   )? onError;
   final FutureOr<void> Function(
     Object? data,
     Object? error,
     Object? variables,
     Object? context,
-    AnyMutation mutation,
+    AnyCachedMutation mutation,
   )? onSettled;
 }
 
@@ -82,16 +85,17 @@ class MutationCache {
   MutationCache({this.config = const MutationCacheConfig()});
 
   final MutationCacheConfig config;
-  final Set<AnyMutation> _mutations = {};
-  final Map<String, List<AnyMutation>> _scopes = {};
+  final Set<AnyCachedMutation> _mutations = {};
+  final Map<String, List<AnyCachedMutation>> _scopes = {};
   final Set<void Function()> _listeners = {};
   int _mutationId = 0;
 
-  Mutation<TData, TVariables, TContext> _build<TData, TVariables, TContext>(
+  CachedMutation<TData, TVariables, TContext>
+      _build<TData, TVariables, TContext>(
     QueryClient client,
-    MutationOptions<TData, TVariables, TContext> options,
+    Mutation<TData, TVariables, TContext> options,
   ) {
-    final mutation = Mutation<TData, TVariables, TContext>._(
+    final mutation = CachedMutation<TData, TVariables, TContext>._(
       client: client,
       mutationCache: this,
       mutationId: ++_mutationId,
@@ -101,7 +105,7 @@ class MutationCache {
     return mutation;
   }
 
-  void _add(AnyMutation mutation) {
+  void _add(AnyCachedMutation mutation) {
     _mutations.add(mutation);
     final scope = mutation.options.scope?.id;
     if (scope != null) {
@@ -110,7 +114,7 @@ class MutationCache {
     _notify();
   }
 
-  void _remove(AnyMutation mutation) {
+  void _remove(AnyCachedMutation mutation) {
     mutation._removed = true;
     mutation._destroy();
     if (_mutations.remove(mutation)) {
@@ -126,7 +130,7 @@ class MutationCache {
 
   /// Whether [mutation] may run now. In a scope, only the first pending
   /// mutation runs.
-  bool _canRun(AnyMutation mutation) {
+  bool _canRun(AnyCachedMutation mutation) {
     final scope = mutation.options.scope?.id;
     if (scope == null) return true;
     final firstPending = _scopes[scope]
@@ -136,7 +140,7 @@ class MutationCache {
 
   /// Starts the next paused mutation in the scope of [mutation]. Its result
   /// and errors go to whoever started it, so they are not reported here.
-  Future<void> _runNext(AnyMutation mutation) {
+  Future<void> _runNext(AnyCachedMutation mutation) {
     final scope = mutation.options.scope?.id;
     if (scope == null) return Future.value();
     final next = _scopes[scope]
@@ -155,9 +159,9 @@ class MutationCache {
     _notify();
   }
 
-  List<AnyMutation> getAll() => _mutations.toList();
+  List<AnyCachedMutation> getAll() => _mutations.toList();
 
-  AnyMutation? find(MutationFilters filters) {
+  AnyCachedMutation? find(MutationFilters filters) {
     final exact = MutationFilters(
       mutationKey: filters.mutationKey,
       exact: true,
@@ -167,7 +171,7 @@ class MutationCache {
     return getAll().firstWhereOrNull(exact.matches);
   }
 
-  List<AnyMutation> findAll([
+  List<AnyCachedMutation> findAll([
     MutationFilters filters = const MutationFilters(),
   ]) {
     return getAll().where(filters.matches).toList();

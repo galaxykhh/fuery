@@ -97,7 +97,7 @@ class QueryClient {
     bool exact = false,
     QueryTypeFilter type = QueryTypeFilter.all,
     bool? stale,
-    bool Function(Query<Object> query)? predicate,
+    bool Function(CachedQuery<Object> query)? predicate,
   }) {
     return queryCache
         .findAll(QueryFilters(
@@ -115,7 +115,7 @@ class QueryClient {
   int isMutating({
     MutationKey? mutationKey,
     bool exact = false,
-    bool Function(AnyMutation mutation)? predicate,
+    bool Function(AnyCachedMutation mutation)? predicate,
   }) {
     return mutationCache
         .findAll(MutationFilters(
@@ -138,11 +138,11 @@ class QueryClient {
   /// is back.
   ///
   /// ```dart
-  /// await Fuery.client.restore(mutations: [addCommentOptions()]);
+  /// await Fuery.client.restore(mutations: [addCommentMutation()]);
   /// runApp(const App());
   /// ```
   Future<void> restore({
-    List<AnyMutationOptions> mutations = const [],
+    List<AnyMutation> mutations = const [],
   }) async {
     final storage = this.storage;
     if (storage == null) return;
@@ -187,7 +187,7 @@ class QueryClient {
   /// by another version of their options, are deleted.
   void _restoreMutations(
     Map<String, String> entries,
-    List<AnyMutationOptions> mutations,
+    List<AnyMutation> mutations,
   ) {
     final stored =
         <(int submittedAt, String key, Map<String, Object?> entry)>[];
@@ -270,7 +270,7 @@ class QueryClient {
   /// [mutations] the stored mutations too.
   void _forgetStored(
     QueryFilters filters,
-    Iterable<Query<Object>> queries, {
+    Iterable<CachedQuery<Object>> queries, {
     bool mutations = false,
   }) {
     final storage = this.storage;
@@ -398,7 +398,7 @@ class QueryClient {
   List<(QueryKey, TData?)> getQueriesData<TData extends Object>({
     QueryKey? queryKey,
     bool exact = false,
-    bool Function(Query<Object> query)? predicate,
+    bool Function(CachedQuery<Object> query)? predicate,
   }) {
     return queryCache
         .findAll(QueryFilters(
@@ -420,7 +420,7 @@ class QueryClient {
   }) {
     final query = queryCache._build<TData>(
       this,
-      QueryOptions<TData>(queryKey: queryKey),
+      Query<TData>._key(queryKey),
     );
     return query._setData(data, updatedAt: updatedAt, manual: true);
   }
@@ -443,15 +443,15 @@ class QueryClient {
   /// ```dart
   /// final Post? post = client.getData(postOptions(id));
   /// ```
-  TData? getData<TData extends Object>(QueryOptions<TData> options) {
+  TData? getData<TData extends Object>(Query<TData> options) {
     return getQueryData<TData>(options.queryKey);
   }
 
   /// Writes [data] to the query that [options] describe. Like
   /// [setQueryData], but a query this creates gets all of [options], so it
-  /// persists the data with [QueryOptions.persist] and can refetch.
+  /// persists the data with [Query.persist] and can refetch.
   TData setData<TData extends Object>(
-    QueryOptions<TData> options,
+    Query<TData> options,
     TData data, {
     int? updatedAt,
   }) {
@@ -467,7 +467,7 @@ class QueryClient {
   /// client.updateData(postOptions(id), (post) => post?.copyWith(liked: true));
   /// ```
   TData? updateData<TData extends Object>(
-    QueryOptions<TData> options,
+    Query<TData> options,
     TData? Function(TData? previous) updater, {
     int? updatedAt,
   }) {
@@ -486,13 +486,13 @@ class QueryClient {
   /// client.query(todosOptions).ignore();
   ///
   /// // Use cached data whenever there is some.
-  /// final cached = await client.query(QueryOptions(
+  /// final cached = await client.query(Query(
   ///   queryKey: ['todos'],
   ///   queryFn: (_) => api.getTodos(),
   ///   staleTime: staticStaleTime,
   /// ));
   /// ```
-  Future<TData> query<TData extends Object>(QueryOptions<TData> options) async {
+  Future<TData> query<TData extends Object>(Query<TData> options) async {
     var defaulted = _defaultQueryOptions(options);
     if (defaulted.retry == null) {
       defaulted = defaulted._withRetry(const RetryPolicy.never());
@@ -506,10 +506,10 @@ class QueryClient {
   }
 
   /// Like [query], for infinite queries. With nothing cached it loads the
-  /// `pages` passed to [infiniteQueryOptions] (default: one); otherwise it
+  /// `pages` passed to [InfiniteQuery] (default: one); otherwise it
   /// reloads the pages already cached.
   Future<InfiniteData<TPage, TParam>> infiniteQuery<TPage, TParam>(
-    InfiniteQueryOptions<TPage, TParam> options,
+    InfiniteQuery<TPage, TParam> options,
   ) {
     return query(options);
   }
@@ -520,7 +520,7 @@ class QueryClient {
     bool exact = false,
     QueryTypeFilter type = QueryTypeFilter.all,
     bool? stale,
-    bool Function(Query<Object> query)? predicate,
+    bool Function(CachedQuery<Object> query)? predicate,
   }) {
     final filters = QueryFilters(
       queryKey: queryKey,
@@ -542,7 +542,7 @@ class QueryClient {
   /// Moves observers still subscribed to [removed] queries to new ones, which
   /// load again. Runs after stored data is deleted, so the new queries don't
   /// restore it.
-  void _moveObservers(Iterable<Query<Object>> removed) {
+  void _moveObservers(Iterable<CachedQuery<Object>> removed) {
     for (final query in removed) {
       for (final observer in query._observers.toList()) {
         observer._onQueryRemoved();
@@ -557,7 +557,7 @@ class QueryClient {
     bool exact = false,
     QueryTypeFilter type = QueryTypeFilter.all,
     bool? stale,
-    bool Function(Query<Object> query)? predicate,
+    bool Function(CachedQuery<Object> query)? predicate,
     bool cancelRefetch = true,
     bool throwOnError = false,
   }) {
@@ -593,7 +593,7 @@ class QueryClient {
     bool exact = false,
     QueryTypeFilter type = QueryTypeFilter.all,
     bool? stale,
-    bool Function(Query<Object> query)? predicate,
+    bool Function(CachedQuery<Object> query)? predicate,
     bool revert = true,
     bool silent = false,
   }) async {
@@ -622,7 +622,7 @@ class QueryClient {
     bool exact = false,
     QueryTypeFilter? type,
     bool? stale,
-    bool Function(Query<Object> query)? predicate,
+    bool Function(CachedQuery<Object> query)? predicate,
     RefetchType? refetchType,
     bool cancelRefetch = true,
     bool throwOnError = false,
@@ -663,7 +663,7 @@ class QueryClient {
     bool exact = false,
     QueryTypeFilter type = QueryTypeFilter.all,
     bool? stale,
-    bool Function(Query<Object> query)? predicate,
+    bool Function(CachedQuery<Object> query)? predicate,
     bool cancelRefetch = true,
     bool throwOnError = false,
   }) {
@@ -742,8 +742,8 @@ class QueryClient {
   }
 
   /// Fills unset values in [options] with client and per-key defaults.
-  QueryOptions<TData> _defaultQueryOptions<TData extends Object>(
-    QueryOptions<TData> options,
+  Query<TData> _defaultQueryOptions<TData extends Object>(
+    Query<TData> options,
   ) {
     if (options._defaulted) return options;
     final defaults = defaultOptions.queries.merge(
@@ -752,9 +752,9 @@ class QueryClient {
     return options._withDefaults(defaults);
   }
 
-  MutationOptions<TData, TVariables, TContext>
+  Mutation<TData, TVariables, TContext>
       _defaultMutationOptions<TData, TVariables, TContext>(
-    MutationOptions<TData, TVariables, TContext> options,
+    Mutation<TData, TVariables, TContext> options,
   ) {
     if (options._defaulted) return options;
     final mutationKey = options.mutationKey;

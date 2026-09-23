@@ -46,6 +46,7 @@ TOP_LEVEL = {CLASS: "Types", ENUM: "Types", TYPEDEF: "Types",
 MEMBERS_OF = {
     "QueryClient", "QueryObserver", "InfiniteQueryObserver", "MutationObserver",
     "NoVariablesMutationObserver", "QueryResult", "InfiniteQueryResult", "InfiniteData",
+    "MutationResult", "QuerySlot", "InfiniteQuerySlot", "MutationSlot",
     "MutationState", "QueryState", "Fuery", "QueryStorage", "QueryPersist",
     "InfiniteQueryPersist", "FocusManager", "OnlineManager", "NotifyManager",
     "AbortSignal", "QueryCache", "MutationCache",
@@ -57,9 +58,9 @@ FROM_OBJECT = {"toString", "hashCode", "noSuchMethod", "runtimeType", "operator 
 # Signatures whose named arguments a reader has to know: file, then the
 # declaration to read arguments from.
 SIGNATURES = [
-    ("Query options", "fuery_core/lib/src/query_options.dart", r"class QueryOptions<[^>]*>[^{]*\{\s*(?:const )?QueryOptions\("),
-    ("Infinite query options", "fuery_core/lib/src/infinite_query.dart", r"(?:const )?InfiniteQueryOptions\("),
-    ("Mutation options", "fuery_core/lib/src/mutation_state.dart", r"(?:const )?MutationOptions\("),
+    ("Query options", "fuery_core/lib/src/query.dart", r"\n  const Query\((?=\{)"),
+    ("Infinite query options", "fuery_core/lib/src/infinite_query.dart", r"\n  InfiniteQuery\((?=\{)"),
+    ("Mutation options", "fuery_core/lib/src/mutation_state.dart", r"\n  const Mutation\((?=\{)"),
     ("Query filters", "fuery_core/lib/src/query_client.dart", r"Future<void> invalidateQueries\("),
     ("Mutation filters", "fuery_core/lib/src/query_client.dart", r"int isMutating\("),
 ]

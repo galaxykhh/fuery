@@ -29,7 +29,7 @@ void main() {
     StreamRefetchMode refetchMode = StreamRefetchMode.reset,
     bool readsSignal = false,
   }) {
-    return Query.observe(
+    return Query(
       queryKey: queryKey,
       queryFn: streamedQuery(
         stream: (context) {
@@ -42,8 +42,7 @@ void main() {
         combine: (text, token) => text + token,
         refetchMode: refetchMode,
       ),
-      client: client,
-    );
+    ).observe(client: client);
   }
 
   fakeTest('shows chunks as they arrive until the stream is done', (async) {
@@ -70,15 +69,15 @@ void main() {
   });
 
   fakeTest('an empty stream succeeds with the initial value', (async) {
-    final observer = Query.observe(
+    final observer = Query(
       queryKey: ['empty'],
       queryFn: streamedQuery(
         stream: (context) => const Stream<String>.empty(),
         initialValue: 'nothing',
         combine: (text, token) => text + token,
       ),
-      client: client,
-    )..subscribe((_) {});
+    ).observe(client: client)
+      ..subscribe((_) {});
     async.flushMicrotasks();
 
     expect(observer.result.data, 'nothing');
@@ -174,7 +173,7 @@ void main() {
 
     fakeTest('an error in combine fails the query', (async) {
       final controller = StreamController<String>();
-      final observer = Query.observe(
+      final observer = Query(
         queryKey: ['answer'],
         queryFn: streamedQuery(
           stream: (context) => controller.stream,
@@ -182,8 +181,8 @@ void main() {
           combine: (String text, String token) =>
               token == 'bad' ? throw FormatException(token) : text + token,
         ),
-        client: client,
-      )..subscribe((_) {});
+      ).observe(client: client)
+        ..subscribe((_) {});
       async.flushMicrotasks();
 
       controller.add('bad');
@@ -195,15 +194,15 @@ void main() {
     fakeTest('handles a stream that fails while it is listened to', (async) {
       final controller = StreamController<String>(sync: true);
       controller.onListen = () => controller.add('bad');
-      final observer = Query.observe(
+      final observer = Query(
         queryKey: ['answer'],
         queryFn: streamedQuery(
           stream: (context) => controller.stream,
           initialValue: '',
           combine: (String text, String token) => throw FormatException(token),
         ),
-        client: client,
-      )..subscribe((_) {});
+      ).observe(client: client)
+        ..subscribe((_) {});
       async.flushMicrotasks();
 
       expect(observer.result.error, isA<FormatException>());

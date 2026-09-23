@@ -6,10 +6,10 @@ description: Create, update, and delete server data in Flutter, with optimistic 
 A mutation changes server data and reports what happened while it runs. This page covers running one, reacting to the result, and updating the cache before the server answers.
 
 ```dart
-final addTodo = Mutation.observe(
+final addTodo = Mutation(
   mutationFn: (String title) => api.addTodo(title),
-  onSuccess: (todo, title, context) {
-    return Fuery.client.invalidateQueries(queryKey: ['todos']);
+  onSuccess: (todo, title, context, client) {
+    return client.invalidateQueries(queryKey: ['todos']);
   },
 );
 ```
@@ -18,16 +18,25 @@ Give the parameter of `mutationFn` a type, like `String title` above. The rest o
 
 ## Running a mutation
 
+Pass the mutation to a `MutationBuilder`, and run it from the builder:
+
 ```dart
-addTodo.mutate('Buy milk'); // errors go to the state and callbacks
-final todo = await addTodo.mutateAsync('Buy milk'); // throws on error
+MutationBuilder(
+  mutation: addTodo,
+  builder: (context, state) => FilledButton(
+    onPressed: state.isPending ? null : () => state.mutate('Buy milk'),
+    child: Text(state.isPending ? 'Adding…' : 'Add'),
+  ),
+)
 ```
 
-Use `mutate` from buttons and `mutateAsync` when you need the result. `addTodo.result` holds the latest `MutationState`. `addTodo.reset()` returns it to idle.
+`state.mutate` puts errors in the state and passes them to the callbacks. `await state.mutateAsync('Buy milk')` returns the data, and throws on error. `state.reset()` returns the state to idle.
+
+When the button and the state are in different places, or outside widgets, create one observer with `addTodo.observe()`, a `MutationObserver`, and call `mutate` on it. Keep it in a `State` field or a cubit, not in `build`, and pass it to the widgets that show its state.
 
 ## MutationState fields
 
-Builders, listeners, and `result` all report a `MutationState`:
+Builders, listeners, and an observer's `result` all report a `MutationResult`, a `MutationState` with `mutate`, `mutateAsync`, and `reset`:
 
 | Field | Meaning |
 |---|---|
@@ -48,76 +57,73 @@ Builders, listeners, and `result` all report a `MutationState`:
 
 | Callback | Runs |
 |---|---|
-| `onMutate(variables)` | Before `mutationFn`. What it returns becomes `context`. |
-| `onSuccess(data, variables, context)` | After success |
-| `onError(error, variables, context)` | After failure |
-| `onSettled(data, error, variables, context)` | After either |
+| `onMutate(variables, client)` | Before `mutationFn`. What it returns becomes `context`. |
+| `onSuccess(data, variables, context, client)` | After success |
+| `onError(error, variables, context, client)` | After failure |
+| `onSettled(data, error, variables, context, client)` | After either |
+
+`client` is the client running the mutation: the one a widget got from `FueryProvider`, or the one passed to `observe(client:)`. Use it instead of `Fuery.client`, so the callbacks reach the right cache in tests too.
 
 Returning a future from a callback keeps the mutation pending until it completes. Returning the `invalidateQueries` future from `onSuccess`, as above, keeps a loading indicator up until the list has refetched.
 
-To react to a single call, pass `MutateOptions`. These callbacks only run while something is still listening to the mutation:
+To react to a single call, pass `MutateOptions`. These callbacks only run while something is still listening to the mutation, which a mounted `MutationBuilder` always is:
 
 ```dart
-addTodo.mutate(
+state.mutate(
   'Buy milk',
-  MutateOptions(onSuccess: (todo, title, context) => showAddedSnackBar(todo)),
+  MutateOptions(onSuccess: (todo, title, _, __) => showAddedSnackBar(todo)),
 );
 ```
 
 ## Optimistic updates
 
-Cancel refetches of the data first, then update the cache in `onMutate` and return what you need to roll back. If the request fails, `onError` receives it as `context`. `todosOptions` and `todosKey` are the query's [options and key](../organizing-queries/):
+Cancel refetches of the data first, then update the cache in `onMutate` and return what you need to roll back. If the request fails, `onError` receives it as `context`. `todosQuery` and `todosKey` are the query and its [key](../organizing-queries/):
 
 ```dart
-final deleteTodo = Mutation.observe(
+final deleteTodo = Mutation(
   mutationFn: (int id) => api.deleteTodo(id),
-  onMutate: (id) async {
+  onMutate: (id, client) async {
     // Keep a refetch in flight from overwriting the optimistic update.
-    await Fuery.client.cancelQueries(queryKey: todosKey);
-    final previous = Fuery.client.getData(todosOptions());
-    Fuery.client.updateData(
-      todosOptions(),
+    await client.cancelQueries(queryKey: todosKey);
+    final previous = client.getData(todosQuery);
+    client.updateData(
+      todosQuery,
       (todos) => todos?.where((todo) => todo.id != id).toList(),
     );
     return previous;
   },
-  onError: (error, id, previous) {
-    if (previous != null) Fuery.client.setData(todosOptions(), previous);
+  onError: (error, id, previous, client) {
+    if (previous != null) client.setData(todosQuery, previous);
   },
-  onSettled: (_, __, ___, ____) {
-    return Fuery.client.invalidateQueries(queryKey: todosKey);
+  onSettled: (_, __, ___, ____, client) {
+    return client.invalidateQueries(queryKey: todosKey);
   },
 );
 ```
 
 ## Mutations without variables
 
-`Mutation.noVariables` returns a `NoVariablesMutationObserver<TData, TContext>`, whose `mutate()` takes no argument:
+`NoVariablesMutation` describes a mutation that takes nothing. Its observer is a `NoVariablesMutationObserver<TData, TContext>`, whose `mutate()` takes no argument, so a button can take its tear-off:
 
 ```dart
-final logout = Mutation.noVariables(mutationFn: () => api.logout());
-logout.mutate();
-```
-
-Its callbacks drop the variables argument as well: `onMutate()`, `onSuccess(data, context)`, `onError(error, context)`, and `onSettled(data, error, context)`.
-
-```dart
-final logout = Mutation.noVariables(
+final logout = NoVariablesMutation(
   mutationFn: () => api.logout(),
-  onSuccess: (data, context) => Fuery.client.clear(),
-);
+  onSuccess: (data, context, client) => client.clear(),
+).observe();
+
+TextButton(onPressed: logout.mutate, child: const Text('Log out'))
 ```
+
+Its callbacks drop the variables argument as well: `onMutate(client)`, `onSuccess(data, context, client)`, `onError(error, context, client)`, and `onSettled(data, error, context, client)`. From a `MutationBuilder`, where the state is typed like any mutation's, call `state.mutate(null)`.
 
 Empty the cache once the app has left the screens that were using it. [Clearing everything at logout](../query-client/#clearing-everything-at-logout) explains why the order matters.
-
-The state is still a `MutationState`, so a `MutationBuilder` reads `isPending` and `error` the same way.
 
 ## Retries and ordering
 
 A mutation never retries unless you set `retry`, because repeating a write is not always safe. `RetryPolicy.count(2)` gives it two more attempts, waiting 1s and then 2s. Mutations that share a `scope` run one after another, in the order they were started:
 
 ```dart
-final saveDraft = Mutation.observe(
+final saveDraft = Mutation(
   mutationFn: (Draft draft) => api.saveDraft(draft),
   retry: const RetryPolicy.count(2),
   scope: const MutationScope('drafts'),

@@ -10,7 +10,7 @@ import 'package:fuery/fuery.dart';
 /// polling, and the cubit sees every change the screen makes.
 class NotificationsCubit extends Cubit<int> {
   NotificationsCubit({QueryObserver<List<FeedNotification>>? notifications})
-      : _notifications = notifications ?? notificationsOptions().observe(),
+      : _notifications = notifications ?? notificationsQuery().observe(),
         super(0) {
     _subscription = _notifications.stream.listen(_onResult);
   }

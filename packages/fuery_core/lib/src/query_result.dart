@@ -18,7 +18,45 @@ class QueryResult<TData extends Object> {
     required this.isPlaceholderData,
     required this.isStale,
     required this.isEnabled,
-  });
+  }) : _observer = null;
+
+  /// A result reported by [observer], so it can act on its query.
+  const QueryResult._reported({
+    required this.status,
+    required this.fetchStatus,
+    required this.data,
+    required this.dataUpdatedAt,
+    required this.error,
+    required this.errorUpdatedAt,
+    required this.errorUpdateCount,
+    required this.failureCount,
+    required this.failureReason,
+    required this.isFetched,
+    required this.isFetchedAfterMount,
+    required this.isPlaceholderData,
+    required this.isStale,
+    required this.isEnabled,
+    required QueryObserver<TData> observer,
+  }) : _observer = observer;
+
+  /// [base], reported by [_observer], for results that extend it.
+  QueryResult._copy(QueryResult<TData> base, this._observer)
+      : status = base.status,
+        fetchStatus = base.fetchStatus,
+        data = base.data,
+        dataUpdatedAt = base.dataUpdatedAt,
+        error = base.error,
+        errorUpdatedAt = base.errorUpdatedAt,
+        errorUpdateCount = base.errorUpdateCount,
+        failureCount = base.failureCount,
+        failureReason = base.failureReason,
+        isFetched = base.isFetched,
+        isFetchedAfterMount = base.isFetchedAfterMount,
+        isPlaceholderData = base.isPlaceholderData,
+        isStale = base.isStale,
+        isEnabled = base.isEnabled;
+
+  final QueryObserver<TData>? _observer;
 
   /// Whether there is data ([QueryStatus.success]), an error with no data
   /// ([QueryStatus.error]), or neither yet ([QueryStatus.pending]).
@@ -92,6 +130,30 @@ class QueryResult<TData extends Object> {
 
   /// Failed while refetching; [data] still holds the last good data.
   bool get isRefetchError => isError && hasData;
+
+  /// Refetches like [QueryObserver.refetch] on the observer that reported
+  /// this result, for example from a builder. That is the observer's current
+  /// query: after a widget moved to another key, the new one.
+  Future<QueryResult<TData>> refetch({
+    bool cancelRefetch = true,
+    bool throwOnError = false,
+  }) {
+    return _reporter.refetch(
+      cancelRefetch: cancelRefetch,
+      throwOnError: throwOnError,
+    );
+  }
+
+  QueryObserver<TData> get _reporter {
+    final observer = _observer;
+    if (observer == null) {
+      throw StateError(
+        'This result was created by hand, not reported by an observer, so it '
+        'has no query to act on.',
+      );
+    }
+    return observer;
+  }
 
   @override
   bool operator ==(Object other) {

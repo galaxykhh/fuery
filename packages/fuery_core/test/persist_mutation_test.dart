@@ -32,16 +32,15 @@ Object? _same(String variables) => variables;
 
 String _string(Object? json) => json! as String;
 
-/// The options of a mutation that stores its variables, for `Mutation.observe`
-/// and for `restore`.
-MutationOptions<String, String, void> commentOptions(
+/// A mutation that stores its variables, for screens and for `restore`.
+Mutation<String, String, void> commentOptions(
   FakeMutator mutator, {
   MutationScope? scope,
   int version = 1,
   MutationOnSuccess<String, String, void>? onSuccess,
   MutationOnMutate<String, void>? onMutate,
 }) {
-  return MutationOptions(
+  return Mutation(
     mutationKey: const ['comments', 'add'],
     mutationFn: mutator.call,
     scope: scope,
@@ -94,12 +93,11 @@ void main() {
     fakeTest('stores a mutation while it runs and deletes it when it settles',
         (async) {
       final mutator = FakeMutator();
-      final addComment = Mutation.observe(
+      final addComment = Mutation(
         mutationKey: const ['comments', 'add'],
         mutationFn: mutator.call,
         persist: persist,
-        client: client,
-      );
+      ).observe(client: client);
 
       addComment.mutate('hello');
       async.flushMicrotasks();
@@ -118,12 +116,11 @@ void main() {
 
     fakeTest('stores a mutation that paused offline', (async) {
       onlineManager.setOnline(false);
-      final addComment = Mutation.observe(
+      final addComment = Mutation(
         mutationKey: const ['comments', 'add'],
         mutationFn: FakeMutator().call,
         persist: persist,
-        client: client,
-      );
+      ).observe(client: client);
 
       addComment.mutate('later');
       async.flushMicrotasks();
@@ -133,12 +130,11 @@ void main() {
 
     fakeTest('deletes the entry when the mutation fails', (async) {
       final mutator = FakeMutator()..error = StateError('no');
-      final addComment = Mutation.observe(
+      final addComment = Mutation(
         mutationKey: const ['comments', 'add'],
         mutationFn: mutator.call,
         persist: persist,
-        client: client,
-      );
+      ).observe(client: client);
 
       addComment.mutate('hello');
       async.elapse(ms10);
@@ -150,12 +146,11 @@ void main() {
       final async10 = AsyncStorage(storage);
       client.unmount();
       client = QueryClient(storage: async10)..mount();
-      final addComment = Mutation.observe(
+      final addComment = Mutation(
         mutationKey: const ['comments', 'add'],
         mutationFn: FakeMutator(delay: const Duration(milliseconds: 5)).call,
         persist: persist,
-        client: client,
-      );
+      ).observe(client: client);
 
       addComment.mutate('hello');
       async.elapse(const Duration(milliseconds: 5));
@@ -167,23 +162,21 @@ void main() {
 
     fakeTest('a mutation without a key or a storage is not stored', (async) {
       final noStorage = QueryClient();
-      final addComment = Mutation.observe(
+      final addComment = Mutation(
         mutationKey: const ['comments', 'add'],
         mutationFn: FakeMutator().call,
         persist: persist,
-        client: noStorage,
-      );
+      ).observe(client: noStorage);
       addComment.mutate('hello');
       async.elapse(ms10);
       expect(storedMutations(), isEmpty);
       noStorage.clear();
 
       expect(
-        () => Mutation.observe(
+        () => Mutation(
           mutationFn: FakeMutator().call,
           persist: persist,
-          client: client,
-        ),
+        ).observe(client: client),
         throwsA(isA<AssertionError>()),
       );
     });
@@ -191,26 +184,24 @@ void main() {
     fakeTest('a failing storage does not break the mutation', (async) {
       client.unmount();
       client = QueryClient(storage: FailingStorage())..mount();
-      final addComment = Mutation.observe(
+      final addComment = Mutation(
         mutationKey: const ['comments', 'add'],
         mutationFn: FakeMutator().call,
         persist: persist,
-        client: client,
-      );
+      ).observe(client: client);
       addComment.mutate('hello');
       async.elapse(ms10);
       expect(addComment.result.data, 'saved hello');
     });
 
-    fakeTest('Mutation.noVariables stores with MutationPersist.noVariables',
+    fakeTest('NoVariablesMutation stores with MutationPersist.noVariables',
         (async) {
       onlineManager.setOnline(false);
-      final refresh = Mutation.noVariables(
+      final refresh = NoVariablesMutation(
         mutationKey: const ['refresh'],
         mutationFn: () async => 42,
         persist: MutationPersist.noVariables,
-        client: client,
-      );
+      ).observe(client: client);
       refresh.mutate();
       async.flushMicrotasks();
       expect(storedMutations(), hasLength(1));
@@ -226,7 +217,7 @@ void main() {
       final results = <String>[];
       final options = commentOptions(
         mutator,
-        onSuccess: (data, _, __) => results.add(data),
+        onSuccess: (data, _, __, client) => results.add(data),
       );
 
       client.restore(mutations: [options]);
@@ -297,7 +288,8 @@ void main() {
 
       client.restore(
         mutations: [
-          commentOptions(FakeMutator(), onMutate: (_) => onMutateCalls++),
+          commentOptions(FakeMutator(),
+              onMutate: (_, client) => onMutateCalls++),
         ],
       );
       async.elapse(ms10);
@@ -374,7 +366,7 @@ void main() {
 
       client.restore(
         mutations: [
-          MutationOptions<int, void, void>(
+          Mutation<int, void, void>(
             mutationKey: const ['refresh'],
             mutationFn: (_) async => ++calls,
             persist: MutationPersist.noVariables,

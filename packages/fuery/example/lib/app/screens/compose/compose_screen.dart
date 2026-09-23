@@ -24,10 +24,9 @@ class ComposeScreen extends StatefulWidget {
 }
 
 class _ComposeScreenState extends State<ComposeScreen> {
-  final createPost = createPostMutation();
   final _body = TextEditingController();
-  // Set once the server has the post; polls it until it is published.
-  QueryObserver<Post>? _published;
+  // Set once the server has the post; its query polls until it is published.
+  int? _published;
 
   @override
   void dispose() {
@@ -35,7 +34,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
     super.dispose();
   }
 
-  void _post() {
+  void _post(MutationResult<Post, String, void> createPost) {
     final body = _body.text.trim();
     if (body.isEmpty) return;
     createPost.mutate(
@@ -43,8 +42,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
       MutateOptions(
         // Screen-level work stays at the call site. The feed invalidation
         // lives in the mutation, where every caller gets it.
-        onSuccess: (post, _, __) => setState(
-            () => _published = publishingPostOptions(post.id).observe()),
+        onSuccess: (post, _, __, ___) => setState(() => _published = post.id),
       ),
     );
   }
@@ -56,7 +54,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: switch (_published) {
-          final query? => _Publishing(query: query),
+          final id? => _Publishing(query: publishingPostQuery(id)),
           null => Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -71,9 +69,9 @@ class _ComposeScreenState extends State<ComposeScreen> {
                 ),
                 const SizedBox(height: 16),
                 MutationBuilder(
-                  mutation: createPost,
+                  mutation: createPostMutation(),
                   builder: (context, state) => FilledButton(
-                    onPressed: state.isPending ? null : _post,
+                    onPressed: state.isPending ? null : () => _post(state),
                     child: Text(state.isPending ? 'Posting…' : 'Post'),
                   ),
                 ),
@@ -88,7 +86,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
 class _Publishing extends StatelessWidget {
   const _Publishing({required this.query});
 
-  final QueryObserver<Post> query;
+  final Query<Post> query;
 
   @override
   Widget build(BuildContext context) {

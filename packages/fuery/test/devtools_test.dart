@@ -74,15 +74,14 @@ void main() {
     Duration delay = ms10,
     Duration? staleTime,
   }) {
-    return Query.observe(
+    return Query(
       queryKey: key,
       queryFn: (_) async {
         await Future<void>.delayed(delay);
         return value;
       },
       staleTime: staleTime,
-      client: client,
-    );
+    ).observe(client: client);
   }
 
   Finder openButton() => find.bySemanticsLabel('Open Fuery devtools');
@@ -181,14 +180,13 @@ void main() {
   testWidgets('shows the selected query and runs actions on it',
       (tester) async {
     var fetches = 0;
-    final todos = Query.observe(
+    final todos = Query(
       queryKey: ['todos'],
       queryFn: (_) async {
         fetches++;
         return [const Todo('Buy milk')];
       },
-      client: client,
-    );
+    ).observe(client: client);
     final unsubscribe = todos.subscribe((_) {});
     await pumpApp(tester);
     await tester.pump(Duration.zero);
@@ -222,11 +220,10 @@ void main() {
     tester.view.physicalSize = const Size(1200, 4800);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
-    final failing = Query.observe(
+    final failing = Query(
       queryKey: ['broken'],
       queryFn: (_) async => throw StateError('offline'),
-      client: client,
-    );
+    ).observe(client: client);
     final unsubscribe = failing.subscribe((_) {});
     await pumpApp(tester);
     await tester.pump(Duration.zero);
@@ -241,15 +238,13 @@ void main() {
   });
 
   testWidgets('lists mutations, newest first', (tester) async {
-    final save = Mutation.observe(
+    final save = Mutation(
       mutationKey: ['todos', 'save'],
       mutationFn: (String title) async => title,
-      client: client,
-    );
-    final fail = Mutation.observe(
+    ).observe(client: client);
+    final fail = Mutation(
       mutationFn: (int id) async => throw StateError('nope'),
-      client: client,
-    );
+    ).observe(client: client);
     await pumpApp(tester);
     save.mutate('Buy milk');
     fail.mutate(1);
@@ -333,19 +328,19 @@ void main() {
 
   testWidgets('labels disabled queries and unobserved paused fetches',
       (tester) async {
-    final disabled = Query.observe(
+    final disabled = Query(
       queryKey: ['off'],
       queryFn: (_) async => 'data',
       enabled: false,
-      client: client,
-    )..subscribe((_) {});
+    ).observe(client: client)
+      ..subscribe((_) {});
     onlineManager.setOnline(false);
     client
-        .query(QueryOptions(queryKey: ['prefetch'], queryFn: (_) async => 'x'))
+        .query(Query(queryKey: ['prefetch'], queryFn: (_) async => 'x'))
         .ignore();
     await tester.pump();
 
-    Query<Object> find(QueryKey queryKey) =>
+    CachedQuery<Object> find(QueryKey queryKey) =>
         client.queryCache.find(QueryFilters(queryKey: queryKey))!;
     expect(queryStatusLabel(find(['off'])), 'disabled');
     expect(queryStatusLabel(find(['prefetch'])), 'paused');

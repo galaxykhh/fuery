@@ -23,7 +23,7 @@ void main() {
   QueryObserver<String> observe(QueryKey key, FakeFetcher<String> fetcher) {
     return QueryObserver<String>(
       client,
-      QueryOptions(queryKey: key, queryFn: fetcher.call),
+      Query(queryKey: key, queryFn: fetcher.call),
     );
   }
 
@@ -82,7 +82,7 @@ void main() {
       final fetcher = FakeFetcher(() => 'data');
       final observer = QueryObserver<String>(
         client,
-        QueryOptions(
+        Query(
           queryKey: ['todos'],
           queryFn: fetcher.call,
           staleTime: infiniteDuration,
@@ -119,7 +119,7 @@ void main() {
       final fetcher = FakeFetcher(() => 'fetched');
       final observer = QueryObserver<String>(
         client,
-        QueryOptions(
+        Query(
           queryKey: ['todos'],
           queryFn: fetcher.call,
           staleTime: const Duration(minutes: 1),
@@ -147,7 +147,7 @@ void main() {
 
     fakeTest('setData creates a query that can refetch', (async) {
       final fetcher = FakeFetcher(() => 'fetched');
-      final todos = QueryOptions(queryKey: ['todos'], queryFn: fetcher.call);
+      final todos = Query(queryKey: ['todos'], queryFn: fetcher.call);
 
       client.setData(todos, 'seeded');
       expect(client.getData(todos), 'seeded');
@@ -159,7 +159,7 @@ void main() {
     });
 
     fakeTest('updateData derives from the previous value', (async) {
-      final numbers = QueryOptions(
+      final numbers = Query(
         queryKey: ['numbers'],
         queryFn: (_) async => <int>[],
       );
@@ -175,7 +175,7 @@ void main() {
   group('query', () {
     fakeTest('returns fresh cached data without fetching', (async) {
       final fetcher = FakeFetcher(() => 'data');
-      final options = QueryOptions<String>(
+      final options = Query<String>(
         queryKey: ['todos'],
         queryFn: fetcher.call,
         staleTime: const Duration(minutes: 1),
@@ -197,7 +197,7 @@ void main() {
       final fetcher = FakeFetcher(() => 'data')..error = StateError('boom');
       Object? error;
       QueryClient()
-          .query(QueryOptions<String>(
+          .query(Query<String>(
         queryKey: ['todos'],
         queryFn: fetcher.call,
       ))
@@ -213,7 +213,7 @@ void main() {
 
     fakeTest('dedupes concurrent fetches of the same key', (async) {
       final fetcher = FakeFetcher(() => 'data');
-      final options = QueryOptions<String>(
+      final options = Query<String>(
         queryKey: ['todos'],
         queryFn: fetcher.call,
       );
@@ -256,7 +256,7 @@ void main() {
     final fetcher = FakeFetcher(() => 'fetched');
     final observer = QueryObserver<String>(
       client,
-      QueryOptions(
+      Query(
         queryKey: ['todos'],
         queryFn: fetcher.call,
         initialData: 'initial',
@@ -308,7 +308,7 @@ void main() {
     );
     QueryObserver<String>(
       client,
-      QueryOptions(
+      Query(
         queryKey: ['a'],
         queryFn: (FakeFetcher(() => 'a')..error = StateError('boom')).call,
       ),
@@ -334,7 +334,7 @@ void main() {
 
     fakeTest('with staticStaleTime, uses any cached data', (async) {
       final fetcher = FakeFetcher(() => 'fetched');
-      final options = QueryOptions<String>(
+      final options = Query<String>(
         queryKey: ['todos'],
         queryFn: fetcher.call,
         staleTime: staticStaleTime,
@@ -358,13 +358,13 @@ void main() {
     fakeTest('prefetching with ignore fills the cache and hides errors',
         (async) {
       client
-          .query(QueryOptions<String>(
+          .query(Query<String>(
             queryKey: ['ok'],
             queryFn: FakeFetcher(() => 'data').call,
           ))
           .ignore();
       client
-          .query(QueryOptions<String>(
+          .query(Query<String>(
             queryKey: ['bad'],
             queryFn:
                 (FakeFetcher(() => 'data')..error = StateError('boom')).call,
@@ -379,7 +379,7 @@ void main() {
     fakeTest('infiniteQuery loads the first page', (async) {
       InfiniteData<String, int>? data;
       client
-          .infiniteQuery(infiniteQueryOptions(
+          .infiniteQuery(InfiniteQuery(
             queryKey: ['pages'],
             queryFn: (context) async => 'page ${context.pageParam}',
             initialPageParam: 1,
@@ -395,25 +395,12 @@ void main() {
       );
     });
 
-    fakeTest('query without a queryFn uses an observer\'s', (async) {
-      final fetcher = FakeFetcher(() => 'data');
-      observe(['todos'], fetcher).subscribe((_) {});
-      async.elapse(ms10);
-
-      String? data;
-      client
-          .query(QueryOptions<String>(queryKey: ['todos']))
-          .then((value) => data = value);
-      async.elapse(ms10);
-
-      expect(data, 'data');
-      expect(fetcher.calls, 2);
-    });
-
-    fakeTest('query fails without any queryFn', (async) {
+    fakeTest('refetching data set by key alone fails clearly', (async) {
+      // setQueryData knows the key, but no query function to refetch with.
+      client.setQueryData(['todos'], 'seeded');
       Object? error;
-      client.query(QueryOptions<String>(queryKey: ['todos'])).then((_) {},
-          onError: (Object e) {
+      client.refetchQueries(queryKey: ['todos'], throwOnError: true).then(
+          (_) {}, onError: (Object e) {
         error = e;
       });
       async.flushMicrotasks();
@@ -429,7 +416,7 @@ void main() {
       observe(['todos'], todos).subscribe((_) {});
       QueryObserver<String>(
         client,
-        QueryOptions(
+        Query(
           queryKey: ['todos', 'disabled'],
           queryFn: disabled.call,
           enabled: false,
@@ -543,16 +530,14 @@ void main() {
       const MutationDefaults(retry: RetryPolicy.count(2)),
     );
 
-    final todo = Mutation.observe(
+    final todo = Mutation(
       mutationFn: (int id) async => id,
       mutationKey: ['todos', 'add'],
-      client: client,
-    );
-    final other = Mutation.observe(
+    ).observe(client: client);
+    final other = Mutation(
       mutationFn: (int id) async => id,
       mutationKey: ['posts'],
-      client: client,
-    );
+    ).observe(client: client);
 
     expect(todo.options.retry, isNotNull);
     expect(other.options.retry, isNull);
@@ -560,10 +545,9 @@ void main() {
 
   fakeTest('resumePausedMutations does nothing while offline', (async) {
     onlineManager.setOnline(false);
-    final mutation = Mutation.observe(
+    final mutation = Mutation(
       mutationFn: (int id) async => id,
-      client: client,
-    );
+    ).observe(client: client);
     mutation.mutate(1);
     async.flushMicrotasks();
 

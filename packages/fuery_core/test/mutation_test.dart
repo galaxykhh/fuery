@@ -29,7 +29,7 @@ void main() {
   }
 
   fakeTest('goes from idle to pending to success', (async) {
-    final observer = Mutation.observe(mutationFn: slowEcho, client: client);
+    final observer = Mutation(mutationFn: slowEcho).observe(client: client);
     final statuses = <MutationStatus>[];
     observer.subscribe((state) => statuses.add(state.status));
 
@@ -48,23 +48,22 @@ void main() {
 
   fakeTest('runs onMutate before the mutation function', (async) {
     final events = <String>[];
-    final observer = Mutation.observe(
+    final observer = Mutation(
       mutationFn: (String value) async {
         events.add('mutationFn');
         return value;
       },
-      onMutate: (value) {
+      onMutate: (value, client) {
         events.add('onMutate');
         return 'context';
       },
-      onSuccess: (data, variables, context) {
+      onSuccess: (data, variables, context, client) {
         events.add('onSuccess $data $variables $context');
       },
-      onSettled: (data, error, variables, context) {
+      onSettled: (data, error, variables, context, client) {
         events.add('onSettled $data $error');
       },
-      client: client,
-    );
+    ).observe(client: client);
 
     observer.mutate('a');
     async.flushMicrotasks();
@@ -81,9 +80,9 @@ void main() {
       (async) {
     client.setQueryData<List<String>>(['todos'], ['a', 'b']);
 
-    final observer = Mutation.observe(
+    final observer = Mutation(
       mutationFn: slowFail,
-      onMutate: (removed) {
+      onMutate: (removed, client) {
         final previous = client.getQueryData<List<String>>(['todos']);
         client.updateQueryData<List<String>>(
           ['todos'],
@@ -91,11 +90,10 @@ void main() {
         );
         return previous;
       },
-      onError: (error, variables, previous) {
+      onError: (error, variables, previous, client) {
         client.setQueryData<List<String>>(['todos'], previous!);
       },
-      client: client,
-    );
+    ).observe(client: client);
 
     observer.mutate('a');
     async.flushMicrotasks();
@@ -106,7 +104,7 @@ void main() {
   });
 
   fakeTest('mutate reports failures without throwing', (async) {
-    final observer = Mutation.observe(mutationFn: slowFail, client: client);
+    final observer = Mutation(mutationFn: slowFail).observe(client: client);
     observer.subscribe((_) {});
 
     observer.mutate('a');
@@ -118,7 +116,7 @@ void main() {
   });
 
   fakeTest('mutateAsync throws the error', (async) {
-    final observer = Mutation.observe(mutationFn: slowFail, client: client);
+    final observer = Mutation(mutationFn: slowFail).observe(client: client);
 
     Object? error;
     observer.mutateAsync('a').catchError((Object e) {
@@ -132,10 +130,9 @@ void main() {
 
   fakeTest('noVariables mutations run with mutate()', (async) {
     var calls = 0;
-    final observer = Mutation.noVariables(
+    final observer = NoVariablesMutation(
       mutationFn: () async => ++calls,
-      client: client,
-    );
+    ).observe(client: client);
 
     observer.mutate();
     async.flushMicrotasks();
@@ -148,10 +145,9 @@ void main() {
   });
 
   fakeTest('noVariables mutations report failures', (async) {
-    final observer = Mutation.noVariables(
+    final observer = NoVariablesMutation(
       mutationFn: () async => throw StateError('boom'),
-      client: client,
-    );
+    ).observe(client: client);
 
     observer.mutate();
     async.flushMicrotasks();
@@ -161,7 +157,7 @@ void main() {
 
   fakeTest('retries when retry is set', (async) {
     var attempts = 0;
-    final observer = Mutation.observe(
+    final observer = Mutation(
       mutationFn: (String value) async {
         attempts++;
         if (attempts < 3) throw StateError('try again');
@@ -169,8 +165,7 @@ void main() {
       },
       retry: const RetryPolicy.count(2),
       retryDelay: (_, __) => ms10,
-      client: client,
-    );
+    ).observe(client: client);
 
     observer.mutate('a');
     async.elapse(const Duration(milliseconds: 50));
@@ -188,16 +183,14 @@ void main() {
       return value;
     }
 
-    final first = Mutation.observe(
+    final first = Mutation(
       mutationFn: run,
       scope: const MutationScope('todos'),
-      client: client,
-    );
-    final second = Mutation.observe(
+    ).observe(client: client);
+    final second = Mutation(
       mutationFn: run,
       scope: const MutationScope('todos'),
-      client: client,
-    );
+    ).observe(client: client);
 
     first.mutate('a');
     second.mutate('b');
@@ -207,15 +200,16 @@ void main() {
   });
 
   fakeTest('per-call callbacks run while the observer has listeners', (async) {
-    final observer = Mutation.observe(mutationFn: slowEcho, client: client);
+    final observer = Mutation(mutationFn: slowEcho).observe(client: client);
     final events = <String>[];
     observer.subscribe((_) {});
 
     observer.mutate(
       'a',
       MutateOptions(
-        onSuccess: (data, _, __) => events.add('success $data'),
-        onSettled: (data, _, variables, __) => events.add('settled $variables'),
+        onSuccess: (data, _, __, client) => events.add('success $data'),
+        onSettled: (data, _, variables, __, client) =>
+            events.add('settled $variables'),
       ),
     );
     async.elapse(ms10);
@@ -224,7 +218,7 @@ void main() {
   });
 
   fakeTest('reset returns to idle', (async) {
-    final observer = Mutation.observe(mutationFn: slowEcho, client: client);
+    final observer = Mutation(mutationFn: slowEcho).observe(client: client);
     observer.subscribe((_) {});
     observer.mutate('a');
     async.elapse(ms10);
@@ -235,11 +229,10 @@ void main() {
   });
 
   fakeTest('removes finished mutations after gcTime', (async) {
-    final observer = Mutation.observe(
+    final observer = Mutation(
       mutationFn: slowEcho,
       gcTime: const Duration(minutes: 1),
-      client: client,
-    );
+    ).observe(client: client);
     final unsubscribe = observer.subscribe((_) {});
     observer.mutate('a');
     async.elapse(ms10);
@@ -252,7 +245,7 @@ void main() {
 
   fakeTest('pauses while offline and resumes on reconnect', (async) {
     onlineManager.setOnline(false);
-    final observer = Mutation.observe(mutationFn: slowEcho, client: client);
+    final observer = Mutation(mutationFn: slowEcho).observe(client: client);
     observer.subscribe((_) {});
 
     observer.mutate('a');
@@ -266,11 +259,10 @@ void main() {
   });
 
   fakeTest('isMutating counts pending mutations', (async) {
-    final observer = Mutation.observe(
+    final observer = Mutation(
       mutationFn: slowEcho,
       mutationKey: ['todos', 'add'],
-      client: client,
-    );
+    ).observe(client: client);
     observer.mutate('a');
     async.flushMicrotasks();
 
@@ -282,7 +274,7 @@ void main() {
   });
 
   fakeTest('stream sends the current state first, then changes', (async) {
-    final observer = Mutation.observe(mutationFn: slowEcho, client: client);
+    final observer = Mutation(mutationFn: slowEcho).observe(client: client);
     final statuses = <MutationStatus>[];
     observer.stream.listen((state) => statuses.add(state.status));
     async.flushMicrotasks();
@@ -301,18 +293,18 @@ void main() {
     fakeTest('noVariables callbacks receive data, error, and context', (async) {
       final events = <String>[];
       var fail = false;
-      final observer = Mutation.noVariables(
+      final observer = NoVariablesMutation(
         mutationFn: () async {
           if (fail) throw StateError('boom');
           return 1;
         },
-        onMutate: () => 'ctx',
-        onSuccess: (data, context) => events.add('success $data $context'),
-        onError: (error, context) => events.add('error $context'),
-        onSettled: (data, error, context) =>
+        onMutate: (client) => 'ctx',
+        onSuccess: (data, context, client) =>
+            events.add('success $data $context'),
+        onError: (error, context, client) => events.add('error $context'),
+        onSettled: (data, error, context, client) =>
             events.add('settled $data ${error != null}'),
-        client: client,
-      );
+      ).observe(client: client);
 
       observer.mutate();
       async.flushMicrotasks();
@@ -328,17 +320,6 @@ void main() {
       ]);
     });
 
-    fakeTest('fails without a mutationFn', (async) {
-      final observer = MutationObserver<int, int, void>(
-        client,
-        const MutationOptions(),
-      );
-      observer.mutate(1);
-      async.flushMicrotasks();
-
-      expect(observer.result.error, isA<StateError>());
-    });
-
     fakeTest('cache callbacks run for every mutation', (async) {
       final events = <String>[];
       final client = QueryClient(
@@ -351,13 +332,12 @@ void main() {
           ),
         ),
       );
-      final observer = Mutation.observe(
+      final observer = Mutation(
         mutationFn: (int x) async {
           if (x < 0) throw StateError('negative');
           return x;
         },
-        client: client,
-      );
+      ).observe(client: client);
 
       observer.mutate(1);
       async.flushMicrotasks();
@@ -376,14 +356,13 @@ void main() {
     });
 
     fakeTest('keeps a pending mutation past gcTime until it settles', (async) {
-      final observer = Mutation.observe(
+      final observer = Mutation(
         mutationFn: (int x) async {
           await Future<void>.delayed(const Duration(seconds: 1));
           return x;
         },
         gcTime: ms10,
-        client: client,
-      );
+      ).observe(client: client);
       final unsubscribe = observer.subscribe((_) {});
       observer.mutate(1);
       async.flushMicrotasks();
@@ -397,16 +376,15 @@ void main() {
     });
 
     fakeTest('changing the mutation key resets the observer', (async) {
-      final observer = Mutation.observe(
+      final observer = Mutation(
         mutationFn: (int x) async => x,
         mutationKey: ['a'],
-        client: client,
-      );
+      ).observe(client: client);
       observer.mutate(1);
       async.flushMicrotasks();
       expect(observer.result.isSuccess, isTrue);
 
-      observer.setOptions(MutationOptions(
+      observer.setOptions(Mutation(
         mutationFn: (int x) async => x,
         mutationKey: ['b'],
       ));
@@ -415,20 +393,19 @@ void main() {
 
     fakeTest('new options apply to a pending mutation', (async) {
       final events = <String>[];
-      final observer = Mutation.observe(
+      final observer = Mutation(
         mutationFn: (int x) async {
           await Future<void>.delayed(ms10);
           return x;
         },
-        onSuccess: (_, __, ___) => events.add('old'),
-        client: client,
-      );
+        onSuccess: (_, __, ___, client) => events.add('old'),
+      ).observe(client: client);
       observer.mutate(1);
       async.flushMicrotasks();
 
-      observer.setOptions(MutationOptions(
+      observer.setOptions(Mutation(
         mutationFn: (int x) async => x,
-        onSuccess: (_, __, ___) => events.add('new'),
+        onSuccess: (_, __, ___, client) => events.add('new'),
       ));
       async.elapse(ms10);
 
@@ -436,13 +413,12 @@ void main() {
     });
 
     fakeTest('a listener added after mutate sees the mutation', (async) {
-      final observer = Mutation.observe(
+      final observer = Mutation(
         mutationFn: (int x) async {
           await Future<void>.delayed(ms10);
           return x;
         },
-        client: client,
-      );
+      ).observe(client: client);
       observer.mutate(1);
       async.flushMicrotasks();
 
@@ -458,15 +434,16 @@ void main() {
     });
 
     fakeTest('per-call error callbacks run while listened to', (async) {
-      final observer = Mutation.observe(mutationFn: slowFail, client: client);
+      final observer = Mutation(mutationFn: slowFail).observe(client: client);
       final events = <String>[];
       observer.subscribe((_) {});
 
       observer.mutate(
         'a',
         MutateOptions(
-          onError: (error, variables, _) => events.add('error $variables'),
-          onSettled: (data, error, variables, _) =>
+          onError: (error, variables, _, client) =>
+              events.add('error $variables'),
+          onSettled: (data, error, variables, _, client) =>
               events.add('settled $variables'),
         ),
       );
@@ -478,14 +455,14 @@ void main() {
     fakeTest('errors thrown by callbacks are reported, not swallowed', (async) {
       final errors = <Object>[];
       runZonedGuarded(() {
-        final observer = Mutation.observe(
+        final observer = Mutation(
           mutationFn: slowEcho,
-          client: client,
-        );
+        ).observe(client: client);
         observer.subscribe((_) {});
         observer.mutate(
           'a',
-          MutateOptions(onSuccess: (_, __, ___) => throw StateError('cb')),
+          MutateOptions(
+              onSuccess: (_, __, ___, client) => throw StateError('cb')),
         );
       }, (error, _) => errors.add(error));
       async.elapse(ms10);
@@ -494,17 +471,15 @@ void main() {
     });
 
     fakeTest('filters mutations by key, status, and predicate', (async) {
-      final add = Mutation.observe(
+      final add = Mutation(
         mutationFn: (int x) async => x,
         mutationKey: ['todos', 'add'],
-        client: client,
-      );
-      final remove = Mutation.observe(
+      ).observe(client: client);
+      final remove = Mutation(
         mutationFn: (int x) async => x,
         mutationKey: ['todos', 'remove'],
         meta: {'kind': 'remove'},
-        client: client,
-      );
+      ).observe(client: client);
       add.mutate(1);
       remove.mutate(2);
       async.flushMicrotasks();
@@ -530,12 +505,11 @@ void main() {
     });
 
     fakeTest('scoped mutations leave the scope when removed', (async) {
-      final observer = Mutation.observe(
+      final observer = Mutation(
         mutationFn: (int x) async => x,
         scope: const MutationScope('todos'),
         gcTime: ms10,
-        client: client,
-      );
+      ).observe(client: client);
       final unsubscribe = observer.subscribe((_) {});
       observer.mutate(1);
       async.flushMicrotasks();

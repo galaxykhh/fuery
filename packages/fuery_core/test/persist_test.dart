@@ -43,13 +43,12 @@ void main() {
     QueryPersist<List<String>>? persist,
     QueryClient? on,
   }) {
-    return Query.observe(
+    return Query(
       queryKey: queryKey,
       queryFn: fetcher.call,
       staleTime: staleTime,
       persist: persist ?? todosPersist,
-      client: on ?? client,
-    );
+    ).observe(client: on ?? client);
   }
 
   group('storing', () {
@@ -77,7 +76,7 @@ void main() {
 
     fakeTest('stores a streamed query once the stream is done', (async) {
       final controller = StreamController<String>();
-      Query.observe(
+      Query(
         queryKey: ['answer'],
         queryFn: streamedQuery(
           stream: (context) => controller.stream,
@@ -88,8 +87,7 @@ void main() {
           toJson: (text) => text,
           fromJson: (json) => json! as String,
         ),
-        client: client,
-      ).subscribe((_) {});
+      ).observe(client: client).subscribe((_) {});
       async.flushMicrotasks();
 
       controller.add('a');
@@ -104,11 +102,10 @@ void main() {
     });
 
     fakeTest('stores nothing without persist or without a storage', (async) {
-      Query.observe(
+      Query(
         queryKey: ['plain'],
         queryFn: FakeFetcher(() => 'a').call,
-        client: client,
-      ).subscribe((_) {});
+      ).observe(client: client).subscribe((_) {});
 
       final noStorage = QueryClient();
       todos(FakeFetcher(() => ['a']), on: noStorage).subscribe((_) {});
@@ -134,7 +131,7 @@ void main() {
   });
 
   fakeTest('setData stores data before anything observes the query', (async) {
-    final todos = QueryOptions(
+    final todos = Query(
       queryKey: ['todos'],
       queryFn: FakeFetcher(() => ['fetched']).call,
       persist: todosPersist,
@@ -222,14 +219,13 @@ void main() {
 
     fakeTest('restores when a persist option is added later', (async) {
       memory.entries[storageKey(['todos'])] = entry(['stored']);
-      final observer = Query.observe(
+      final observer = Query(
         queryKey: ['todos'],
         queryFn: FakeFetcher(() => ['fetched']).call,
-        client: client,
-      );
+      ).observe(client: client);
       expect(observer.result.data, isNull);
 
-      observer.setOptions(QueryOptions(
+      observer.setOptions(Query(
         queryKey: ['todos'],
         queryFn: FakeFetcher(() => ['fetched']).call,
         persist: todosPersist,
@@ -517,14 +513,13 @@ void main() {
         FakeFetcher<List<String>> fetcher,
         RefetchMode refetchOnMount,
       ) {
-        return Query.observe(
+        return Query(
           queryKey: queryKey,
           queryFn: fetcher.call,
           staleTime: const Duration(minutes: 5),
           refetchOnMount: refetchOnMount,
           persist: todosPersist,
-          client: asyncClient,
-        );
+        ).observe(client: asyncClient);
       }
 
       final always = FakeFetcher(() => ['fetched']);
@@ -545,7 +540,7 @@ void main() {
       final fetcher = FakeFetcher(() => ['fetched']);
       List<String>? data;
       asyncClient
-          .query(QueryOptions(
+          .query(Query(
             queryKey: ['todos'],
             queryFn: fetcher.call,
             staleTime: const Duration(minutes: 5),
@@ -579,14 +574,13 @@ void main() {
       memory.entries[storageKey(['todos'])] = entry(['v1']);
       final asyncClient = createClient(AsyncStorage(memory));
       QueryObserver<List<String>> use({Duration? gcTime}) {
-        return Query.observe(
+        return Query(
           queryKey: ['todos'],
           queryFn: FakeFetcher(() => ['fetched']).call,
           staleTime: const Duration(minutes: 5),
           gcTime: gcTime,
           persist: todosPersist,
-          client: asyncClient,
-        );
+        ).observe(client: asyncClient);
       }
 
       use(gcTime: const Duration(seconds: 1));
@@ -622,7 +616,7 @@ void main() {
 
   group('infinite queries', () {
     InfiniteQueryObserver<String, int> pages(QueryClient on) {
-      return InfiniteQuery.observe(
+      return InfiniteQuery(
         queryKey: ['pages'],
         queryFn: (context) async => 'page ${context.pageParam}',
         initialPageParam: 1,
@@ -633,8 +627,7 @@ void main() {
           pageToJson: (page) => page,
           pageFromJson: (json) => json! as String,
         ),
-        client: on,
-      );
+      ).observe(client: on);
     }
 
     fakeTest('stores and restores pages and params', (async) {
@@ -651,7 +644,7 @@ void main() {
 
     fakeTest('uses codecs for params', (async) {
       InfiniteQueryObserver<String, DateTime> byDate(QueryClient on) {
-        return InfiniteQuery.observe(
+        return InfiniteQuery(
           queryKey: ['days'],
           queryFn: (context) async => 'day ${context.pageParam.day}',
           initialPageParam: DateTime.utc(2026, 9, 1),
@@ -660,11 +653,10 @@ void main() {
           persist: InfiniteQueryPersist(
             pageToJson: (page) => page,
             pageFromJson: (json) => json! as String,
-            paramToJson: (date) => date.toIso8601String(),
+            paramToJson: (date) => (date! as DateTime).toIso8601String(),
             paramFromJson: (json) => DateTime.parse(json! as String),
           ),
-          client: on,
-        );
+        ).observe(client: on);
       }
 
       byDate(client).subscribe((_) {});

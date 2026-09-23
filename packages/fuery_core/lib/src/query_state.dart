@@ -33,7 +33,7 @@ enum FetchStatus {
 /// Which page an infinite query fetches.
 enum _FetchDirection { forward, backward }
 
-/// The raw state stored in a [Query]. Observers derive [QueryResult]s from it.
+/// The raw state stored in a [CachedQuery]. Observers derive [QueryResult]s from it.
 @immutable
 class QueryState<TData extends Object> {
   const QueryState({
@@ -187,7 +187,7 @@ class QueryState<TData extends Object> {
   }
 }
 
-/// A state transition applied to a [Query].
+/// A state transition applied to a [CachedQuery].
 sealed class _QueryAction {
   const _QueryAction();
 }
