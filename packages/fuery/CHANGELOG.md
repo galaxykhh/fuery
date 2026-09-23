@@ -1,3 +1,6 @@
+## 1.1.1
+- Released together with `fuery_core` 1.1.1, which fixes `fetchNextPage()` cancelling a refetch when there is no next page, `isFetchedAfterMount` for observers listened to after they were created, and expired persisted queries staying in the storage.
+
 ## 1.1.0
 - In debug builds, a Fuery widget that gets a new observer for the same key on a rebuild, which is what `Query.use` in `build` looks like, prints a warning once per key with a link to the fix.
 - Getting started ends with the first widget test, including the two lines that keep cache timers from failing it.

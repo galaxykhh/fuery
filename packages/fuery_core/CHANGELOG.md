@@ -1,3 +1,8 @@
+## 1.1.1
+- Fix: `fetchNextPage()` and `fetchPreviousPage()` do nothing when there is no such page, instead of cancelling a refetch in flight and marking the old pages as fresh. A call while that page is already loading waits for it instead of fetching it again.
+- Fix: `isFetchedAfterMount` counts from when the observer gets its first listener, and starts over when it is listened to again, instead of from when the observer was created.
+- Fix: `restore()` deletes stored queries that have expired, so data of keys the app no longer uses doesn't stay in the storage. Entries now record when they expire.
+
 ## 1.1.0
 - No changes. Released together with `fuery` 1.1.0.
 
