@@ -1,3 +1,6 @@
+## 1.4.1
+- Fix: keys with enums hash the enum by its `name`, without its type. Obfuscated and minified builds rename types, so the hash changed from build to build, and a query persisted under such a key wasn't restored after an app update. Data persisted under keys with enums by an earlier version isn't restored once after upgrading; it is refetched, and the old entry is deleted from the storage when it expires.
+
 ## 1.4.0
 - Add `QueriesSlot`, which renders a list of queries of one data type, keeps each query's observer while its key stays in the list, and gives their results in order, for adapters such as a `useQueries` hook.
 - Add `QueryClient.updateQueriesData`, which updates every query under a key that holds the updater's type, such as a post in every cached search result. It skips queries of other types and queries without data.

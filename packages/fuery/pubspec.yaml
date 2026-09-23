@@ -1,6 +1,6 @@
 name: fuery
 description: "Server data caching for Flutter: cache API responses, refetch in the background, paginate, mutate with optimistic updates, and keep data across restarts."
-version: 1.4.0
+version: 1.4.1
 homepage: https://galaxykhh.github.io/fuery/
 repository: https://github.com/galaxykhh/fuery/tree/main/packages/fuery
 documentation: https://galaxykhh.github.io/fuery/
@@ -20,7 +20,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  fuery_core: ^1.4.0
+  fuery_core: ^1.4.1
 
 dev_dependencies:
   flutter_test:

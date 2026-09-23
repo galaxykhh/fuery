@@ -1,3 +1,6 @@
+## 1.4.1
+- Released together with `fuery_core` 1.4.1, which keeps the hash of keys with enums the same in obfuscated and minified builds, so persisted queries under such keys are restored after an app update.
+
 ## 1.4.0
 - Add `QueriesBuilder` and `QueriesSelector`, which build from a list of queries of one data type at once, in order, such as one query per id. The example's search screen shows recently viewed posts with them.
 - Released together with `fuery_core` 1.4.0, which adds `QueryClient.updateQueriesData` and `InfiniteData.mapPages`, and runs `MutateOptions` callbacks for observers without listeners. A mutation widget that unmounts still drops the callbacks of its calls.
