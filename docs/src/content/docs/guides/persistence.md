@@ -167,7 +167,7 @@ await Fuery.client.restore(mutations: [addCommentOptions()]);
 - A restored run skips `onMutate`, and its callbacks receive `null` as `context`. An optimistic update belongs to the run that made it; the restored run only repeats the request and its `onSuccess`.
 - A stored run is deleted once the mutation succeeds or fails. `clear()` deletes them all.
 - An entry whose options weren't passed to `restore` is kept, so a later `restore` can run it. One stored by another `version` of its `MutationPersist`, or one that can't be read, is deleted.
-- `Mutation.noVariables` persists with `MutationPersist.noVariables`.
+- A mutation without variables persists with `MutationPersist.noVariables`. `restore` needs it as options with `void` variables, such as `MutationOptions(mutationKey: ['sync'], mutationFn: (_) => api.sync(), persist: MutationPersist.noVariables)`, and a screen observes those options and calls `mutate(null)`.
 
 A request that had reached the server before the app closed runs again after the restart. Persist mutations whose request is safe to repeat, or make the server treat a repeat as the same write.
 
