@@ -132,13 +132,14 @@ queryFn: (context) {
 
 ## Widgets
 
-Each kind of query has a builder, a listener, a consumer, and a selector:
+Queries, infinite queries, and mutations each have a builder, a listener, a consumer, and a selector, and a list of queries has a builder and a selector:
 
 | | Rebuild UI | Side effects | Both | Part of the state |
 |---|---|---|---|---|
 | Query | `QueryBuilder` | `QueryListener` | `QueryConsumer` | `QuerySelector` |
 | Infinite query | `InfiniteQueryBuilder` | `InfiniteQueryListener` | `InfiniteQueryConsumer` | `InfiniteQuerySelector` |
 | Mutation | `MutationBuilder` | `MutationListener` | `MutationConsumer` | `MutationSelector` |
+| Several queries | `QueriesBuilder` | | | `QueriesSelector` |
 
 Each takes a query (or a mutation) and keeps one observer for it. Pass the same definition from several widgets, and they share one cache entry and one request. The result has the actions, too: `state.refetch()`, `state.fetchNextPage()`, and `state.mutate(...)`.
 
@@ -162,6 +163,17 @@ QueryListener(
   listener: (context, state) => ScaffoldMessenger.of(context)
       .showSnackBar(SnackBar(content: Text('Could not refresh: ${state.error}'))),
   child: ...,
+)
+```
+
+`QueriesBuilder` builds from a list of queries of one type at once, with the results in order:
+
+```dart
+QueriesBuilder(
+  queries: [for (final id in ids) todoQuery(id)],
+  builder: (context, results) => Text(
+    '${results.where((result) => result.hasData).length} of ${ids.length} loaded',
+  ),
 )
 ```
 

@@ -354,6 +354,11 @@ void main() {
     final observedSlot = QuerySlot(todos.observe(client: client), client);
     final pagesSlot = InfiniteQuerySlot(pages, client);
     final addSlot = MutationSlot(add, client);
+    final listSlot =
+        QueriesSlot([todos, todos.observe(client: client)], client);
+    final QueriesSlot<List<Todo>> typedList = listSlot;
+    expect(typedList.result, hasLength(2));
+    listSlot.dispose();
 
     final QuerySlot<List<Todo>> typedTodos = todosSlot;
     final QuerySlot<List<Todo>> typedObserved = observedSlot;

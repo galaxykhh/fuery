@@ -1,4 +1,5 @@
 ## 1.4.0
+- Add `QueriesSlot`, which renders a list of queries of one data type, keeps each query's observer while its key stays in the list, and gives their results in order, for adapters such as a `useQueries` hook.
 - Add `QueryClient.updateQueriesData`, which updates every query under a key that holds the updater's type, such as a post in every cached search result. It skips queries of other types and queries without data.
 - Add `InfiniteData.mapPages`, which replaces every page and keeps the params, for optimistic updates of infinite queries.
 - `MutateOptions` callbacks run once their `mutate` call settles, whether or not the observer has listeners. A later call on the same observer or `reset()` still drops them, and `MutationSlot` resets the observer it owns when disposed. Before, an observer without listeners dropped them silently.

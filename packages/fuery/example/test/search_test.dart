@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fuery/fuery.dart';
 
 import 'helpers.dart';
 
@@ -64,6 +65,46 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300)); // the request
     await tester.pump(const Duration(milliseconds: 300)); // results refetch
     expect(tester.widget<Text>(likesOfTopPost()).data, endsWith('9 likes'));
+    await tearDownApp(tester);
+  });
+
+  testWidgets('posts opened before show at once while nothing is typed',
+      (tester) async {
+    await pumpApp(tester);
+    await loadFeed(tester);
+    await openPost(tester, topPost);
+    await tester.pump(const Duration(milliseconds: 300)); // the post loads
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    await openTab(tester, 'Search');
+    // From the cache, in the first frame, and fresh, so nothing is fetched.
+    expect(find.text('Recently viewed'), findsOneWidget);
+    expect(find.text(topPost), findsOneWidget);
+    expect(Fuery.client.isFetching(queryKey: ['posts', 'detail']), 0);
+    await tearDownApp(tester);
+  });
+
+  testWidgets('clearing the term goes back to the recently viewed posts',
+      (tester) async {
+    await pumpApp(tester);
+    await loadFeed(tester);
+    await openPost(tester, topPost);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await openTab(tester, 'Search');
+
+    await tester.enterText(find.byType(TextField), 'airplane');
+    await tester.pump(const Duration(milliseconds: 300)); // debounce
+    await tester.pump(const Duration(milliseconds: 300)); // request
+    expect(find.textContaining('Airplane mode'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), '');
+    await tester.pump(const Duration(milliseconds: 300)); // debounce
+    expect(find.text('Recently viewed'), findsOneWidget);
+    expect(find.textContaining('Airplane mode'), findsNothing);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
     await tearDownApp(tester);
   });
 }

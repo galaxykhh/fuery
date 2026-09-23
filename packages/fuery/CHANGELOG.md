@@ -1,4 +1,5 @@
 ## 1.4.0
+- Add `QueriesBuilder` and `QueriesSelector`, which build from a list of queries of one data type at once, in order, such as one query per id. The example's search screen shows recently viewed posts with them.
 - Released together with `fuery_core` 1.4.0, which adds `QueryClient.updateQueriesData` and `InfiniteData.mapPages`, and runs `MutateOptions` callbacks for observers without listeners. A mutation widget that unmounts still drops the callbacks of its calls.
 - The example's like updates cached search results too, and the search screen shows like counts.
 
