@@ -1,5 +1,6 @@
 import 'package:example/app/data/feed_mutations.dart';
 import 'package:example/app/data/feed_queries.dart';
+import 'package:example/app/data/recent_posts.dart';
 import 'package:flutter/material.dart';
 import 'package:fuery/fuery.dart';
 
@@ -30,6 +31,15 @@ class _PostScreenState extends State<PostScreen> {
   final _draft = TextEditingController();
   // Asked for with a button, so the stream doesn't start until then.
   bool _summarize = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // After the frame: the search screen listens, and can't rebuild during
+    // this build.
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => rememberPost(widget.id));
+  }
 
   @override
   void dispose() {

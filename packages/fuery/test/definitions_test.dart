@@ -206,6 +206,75 @@ void main() {
     await tearDownApp(tester);
   });
 
+  testWidgets('QueriesBuilder renders a list of queries built in build',
+      (tester) async {
+    var builds = 0;
+    Widget app(List<int> ids) => FueryProvider(
+          client: client,
+          child: MaterialApp(
+            home: QueriesBuilder(
+              queries: [for (final id in ids) post(id)],
+              builder: (context, results) {
+                builds++;
+                return Text(
+                  [for (final r in results) r.data ?? '…'].join(', '),
+                );
+              },
+            ),
+          ),
+        );
+
+    await tester.pumpWidget(app([1, 2]));
+    expect(find.text('…, …'), findsOneWidget);
+    await tester.pump(ms10);
+    // Both arrive together: one rebuild for both.
+    expect(find.text('post 1, post 2'), findsOneWidget);
+    expect(builds, 2);
+    expect(fetched, [1, 2]);
+
+    // Reordered, the cached results show in the same frame, with no fetch.
+    await tester.pumpWidget(app([2, 1]));
+    expect(find.text('post 2, post 1'), findsOneWidget);
+    await tester.pump(ms10);
+    expect(fetched, [1, 2]);
+
+    // A new id loads while the others stay.
+    await tester.pumpWidget(app([2, 3]));
+    expect(find.text('post 2, …'), findsOneWidget);
+    await tester.pump(ms10);
+    expect(find.text('post 2, post 3'), findsOneWidget);
+    expect(fetched, [1, 2, 3]);
+    await tearDownApp(tester);
+  });
+
+  testWidgets('QueriesSelector rebuilds only when the value changes',
+      (tester) async {
+    var builds = 0;
+    await tester.pumpWidget(FueryProvider(
+      client: client,
+      child: MaterialApp(
+        home: QueriesSelector(
+          queries: [post(1), post(2)],
+          selector: (results) => results.where((r) => r.hasData).length,
+          builder: (context, loaded) {
+            builds++;
+            return Text('$loaded loaded');
+          },
+        ),
+      ),
+    ));
+    expect(find.text('0 loaded'), findsOneWidget);
+    await tester.pump(ms10);
+    expect(find.text('2 loaded'), findsOneWidget);
+    expect(builds, 2);
+
+    client.invalidateQueries(queryKey: ['post']);
+    await tester.pump();
+    await tester.pump(ms10);
+    expect(builds, 2);
+    await tearDownApp(tester);
+  });
+
   testWidgets('FueryProvider.of with listen rebuilds for a new client',
       (tester) async {
     final other = newClient();

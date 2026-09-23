@@ -11,7 +11,10 @@ QueryKey postKey(int id) => ['posts', 'detail', id];
 
 QueryKey commentsKey(int postId) => ['posts', 'comments', postId];
 
-QueryKey searchKey(String term) => ['posts', 'search', term];
+/// Every search term's results are under this key.
+const searchResultsKey = ['posts', 'search'];
+
+QueryKey searchKey(String term) => [...searchResultsKey, term];
 
 QueryKey summaryKey(int postId) => ['posts', 'summary', postId];
 
@@ -45,11 +48,14 @@ Future<Post> _fetchPost(int id) => DemoApi().getPost(id);
 
 /// One post. While it loads, the feed's copy is shown as placeholder data, so
 /// opening a post never shows a spinner. The feed also prefetches it with
-/// `client.query` when the pointer hovers its card.
+/// `client.query` when the pointer hovers its card. A post just seen stays
+/// fresh for 30 seconds, so the search screen's recently viewed list shows
+/// it without asking again.
 Query<Post> postQuery(int id) {
   return Query(
     queryKey: postKey(id),
     queryFn: (_) => _fetchPost(id),
+    staleTime: const Duration(seconds: 30),
     placeholderData: (previous, client) {
       if (previous != null) return previous;
       final feed = client.getData(feedQuery());

@@ -34,6 +34,24 @@ notifyManager.batch(() {
 });
 ```
 
+## Updating many queries at once
+
+`updateQueriesData` updates every query under a key that holds the updater's type, such as a post in every cached search result:
+
+```dart
+client.updateQueriesData(
+  queryKey: ['posts', 'search'],
+  (List<Post> posts) => [
+    for (final post in posts) post.id == id ? post.copyWith(liked: true) : post,
+  ],
+);
+```
+
+- Queries of another type under the same key are left alone, so a prefix can mix lists and details.
+- Queries without data are skipped, and returning `null` leaves a query unchanged.
+- The type comes from the parameter of the updater, so give it one: the queries' data type exactly, not a supertype such as `Iterable<Post>`. Without a type, `updateQueriesData` throws an `ArgumentError` rather than update nothing.
+- `updatedAt` sets when the new data counts as fetched, as for `setData`.
+
 ## Listing what is cached
 
 `getQueriesData` reads many keys at once and returns the key and data of every match. It takes `queryKey`, `exact`, and `predicate`:

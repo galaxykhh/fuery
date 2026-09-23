@@ -354,6 +354,11 @@ void main() {
     final observedSlot = QuerySlot(todos.observe(client: client), client);
     final pagesSlot = InfiniteQuerySlot(pages, client);
     final addSlot = MutationSlot(add, client);
+    final listSlot =
+        QueriesSlot([todos, todos.observe(client: client)], client);
+    final QueriesSlot<List<Todo>> typedList = listSlot;
+    expect(typedList.result, hasLength(2));
+    listSlot.dispose();
 
     final QuerySlot<List<Todo>> typedTodos = todosSlot;
     final QuerySlot<List<Todo>> typedObserved = observedSlot;
@@ -374,6 +379,44 @@ void main() {
     ]) {
       slot.dispose();
     }
+  });
+
+  fakeTest('updateQueriesData and mapPages take their types from the updater',
+      (async) {
+    final todos = Query(
+      queryKey: ['todos', 'open'],
+      queryFn: (_) async => [const Todo('a')],
+    );
+    final pages = InfiniteQuery(
+      queryKey: ['pages'],
+      queryFn: (context) async =>
+          PostPage(['${context.pageParam}'], hasMore: false),
+      initialPageParam: 1,
+      getNextPageParam: (data) => null,
+    );
+    client.setData(todos, [const Todo('a')]);
+    client.setData(
+      pages,
+      const InfiniteData(pages: [
+        PostPage(['a'], hasMore: false)
+      ], pageParams: [
+        1
+      ]),
+    );
+
+    client.updateQueriesData(
+      queryKey: ['todos'],
+      (List<Todo> todos) => [...todos, const Todo('b')],
+    );
+    client.updateData(
+      pages,
+      (data) => data?.mapPages(
+        (page) => PostPage([...page.titles, 'b'], hasMore: page.hasMore),
+      ),
+    );
+
+    expect(client.getData(todos)!.map((todo) => todo.title), ['a', 'b']);
+    expect(client.getData(pages)!.lastPage.titles, ['a', 'b']);
   });
 }
 

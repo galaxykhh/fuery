@@ -83,9 +83,13 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
   /// Runs the mutation. A [restored] mutation was stored by a previous run:
   /// it is already stored under `storageKey`, keeps its `submittedAt`, and
   /// skips `onMutate`, whose work belongs to the run that submitted it.
+  ///
+  /// [onCallSettled] gets the result of this run first, before observers
+  /// hear of it, for the callbacks of the `mutate` call that started it.
   Future<TData> _execute(
     TVariables variables, {
     ({String storageKey, int submittedAt})? restored,
+    void Function(TData? data, Object? error)? onCallSettled,
   }) async {
     final retryer = _retryer = Retryer<TData>(
       fn: () => _options.mutationFn(variables),
@@ -147,7 +151,10 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
         _client,
       );
 
-      _dispatch(_MutationSuccessAction(data));
+      _dispatch(
+        _MutationSuccessAction(data),
+        onCallSettled == null ? null : () => onCallSettled(data, null),
+      );
       return data;
     } catch (error, stackTrace) {
       // Errors thrown by the error callbacks must not hide the mutation error.
@@ -181,7 +188,10 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
         ),
       );
 
-      _dispatch(_MutationErrorAction(error));
+      _dispatch(
+        _MutationErrorAction(error),
+        onCallSettled == null ? null : () => onCallSettled(null, error),
+      );
       Error.throwWithStackTrace(error, stackTrace);
     } finally {
       if (identical(_retryer, retryer)) _retryer = null;
@@ -231,7 +241,8 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
     }
   }
 
-  void _dispatch(_MutationAction action) {
+  /// Applies [action] and notifies, running [first] before the observers.
+  void _dispatch(_MutationAction action, [void Function()? first]) {
     _state = switch (action) {
       _MutationFailedAction(:final failureCount, :final error) =>
         _state.copyWith(failureCount: failureCount, failureReason: error),
@@ -273,8 +284,9 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
     };
 
     notifyManager.batch(() {
+      first?.call();
       for (final observer in _observers.toList()) {
-        observer._onMutationUpdate(action);
+        observer._onMutationUpdate();
       }
       _mutationCache._notify();
     });

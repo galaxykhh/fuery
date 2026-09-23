@@ -152,6 +152,84 @@ void main() {
     });
   });
 
+  group('QueriesSlot', () {
+    fakeTest('renders a list of queries that changes on every frame', (async) {
+      client.setQueryData(['post', 1], 'post 1');
+      final slot = QueriesSlot([post(1), post(2)], client);
+      final pushed = <List<QueryResult<String>>>[];
+      final unsubscribe = slot.subscribe(pushed.add);
+
+      expect(slot.result.map((result) => result.data), ['post 1', null]);
+      expect(slot.result[1].isLoading, isTrue);
+      async.elapse(ms10);
+      // Both results arrive together, in the order of the queries.
+      expect(pushed.last.map((result) => result.data), ['post 1', 'post 2']);
+      final first = slot.result;
+      expect(identical(slot.result, first), isTrue);
+
+      // A new order keeps the observers of the keys that stay.
+      final observers = slot.observer;
+      slot.update([post(2), post(1)], client);
+      expect(slot.result.map((result) => result.data), ['post 2', 'post 1']);
+      expect(slot.observer, [observers[1], observers[0]]);
+
+      // A removed key's observer goes, a new key's arrives.
+      slot.update([post(2), post(3)], client);
+      expect(identical(slot.observer.first, observers[1]), isTrue);
+      async.elapse(ms10);
+      expect(pushed.last.map((result) => result.data), ['post 2', 'post 3']);
+
+      // The same query twice gets two observers, and a shared observer is
+      // used as it is.
+      final shared = post(4).observe(client: client);
+      slot.update([post(2), post(2), shared], client);
+      expect(slot.observer, hasLength(3));
+      expect(identical(slot.observer.last, shared), isTrue);
+      async.elapse(ms10);
+      expect(slot.result.map((result) => result.data),
+          ['post 2', 'post 2', 'post 4']);
+
+      unsubscribe();
+      slot.dispose();
+    });
+
+    fakeTest('results always act on the query now in their place', (async) {
+      // Pending results are equal by value, whatever query they belong to.
+      final slot = QueriesSlot([post(1), post(2)], client);
+      final before = slot.result;
+      slot.update([post(2), post(1)], client);
+      final after = slot.result;
+
+      expect(identical(after, before), isFalse);
+      // Refetching the first result reaches post 2's observer, not post 1's.
+      QueryResult<String>? refetched;
+      after.first.refetch().then((result) => refetched = result);
+      async.elapse(ms10);
+      expect(refetched!.data, 'post 2');
+      slot.dispose();
+      expect(slot.observer, isEmpty);
+    });
+
+    fakeTest('disposing while listened to stops the pushes', (async) {
+      final slot = QueriesSlot([post(1)], client);
+      final pushed = <List<QueryResult<String>>>[];
+      slot.subscribe(pushed.add);
+      slot.dispose();
+      async.elapse(ms10);
+
+      expect(pushed, isEmpty);
+      expect(slot.result, isEmpty);
+    });
+
+    fakeTest('an empty list renders nothing', (async) {
+      final slot = QueriesSlot<String>([], client);
+      expect(slot.result, isEmpty);
+      slot.update([post(1)], client);
+      expect(slot.result.single.isPending, isTrue);
+      slot.dispose();
+    });
+  });
+
   group('InfiniteQuerySlot', () {
     InfiniteQuery<String, int> pages() => InfiniteQuery(
           queryKey: ['pages'],

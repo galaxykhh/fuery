@@ -75,6 +75,15 @@ Builders and streams receive an `InfiniteQueryResult`. It carries every [`QueryR
 - `pages` and `pageParams`: every page and the param it was loaded with
 - `lastPage`, `lastPageParam`, `firstPage`, `firstPageParam`
 
+To change an item in the cached pages, for an optimistic update, `mapPages` replaces every page and keeps the params:
+
+```dart
+client.updateData(
+  postsQuery(),
+  (data) => data?.mapPages((page) => page.withPost(updatedPost)),
+);
+```
+
 ## Cursor-based pages
 
 APIs that return a cursor for the next page work the same way. If the first request has no cursor, give `null` its type so Dart can infer the param type:

@@ -9,6 +9,7 @@ export 'src/fuery_binding.dart';
 export 'src/fuery_provider.dart';
 export 'src/infinite_query_widgets.dart';
 export 'src/mutation_widgets.dart';
+export 'src/queries_widgets.dart';
 export 'src/query_widgets.dart';
 export 'src/result_subscriber.dart'
     show ResultCondition, ResultWidgetBuilder, ResultWidgetListener;

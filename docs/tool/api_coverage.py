@@ -46,7 +46,7 @@ TOP_LEVEL = {CLASS: "Types", ENUM: "Types", TYPEDEF: "Types",
 MEMBERS_OF = {
     "QueryClient", "QueryObserver", "InfiniteQueryObserver", "MutationObserver",
     "NoVariablesMutationObserver", "QueryResult", "InfiniteQueryResult", "InfiniteData",
-    "MutationResult", "QuerySlot", "InfiniteQuerySlot", "MutationSlot",
+    "MutationResult", "QuerySlot", "InfiniteQuerySlot", "MutationSlot", "QueriesSlot",
     "MutationState", "QueryState", "Fuery", "QueryStorage", "QueryPersist",
     "InfiniteQueryPersist", "FocusManager", "OnlineManager", "NotifyManager",
     "AbortSignal", "QueryCache", "MutationCache",

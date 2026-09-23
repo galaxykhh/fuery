@@ -90,6 +90,8 @@ final posts = InfiniteQuery(
 );
 ```
 
+Every loaded page is stored together, and written again after each page loads. Set `maxPages` to keep a long feed from growing into a large entry in the storage.
+
 Page params are stored as they are, so they must be JSON values like numbers, strings, or `null`. Otherwise, add `paramToJson` and `paramFromJson`. Params reach those as `Object?`, so cast them: `paramToJson: (date) => (date! as DateTime).toIso8601String()`.
 
 ## When stored data is discarded

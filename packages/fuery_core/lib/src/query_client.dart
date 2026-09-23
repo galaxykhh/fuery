@@ -410,6 +410,57 @@ class QueryClient {
         .toList();
   }
 
+  /// Updates the data of every matching query that holds a [TData], for
+  /// example a post in every list under `['posts']`. Queries of other types
+  /// under the same key are left alone, and so are queries without data.
+  /// Returning `null` from [updater] leaves that query unchanged.
+  ///
+  /// The data type comes from the parameter of [updater], so give it a type:
+  /// exactly the data type of the queries, since a query of another type,
+  /// even a subtype, is skipped. Without a type it throws an [ArgumentError]:
+  ///
+  /// ```dart
+  /// client.updateQueriesData(
+  ///   queryKey: ['posts', 'search'],
+  ///   (List<Post> posts) => [
+  ///     for (final post in posts) post.id == id ? post.liked() : post,
+  ///   ],
+  /// );
+  /// ```
+  void updateQueriesData<TData extends Object>(
+    TData? Function(TData data) updater, {
+    QueryKey? queryKey,
+    bool exact = false,
+    bool Function(CachedQuery<Object> query)? predicate,
+    int? updatedAt,
+  }) {
+    // An updater whose parameter has no type makes TData Object, which no
+    // query holds, so nothing would be updated without a word.
+    if (TData == Object) {
+      throw ArgumentError(
+        'updateQueriesData needs the data type. Give the parameter of the '
+        'updater a type, such as (List<Post> posts) => ...',
+      );
+    }
+    final filters = QueryFilters(
+      queryKey: queryKey,
+      exact: exact,
+      predicate: predicate,
+    );
+    notifyManager.batch(() {
+      for (final query in queryCache.findAll(filters)) {
+        if (query._dataType != TData) continue;
+        final typed = query as CachedQuery<TData>;
+        final data = typed.state.data;
+        if (data == null) continue;
+        final next = updater(data);
+        if (next != null) {
+          typed._setData(next, updatedAt: updatedAt, manual: true);
+        }
+      }
+    });
+  }
+
   /// Writes [data] to the cache for [queryKey], creating the query if needed.
   ///
   /// Use the same [TData] as the query that reads this key.

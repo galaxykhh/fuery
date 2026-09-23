@@ -1,5 +1,6 @@
 import 'package:example/app/app.dart';
 import 'package:example/app/data/demo_api.dart';
+import 'package:example/app/data/recent_posts.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fuery/fuery.dart';
@@ -14,6 +15,7 @@ const secondPagePost = 'Reminder to cancel the request when the screen closes.';
 /// Pumps the app on a fresh server, which opens the feed.
 Future<void> pumpApp(WidgetTester tester) async {
   DemoApi.reset();
+  recentPosts.value = const [];
   onlineManager.setOnline(true);
   await tester.pumpWidget(const FeedApp());
   await tester.pump();

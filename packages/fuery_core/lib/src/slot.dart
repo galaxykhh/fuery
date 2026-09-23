@@ -270,8 +270,157 @@ final class MutationSlot<TData, TVariables, TContext> extends _Slot<
     return observer.subscribe(listener);
   }
 
-  // A mutation observer holds nothing to release: its runs finish on their
-  // own, and unsubscribing detaches it from its mutation.
+  // Runs finish on their own. Resetting drops the callbacks of the latest
+  // `mutate` call, which belong to the widget that is going away.
   @override
-  void _destroy(MutationObserver<TData, TVariables, TContext> observer) {}
+  void _destroy(MutationObserver<TData, TVariables, TContext> observer) {
+    observer.reset();
+  }
+}
+
+/// An [ObserverSlot] for a list of queries of one data type, such as one
+/// query per id. Its result lists the result of every query, in order.
+///
+/// Every query keeps its own observer while its key stays in the list, even
+/// when the list is reordered; a key that leaves the list lets its observer
+/// go. A query whose key changes therefore starts over, and its
+/// `placeholderData` gets no previous data: one item's data never stands in
+/// for another's. Changes that arrive together reach listeners once.
+final class QueriesSlot<TData extends Object>
+    extends ObserverSlot<List<QuerySource<TData>>, List<QueryResult<TData>>> {
+  QueriesSlot(List<QuerySource<TData>> queries, QueryClient client) {
+    update(queries, client);
+  }
+
+  /// The slot of every query, with the key it is reused by.
+  List<(Object, QuerySlot<TData>)> _entries = const [];
+  final Map<QuerySlot<TData>, void Function()> _unsubscribes = {};
+
+  /// The latest result each query pushed, so a push reads no observer.
+  final Map<QuerySlot<TData>, QueryResult<TData>> _pushedBy = {};
+  List<QueryObserver<TData>> _observers = const [];
+  List<QueryResult<TData>> _result = const [];
+  List<QueryResult<TData>>? _pushed;
+  bool _scheduled = false;
+
+  /// The observer of every query, in order. A new list only when an
+  /// observer is added, removed, replaced, or moved.
+  @override
+  List<QueryObserver<TData>> get observer => _observers;
+
+  @override
+  List<QueryResult<TData>> get result {
+    return _combine([for (final (_, slot) in _entries) slot.result]);
+  }
+
+  /// Keeps the previous list while every result is the same object. Results
+  /// equal by value can belong to other queries, so `==` isn't enough.
+  List<QueryResult<TData>> _combine(List<QueryResult<TData>> next) {
+    if (!_sameItems(next, _result)) _result = List.unmodifiable(next);
+    return _result;
+  }
+
+  @override
+  void update(List<QuerySource<TData>> source, QueryClient client) {
+    final reusable = <Object, List<QuerySlot<TData>>>{};
+    for (final (key, slot) in _entries) {
+      (reusable[key] ??= []).add(slot);
+    }
+
+    final entries = <(Object, QuerySlot<TData>)>[];
+    for (final query in source) {
+      // Owned observers are reused by key, shared ones by identity.
+      final key = query is Query<TData> ? hashKey(query.queryKey) : query;
+      final slots = reusable[key];
+      final QuerySlot<TData> slot;
+      if (slots != null && slots.isNotEmpty) {
+        slot = slots.removeAt(0);
+        slot.update(query, client);
+        // A new client can give the slot another observer.
+        _pushedBy.remove(slot);
+      } else {
+        slot = QuerySlot<TData>(query, client);
+        if (hasListeners) _listenTo(slot);
+      }
+      entries.add((key, slot));
+    }
+    for (final slot in reusable.values.expand((slots) => slots)) {
+      _unsubscribes.remove(slot)?.call();
+      _pushedBy.remove(slot);
+      slot.dispose();
+    }
+
+    _entries = entries;
+    final observers = [for (final (_, slot) in entries) slot.observer];
+    if (!_sameItems(observers, _observers)) {
+      _observers = List.unmodifiable(observers);
+    }
+  }
+
+  @override
+  void dispose() {
+    clearListeners();
+    for (final unsubscribe in _unsubscribes.values) {
+      unsubscribe();
+    }
+    _unsubscribes.clear();
+    for (final (_, slot) in _entries) {
+      slot.dispose();
+    }
+    _entries = const [];
+    _observers = const [];
+    _result = const [];
+    _pushedBy.clear();
+  }
+
+  @override
+  void onSubscribe() {
+    if (listeners.length != 1) return;
+    for (final (_, slot) in _entries) {
+      _listenTo(slot);
+    }
+  }
+
+  @override
+  void onUnsubscribe() {
+    if (hasListeners) return;
+    for (final unsubscribe in _unsubscribes.values) {
+      unsubscribe();
+    }
+    _unsubscribes.clear();
+    _pushedBy.clear();
+  }
+
+  void _listenTo(QuerySlot<TData> slot) {
+    _unsubscribes[slot] = slot.subscribe((result) {
+      _pushedBy[slot] = result;
+      _schedulePush();
+    });
+  }
+
+  /// Pushes the combined result once, after the changes of this batch.
+  void _schedulePush() {
+    if (_scheduled) return;
+    _scheduled = true;
+    notifyManager.schedule(() {
+      _scheduled = false;
+      if (!hasListeners) return;
+      final result = _combine([
+        for (final (_, slot) in _entries) _pushedBy[slot] ?? slot.result,
+      ]);
+      if (identical(result, _pushed)) return;
+      _pushed = result;
+      for (final listener in listeners) {
+        listener(result);
+      }
+    });
+  }
+
+  static bool _sameItems(List<Object> a, List<Object> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (!identical(a[i], b[i])) return false;
+    }
+    return true;
+  }
 }

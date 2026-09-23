@@ -217,6 +217,103 @@ void main() {
     expect(events, ['success a', 'settled a']);
   });
 
+  fakeTest('per-call callbacks run without listeners', (async) {
+    // An observer kept in a State field that no widget listens to.
+    final observer = Mutation(mutationFn: slowEcho).observe(client: client);
+    final events = <String>[];
+
+    observer.mutate(
+      'a',
+      MutateOptions(
+        onSuccess: (data, _, __, client) => events.add('success $data'),
+        onSettled: (data, _, variables, __, client) =>
+            events.add('settled $variables'),
+      ),
+    );
+    int? length;
+    observer
+        .mutateAsync(
+          'bb',
+          MutateOptions(
+            onError: (error, _, __, client) => events.add('error'),
+          ),
+        )
+        .then((data) => length = data.length);
+    async.elapse(ms10);
+
+    // A later call replaces the callbacks of the earlier one.
+    expect(events, isEmpty);
+    expect(length, 2);
+
+    observer.mutate(
+      'c',
+      MutateOptions(onSuccess: (data, _, __, client) => events.add(data)),
+    );
+    async.elapse(ms10);
+    expect(events, ['c']);
+  });
+
+  fakeTest('per-call callbacks run before listeners react to the result',
+      (async) {
+    final observer = Mutation(mutationFn: slowEcho).observe(client: client);
+    final events = <String>[];
+    // A listener that resets once the mutation succeeds.
+    observer.subscribe((result) {
+      if (result.isSuccess) observer.reset();
+    });
+
+    observer.mutate(
+      'a',
+      MutateOptions(
+        onSuccess: (data, _, __, client) => events.add('success $data'),
+        onSettled: (data, _, __, ___, client) => events.add('settled $data'),
+      ),
+    );
+    async.elapse(ms10);
+    expect(events, ['success a', 'settled a']);
+
+    // A call started from onSuccess replaces the rest of the callbacks.
+    events.clear();
+    observer.mutate(
+      'b',
+      MutateOptions(
+        onSuccess: (data, _, __, client) {
+          events.add('success $data');
+          observer.mutate('c');
+        },
+        onSettled: (data, _, __, ___, client) => events.add('settled $data'),
+      ),
+    );
+    async.elapse(ms10 * 2);
+    expect(events, ['success b']);
+  });
+
+  fakeTest('per-call callbacks stop after reset', (async) {
+    final observer = Mutation(mutationFn: slowEcho).observe(client: client);
+    final events = <String>[];
+    observer.mutate(
+      'a',
+      MutateOptions(onSuccess: (data, _, __, client) => events.add(data)),
+    );
+    observer.reset();
+    async.elapse(ms10);
+
+    expect(events, isEmpty);
+  });
+
+  fakeTest('per-call callbacks stop when the owning slot is disposed', (async) {
+    final slot = MutationSlot(Mutation(mutationFn: slowEcho), client);
+    final events = <String>[];
+    slot.result.mutate(
+      'a',
+      MutateOptions(onSuccess: (data, _, __, client) => events.add(data)),
+    );
+    slot.dispose(); // the widget that rendered it unmounted
+    async.elapse(ms10);
+
+    expect(events, isEmpty);
+  });
+
   fakeTest('reset returns to idle', (async) {
     final observer = Mutation(mutationFn: slowEcho).observe(client: client);
     observer.subscribe((_) {});
