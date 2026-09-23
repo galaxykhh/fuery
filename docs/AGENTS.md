@@ -32,7 +32,7 @@ Readers arrive with a task and leave as soon as it works. Write for that.
 - **Active voice, present tense.** "Fuery refetches the query", not "the query will be refetched".
 - **Don't promise what the code doesn't do.** No roadmap, no "coming soon", no describing behavior you haven't run.
 
-Rules from the root `AGENTS.md` apply here too: describe Fuery on its own terms, never compare it with other packages, document the current API only, and don't add upgrade or migration guides.
+Rules from the root `AGENTS.md` apply here too: document the current API only, and don't add upgrade or migration guides.
 
 ## Frontmatter
 

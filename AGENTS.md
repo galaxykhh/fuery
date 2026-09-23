@@ -39,7 +39,7 @@ CI (`.github/workflows/ci.yml`) runs format, analyze, all three test suites, and
 - Keep `flutter analyze packages` at zero issues and `dart format` clean.
 - Keep 100% line coverage in both packages. Mark truly unreachable defensive code with `// coverage:ignore-start` / `// coverage:ignore-end` and a comment explaining why it can't run.
 - For a bug fix, write the failing test first and confirm it fails before fixing.
-- Public entry points (the `Query`, `InfiniteQuery`, `Mutation`, and `NoVariablesMutation` constructors, their `observe()`, `QuerySlot`, `InfiniteQuerySlot`, `MutationSlot`, `QueryClient.getData`/`setData`/`updateData`, `streamedQuery`, `QueryClient.watch`, `QueryPersist`, `InfiniteQueryPersist`, and the widgets) must work without explicit type arguments. This includes apps that enable `strict-inference`: give a type parameter that only optional arguments use a bound, such as `TContext extends Object?`, so it falls back to the bound instead of failing inference. Both packages enable `strict-casts`, `strict-inference`, and `strict-raw-types`, so `packages/fuery_core/test/inference_test.dart` fails analysis or stops compiling if inference breaks; extend it for new entry points.
+- Public entry points (the `Query`, `InfiniteQuery`, `Mutation`, and `NoVariablesMutation` constructors, their `observe()`, `QuerySlot`, `InfiniteQuerySlot`, `MutationSlot`, `QueriesSlot`, `QueryClient.getData`/`setData`/`updateData`, `streamedQuery`, `QueryClient.watch`, `QueryPersist`, `InfiniteQueryPersist`, and the widgets) must work without explicit type arguments. This includes apps that enable `strict-inference`: give a type parameter that only optional arguments use a bound, such as `TContext extends Object?`, so it falls back to the bound instead of failing inference. Both packages enable `strict-casts`, `strict-inference`, and `strict-raw-types`, so `packages/fuery_core/test/inference_test.dart` fails analysis or stops compiling if inference breaks; extend it for new entry points.
 - Anything the Flutter widgets do, another adapter (hooks, another state library) must be able to do with the public API alone. Keep behavior in `fuery_core`: the widgets render through the core's slots (`ObserverSlot`) and add only Flutter plumbing. Don't hide exports that `fuery` itself needs; `packages/fuery_core/test/adapter_test.dart` renders queries through the public API without Flutter and must keep passing.
 - Keep the public API to what apps and `fuery` use. Making something public later is not breaking, but hiding it is. Apps change the caches through `QueryClient` and observe them with `QueryClient.watch`; don't add public cache events or cache-mutating methods.
 - Fetch outside widgets with `client.query` and `client.infiniteQuery`. Don't add `fetchQuery`, `prefetchQuery`, or `ensureQueryData`-style methods.
@@ -50,10 +50,9 @@ CI (`.github/workflows/ci.yml`) runs format, analyze, all three test suites, and
 ## Writing docs
 
 - The logo, README banner, GitHub social preview, and icon live in `assets/brand/`. Edit the SVGs, then run `python3 assets/brand/render.py` to regenerate the PNGs. Palette: violet `#6B4EFF`, lime `#C6F542`, lavender `#C9BEFF`, ink `#14112B`.
-- Describe Fuery on its own terms: what it does and how it fits Flutter. Don't compare it with other libraries, describe it as working like another package, or call it a port. Guides may show how to use Fuery together with other packages, such as bloc.
 - Keep README examples short and runnable against the real API.
 - READMEs and the docs site describe the current API only. Don't add upgrade or migration guides.
 
 ## Commits
 
-Use `type: summary` in the imperative, matching the history: `feat`, `fix`, `refactor`, `test`, `doc`, `chore`. Don't add AI co-author or tool attribution trailers to commit messages.
+Use `type: summary` in the imperative, matching the history: `feat`, `fix`, `refactor`, `test`, `doc`, `chore`.
