@@ -325,6 +325,37 @@ void main() {
       async.elapse(const Duration(seconds: 1));
       expect(asyncClient.getQueryData<List<String>>(['todos']), ['stored']);
     });
+
+    fakeTest('deletes stored queries that have expired', (async) {
+      final hour = QueryPersist<List<String>>(
+        maxAge: const Duration(hours: 1),
+        toJson: (todos) => todos,
+        fromJson: (json) => List<String>.from(json! as List),
+      );
+      final unsubscribes = [
+        todos(FakeFetcher(() => ['a']), queryKey: ['hour'], persist: hour),
+        todos(FakeFetcher(() => ['b']), queryKey: ['day']),
+      ].map((observer) => observer.subscribe((_) {})).toList();
+      async.elapse(ms10);
+      for (final unsubscribe in unsubscribes) {
+        unsubscribe();
+      }
+      // Stored before entries recorded when they expire.
+      memory.entries[storageKey(['legacy'])] =
+          entry(['c'], age: const Duration(days: 30));
+      async.elapse(const Duration(hours: 2));
+
+      // The app starts again and never uses ['hour'].
+      createClient().restore();
+      async.flushMicrotasks();
+
+      expect(
+          memory.entries.keys,
+          unorderedEquals([
+            storageKey(['day']),
+            storageKey(['legacy']),
+          ]));
+    });
   });
 
   group('deleting', () {

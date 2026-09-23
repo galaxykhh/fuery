@@ -98,7 +98,7 @@ onMutate: (id) async {
 
 ## fetchNextPage cancels a refetch
 
-`fetchNextPage()` cancels a fetch that is already running, including a background refetch of every page. Check `isFetching` before calling it, or pass `cancelRefetch: false`.
+`fetchNextPage()` cancels a fetch that is already running, such as a background refetch of every page, unless it is loading the next page already or there is no next page. Check `isFetching` before calling it, or pass `cancelRefetch: false`.
 
 ## The error screen takes several seconds to appear
 

@@ -56,6 +56,9 @@ class QueryObserver<TData extends Object>
 
     // The query may have been garbage collected while nobody listened.
     _updateQuery();
+    // Observers outlive their listeners, so "after mount" starts here, not
+    // when the observer was created.
+    _currentQueryInitialState = currentQuery.state;
     currentQuery._addObserver(this);
 
     _fetchOnMount();
@@ -283,8 +286,10 @@ class QueryObserver<TData extends Object>
     final prevResult = _currentResult;
     final prevResultOptions = _currentResultOptions;
     final queryChanged = !identical(query, prevQuery);
+    // An optimistic result shows the first result after subscribing, which
+    // starts counting from the query's state now.
     final queryInitialState =
-        queryChanged ? query.state : _currentQueryInitialState;
+        queryChanged || optimistic ? query.state : _currentQueryInitialState;
 
     var state = query.state;
 

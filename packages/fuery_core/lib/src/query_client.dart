@@ -43,7 +43,7 @@ class QueryClient {
   final Duration persistMaxAge;
 
   /// Entries read by [restore], by query hash, until a query uses them.
-  Map<String, String>? _preloaded;
+  Map<String, Map<String, Object?>>? _preloaded;
 
   /// Asynchronous deletions in flight. Reads wait for them, so deleted data
   /// is never restored.
@@ -156,12 +156,24 @@ class QueryClient {
     }
     // Something was deleted while reading; queries read on their own instead.
     if (epoch != _deletionEpoch) return;
-    _preloaded = {
-      for (final MapEntry(:key, :value) in entries.entries)
-        if (key.startsWith(persistKeyPrefix) &&
-            !key.startsWith(_mutationKeyPrefix))
-          key.substring(persistKeyPrefix.length): value,
-    };
+    final preloaded = <String, Map<String, Object?>>{};
+    for (final MapEntry(:key, :value) in entries.entries) {
+      if (!key.startsWith(persistKeyPrefix) ||
+          key.startsWith(_mutationKeyPrefix)) {
+        continue;
+      }
+      final queryHash = key.substring(persistKeyPrefix.length);
+      final entry = _decodeEntry(value);
+      // A loaded query may be writing newer data, and decides for itself.
+      if (queryCache.get(queryHash) == null &&
+          (entry == null || _isExpired(entry))) {
+        // It would never be restored, so it isn't kept either.
+        _deleteStored(key);
+      } else if (entry != null) {
+        preloaded[queryHash] = entry;
+      }
+    }
+    _preloaded = preloaded;
     notifyManager.batch(() {
       for (final query in queryCache.getAll()) {
         query._restoreFromPreload();
@@ -220,7 +232,8 @@ class QueryClient {
     }
   }
 
-  String? _takePreloaded(String queryHash) => _preloaded?.remove(queryHash);
+  Map<String, Object?>? _takePreloaded(String queryHash) =>
+      _preloaded?.remove(queryHash);
 
   void _deleteStored(String storageKey) {
     final storage = this.storage;
