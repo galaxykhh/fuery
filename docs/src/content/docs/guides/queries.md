@@ -6,14 +6,14 @@ description: Query keys, stale time, and results for fetching server data in Flu
 A query is one piece of server data in the cache, named by a key. This page covers the four things you work with: the key, the query object, freshness, and the result. Every option has its own row in [Query options](../../reference/query-options/).
 
 ```dart
-final todo = Query.use(
+final todo = Query.observe(
   queryKey: ['todos', id],
   queryFn: (context) => api.getTodo(id),
   staleTime: const Duration(minutes: 1),
 );
 ```
 
-`Query.use` returns an **observer**: a handle on the cached data that reports results to whoever listens. Widgets and blocs listen to it, and the query fetches when it gets its first listener.
+`Query.observe` returns an **observer**: a handle on the cached data that reports results to whoever listens. Widgets and blocs listen to it, and the query fetches when it gets its first listener.
 
 ## Query keys
 
@@ -31,7 +31,7 @@ Create a query in a `State` field, in a cubit, or in a function that widgets cal
 
 ```dart
 class _TodoScreenState extends State<TodoScreen> {
-  final todos = Query.use(queryKey: ['todos'], queryFn: (_) => api.getTodos());
+  final todos = Query.observe(queryKey: ['todos'], queryFn: (_) => api.getTodos());
 }
 ```
 
@@ -113,7 +113,7 @@ Fuery.client = QueryClient(
 `refetchInterval` polls while a widget or stream uses the query, and pauses while the app is in the background:
 
 ```dart
-final prices = Query.use(
+final prices = Query.observe(
   queryKey: ['prices'],
   queryFn: (_) => api.getPrices(),
   refetchInterval: const Duration(seconds: 10),
@@ -123,7 +123,7 @@ final prices = Query.use(
 Add `refetchWhile` to stop polling once a job is done. Fuery checks it on every change, so polling stops when it returns false and starts again when it returns true, for example after you invalidate the query:
 
 ```dart
-final job = Query.use(
+final job = Query.observe(
   queryKey: ['jobs', id],
   queryFn: (_) => api.getJob(id),
   refetchInterval: const Duration(seconds: 2),
@@ -157,7 +157,7 @@ Debounce in the widget, with a `Timer`, before calling `setOptions`. Each term g
 `enabled` also covers a query that needs a value from another one:
 
 ```dart
-final projects = Query.use(
+final projects = Query.observe(
   queryKey: ['projects', userId],
   queryFn: (_) => api.getProjects(userId!),
   enabled: userId != null,
@@ -177,14 +177,14 @@ QueryBuilder(
 )
 ```
 
-`ProjectList` then creates `Query.use(queryKey: ['projects', userId], ...)` in its state.
+`ProjectList` then creates `Query.observe(queryKey: ['projects', userId], ...)` in its state.
 
 ## Keeping the previous page on screen
 
 Switching to a new key shows the pending state until the new data arrives. `placeholderData` shows the previous data instead:
 
 ```dart
-final posts = Query.use(
+final posts = Query.observe(
   queryKey: ['posts', 1],
   queryFn: (_) => api.getPosts(1),
   placeholderData: (previous) => previous,
@@ -201,7 +201,7 @@ void showPage(int page) {
 
 One observer has to follow every page, as `setOptions` does above. A new observer per page has no previous data to show.
 
-`keepPreviousData` is a named shorthand for `(previous) => previous`. Use it inside `QueryOptions`, where the data type is already known. In `Query.use`, write the closure: the generic `keepPreviousData` there makes Dart infer the data type as `Object` instead of taking it from `queryFn`.
+`keepPreviousData` is a named shorthand for `(previous) => previous`. Use it inside `QueryOptions`, where the data type is already known. In `Query.observe`, write the closure: the generic `keepPreviousData` there makes Dart infer the data type as `Object` instead of taking it from `queryFn`.
 
 While the next page loads, `state.isPlaceholderData` is `true`, so you can dim the list or disable the next button. For endless scrolling, use an [infinite query](../infinite-queries/) instead.
 
@@ -210,12 +210,12 @@ While the next page loads, `state.isPlaceholderData` is `true`, so you can dim t
 The list already holds the item the detail screen is about to fetch. Read it out of the cache as placeholder data:
 
 ```dart
-QueryObserver<Todo> todoQuery(int id) => Query.use(
+QueryOptions<Todo> todoOptions(int id) => QueryOptions(
       queryKey: ['todos', 'detail', id],
       queryFn: (_) => api.getTodo(id),
       placeholderData: (previous) {
         if (previous != null) return previous;
-        final todos = Fuery.client.getQueryData<List<Todo>>(['todos', 'list']);
+        final todos = Fuery.client.getData(todosOptions());
         return todos?.firstWhereOrNull((todo) => todo.id == id);
       },
     );

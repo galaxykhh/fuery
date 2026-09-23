@@ -174,10 +174,10 @@ class MutationObserver<TData, TVariables, TContext>
 }
 
 /// A [MutationObserver] for mutations without variables, called as
-/// `mutate()`.
-class NoParamMutationObserver<TData, TContext>
+/// `mutate()`. Created by [Mutation.noVariables].
+class NoVariablesMutationObserver<TData, TContext>
     extends MutationObserver<TData, void, TContext> {
-  NoParamMutationObserver(super.client, super.options);
+  NoVariablesMutationObserver(super.client, super.options);
 
   @override
   Future<TData> mutateAsync([
@@ -203,3 +203,7 @@ void _guardSync(void Function() callback) {
     Zone.current.handleUncaughtError(error, stackTrace);
   }
 }
+
+@Deprecated('Use NoVariablesMutationObserver.')
+typedef NoParamMutationObserver<TData, TContext>
+    = NoVariablesMutationObserver<TData, TContext>;

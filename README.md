@@ -7,7 +7,7 @@
 Fetch, cache, and keep server data fresh in Flutter.
 
 ```dart
-final todos = Query.use(queryKey: ['todos'], queryFn: (_) => api.getTodos());
+final todos = Query.observe(queryKey: ['todos'], queryFn: (_) => api.getTodos());
 
 QueryBuilder(
   query: todos,

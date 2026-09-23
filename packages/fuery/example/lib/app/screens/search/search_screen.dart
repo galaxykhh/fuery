@@ -15,7 +15,7 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  final results = searchQuery('');
+  final results = searchOptions('').observe();
   Timer? _debounce;
 
   @override

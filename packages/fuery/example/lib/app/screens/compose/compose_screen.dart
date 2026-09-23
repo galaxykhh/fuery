@@ -43,8 +43,8 @@ class _ComposeScreenState extends State<ComposeScreen> {
       MutateOptions(
         // Screen-level work stays at the call site. The feed invalidation
         // lives in the mutation, where every caller gets it.
-        onSuccess: (post, _, __) =>
-            setState(() => _published = publishingPostQuery(post.id)),
+        onSuccess: (post, _, __) => setState(
+            () => _published = publishingPostOptions(post.id).observe()),
       ),
     );
   }

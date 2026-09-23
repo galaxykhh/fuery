@@ -39,7 +39,7 @@ void main() {
       throw StateError('down');
     }
 
-    final observer = Query.use(
+    final observer = Query.observe(
       queryKey: ['a'],
       queryFn: fetch,
       retryDelay: (_, __) => ms10,
@@ -67,7 +67,7 @@ void main() {
   group('removing queries', () {
     fakeTest('observers follow their key after clear()', (async) {
       var user = 'alice';
-      final me = Query.use(
+      final me = Query.observe(
         queryKey: ['me'],
         queryFn: (_) async => user,
         client: client,
@@ -91,7 +91,7 @@ void main() {
     fakeTest('invalidating and focus reach observers after removeQueries',
         (async) {
       final fetcher = FakeFetcher(() => 'me');
-      Query.use(queryKey: ['me'], queryFn: fetcher.call, client: client)
+      Query.observe(queryKey: ['me'], queryFn: fetcher.call, client: client)
           .subscribe((_) {});
       async.elapse(ms10);
 
@@ -110,7 +110,7 @@ void main() {
         (async) {
       final fetcher = FakeFetcher(() => 'data');
       final observer =
-          Query.use(queryKey: ['a'], queryFn: fetcher.call, client: client);
+          Query.observe(queryKey: ['a'], queryFn: fetcher.call, client: client);
       observer.subscribe((_) {});
       async.elapse(ms10);
 
@@ -134,7 +134,7 @@ void main() {
           config: QueryCacheConfig(onError: (error, _) => errors.add(error)),
         ),
       );
-      final todos = Query.use(
+      final todos = Query.observe(
         queryKey: ['todos'],
         queryFn: FakeFetcher(() => ['a']).call,
         client: reporting,
@@ -155,7 +155,7 @@ void main() {
     });
 
     fakeTest('cancelQueries(silent: true) ends the fetch', (async) {
-      final observer = Query.use(
+      final observer = Query.observe(
         queryKey: ['a'],
         queryFn: FakeFetcher(() => 'data').call,
         client: client,
@@ -178,7 +178,7 @@ void main() {
 
   group('retry timers', () {
     fakeTest('clear() cancels a query waiting to retry', (async) {
-      final observer = Query.use(
+      final observer = Query.observe(
         queryKey: ['a'],
         queryFn: (_) async => throw StateError('boom'),
         retryDelay: (_, __) => const Duration(seconds: 30),
@@ -195,7 +195,7 @@ void main() {
     });
 
     fakeTest('clear() stops a mutation waiting to retry', (async) {
-      final mutation = Mutation.use(
+      final mutation = Mutation.observe(
         mutationFn: (int x) async => throw StateError('boom'),
         retry: const RetryPolicy.count(1),
         retryDelay: (_, __) => const Duration(seconds: 30),
@@ -216,7 +216,7 @@ void main() {
 
   fakeTest('resetQueries refetches an active static query', (async) {
     var calls = 0;
-    final config = Query.use(
+    final config = Query.observe(
       queryKey: ['config'],
       queryFn: (_) async => 'config ${++calls}',
       staleTime: staticStaleTime,
@@ -233,11 +233,11 @@ void main() {
   fakeTest('a new listener first gets the current result during a fetch',
       (async) {
     final fetcher = FakeFetcher(() => 'todos');
-    final first =
-        Query.use(queryKey: ['todos'], queryFn: fetcher.call, client: client);
+    final first = Query.observe(
+        queryKey: ['todos'], queryFn: fetcher.call, client: client);
     // Created before there is any data, for example by a bloc at startup.
-    final second =
-        Query.use(queryKey: ['todos'], queryFn: fetcher.call, client: client);
+    final second = Query.observe(
+        queryKey: ['todos'], queryFn: fetcher.call, client: client);
 
     first.subscribe((_) {});
     async.elapse(ms10);
@@ -254,7 +254,7 @@ void main() {
 
   fakeTest('a widget mounting at the stale boundary keeps others updated',
       (async) {
-    final todos = Query.use(
+    final todos = Query.observe(
       queryKey: ['todos'],
       queryFn: FakeFetcher(() => 'todos').call,
       staleTime: const Duration(milliseconds: 100),
@@ -274,7 +274,7 @@ void main() {
   fakeTest('isFetchedAfterMount counts from the first listener', (async) {
     final fetcher = FakeFetcher(() => 'todos');
     // Created at startup, listened to later.
-    final todos = Query.use(
+    final todos = Query.observe(
       queryKey: ['todos'],
       queryFn: fetcher.call,
       staleTime: infiniteDuration,
@@ -309,7 +309,7 @@ void main() {
     int? next(InfiniteData<String, int> data) => data.lastPageParam + 1;
 
     fakeTest('pages only applies when nothing is cached', (async) {
-      final posts = InfiniteQuery.use(
+      final posts = InfiniteQuery.observe(
         queryKey: ['posts'],
         queryFn: fetchPage,
         initialPageParam: 1,
@@ -343,7 +343,7 @@ void main() {
 
     fakeTest('the first frame of a mount refetch is not a next-page fetch',
         (async) {
-      InfiniteQueryObserver<String, int> use() => InfiniteQuery.use(
+      InfiniteQueryObserver<String, int> use() => InfiniteQuery.observe(
             queryKey: ['posts'],
             queryFn: fetchPage,
             initialPageParam: 1,
@@ -367,7 +367,7 @@ void main() {
     fakeTest('fetchNextPage without a next page leaves a refetch alone',
         (async) {
       var version = 1;
-      final posts = InfiniteQuery.use(
+      final posts = InfiniteQuery.observe(
         queryKey: ['posts'],
         queryFn: (context) async {
           final value = 'v$version';
@@ -392,7 +392,7 @@ void main() {
     });
 
     fakeTest('fetching a page that does not exist changes nothing', (async) {
-      final posts = InfiniteQuery.use(
+      final posts = InfiniteQuery.observe(
         queryKey: ['posts'],
         queryFn: fetchPage,
         initialPageParam: 1,
@@ -420,7 +420,7 @@ void main() {
     fakeTest('fetchNextPage joins a next page that is already loading',
         (async) {
       final params = <int>[];
-      final posts = InfiniteQuery.use(
+      final posts = InfiniteQuery.observe(
         queryKey: ['posts'],
         queryFn: (context) async {
           params.add(context.pageParam);
@@ -451,7 +451,7 @@ void main() {
 
   group('mutations', () {
     fakeTest('a mutation run with mutateAsync is garbage collected', (async) {
-      final addTodo = Mutation.use(
+      final addTodo = Mutation.observe(
         mutationFn: (String title) async => title,
         gcTime: const Duration(seconds: 1),
         client: client,
@@ -465,7 +465,7 @@ void main() {
     });
 
     fakeTest('result is current while nothing listens', (async) {
-      final save = Mutation.use(
+      final save = Mutation.observe(
         mutationFn: (String title) async {
           await Future<void>.delayed(ms10);
           return title;
@@ -483,7 +483,7 @@ void main() {
 
     fakeTest('a pending mutation without observers waits to be collected',
         (async) {
-      final save = Mutation.use(
+      final save = Mutation.observe(
         mutationFn: (int x) async {
           await Future<void>.delayed(const Duration(milliseconds: 200));
           return x;
@@ -508,12 +508,12 @@ void main() {
         return value;
       }
 
-      final first = Mutation.use(
+      final first = Mutation.observe(
         mutationFn: run,
         scope: const MutationScope('s'),
         client: client,
       );
-      final second = Mutation.use(
+      final second = Mutation.observe(
         mutationFn: run,
         onMutate: (_) async {
           await Future<void>.delayed(const Duration(milliseconds: 20));
@@ -537,12 +537,12 @@ void main() {
       return value;
     }
 
-    final first = Mutation.use(
+    final first = Mutation.observe(
       mutationFn: run,
       scope: const MutationScope('s'),
       client: client,
     );
-    final second = Mutation.use(
+    final second = Mutation.observe(
       mutationFn: run,
       scope: const MutationScope('s'),
       client: client,
@@ -731,12 +731,12 @@ void main() {
   fakeTest('removed queries and mutations keep no garbage collection timer',
       (async) {
     onlineManager.setOnline(false);
-    final query = Query.use(
+    final query = Query.observe(
       queryKey: ['paused'],
       queryFn: FakeFetcher(() => 'a').call,
       client: client,
     );
-    final mutation = Mutation.use(
+    final mutation = Mutation.observe(
       mutationFn: (int id) async => id,
       client: client,
     );

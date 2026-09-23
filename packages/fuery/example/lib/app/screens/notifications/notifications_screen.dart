@@ -13,7 +13,7 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  final notifications = notificationsQuery();
+  final notifications = notificationsOptions().observe();
   final markAllRead = markAllReadMutation();
 
   @override

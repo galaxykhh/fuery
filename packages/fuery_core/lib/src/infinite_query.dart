@@ -231,6 +231,13 @@ class InfiniteQueryOptions<TPage, TParam>
             pages: pages,
           ),
         );
+
+  /// Returns an observer that watches this infinite query. See
+  /// [QueryOptions.observe].
+  @override
+  InfiniteQueryObserver<TPage, TParam> observe({QueryClient? client}) {
+    return InfiniteQueryObserver<TPage, TParam>(client ?? Fuery.client, this);
+  }
 }
 
 /// What an [InfiniteQueryObserver] reports to its listeners.
@@ -425,7 +432,7 @@ class InfiniteQueryObserver<TPage, TParam>
 /// the arguments, for example for [QueryClient.infiniteQuery].
 ///
 /// Prefer this over the [InfiniteQueryOptions] constructor, which needs
-/// explicit type arguments. See [InfiniteQuery.use] for the parameters.
+/// explicit type arguments. See [InfiniteQuery.observe] for the parameters.
 /// [pages] sets how many pages to load when nothing is cached, for example
 /// to prefetch several pages with [QueryClient.infiniteQuery].
 InfiniteQueryOptions<TPage, TParam> infiniteQueryOptions<
@@ -500,7 +507,7 @@ abstract final class InfiniteQuery {
   /// inferred from [queryFn] and [initialPageParam].
   ///
   /// ```dart
-  /// final posts = InfiniteQuery.use(
+  /// final posts = InfiniteQuery.observe(
   ///   queryKey: ['posts'],
   ///   queryFn: (context) => api.getPosts(page: context.pageParam),
   ///   initialPageParam: 1,
@@ -511,6 +518,71 @@ abstract final class InfiniteQuery {
   ///
   /// When the first page has no param, give `null` its type so the param type
   /// can be inferred: `initialPageParam: null as String?`.
+  ///
+  /// The same as `infiniteQueryOptions(...).observe()`.
+  static InfiniteQueryObserver<TPage, TParam> observe<
+      TPage,
+      TParam,
+      TNext extends TParam?,
+      TPrev extends TParam?,
+      TPersistParam extends Object?>({
+    required QueryKey queryKey,
+    required InfiniteQueryFn<TPage, TParam> queryFn,
+    required TParam initialPageParam,
+    required TNext Function(InfiniteData<TPage, TParam> data) getNextPageParam,
+    TPrev Function(InfiniteData<TPage, TParam> data)? getPreviousPageParam,
+    int? maxPages,
+    bool? enabled,
+    Duration? staleTime,
+    Duration? gcTime,
+    Duration? refetchInterval,
+    bool? refetchIntervalInBackground,
+    bool Function(InfiniteQueryResult<TPage, TParam> result)? refetchWhile,
+    RefetchMode? refetchOnMount,
+    RefetchMode? refetchOnFocus,
+    RefetchMode? refetchOnReconnect,
+    bool? retryOnMount,
+    RetryPolicy? retry,
+    RetryDelay? retryDelay,
+    NetworkMode? networkMode,
+    InfiniteData<TPage, TParam>? initialData,
+    int? initialDataUpdatedAt,
+    PlaceholderDataFn<InfiniteData<TPage, TParam>>? placeholderData,
+    bool? structuralSharing,
+    InfiniteQueryPersist<TPage, TPersistParam>? persist,
+    Map<String, Object?>? meta,
+    QueryClient? client,
+  }) {
+    return infiniteQueryOptions(
+      queryKey: queryKey,
+      queryFn: queryFn,
+      initialPageParam: initialPageParam,
+      getNextPageParam: getNextPageParam,
+      getPreviousPageParam: getPreviousPageParam,
+      maxPages: maxPages,
+      enabled: enabled,
+      staleTime: staleTime,
+      gcTime: gcTime,
+      refetchInterval: refetchInterval,
+      refetchIntervalInBackground: refetchIntervalInBackground,
+      refetchWhile: refetchWhile,
+      refetchOnMount: refetchOnMount,
+      refetchOnFocus: refetchOnFocus,
+      refetchOnReconnect: refetchOnReconnect,
+      retryOnMount: retryOnMount,
+      retry: retry,
+      retryDelay: retryDelay,
+      networkMode: networkMode,
+      initialData: initialData,
+      initialDataUpdatedAt: initialDataUpdatedAt,
+      placeholderData: placeholderData,
+      structuralSharing: structuralSharing,
+      persist: persist,
+      meta: meta,
+    ).observe(client: client);
+  }
+
+  @Deprecated('Use InfiniteQuery.observe, which takes the same arguments.')
   static InfiniteQueryObserver<TPage, TParam> use<
       TPage,
       TParam,
@@ -544,35 +616,33 @@ abstract final class InfiniteQuery {
     Map<String, Object?>? meta,
     QueryClient? client,
   }) {
-    return InfiniteQueryObserver<TPage, TParam>(
-      client ?? Fuery.client,
-      infiniteQueryOptions(
-        queryKey: queryKey,
-        queryFn: queryFn,
-        initialPageParam: initialPageParam,
-        getNextPageParam: getNextPageParam,
-        getPreviousPageParam: getPreviousPageParam,
-        maxPages: maxPages,
-        enabled: enabled,
-        staleTime: staleTime,
-        gcTime: gcTime,
-        refetchInterval: refetchInterval,
-        refetchIntervalInBackground: refetchIntervalInBackground,
-        refetchWhile: refetchWhile,
-        refetchOnMount: refetchOnMount,
-        refetchOnFocus: refetchOnFocus,
-        refetchOnReconnect: refetchOnReconnect,
-        retryOnMount: retryOnMount,
-        retry: retry,
-        retryDelay: retryDelay,
-        networkMode: networkMode,
-        initialData: initialData,
-        initialDataUpdatedAt: initialDataUpdatedAt,
-        placeholderData: placeholderData,
-        structuralSharing: structuralSharing,
-        persist: persist,
-        meta: meta,
-      ),
+    return observe(
+      queryKey: queryKey,
+      queryFn: queryFn,
+      initialPageParam: initialPageParam,
+      getNextPageParam: getNextPageParam,
+      getPreviousPageParam: getPreviousPageParam,
+      maxPages: maxPages,
+      enabled: enabled,
+      staleTime: staleTime,
+      gcTime: gcTime,
+      refetchInterval: refetchInterval,
+      refetchIntervalInBackground: refetchIntervalInBackground,
+      refetchWhile: refetchWhile,
+      refetchOnMount: refetchOnMount,
+      refetchOnFocus: refetchOnFocus,
+      refetchOnReconnect: refetchOnReconnect,
+      retryOnMount: retryOnMount,
+      retry: retry,
+      retryDelay: retryDelay,
+      networkMode: networkMode,
+      initialData: initialData,
+      initialDataUpdatedAt: initialDataUpdatedAt,
+      placeholderData: placeholderData,
+      structuralSharing: structuralSharing,
+      persist: persist,
+      meta: meta,
+      client: client,
     );
   }
 }

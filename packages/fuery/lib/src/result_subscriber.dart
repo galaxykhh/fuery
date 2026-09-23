@@ -7,7 +7,7 @@ import 'fuery_binding.dart';
 final Set<String> _warnedKeys = {};
 
 /// Warns, in debug builds, when a widget got a new observer for the same key
-/// on a rebuild. That is what `Query.use` in `build` looks like, and each new
+/// on a rebuild. That is what `Query.observe` in `build` looks like, and each new
 /// observer subscribes and refetches again.
 void debugWarnRecreated<S>(
   String widgetName,

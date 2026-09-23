@@ -1,9 +1,9 @@
 ---
 title: Query options
-description: Every option of Query.use and QueryOptions in Flutter, with its default and what it changes.
+description: Every option of Query.observe and QueryOptions in Flutter, with its default and what it changes.
 ---
 
-This page lists every option that `Query.use`, `QueryOptions`, and `client.query` accept. [Queries](../../guides/queries/) explains the ideas behind them; `InfiniteQuery.use` takes these options too, plus the ones in [Infinite queries](../../guides/infinite-queries/).
+This page lists every option that `Query.observe`, `QueryOptions`, and `client.query` accept. [Queries](../../guides/queries/) explains the ideas behind them; `InfiniteQuery.observe` takes these options too, plus the ones in [Infinite queries](../../guides/infinite-queries/).
 
 ## Fetching
 

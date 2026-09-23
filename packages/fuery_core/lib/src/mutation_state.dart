@@ -173,7 +173,7 @@ class MutationDefaults {
   }
 }
 
-class MutationOptions<TData, TVariables, TContext> {
+class MutationOptions<TData, TVariables, TContext extends Object?> {
   const MutationOptions({
     this.mutationFn,
     this.mutationKey,
@@ -232,6 +232,22 @@ class MutationOptions<TData, TVariables, TContext> {
   final MutationPersist<TVariables>? persist;
 
   final bool _defaulted;
+
+  /// Returns an observer that runs this mutation, with [Fuery.client] unless
+  /// [client] is given. Each observer keeps the state of its own latest run.
+  ///
+  /// The same options can also be passed to [QueryClient.restore], so a
+  /// persisted mutation is defined once:
+  ///
+  /// ```dart
+  /// final addComment = addCommentOptions().observe();
+  /// ```
+  MutationObserver<TData, TVariables, TContext> observe({QueryClient? client}) {
+    return MutationObserver<TData, TVariables, TContext>(
+      client ?? Fuery.client,
+      this,
+    );
+  }
 
   /// Whether every option is equal, comparing functions with `==`.
   bool _sameAs(MutationOptions<TData, TVariables, TContext>? other) {

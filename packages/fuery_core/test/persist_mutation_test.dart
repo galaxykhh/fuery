@@ -32,7 +32,7 @@ Object? _same(String variables) => variables;
 
 String _string(Object? json) => json! as String;
 
-/// The options of a mutation that stores its variables, for `Mutation.use`
+/// The options of a mutation that stores its variables, for `Mutation.observe`
 /// and for `restore`.
 MutationOptions<String, String, void> commentOptions(
   FakeMutator mutator, {
@@ -94,7 +94,7 @@ void main() {
     fakeTest('stores a mutation while it runs and deletes it when it settles',
         (async) {
       final mutator = FakeMutator();
-      final addComment = Mutation.use(
+      final addComment = Mutation.observe(
         mutationKey: const ['comments', 'add'],
         mutationFn: mutator.call,
         persist: persist,
@@ -118,7 +118,7 @@ void main() {
 
     fakeTest('stores a mutation that paused offline', (async) {
       onlineManager.setOnline(false);
-      final addComment = Mutation.use(
+      final addComment = Mutation.observe(
         mutationKey: const ['comments', 'add'],
         mutationFn: FakeMutator().call,
         persist: persist,
@@ -133,7 +133,7 @@ void main() {
 
     fakeTest('deletes the entry when the mutation fails', (async) {
       final mutator = FakeMutator()..error = StateError('no');
-      final addComment = Mutation.use(
+      final addComment = Mutation.observe(
         mutationKey: const ['comments', 'add'],
         mutationFn: mutator.call,
         persist: persist,
@@ -150,7 +150,7 @@ void main() {
       final async10 = AsyncStorage(storage);
       client.unmount();
       client = QueryClient(storage: async10)..mount();
-      final addComment = Mutation.use(
+      final addComment = Mutation.observe(
         mutationKey: const ['comments', 'add'],
         mutationFn: FakeMutator(delay: const Duration(milliseconds: 5)).call,
         persist: persist,
@@ -167,7 +167,7 @@ void main() {
 
     fakeTest('a mutation without a key or a storage is not stored', (async) {
       final noStorage = QueryClient();
-      final addComment = Mutation.use(
+      final addComment = Mutation.observe(
         mutationKey: const ['comments', 'add'],
         mutationFn: FakeMutator().call,
         persist: persist,
@@ -179,7 +179,7 @@ void main() {
       noStorage.clear();
 
       expect(
-        () => Mutation.use(
+        () => Mutation.observe(
           mutationFn: FakeMutator().call,
           persist: persist,
           client: client,
@@ -191,7 +191,7 @@ void main() {
     fakeTest('a failing storage does not break the mutation', (async) {
       client.unmount();
       client = QueryClient(storage: FailingStorage())..mount();
-      final addComment = Mutation.use(
+      final addComment = Mutation.observe(
         mutationKey: const ['comments', 'add'],
         mutationFn: FakeMutator().call,
         persist: persist,
@@ -202,10 +202,10 @@ void main() {
       expect(addComment.result.data, 'saved hello');
     });
 
-    fakeTest('Mutation.noParam stores with MutationPersist.noVariables',
+    fakeTest('Mutation.noVariables stores with MutationPersist.noVariables',
         (async) {
       onlineManager.setOnline(false);
-      final refresh = Mutation.noParam(
+      final refresh = Mutation.noVariables(
         mutationKey: const ['refresh'],
         mutationFn: () async => 42,
         persist: MutationPersist.noVariables,

@@ -12,15 +12,17 @@ The `QueryClient` owns the cache. Use it to read and write cached data, to inval
 ```dart
 final client = Fuery.client;
 
-client.getQueryData<List<Todo>>(['todos']);      // the data, or null
-client.getQueryState(['todos'])?.dataUpdatedAt;  // the whole QueryState
-client.setQueryData(['todos', 1], todo);
-client.updateQueryData<List<Todo>>(['todos'], (todos) => [...?todos, todo]);
+client.getData(todosOptions());                         // the data, or null
+client.setData(todoOptions(1), todo);
+client.updateData(todosOptions(), (todos) => [...?todos, todo]);
+client.getQueryState(['todos'])?.dataUpdatedAt;         // the whole QueryState
 ```
 
-Every widget using the key rebuilds with the new data. Returning `null` from the `updateQueryData` updater leaves the cache unchanged.
+`getData`, `setData`, and `updateData` take the key and the data type from the query's [options](../organizing-queries/), so there is nothing to cast. A query that `setData` creates gets all of the options, so it stores its data with `persist` and can refetch. Every widget using the key rebuilds with the new data, and returning `null` from the `updateData` updater leaves the cache unchanged.
 
-Both reads take one exact key. `getQueryState` returns the `QueryState` behind the data, with `status`, `fetchStatus`, `error`, `dataUpdatedAt`, `errorUpdatedAt`, and `isInvalidated`. It also counts what happened: `dataUpdateCount` and `errorUpdateCount` since the query appeared, and `fetchFailureCount` with `fetchFailureReason` for the attempts since the last success, which a `QueryResult` reports as `failureCount` and `failureReason`.
+With only a key, use `getQueryData`, `setQueryData`, and `updateQueryData`, and name the data type: `client.getQueryData<List<Todo>>(['todos'])`.
+
+The reads take one exact key. `getQueryState` returns the `QueryState` behind the data, with `status`, `fetchStatus`, `error`, `dataUpdatedAt`, `errorUpdatedAt`, and `isInvalidated`. It also counts what happened: `dataUpdateCount` and `errorUpdateCount` since the query appeared, and `fetchFailureCount` with `fetchFailureReason` for the attempts since the last success, which a `QueryResult` reports as `failureCount` and `failureReason`.
 
 Writing many keys at once, for example from one websocket frame, goes through `notifyManager.batch`. It collects the rebuilds and delivers them once:
 
@@ -184,7 +186,7 @@ To use whatever is cached, however old, set `staleTime: staticStaleTime`. Route 
 
 ## Fetching an infinite query outside widgets
 
-`client.infiniteQuery` does the same for [infinite queries](../infinite-queries/). Build its options with `infiniteQueryOptions`, which takes the same options as `InfiniteQuery.use`, plus `pages`:
+`client.infiniteQuery` does the same for [infinite queries](../infinite-queries/). Build its options with `infiniteQueryOptions`, which takes the same options as `InfiniteQuery.observe`, plus `pages`:
 
 ```dart
 InfiniteQueryOptions<TodoPage, int> pagedTodosOptions() => infiniteQueryOptions(
@@ -199,7 +201,7 @@ InfiniteQueryOptions<TodoPage, int> pagedTodosOptions() => infiniteQueryOptions(
 await client.infiniteQuery(pagedTodosOptions());
 ```
 
-`pages` is how many pages to load when nothing is cached, one by default. When pages are already cached, `client.infiniteQuery` reloads those instead and ignores `pages`. `InfiniteQuery.use` doesn't take it: a widget loads the first page, then whatever `fetchNextPage()` asks for.
+`pages` is how many pages to load when nothing is cached, one by default. When pages are already cached, `client.infiniteQuery` reloads those instead and ignores `pages`. `InfiniteQuery.observe` doesn't take it: a widget loads the first page, then whatever `fetchNextPage()` asks for.
 
 ## Setting defaults for every query and mutation
 
@@ -313,14 +315,16 @@ A query takes its client when you create it: the one you pass as `client:`, or `
 Two rules follow:
 
 - **Configure the client first.** A storage or defaults set after a query exists don't reach it.
-- **Share queries as functions, not as objects.** A top-level `final todos = Query.use(...)` keeps the client it first saw, which breaks tests that use a fresh client per test. A function creates the query on the current client each time it is called:
+- **Share queries as options, not as observers.** A top-level `final todos = Query.observe(...)` keeps the client it first saw, which breaks tests that use a fresh client per test. Options hold no client, and `observe()` takes the current one each time it is called:
 
   ```dart
-  QueryObserver<List<Todo>> todosQuery() =>
-      Query.use(queryKey: ['todos'], queryFn: (_) => api.getTodos());
+  QueryOptions<List<Todo>> todosOptions() =>
+      QueryOptions(queryKey: ['todos'], queryFn: (_) => api.getTodos());
+
+  late final todos = todosOptions().observe();
   ```
 
-  Callers still share one cache entry and one request, because that comes from the key. [Organizing queries](../organizing-queries/) covers the pattern.
+  Observers still share one cache entry and one request, because that comes from the key. [Organizing queries](../organizing-queries/) covers the pattern.
 
 ## Giving a subtree its own client
 
@@ -333,7 +337,7 @@ FueryProvider(client: QueryClient(), child: const App());
 `context.queryClient` reads it, and falls back to `Fuery.client` when there is no provider. A query uses it only when it is passed as `client:`:
 
 ```dart
-late final todos = Query.use(
+late final todos = Query.observe(
   queryKey: ['todos'],
   queryFn: (_) => api.getTodos(),
   client: context.queryClient,

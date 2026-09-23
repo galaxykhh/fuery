@@ -35,8 +35,8 @@ void main() {
     client.clear();
   });
 
-  fakeTest('Query.use infers the data type', (async) {
-    final todos = Query.use(
+  fakeTest('Query.observe infers the data type', (async) {
+    final todos = Query.observe(
       queryKey: ['todos'],
       queryFn: (_) async => [const Todo('a')],
       client: client,
@@ -49,7 +49,7 @@ void main() {
   });
 
   fakeTest('placeholderData keeps the inferred data type', (async) {
-    final posts = Query.use(
+    final posts = Query.observe(
       queryKey: ['posts', 1],
       queryFn: (_) async => [const Todo('a')],
       placeholderData: (previous) => previous,
@@ -68,8 +68,8 @@ void main() {
     expect(typed.result.data!.single.title, 'b');
   });
 
-  fakeTest('InfiniteQuery.use infers page and param types', (async) {
-    final posts = InfiniteQuery.use(
+  fakeTest('InfiniteQuery.observe infers page and param types', (async) {
+    final posts = InfiniteQuery.observe(
       queryKey: ['posts'],
       queryFn: (context) async => PostPage(
         ['post ${context.pageParam}'],
@@ -90,9 +90,9 @@ void main() {
     expect(typed.result.hasNextPage, isFalse);
   });
 
-  fakeTest('InfiniteQuery.use infers a nullable cursor', (async) {
+  fakeTest('InfiniteQuery.observe infers a nullable cursor', (async) {
     final cursors = <String?>[];
-    final items = InfiniteQuery.use(
+    final items = InfiniteQuery.observe(
       queryKey: ['items'],
       queryFn: (context) async {
         cursors.add(context.pageParam);
@@ -115,14 +115,14 @@ void main() {
   });
 
   fakeTest('refetchWhile gets the typed result', (async) {
-    final todo = Query.use(
+    final todo = Query.observe(
       queryKey: ['todo'],
       queryFn: (_) async => const Todo('done'),
       refetchInterval: const Duration(seconds: 1),
       refetchWhile: (state) => state.data?.title != 'done',
       client: client,
     );
-    final posts = InfiniteQuery.use(
+    final posts = InfiniteQuery.observe(
       queryKey: ['posts'],
       queryFn: (context) async => const PostPage([], hasMore: false),
       initialPageParam: 1,
@@ -142,7 +142,7 @@ void main() {
   });
 
   fakeTest('streamedQuery infers the chunk and data types', (async) {
-    final answer = Query.use(
+    final answer = Query.observe(
       queryKey: ['answer'],
       queryFn: streamedQuery(
         stream: (context) => Stream.fromIterable(['a', 'b']),
@@ -161,7 +161,7 @@ void main() {
   fakeTest('persist codecs infer their data types', (async) {
     final storage = <String, String>{};
     final persisting = QueryClient(storage: _MapStorage(storage));
-    final todos = Query.use(
+    final todos = Query.observe(
       queryKey: ['todos'],
       queryFn: (_) async => [const Todo('a')],
       persist: QueryPersist(
@@ -170,7 +170,7 @@ void main() {
       ),
       client: persisting,
     );
-    final posts = InfiniteQuery.use(
+    final posts = InfiniteQuery.observe(
       queryKey: ['posts'],
       queryFn: (context) async => const PostPage(['p'], hasMore: false),
       initialPageParam: 1,
@@ -182,7 +182,7 @@ void main() {
       ),
       client: persisting,
     );
-    final days = InfiniteQuery.use(
+    final days = InfiniteQuery.observe(
       queryKey: ['days'],
       queryFn: (context) async => 'day ${context.pageParam.day}',
       initialPageParam: DateTime.utc(2026, 9, 1),
@@ -218,10 +218,10 @@ void main() {
     expect(values, [0]);
   });
 
-  fakeTest('Mutation.use infers data, variables, and context', (async) {
+  fakeTest('Mutation.observe infers data, variables, and context', (async) {
     client.setQueryData(['todos'], [const Todo('a')]);
 
-    final addTodo = Mutation.use(
+    final addTodo = Mutation.observe(
       mutationFn: (String title) async => Todo(title),
       onMutate: (title) => client.getQueryData<List<Todo>>(['todos']),
       onError: (error, title, previous) {
@@ -236,9 +236,9 @@ void main() {
     expect(typed.result.data!.title, 'b');
   });
 
-  fakeTest('Mutation.use infers the variables of a persisted mutation',
+  fakeTest('Mutation.observe infers the variables of a persisted mutation',
       (async) {
-    final addTodo = Mutation.use(
+    final addTodo = Mutation.observe(
       mutationKey: const ['todos', 'add'],
       mutationFn: (String title) async => Todo(title),
       persist: MutationPersist(
@@ -252,16 +252,102 @@ void main() {
     expect(typed.options.persist, isNotNull);
   });
 
-  fakeTest('Mutation.noParam infers the data type', (async) {
-    final refresh = Mutation.noParam(
+  fakeTest('Mutation.noVariables infers the data type', (async) {
+    final refresh = Mutation.noVariables(
       mutationFn: () async => 42,
       client: client,
     );
     refresh.mutate();
     async.flushMicrotasks();
 
-    final NoParamMutationObserver<int, Object?> typed = refresh;
+    final NoVariablesMutationObserver<int, Object?> typed = refresh;
     expect(typed.result.data, 42);
+  });
+
+  fakeTest('options infer their data type and observe it', (async) {
+    final todos = QueryOptions(
+      queryKey: ['todos'],
+      queryFn: (_) async => [const Todo('a')],
+    );
+    final QueryObserver<List<Todo>> observer = todos.observe(client: client);
+    observer.subscribe((_) {});
+    async.flushMicrotasks();
+
+    expect(observer.result.data!.single.title, 'a');
+  });
+
+  fakeTest('infinite options observe with an infinite observer', (async) {
+    final posts = infiniteQueryOptions(
+      queryKey: ['posts'],
+      queryFn: (context) async =>
+          PostPage(['${context.pageParam}'], hasMore: context.pageParam < 2),
+      initialPageParam: 1,
+      getNextPageParam: (data) =>
+          data.lastPage.hasMore ? data.lastPageParam + 1 : null,
+    );
+    final InfiniteQueryObserver<PostPage, int> observer =
+        posts.observe(client: client);
+    observer.subscribe((_) {});
+    async.flushMicrotasks();
+    observer.fetchNextPage();
+    async.flushMicrotasks();
+
+    expect(observer.result.pages, hasLength(2));
+  });
+
+  fakeTest('mutation options infer their types and observe them', (async) {
+    final addTodo = MutationOptions(
+      mutationFn: (String title) async => Todo(title),
+    );
+    final MutationObserver<Todo, String, Object?> observer =
+        addTodo.observe(client: client);
+    observer.mutate('a');
+    async.flushMicrotasks();
+
+    expect(observer.result.data!.title, 'a');
+  });
+
+  fakeTest('getData, setData, and updateData take the type from options',
+      (async) {
+    QueryOptions<Todo> todoOptions(int id) => QueryOptions(
+          queryKey: ['todo', id],
+          queryFn: (_) async => Todo('$id'),
+        );
+    final pages = infiniteQueryOptions(
+      queryKey: ['pages'],
+      queryFn: (context) async =>
+          PostPage(['${context.pageParam}'], hasMore: false),
+      initialPageParam: 1,
+      getNextPageParam: (data) => null,
+    );
+
+    client.setData(todoOptions(1), const Todo('a'));
+    final Todo? todo = client.getData(todoOptions(1));
+    client.updateData(todoOptions(1), (todo) => Todo('${todo?.title}!'));
+    client.setData(
+      pages,
+      const InfiniteData(pages: [
+        PostPage(['a'], hasMore: false)
+      ], pageParams: [
+        1
+      ]),
+    );
+    client.updateData(
+      pages,
+      (data) => data == null
+          ? null
+          : InfiniteData(
+              pages: [
+                for (final page in data.pages)
+                  PostPage([...page.titles, 'b'], hasMore: page.hasMore),
+              ],
+              pageParams: data.pageParams,
+            ),
+    );
+
+    expect(todo!.title, 'a');
+    expect(client.getData(todoOptions(1))!.title, 'a!');
+    expect(client.getData(pages)!.lastPage.titles, ['a', 'b']);
   });
 }
 

@@ -22,7 +22,7 @@ class LikeSnapshot {
 /// Toggles a like in the feed and on the post right away, and puts both back
 /// if the request fails.
 MutationObserver<Post, int, LikeSnapshot> likePostMutation() {
-  return Mutation.use(
+  return Mutation.observe(
     mutationFn: (int id) => DemoApi().toggleLike(id),
     onMutate: (id) async {
       final client = Fuery.client;
@@ -30,11 +30,11 @@ MutationObserver<Post, int, LikeSnapshot> likePostMutation() {
       await client.cancelQueries(queryKey: feedKey);
       await client.cancelQueries(queryKey: postKey(id));
       final snapshot = LikeSnapshot(
-        feed: client.getQueryData(feedKey),
-        post: client.getQueryData(postKey(id)),
+        feed: client.getData(feedOptions()),
+        post: client.getData(postOptions(id)),
       );
-      client.updateQueryData<InfiniteData<PostPage, int>>(
-        feedKey,
+      client.updateData(
+        feedOptions(),
         (feed) => feed == null
             ? null
             : InfiniteData(
@@ -51,17 +51,19 @@ MutationObserver<Post, int, LikeSnapshot> likePostMutation() {
                 pageParams: feed.pageParams,
               ),
       );
-      client.updateQueryData<Post>(
-        postKey(id),
+      client.updateData(
+        postOptions(id),
         (post) => post == null ? null : _toggled(post),
       );
       return snapshot;
     },
     onError: (error, id, snapshot) {
       final client = Fuery.client;
-      if (snapshot?.feed case final feed?) client.setQueryData(feedKey, feed);
+      if (snapshot?.feed case final feed?) {
+        client.setData(feedOptions(), feed);
+      }
       if (snapshot?.post case final post?) {
-        client.setQueryData(postKey(id), post);
+        client.setData(postOptions(id), post);
       }
     },
     onSettled: (post, error, id, snapshot) =>
@@ -84,7 +86,7 @@ typedef NewComment = ({int postId, String body});
 /// still sent after the app is closed and opened again. `main.dart` passes
 /// [addCommentOptions] to `restore` for that.
 MutationObserver<Comment, NewComment, void> addCommentMutation() =>
-    MutationObserver(Fuery.client, addCommentOptions());
+    addCommentOptions().observe();
 
 MutationOptions<Comment, NewComment, void> addCommentOptions() {
   return MutationOptions(
@@ -113,7 +115,7 @@ MutationOptions<Comment, NewComment, void> addCommentOptions() {
 /// pending until the refetch is done, and the compose screen shouldn't wait
 /// for the feed.
 MutationObserver<Post, String, void> createPostMutation() {
-  return Mutation.use(
+  return Mutation.observe(
     mutationFn: (String body) => DemoApi().createPost(body),
     onSuccess: (post, _, __) {
       Fuery.client.invalidateQueries(queryKey: feedKey);
@@ -122,16 +124,15 @@ MutationObserver<Post, String, void> createPostMutation() {
 }
 
 /// Marks every notification read on screen first, then on the server.
-NoParamMutationObserver<void, List<FeedNotification>> markAllReadMutation() {
-  return Mutation.noParam(
+NoVariablesMutationObserver<void, List<FeedNotification>>
+    markAllReadMutation() {
+  return Mutation.noVariables(
     mutationFn: () => DemoApi().markAllRead(),
     onMutate: () {
       final client = Fuery.client;
-      final previous = client.getQueryData<List<FeedNotification>>(
-        notificationsKey,
-      );
-      client.updateQueryData<List<FeedNotification>>(
-        notificationsKey,
+      final previous = client.getData(notificationsOptions());
+      client.updateData(
+        notificationsOptions(),
         (notifications) => [
           for (final notification in notifications ?? const [])
             notification.copyWith(read: true),
@@ -141,7 +142,7 @@ NoParamMutationObserver<void, List<FeedNotification>> markAllReadMutation() {
     },
     onError: (error, previous) {
       if (previous != null) {
-        Fuery.client.setQueryData(notificationsKey, previous);
+        Fuery.client.setData(notificationsOptions(), previous);
       }
     },
     onSettled: (_, __, ___) =>

@@ -24,8 +24,8 @@ class PostScreen extends StatefulWidget {
 }
 
 class _PostScreenState extends State<PostScreen> {
-  late final post = postQuery(widget.id);
-  late final comments = commentsQuery(widget.id);
+  late final post = postOptions(widget.id).observe();
+  late final comments = commentsOptions(widget.id).observe();
   final addComment = addCommentMutation();
   final _draft = TextEditingController();
   // Created when asked for, so the stream doesn't start until then.
@@ -81,8 +81,8 @@ class _PostScreenState extends State<PostScreen> {
                   _Summary(query: summary)
                 else
                   OutlinedButton.icon(
-                    onPressed: () =>
-                        setState(() => _summary = summaryQuery(widget.id)),
+                    onPressed: () => setState(
+                        () => _summary = summaryOptions(widget.id).observe()),
                     icon: const Icon(Icons.auto_awesome),
                     label: const Text('Summarize thread'),
                   ),

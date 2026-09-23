@@ -29,7 +29,7 @@ void main() {
     List<int>? calls,
     Set<int>? failing,
   }) {
-    return InfiniteQuery.use(
+    return InfiniteQuery.observe(
       queryKey: ['pages'],
       queryFn: (context) async {
         calls?.add(context.pageParam);
@@ -75,7 +75,7 @@ void main() {
   fakeTest('polls only while refetchWhile returns true', (async) {
     var status = 'running';
     var calls = 0;
-    final observer = InfiniteQuery.use(
+    final observer = InfiniteQuery.observe(
       queryKey: ['job'],
       queryFn: (context) async {
         calls++;
@@ -219,7 +219,7 @@ void main() {
 
   fakeTest('stops fetching further pages once cancelled', (async) {
     final fetched = <int>[];
-    final observer = InfiniteQuery.use(
+    final observer = InfiniteQuery.observe(
       queryKey: ['pages'],
       queryFn: (context) async {
         context.signal;

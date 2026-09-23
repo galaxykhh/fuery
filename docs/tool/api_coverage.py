@@ -45,7 +45,7 @@ TOP_LEVEL = {CLASS: "Types", ENUM: "Types", TYPEDEF: "Types",
 # Members are only checked on the types an app actually holds and reads.
 MEMBERS_OF = {
     "QueryClient", "QueryObserver", "InfiniteQueryObserver", "MutationObserver",
-    "NoParamMutationObserver", "QueryResult", "InfiniteQueryResult", "InfiniteData",
+    "NoVariablesMutationObserver", "QueryResult", "InfiniteQueryResult", "InfiniteData",
     "MutationState", "QueryState", "Fuery", "QueryStorage", "QueryPersist",
     "InfiniteQueryPersist", "FocusManager", "OnlineManager", "NotifyManager",
     "AbortSignal", "QueryCache", "MutationCache",

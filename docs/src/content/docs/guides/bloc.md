@@ -23,6 +23,8 @@ The example app shows both: a list screen built with Fuery widgets, and a stats 
 
 ## In a cubit
 
+`todosOptions()` returns the query's options, as in [Organizing queries](../organizing-queries/).
+
 ```dart
 class TodoCubit extends Cubit<TodoState> {
   TodoCubit() : super(const TodoState()) {
@@ -31,7 +33,7 @@ class TodoCubit extends Cubit<TodoState> {
     });
   }
 
-  final _todos = todosQuery();
+  final _todos = todosOptions().observe();
   late final StreamSubscription<QueryResult<List<Todo>>> _subscription;
 
   Future<void> refresh() => _todos.refetch();
@@ -55,7 +57,7 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
   TodoBloc() : super(const TodoState()) {
     on<TodosSubscribed>((event, emit) {
       return emit.forEach(
-        todosQuery().stream,
+        todosOptions().observe().stream,
         onData: (result) =>
             state.copyWith(todos: result.data, loading: result.isLoading),
       );
