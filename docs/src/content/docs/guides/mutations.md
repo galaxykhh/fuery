@@ -66,7 +66,7 @@ Builders, listeners, and an observer's `result` all report a `MutationResult`, a
 
 Returning a future from a callback keeps the mutation pending until it completes. Returning the `invalidateQueries` future from `onSuccess`, as above, keeps a loading indicator up until the list has refetched.
 
-To react to a single call, pass `MutateOptions`. These callbacks only run while something is still listening to the mutation, which a mounted `MutationBuilder` always is:
+To react to a single call, pass `MutateOptions`. Its callbacks run after the mutation's own, once the call settles:
 
 ```dart
 state.mutate(
@@ -74,6 +74,10 @@ state.mutate(
   MutateOptions(onSuccess: (todo, title, _, __) => showAddedSnackBar(todo)),
 );
 ```
+
+- A later `mutate` call on the same observer replaces them, so only the latest call's callbacks run.
+- `reset()` drops them, and so does unmounting the widget that got the mutation.
+- An observer from `observe()` runs them whether or not a widget listens to it. Check `context.mounted` before using a `BuildContext` in them.
 
 ## Optimistic updates
 

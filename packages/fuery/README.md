@@ -198,7 +198,7 @@ MutationBuilder(
 
 Every callback receives the client that runs the mutation. Returning the `invalidateQueries` future from `onSuccess` keeps the mutation pending until the list has refetched. `state.mutateAsync(title)` returns the data, and throws on error.
 
-When the button and the pending state are in different places, create one observer with `addTodo.observe()` in a `State` field and pass it to both.
+When the button and the pending state are in different places, create one observer with `addTodo.observe()` in a `State` field, pass it to both, and call its `reset()` in `dispose`.
 
 **Optimistic updates.** Cancel refetches of the data first, then update the cache in `onMutate` and return what you need to roll back. The returned value is passed to the other callbacks as `context`:
 
@@ -327,7 +327,7 @@ client.cancelQueries(queryKey: ['todos']);
 client.removeQueries(queryKey: ['todos']);
 ```
 
-`getData`, `setData`, and `updateData` take the key and the data type from the query. A query that `setData` creates gets all of its options, so it stores its data with `persist` and can refetch. With only a key, `getQueryData`, `setQueryData`, and `updateQueryData` do the same with the type named: `getQueryData<List<Todo>>(['todos'])`.
+`getData`, `setData`, and `updateData` take the key and the data type from the query. `updateQueriesData(queryKey: ['posts'], (List<Post> posts) => ...)` updates every query under a key that holds the updater's type. A query that `setData` creates gets all of its options, so it stores its data with `persist` and can refetch. With only a key, `getQueryData`, `setQueryData`, and `updateQueryData` do the same with the type named: `getQueryData<List<Todo>>(['todos'])`.
 
 `invalidateQueries` marks matching queries stale and refetches the ones in use. The others refetch the next time they're used.
 

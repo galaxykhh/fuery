@@ -166,6 +166,16 @@ void main() {
     expect(observer.result.data!.pageParams, [2, 3]);
   });
 
+  test('mapPages changes every page and keeps the params', () {
+    const data = InfiniteData(pages: ['a', 'b'], pageParams: [1, 2]);
+    final mapped = data.mapPages((page) => page.toUpperCase());
+
+    expect(mapped.pages, ['A', 'B']);
+    expect(mapped.pageParams, [1, 2]);
+    final InfiniteData<String, int> typed = mapped;
+    expect(typed, isNot(same(data)));
+  });
+
   fakeTest('stream reports infinite results', (async) {
     final observer = observe();
     final results = <InfiniteQueryResult<String, int>>[];

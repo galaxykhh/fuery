@@ -270,8 +270,10 @@ final class MutationSlot<TData, TVariables, TContext> extends _Slot<
     return observer.subscribe(listener);
   }
 
-  // A mutation observer holds nothing to release: its runs finish on their
-  // own, and unsubscribing detaches it from its mutation.
+  // Runs finish on their own. Resetting drops the callbacks of the latest
+  // `mutate` call, which belong to the widget that is going away.
   @override
-  void _destroy(MutationObserver<TData, TVariables, TContext> observer) {}
+  void _destroy(MutationObserver<TData, TVariables, TContext> observer) {
+    observer.reset();
+  }
 }

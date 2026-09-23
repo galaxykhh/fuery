@@ -134,7 +134,7 @@ MutationBuilder(
 )
 ```
 
-A `MutationListener` does the same for a snackbar or a dialog, with the screen's `BuildContext`. When the button and the listener are in different places, create one observer with `addTodo.observe()` in a `State` field and pass it to both.
+A `MutationListener` does the same for a snackbar or a dialog, with the screen's `BuildContext`. When the button and the listener are in different places, create one observer with `addTodo.observe()` in a `State` field and pass it to both, and call its `reset()` in `dispose` so callbacks like the one above don't run after the screen closes.
 
 ## In the example app
 

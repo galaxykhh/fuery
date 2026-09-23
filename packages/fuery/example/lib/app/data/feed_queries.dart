@@ -11,7 +11,10 @@ QueryKey postKey(int id) => ['posts', 'detail', id];
 
 QueryKey commentsKey(int postId) => ['posts', 'comments', postId];
 
-QueryKey searchKey(String term) => ['posts', 'search', term];
+/// Every search term's results are under this key.
+const searchResultsKey = ['posts', 'search'];
+
+QueryKey searchKey(String term) => [...searchResultsKey, term];
 
 QueryKey summaryKey(int postId) => ['posts', 'summary', postId];
 

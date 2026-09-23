@@ -332,6 +332,58 @@ void main() {
       ]);
     });
 
+    fakeTest('updateQueriesData updates every match of its data type', (async) {
+      // Lists and details of different types under one prefix.
+      client.setQueryData(['posts', 'search', 'a'], ['a1', 'a2']);
+      client.setQueryData(['posts', 'search', 'b'], ['b1']);
+      client.setQueryData(['posts', 'detail', 1], 'a1');
+      client.setQueryData(['posts', 'search', 'c'], ['c1']);
+      final observer = Query(
+        queryKey: ['posts', 'search', 'd'],
+        queryFn: FakeFetcher(() => ['d1']).call,
+      ).observe(client: client);
+      observer.subscribe((_) {}); // pending: nothing to update yet
+      final seen = <List<String>>[];
+
+      client.updateQueriesData(
+        queryKey: ['posts'],
+        (List<String> posts) {
+          seen.add(posts);
+          if (posts.contains('c1')) return null; // left as it is
+          return [for (final post in posts) '$post!'];
+        },
+      );
+
+      expect(seen, hasLength(3));
+      expect(client.getQueryData<List<String>>(['posts', 'search', 'a']),
+          ['a1!', 'a2!']);
+      expect(
+          client.getQueryData<List<String>>(['posts', 'search', 'b']), ['b1!']);
+      expect(
+          client.getQueryData<List<String>>(['posts', 'search', 'c']), ['c1']);
+      expect(client.getQueryData<String>(['posts', 'detail', 1]), 'a1');
+
+      client.updateQueriesData(
+        queryKey: ['posts', 'search', 'a'],
+        exact: true,
+        predicate: (query) => query.state.data != null,
+        updatedAt: 5,
+        (List<String> posts) => ['only a'],
+      );
+      expect(client.getQueryState(['posts', 'search', 'a'])!.dataUpdatedAt, 5);
+      expect(client.getQueryData<List<String>>(['posts', 'search', 'a']),
+          ['only a']);
+      expect(
+          client.getQueryData<List<String>>(['posts', 'search', 'b']), ['b1!']);
+
+      // A parameter without a type would match nothing.
+      expect(
+        () => client.updateQueriesData(queryKey: ['posts'], (posts) => posts),
+        throwsArgumentError,
+      );
+      async.elapse(ms10);
+    });
+
     fakeTest('with staticStaleTime, uses any cached data', (async) {
       final fetcher = FakeFetcher(() => 'fetched');
       final options = Query<String>(

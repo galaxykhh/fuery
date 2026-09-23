@@ -29,6 +29,21 @@ class InfiniteData<TPage, TParam> {
   TParam get firstPageParam => pageParams.first;
   TParam get lastPageParam => pageParams.last;
 
+  /// The same pages, each replaced by what [transform] returns for it, with
+  /// the same params. Use it to update an item in an infinite query's data:
+  ///
+  /// ```dart
+  /// client.updateData(feedQuery, (feed) => feed?.mapPages(
+  ///       (page) => page.withPost(post),
+  ///     ));
+  /// ```
+  InfiniteData<TPage, TParam> mapPages(TPage Function(TPage page) transform) {
+    return InfiniteData(
+      pages: [for (final page in pages) transform(page)],
+      pageParams: pageParams,
+    );
+  }
+
   static const _equality = DeepCollectionEquality();
 
   @override

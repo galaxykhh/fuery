@@ -16,7 +16,6 @@ class MutationObserver<TData, TVariables, TContext>
   Mutation<TData, TVariables, TContext>? _options;
   late MutationResult<TData, TVariables, TContext> _currentResult;
   CachedMutation<TData, TVariables, TContext>? _currentMutation;
-  MutateOptions<TData, TVariables, TContext>? _mutateOptions;
 
   Mutation<TData, TVariables, TContext> get options => _options!;
 
@@ -79,9 +78,9 @@ class MutationObserver<TData, TVariables, TContext>
     if (!hasListeners) _currentMutation?._removeObserver(this);
   }
 
-  void _onMutationUpdate(_MutationAction action) {
+  void _onMutationUpdate() {
     _updateResult();
-    _notify(action);
+    _notify();
   }
 
   /// Forgets the latest mutation and goes back to idle.
@@ -97,7 +96,6 @@ class MutationObserver<TData, TVariables, TContext>
     TVariables variables, [
     MutateOptions<TData, TVariables, TContext>? options,
   ]) {
-    _mutateOptions = options;
     _currentMutation?._removeObserver(this);
 
     final mutation = _currentMutation =
@@ -109,7 +107,52 @@ class MutationObserver<TData, TVariables, TContext>
     // the mutation from being garbage collected. onSubscribe attaches later.
     if (hasListeners) mutation._addObserver(this);
 
-    return mutation._execute(variables);
+    return mutation._execute(
+      variables,
+      onCallSettled:
+          options == null ? null : _callbacksOf(mutation, variables, options),
+    );
+  }
+
+  /// Runs the callbacks of one `mutate` call when its mutation settles,
+  /// before listeners hear of it, whether or not anything listens. A later
+  /// call or [reset], also from one of these callbacks, drops the rest; so
+  /// does the slot that owns this observer being disposed.
+  void Function(TData? data, Object? error) _callbacksOf(
+    CachedMutation<TData, TVariables, TContext> mutation,
+    TVariables variables,
+    MutateOptions<TData, TVariables, TContext> options,
+  ) {
+    return (data, error) {
+      bool current() => identical(_currentMutation, mutation);
+      final context = mutation.state.context;
+      if (error == null) {
+        if (current()) {
+          _guardSync(
+            () => options.onSuccess
+                ?.call(data as TData, variables, context, _client),
+          );
+        }
+        if (current()) {
+          _guardSync(
+            () => options.onSettled
+                ?.call(data, null, variables, context, _client),
+          );
+        }
+      } else {
+        if (current()) {
+          _guardSync(
+            () => options.onError?.call(error, variables, context, _client),
+          );
+        }
+        if (current()) {
+          _guardSync(
+            () => options.onSettled
+                ?.call(null, error, variables, context, _client),
+          );
+        }
+      }
+    };
   }
 
   /// Runs the mutation without waiting for it. Errors are reported in
@@ -132,55 +175,8 @@ class MutationObserver<TData, TVariables, TContext>
   MutationState<TData, TVariables, TContext>? _resultState;
   final _idle = MutationState<TData, TVariables, TContext>();
 
-  void _notify([_MutationAction? action]) {
+  void _notify() {
     notifyManager.batch(() {
-      final mutateOptions = _mutateOptions;
-      if (mutateOptions != null && hasListeners) {
-        final context = _currentResult.context;
-        TVariables variables() => _currentResult.variables as TVariables;
-
-        switch (action) {
-          case _MutationSuccessAction(:final data):
-            _guardSync(
-              () => mutateOptions.onSuccess?.call(
-                data as TData,
-                variables(),
-                context,
-                _client,
-              ),
-            );
-            _guardSync(
-              () => mutateOptions.onSettled?.call(
-                data as TData,
-                null,
-                variables(),
-                context,
-                _client,
-              ),
-            );
-          case _MutationErrorAction(:final error):
-            _guardSync(
-              () => mutateOptions.onError?.call(
-                error,
-                variables(),
-                context,
-                _client,
-              ),
-            );
-            _guardSync(
-              () => mutateOptions.onSettled?.call(
-                null,
-                error,
-                variables(),
-                context,
-                _client,
-              ),
-            );
-          default:
-            break;
-        }
-      }
-
       for (final listener in listeners) {
         listener(_currentResult);
       }

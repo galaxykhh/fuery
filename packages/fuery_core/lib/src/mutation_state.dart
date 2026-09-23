@@ -434,8 +434,10 @@ class NoVariablesMutation<TData, TContext extends Object?>
   }
 }
 
-/// Callbacks for a single `mutate` call. They only run while the observer
-/// that started the mutation still has listeners.
+/// Callbacks for a single `mutate` call, run after the mutation's own
+/// callbacks. A later `mutate` call on the same observer replaces them, and
+/// `reset()` drops them, as does unmounting the widget that owns the
+/// observer. Check `context.mounted` before using a `BuildContext` in them.
 @immutable
 class MutateOptions<TData, TVariables, TContext> {
   const MutateOptions({this.onSuccess, this.onError, this.onSettled});

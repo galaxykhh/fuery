@@ -20,8 +20,9 @@ class LikeSnapshot {
   final Post? post;
 }
 
-/// Toggles a like in the feed and on the post right away, and puts both back
-/// if the request fails.
+/// Toggles a like in the feed, on the post, and in every cached search result
+/// right away. If the request fails, the feed and the post are put back.
+/// Either way, the post and the search results are fetched again after.
 Mutation<Post, int, LikeSnapshot> likePostMutation() {
   return Mutation(
     mutationFn: (int id) => DemoApi().toggleLike(id),
@@ -29,31 +30,33 @@ Mutation<Post, int, LikeSnapshot> likePostMutation() {
       // A refetch in flight would overwrite the optimistic value.
       await client.cancelQueries(queryKey: feedKey);
       await client.cancelQueries(queryKey: postKey(id));
+      // Only results already on screen: cancelling a first load would leave
+      // it without data until something fetches it again.
+      await client.cancelQueries(
+        queryKey: searchResultsKey,
+        predicate: (query) => query.state.data != null,
+      );
       final snapshot = LikeSnapshot(
         feed: client.getData(feedQuery()),
         post: client.getData(postQuery(id)),
       );
       client.updateData(
         feedQuery(),
-        (feed) => feed == null
-            ? null
-            : InfiniteData(
-                pages: [
-                  for (final page in feed.pages)
-                    PostPage(
-                      posts: [
-                        for (final post in page.posts)
-                          post.id == id ? _toggled(post) : post,
-                      ],
-                      nextCursor: page.nextCursor,
-                    ),
-                ],
-                pageParams: feed.pageParams,
-              ),
+        (feed) => feed?.mapPages(
+          (page) => PostPage(
+            posts: _toggledIn(page.posts, id),
+            nextCursor: page.nextCursor,
+          ),
+        ),
       );
       client.updateData(
         postQuery(id),
         (post) => post == null ? null : _toggled(post),
+      );
+      // Every search term's results, whatever the term.
+      client.updateQueriesData(
+        queryKey: searchResultsKey,
+        (List<Post> posts) => _toggledIn(posts, id),
       );
       return snapshot;
     },
@@ -61,10 +64,16 @@ Mutation<Post, int, LikeSnapshot> likePostMutation() {
       if (snapshot?.feed case final feed?) client.setData(feedQuery(), feed);
       if (snapshot?.post case final post?) client.setData(postQuery(id), post);
     },
-    onSettled: (post, error, id, snapshot, client) =>
-        client.invalidateQueries(queryKey: postKey(id)),
+    onSettled: (post, error, id, snapshot, client) {
+      client.invalidateQueries(queryKey: postKey(id));
+      client.invalidateQueries(queryKey: searchResultsKey);
+    },
   );
 }
+
+List<Post> _toggledIn(List<Post> posts, int id) => [
+      for (final post in posts) post.id == id ? _toggled(post) : post,
+    ];
 
 Post _toggled(Post post) => post.copyWith(
       liked: !post.liked,

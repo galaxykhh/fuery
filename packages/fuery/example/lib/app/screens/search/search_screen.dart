@@ -70,7 +70,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     for (final post in data)
                       ListTile(
                         title: Text(post.body),
-                        subtitle: Text(post.author),
+                        subtitle: Text('${post.author} · ${post.likes} likes'),
                         onTap: () => Navigator.push(
                           context,
                           PostScreen.route(post.id),

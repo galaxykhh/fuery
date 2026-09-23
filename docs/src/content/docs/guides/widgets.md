@@ -172,7 +172,9 @@ Define queries anywhere, and pass them to widgets; see [Using a query](../querie
 
 ## Do queries need disposing?
 
-No. A widget that gets a definition creates its observer when it mounts and drops it when it unmounts. An observer you created with `observe()` subscribes to its query when it gets its first listener and unsubscribes when the last one leaves. Unmounting the last widget that uses it cancels its stale and refetch timers and detaches it from the query. Mounting a widget with the same observer later subscribes it again, so a `State` field holding an observer needs nothing in `dispose`. Mutation observers work the same way.
+No. A widget that gets a definition creates its observer when it mounts and drops it when it unmounts. An observer you created with `observe()` subscribes to its query when it gets its first listener and unsubscribes when the last one leaves. Unmounting the last widget that uses it cancels its stale and refetch timers and detaches it from the query. Mounting a widget with the same observer later subscribes it again, so a `State` field holding a query observer needs nothing in `dispose`.
+
+A mutation observer you hold runs the `MutateOptions` callbacks of its latest call even after the widget is gone. Call `reset()` on it in `dispose`, or check `mounted` in callbacks that use the `State` or its `BuildContext`. A widget that got the mutation as a definition does this for you when it unmounts.
 
 A cubit that listens to `stream` cancels that subscription in `close()`, which does the same thing. See [In a cubit](../bloc/#in-a-cubit).
 
