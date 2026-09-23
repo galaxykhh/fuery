@@ -321,25 +321,25 @@ final class QueriesSlot<TData extends Object>
   }
 
   @override
-  void update(List<QuerySource<TData>> queries, QueryClient client) {
+  void update(List<QuerySource<TData>> source, QueryClient client) {
     final reusable = <Object, List<QuerySlot<TData>>>{};
     for (final (key, slot) in _entries) {
       (reusable[key] ??= []).add(slot);
     }
 
     final entries = <(Object, QuerySlot<TData>)>[];
-    for (final source in queries) {
+    for (final query in source) {
       // Owned observers are reused by key, shared ones by identity.
-      final key = source is Query<TData> ? hashKey(source.queryKey) : source;
+      final key = query is Query<TData> ? hashKey(query.queryKey) : query;
       final slots = reusable[key];
       final QuerySlot<TData> slot;
       if (slots != null && slots.isNotEmpty) {
         slot = slots.removeAt(0);
-        slot.update(source, client);
+        slot.update(query, client);
         // A new client can give the slot another observer.
         _pushedBy.remove(slot);
       } else {
-        slot = QuerySlot<TData>(source, client);
+        slot = QuerySlot<TData>(query, client);
         if (hasListeners) _listenTo(slot);
       }
       entries.add((key, slot));
