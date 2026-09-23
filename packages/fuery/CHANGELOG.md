@@ -1,3 +1,7 @@
+## 1.4.0
+- Released together with `fuery_core` 1.4.0, which adds `QueryClient.updateQueriesData` and `InfiniteData.mapPages`, and runs `MutateOptions` callbacks for observers without listeners. A mutation widget that unmounts still drops the callbacks of its calls.
+- The example's like updates cached search results too, and the search screen shows like counts.
+
 ## 1.3.0
 This release has breaking changes in a minor version, together with `fuery_core` 1.3.0, whose CHANGELOG lists what to write instead.
 
