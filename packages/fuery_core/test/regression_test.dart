@@ -20,6 +20,8 @@ class Item {
 
 enum Sort { newest }
 
+enum Tab { newest }
+
 void main() {
   late QueryClient client;
 
@@ -295,18 +297,50 @@ void main() {
     unsubscribe();
   });
 
-  test('keys with enums hash the same in obfuscated builds', () {
-    // Obfuscated and minified builds rename types, so a hash with the type
-    // name would change with every build, and persisted queries under keys
-    // with enums would not be restored after an app update.
-    expect(hashKey(['posts', Sort.newest]), isNot(contains('Sort')));
-    expect(
+  group('keys hash the same in obfuscated builds', () {
+    // Obfuscated and minified builds rename types, so a hash with a type
+    // name would change with every build, and persisted queries under such
+    // keys would not be restored after an app update.
+    test('enums hash by name, apart from plain strings', () {
+      expect(hashKey(['posts', Sort.newest]), '["posts","enum:newest"]');
+      expect(
+        hashKey(['posts', Sort.newest]),
+        isNot(hashKey(['posts', 'newest'])),
+      );
+      expect(
+          hashKey([
+            {Sort.newest: true}
+          ]),
+          '[{"enum:newest":true}]');
+    });
+
+    test('other values hash as before', () {
+      expect(
         hashKey([
-          'posts',
-          {Sort.newest: true}
+          {DateTime.utc(2026): 1, 2: true}
         ]),
-        isNot(contains('Sort')));
-    expect(hashKey(['posts', Sort.newest]), '["posts","newest"]');
+        '[{"2":true,"2026-01-01 00:00:00.000Z":1}]',
+      );
+      expect(hashKey([DateTime.utc(2026)]), '["2026-01-01T00:00:00.000Z"]');
+    });
+
+    test('map keys that become the same key hash in any order', () {
+      expect(
+        hashKey([
+          {Sort.newest: 1, Tab.newest: 2}
+        ]),
+        hashKey([
+          {Tab.newest: 2, Sort.newest: 1}
+        ]),
+      );
+      expect(
+          hashKey([
+            {1: 'a', '1': 'b'}
+          ]),
+          hashKey([
+            {'1': 'b', 1: 'a'}
+          ]));
+    });
   });
 
   group('infinite queries', () {

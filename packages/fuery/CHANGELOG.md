@@ -1,5 +1,5 @@
 ## 1.4.1
-- Released together with `fuery_core` 1.4.1, which keeps the hash of keys with enums the same in obfuscated and minified builds, so persisted queries under such keys are restored after an app update.
+- Released together with `fuery_core` 1.4.1, which hashes enums in query keys the same in every build, so persisted queries under such keys are restored after an app update, and stores persisted mutations whose keys hold enums.
 
 ## 1.4.0
 - Add `QueriesBuilder` and `QueriesSelector`, which build from a list of queries of one data type at once, in order, such as one query per id. The example's search screen shows recently viewed posts with them.

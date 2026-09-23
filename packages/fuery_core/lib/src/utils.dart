@@ -46,11 +46,20 @@ int timeUntilStale(int updatedAt, Duration? staleTime) {
 /// affect the hash.
 ///
 /// Supported values are `null`, [bool], [num], [String], [Enum], [DateTime],
-/// [Iterable], [Map], and objects that implement `toJson()`. An enum is
-/// hashed by its `name`, without its type, whose name obfuscated and minified
-/// builds change; enums of different types with the same name in the same
-/// place are therefore the same key.
+/// [Iterable], [Map], and objects that implement `toJson()`.
+///
+/// The hash is the same in every build, obfuscated and minified ones
+/// included, so persisted data is found after an app update. An enum, as a
+/// value or a map key, hashes as `'enum:name'`, without its type, whose name
+/// those builds change: enums of different types with the same name in the
+/// same place are the same key. Other map keys hash by `toString()`. When
+/// two keys of one map become the same, one of them is kept, whatever the
+/// map's order.
 String hashKey(List<Object?> key) => jsonEncode(_canonicalize(key));
+
+/// [key] in the JSON form [hashKey] encodes, for storing a key and reading
+/// it back as the same key.
+Object? canonicalKey(List<Object?> key) => _canonicalize(key);
 
 /// Returns true when [b] is a prefix (for lists) or subset (for maps) of [a].
 bool partialMatchKey(List<Object?> a, List<Object?> b) {
@@ -82,13 +91,23 @@ Object? _canonicalize(Object? value) {
   if (value == null || value is bool || value is num || value is String) {
     return value;
   }
-  if (value is Enum) return value.name;
+  if (value is Enum) return _enumKey(value);
   if (value is DateTime) return value.toIso8601String();
   if (value is Iterable) return [for (final item in value) _canonicalize(item)];
   if (value is Map) {
-    final keys = value.keys.map(_mapKey).toList()..sort();
-    final byString = {for (final e in value.entries) _mapKey(e.key): e.value};
-    return {for (final k in keys) k: _canonicalize(byString[k])};
+    final byKey = <String, Object?>{};
+    for (final MapEntry(:key, value: item) in value.entries) {
+      final mapKey = key is Enum ? _enumKey(key) : key.toString();
+      final canonical = _canonicalize(item);
+      // Two keys that become the same: keep the same one in any order.
+      if (byKey.containsKey(mapKey) &&
+          jsonEncode(canonical).compareTo(jsonEncode(byKey[mapKey])) <= 0) {
+        continue;
+      }
+      byKey[mapKey] = canonical;
+    }
+    final keys = byKey.keys.toList()..sort();
+    return {for (final k in keys) k: byKey[k]};
   }
 
   try {
@@ -104,9 +123,9 @@ Object? _canonicalize(Object? value) {
   }
 }
 
-/// A map key as a string. An enum's `toString()` includes its type, which
-/// obfuscated builds rename, so it uses the name.
-String _mapKey(Object? key) => key is Enum ? key.name : key.toString();
+/// An enum without its type, whose name obfuscated and minified builds
+/// change.
+String _enumKey(Enum value) => 'enum:${value.name}';
 
 /// Reuses parts of [prevData] that are equal to [data], so listeners can skip
 /// work for data that did not change.

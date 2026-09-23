@@ -208,13 +208,22 @@ class QueryClient {
       return byTime != 0 ? byTime : a.$2.compareTo(b.$2);
     });
 
+    // Each definition's key, hashed once. One that can't be hashed matches
+    // no entry, and leaves the entries of the others alone.
+    final byKey = <String, AnyMutation>{};
+    for (final options in mutations) {
+      final mutationKey = options.mutationKey;
+      if (mutationKey == null) continue;
+      try {
+        byKey.putIfAbsent(hashKey(mutationKey), () => options);
+      } catch (_) {
+        continue;
+      }
+    }
+
     for (final (submittedAt, key, entry) in stored) {
       try {
-        final mutationKey = entry['k']! as List<Object?>;
-        final options = mutations.firstWhereOrNull((options) {
-          final key = options.mutationKey;
-          return key != null && hashKey(key) == hashKey(mutationKey);
-        });
+        final options = byKey[hashKey(entry['k']! as List<Object?>)];
         // An entry nothing was passed for is kept: the app may restore it
         // later, with the options it belongs to.
         if (options == null) continue;
