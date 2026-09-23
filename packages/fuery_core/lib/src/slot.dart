@@ -154,8 +154,11 @@ final class QuerySlot<TData extends Object> extends _Slot<QuerySource<TData>,
   }
 
   @override
-  void _setOptions(QueryObserver<TData> observer, QuerySource<TData> source) {
-    observer.setOptions(source as Query<TData>);
+  void _setOptions(
+    QueryObserver<TData> observer,
+    QuerySource<TData> definition,
+  ) {
+    observer.setOptions(definition as Query<TData>);
   }
 
   @override
@@ -201,9 +204,9 @@ final class InfiniteQuerySlot<TPage, TParam> extends _Slot<
   @override
   void _setOptions(
     InfiniteQueryObserver<TPage, TParam> observer,
-    InfiniteQuerySource<TPage, TParam> source,
+    InfiniteQuerySource<TPage, TParam> definition,
   ) {
-    observer.setOptions(source as InfiniteQuery<TPage, TParam>);
+    observer.setOptions(definition as InfiniteQuery<TPage, TParam>);
   }
 
   @override
@@ -254,9 +257,9 @@ final class MutationSlot<TData, TVariables, TContext> extends _Slot<
   @override
   void _setOptions(
     MutationObserver<TData, TVariables, TContext> observer,
-    MutationSource<TData, TVariables, TContext> source,
+    MutationSource<TData, TVariables, TContext> definition,
   ) {
-    observer.setOptions(source as Mutation<TData, TVariables, TContext>);
+    observer.setOptions(definition as Mutation<TData, TVariables, TContext>);
   }
 
   @override
