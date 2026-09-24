@@ -165,6 +165,19 @@ Object? replaceEqualDeep(Object? a, Object? b, [int depth = 0]) {
     return allEqual && a.runtimeType == b.runtimeType ? a : copy;
   }
 
+  if (a is Map && b is Map) {
+    // Compared key by key: DeepCollectionEquality would hash each nested
+    // map's whole subtree again at every level.
+    if (a.length != b.length || a.runtimeType != b.runtimeType) return b;
+    for (final entry in b.entries) {
+      final previous = a[entry.key];
+      if (previous == null && !a.containsKey(entry.key)) return b;
+      final shared = replaceEqualDeep(previous, entry.value, depth + 1);
+      if (!identical(shared, previous)) return b;
+    }
+    return a;
+  }
+
   final equal = a.runtimeType == b.runtimeType &&
       const DeepCollectionEquality().equals(a, b);
   return equal ? a : b;
