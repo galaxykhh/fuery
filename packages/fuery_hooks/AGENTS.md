@@ -5,7 +5,7 @@ Hooks over `fuery`, for apps built with `flutter_hooks`. Fuery's own style is th
 ## Structure
 
 - `lib/src/hooks.dart`: `useQuery`, `useInfiniteQuery`, `useMutation`, `useQueries`, and `useMutationState` are `_SlotHook`s over `QuerySlot`, `InfiniteQuerySlot`, `MutationSlot`, `QueriesSlot`, and `MutationStateSlot`. `_SlotHook<S, R, L>` takes a `listenTo` that decides what its listener hears: `_listenToResults` (each result, through `slot.listen`) or `_listenToRuns` (each run, through `subscribeToRuns`, where `L` is a `MutationState`). `useQueryClient` reads `FueryProvider.of(context, listen: true)`. `useQuery`, `useInfiniteQuery`, `useMutation`, and `useMutationState` pass their optional `listener` (a `ResultWidgetListener`, as the widgets take) and `listenWhen` to `_SlotHook`, which listens through its `listenTo`; a new hook over a slot takes the same two parameters the same way. `useQueries` has no listener, as there is no widget with one for a list.
-- `lib/fuery_hooks.dart` re-exports `fuery`. It hides `debugResetHookWarnings`, which only tests use, and Fuery's `FocusManager` class, whose name Flutter uses too; the `focusManager` singleton stays exported.
+- `lib/fuery_hooks.dart` re-exports `fuery`. It hides `debugResetHookWarnings`, which only tests use, and `FocusManager`, the deprecated alias of `FueryFocusManager`, whose name Flutter uses too. `FueryFocusManager` and the `focusManager` singleton stay exported.
 - `example/main.dart` is the example pub.dev shows. It is analyzed with the package, so it must compile.
 
 ## Hook semantics

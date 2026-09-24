@@ -103,9 +103,9 @@ void main() {
     });
   });
 
-  group('FocusManager', () {
+  group('FueryFocusManager', () {
     test('uses the event source passed to setEventListener', () {
-      final manager = FocusManager();
+      final manager = FueryFocusManager();
       void Function([bool? focused])? setFocused;
       var cleanedUp = false;
       manager.setEventListener((callback) {
@@ -129,7 +129,7 @@ void main() {
     });
 
     test('is focused by default', () {
-      expect(FocusManager().isFocused, isTrue);
+      expect(FueryFocusManager().isFocused, isTrue);
     });
   });
 

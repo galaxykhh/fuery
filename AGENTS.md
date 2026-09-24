@@ -22,6 +22,7 @@ dart format packages                              # keep formatting clean
 (cd packages/fuery && flutter test)
 (cd packages/fuery/example && flutter test)
 (cd packages/fuery_hooks && flutter test)
+for p in fuery_core fuery fuery_hooks; do (cd packages/$p/test_fixes && dart fix --compare-to-golden); done  # dart fix goldens
 ```
 
 Coverage (every package is at 100% line coverage, and CI fails otherwise):
@@ -42,7 +43,7 @@ python3 tool/check_doc_links.py                   # docs links in lib/, READMEs,
 
 `coverage/` is gitignored.
 
-CI (`.github/workflows/ci.yml`) runs the version and docs link checks, a `pub publish --dry-run` of every package, format, analyze, all four test suites, and the coverage check on the latest stable Flutter, and analyze and the tests on the oldest supported version (Flutter 3.27, Dart 3.6). It runs for every pull request, every push to `main`, weekly (it follows the latest stable Flutter and resolves dependencies fresh, so a new release can break `main` without a commit), and when started by hand. Raise the pubspec constraints and that CI version together. `.github/workflows/docs.yml` builds the example for the web into `docs/public/demo`, builds the docs site, and deploys both to GitHub Pages from `main`. It runs on pull requests that touch the docs, the example, or the `lib/` of `fuery` or `fuery_core`, which the demo is built from. The demo passes `--dart-define=fuery.demo=true`, which turns the devtools on in that release build.
+CI (`.github/workflows/ci.yml`) runs the version and docs link checks, a `pub publish --dry-run` of every package, format, analyze, the `dart fix` goldens, all four test suites, and the coverage check on the latest stable Flutter, and analyze, the goldens, and the tests on the oldest supported version (Flutter 3.27, Dart 3.6). It runs for every pull request, every push to `main`, weekly (it follows the latest stable Flutter and resolves dependencies fresh, so a new release can break `main` without a commit), and when started by hand. Raise the pubspec constraints and that CI version together. `.github/workflows/docs.yml` builds the example for the web into `docs/public/demo`, builds the docs site, and deploys both to GitHub Pages from `main`. It runs on pull requests that touch the docs, the example, or the `lib/` of `fuery` or `fuery_core`, which the demo is built from. The demo passes `--dart-define=fuery.demo=true`, which turns the devtools on in that release build.
 
 ## Rules for every change
 

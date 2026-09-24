@@ -21,7 +21,7 @@ When the app is focused again, stale queries that widgets use refetch. While it 
 
 `refetchOnFocus` controls this per query: `RefetchMode.ifStale` (default), `RefetchMode.always`, or `RefetchMode.never`.
 
-`focusManager` is the same switch underneath. `focusManager.setFocused(false)` reports the app as hidden and `setFocused(null)` hands control back, which is how a test simulates backgrounding. `focusManager.isFocused` reads the current state. Outside Flutter, `focusManager.setEventListener` connects whatever your host uses, the way the network source below does.
+`focusManager`, Fuery's `FueryFocusManager`, is the same switch underneath. It tracks whether the app is in the foreground, not keyboard focus. `focusManager.setFocused(false)` reports the app as hidden and `setFocused(null)` hands control back, which is how a test simulates backgrounding. `focusManager.isFocused` reads the current state. Outside Flutter, `focusManager.setEventListener` connects whatever your host uses, the way the network source below does.
 
 An app that uses queries only from blocs has no Fuery widget or hook to connect the lifecycle, so call this once at startup:
 

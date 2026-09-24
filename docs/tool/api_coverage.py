@@ -55,7 +55,7 @@ MEMBERS_OF = {
     "MutationResult", "ObserverSlot", "QuerySlot", "InfiniteQuerySlot", "MutationSlot",
     "QueriesSlot", "MutationStateSlot",
     "MutationState", "QueryState", "Fuery", "QueryStorage", "QueryPersist",
-    "InfiniteQueryPersist", "FocusManager", "OnlineManager", "NotifyManager",
+    "InfiniteQueryPersist", "FueryFocusManager", "OnlineManager", "NotifyManager",
     "AbortSignal", "QueryCache", "MutationCache",
 }
 
