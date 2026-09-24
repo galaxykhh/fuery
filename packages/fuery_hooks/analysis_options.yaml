@@ -9,9 +9,6 @@ analyzer:
   # `pub publish --dry-run`.
   exclude:
     - build/**
-    # The fix tests use deprecated names on purpose; `dart fix
-    # --compare-to-golden` checks them from inside test_fixes/.
-    - test_fixes/**
   language:
     strict-casts: true
     strict-inference: true

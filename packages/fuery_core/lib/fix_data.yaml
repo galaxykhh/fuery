@@ -3,9 +3,15 @@
 # that re-export it (fuery, fuery_hooks): the analyzer reads it from a
 # transitive dependency too, and ignores URIs that don't resolve.
 #
+# A rename checks no other import, so only a name no other package uses gets
+# one. The names deprecated in 1.3 are left to their deprecation messages:
+# other packages export a `Query` or a `Mutation` too, and a call to
+# `infiniteQueryOptions` with type arguments has five, where `InfiniteQuery`
+# takes two.
+#
 # Type aliases use the `class` kind, which also rewrites constructor calls;
 # the `typedef` kind leaves them unchanged. Every transform has a golden case
-# in each package's `test_fixes/`.
+# in the `test_fixes/` of each package whose barrel exports the name.
 version: 1
 transforms:
   - title: "Rename to 'FueryFocusManager'"
@@ -16,63 +22,3 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'FueryFocusManager'
-
-  - title: "Rename to 'Query'"
-    date: 2026-09-24
-    element:
-      uris:
-        - 'fuery_core.dart'
-        - 'package:fuery/fuery.dart'
-        - 'package:fuery_hooks/fuery_hooks.dart'
-      class: 'QueryOptions'
-    changes:
-      - kind: 'rename'
-        newName: 'Query'
-
-  - title: "Rename to 'InfiniteQuery'"
-    date: 2026-09-24
-    element:
-      uris:
-        - 'fuery_core.dart'
-        - 'package:fuery/fuery.dart'
-        - 'package:fuery_hooks/fuery_hooks.dart'
-      class: 'InfiniteQueryOptions'
-    changes:
-      - kind: 'rename'
-        newName: 'InfiniteQuery'
-
-  - title: "Rename to 'Mutation'"
-    date: 2026-09-24
-    element:
-      uris:
-        - 'fuery_core.dart'
-        - 'package:fuery/fuery.dart'
-        - 'package:fuery_hooks/fuery_hooks.dart'
-      class: 'MutationOptions'
-    changes:
-      - kind: 'rename'
-        newName: 'Mutation'
-
-  - title: "Rename to 'AnyMutation'"
-    date: 2026-09-24
-    element:
-      uris:
-        - 'fuery_core.dart'
-        - 'package:fuery/fuery.dart'
-        - 'package:fuery_hooks/fuery_hooks.dart'
-      class: 'AnyMutationOptions'
-    changes:
-      - kind: 'rename'
-        newName: 'AnyMutation'
-
-  - title: "Use the 'InfiniteQuery' constructor"
-    date: 2026-09-24
-    element:
-      uris:
-        - 'fuery_core.dart'
-        - 'package:fuery/fuery.dart'
-        - 'package:fuery_hooks/fuery_hooks.dart'
-      function: 'infiniteQueryOptions'
-    changes:
-      - kind: 'rename'
-        newName: 'InfiniteQuery'

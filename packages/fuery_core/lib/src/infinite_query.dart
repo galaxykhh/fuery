@@ -602,7 +602,9 @@ class _PageParamCheck<TPage, TParam> {
 
 /// Builds an [InfiniteQuery], like its constructor.
 @Deprecated(
-    'Use the InfiniteQuery constructor, which takes the same arguments.')
+  'Use the InfiniteQuery constructor, which takes the same arguments. Of '
+  'explicit type arguments, keep the first two: InfiniteQuery<TPage, TParam>.',
+)
 InfiniteQuery<TPage, TParam> infiniteQueryOptions<
     TPage,
     TParam,
