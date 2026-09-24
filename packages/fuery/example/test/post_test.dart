@@ -58,7 +58,9 @@ void main() {
       findsOneWidget,
     );
     await tester.pump(const Duration(seconds: 1));
-    expect(find.text('Congrats on the launch'), findsNothing);
+    // Queued below the comments, not in them yet.
+    expect(find.text('Congrats on the launch'), findsOneWidget);
+    expect(inComments('Congrats on the launch'), findsNothing);
 
     // Back online: the paused mutation runs, then the comments refetch. The
     // post and comments queries that paused while offline resume as well.
@@ -69,6 +71,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300)); // the refetch
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Congrats on the launch'), findsOneWidget);
+    expect(inComments('Congrats on the launch'), findsOneWidget);
     expect(find.text('Sending…'), findsNothing);
 
     await tearDownApp(tester);

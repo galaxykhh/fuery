@@ -1,11 +1,13 @@
 import 'package:example/app/data/feed_mutations.dart';
 import 'package:example/app/data/feed_queries.dart';
+import 'package:example/app/data/models.dart';
 import 'package:example/app/data/recent_posts.dart';
 import 'package:flutter/material.dart';
 import 'package:fuery/fuery.dart';
 
 /// A post with its comments. It opens with the feed's copy of the post, so
-/// there is no spinner, and comments written offline wait for the connection.
+/// there is no spinner, and comments written offline wait for the connection,
+/// listed below the comments until they are sent.
 class PostScreen extends StatefulWidget {
   const PostScreen({super.key, required this.id});
 
@@ -25,9 +27,6 @@ class PostScreen extends StatefulWidget {
 }
 
 class _PostScreenState extends State<PostScreen> {
-  // The text field sends comments and the bar above it shows their state,
-  // so they share one observer.
-  final addComment = addCommentMutation().observe();
   final _draft = TextEditingController();
   // Asked for with a button, so the stream doesn't start until then.
   bool _summarize = false;
@@ -47,7 +46,7 @@ class _PostScreenState extends State<PostScreen> {
     super.dispose();
   }
 
-  void _send() {
+  void _send(MutationResult<Comment, NewComment, void> addComment) {
     final body = _draft.text.trim();
     if (body.isEmpty) return;
     addComment.mutate((postId: widget.id, body: body));
@@ -122,53 +121,76 @@ class _PostScreenState extends State<PostScreen> {
               ],
             ),
           ),
-          // Paused while offline: the comment is queued, and sends itself
-          // once the connection is back.
-          MutationBuilder(
-            mutation: addComment,
-            builder: (context, state) => switch (state) {
-              MutationState(isPaused: true) => const ListTile(
-                  dense: true,
-                  leading: Icon(Icons.cloud_off),
-                  title: Text('Comment will send when you\'re back online'),
-                ),
-              MutationState(isPending: true) => const ListTile(
-                  dense: true,
-                  leading: SizedBox.square(
-                    dimension: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  title: Text('Sending…'),
-                ),
-              _ => const SizedBox(),
-            },
+          // Every comment on this post that is on its way, found by the
+          // mutation's key: sent from this screen before, even before the
+          // app restarted. Paused while offline, it sends itself once the
+          // connection is back.
+          MutationStateBuilder(
+            mutation: addCommentMutation(),
+            builder: (context, runs) => Column(
+              children: [
+                for (final run in runs)
+                  if (run.isPending && run.variables?.postId == widget.id)
+                    _QueuedComment(run),
+              ],
+            ),
           ),
           SafeArea(
             top: false,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 8, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _draft,
-                      decoration: const InputDecoration(
-                        hintText: 'Write a comment',
+              // Runs the mutation; the list above shows its runs.
+              child: MutationBuilder(
+                mutation: addCommentMutation(),
+                builder: (context, addComment) => Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _draft,
+                        decoration: const InputDecoration(
+                          hintText: 'Write a comment',
+                        ),
+                        onSubmitted: (_) => _send(addComment),
                       ),
-                      onSubmitted: (_) => _send(),
                     ),
-                  ),
-                  IconButton(
-                    tooltip: 'Send',
-                    onPressed: _send,
-                    icon: const Icon(Icons.send),
-                  ),
-                ],
+                    IconButton(
+                      tooltip: 'Send',
+                      onPressed: () => _send(addComment),
+                      icon: const Icon(Icons.send),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// A comment on its way to the server: paused while offline, or sending.
+class _QueuedComment extends StatelessWidget {
+  const _QueuedComment(this.run);
+
+  final MutationState<Comment, NewComment, void> run;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      dense: true,
+      leading: run.isPaused
+          ? const Icon(Icons.cloud_off)
+          : const SizedBox.square(
+              dimension: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+      title: Text(
+        run.isPaused
+            ? 'Comment will send when you\'re back online'
+            : 'Sending…',
+      ),
+      subtitle: Text(run.variables?.body ?? ''),
     );
   }
 }
