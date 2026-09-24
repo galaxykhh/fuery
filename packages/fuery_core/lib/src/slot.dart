@@ -113,7 +113,9 @@ abstract class _Slot<TSource, TObserver extends Object, TResult>
   void _startListening() {
     _unsubscribe = _listen(_observer, (result) {
       for (final listener in listeners) {
-        listener(result);
+        // A listener that throws is reported, so the others still get the
+        // result.
+        _client._guardCallback(() => listener(result));
       }
     });
   }

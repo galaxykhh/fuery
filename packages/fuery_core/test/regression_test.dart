@@ -1565,6 +1565,78 @@ void main() {
     expect(changes(), 1);
   });
 
+  group('listeners that throw', () {
+    late List<Object> uncaught;
+    late QueryClient client;
+
+    setUp(() {
+      uncaught = [];
+      client = QueryClient(
+        onUncaughtError: (error, _) => uncaught.add(error),
+      )..mount();
+    });
+
+    tearDown(() {
+      client.unmount();
+      client.clear();
+    });
+
+    fakeTest('a listener that throws leaves the rest of its observer', (async) {
+      // A listener that throws used to skip the observer's later listeners
+      // and its timers. An equal result later returned early, so they
+      // never caught up.
+      final posts = Query(
+        queryKey: ['posts'],
+        queryFn: FakeFetcher(() => 'posts').call,
+        staleTime: const Duration(minutes: 1),
+      ).observe(client: client);
+      var thrown = false;
+      posts.subscribe((result) {
+        if (result.data == null || thrown) return;
+        thrown = true;
+        throw StateError('listener');
+      });
+      final results = <QueryResult<String>>[];
+      posts.subscribe(results.add);
+      final rendered = <QueryResult<String>>[];
+      final slot = QuerySlot(posts, client);
+      slot.subscribe(notifyManager.batchCalls(rendered.add));
+      async.elapse(ms10);
+
+      expect(results.last.data, 'posts');
+      expect(rendered.last.data, 'posts');
+      expect(
+          uncaught.map((error) => (error as StateError).message), ['listener']);
+
+      async.elapse(const Duration(minutes: 2));
+      expect(results.last.isStale, isTrue);
+      expect(rendered.last.isStale, isTrue);
+      slot.dispose();
+      posts.destroy();
+    });
+
+    fakeTest('a slot listener that throws leaves the other listeners', (async) {
+      final slot = QuerySlot(
+        Query(
+          queryKey: ['posts'],
+          queryFn: FakeFetcher(() => 'posts').call,
+        ),
+        client,
+      );
+      slot.subscribe((result) {
+        if (result.data != null) throw StateError('listener');
+      });
+      final results = <QueryResult<String>>[];
+      slot.subscribe(results.add);
+      async.elapse(ms10);
+
+      expect(results.last.data, 'posts');
+      expect(
+          uncaught.map((error) => (error as StateError).message), ['listener']);
+      slot.dispose();
+    });
+  });
+
   fakeTest('a throwing listener leaves the rest of its batch notified',
       (async) {
     final count = Query(
