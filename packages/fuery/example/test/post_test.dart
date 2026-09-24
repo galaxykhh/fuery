@@ -7,6 +7,12 @@ import 'package:fuery/fuery.dart';
 
 import 'helpers.dart';
 
+/// [text] in the post's list of comments, not in the comments queued below
+/// it.
+Finder inComments(String text) {
+  return find.descendant(of: find.byType(ListView), matching: find.text(text));
+}
+
 void main() {
   testWidgets('a post opens with the feed\'s copy, then its comments',
       (tester) async {
@@ -64,6 +70,45 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Congrats on the launch'), findsOneWidget);
     expect(find.text('Sending…'), findsNothing);
+
+    await tearDownApp(tester);
+  });
+
+  testWidgets('a comment written offline stays queued after leaving the post',
+      (tester) async {
+    await pumpApp(tester);
+    await loadFeed(tester);
+    await openPost(tester, topPost);
+    await tester.pump(const Duration(milliseconds: 300));
+    onlineManager.setOnline(false);
+    await tester.enterText(find.byType(TextField), 'Queued while away');
+    await tester.tap(find.byIcon(Icons.send));
+    await tester.pump();
+    expect(
+      find.text('Comment will send when you\'re back online'),
+      findsOneWidget,
+    );
+
+    // Back to the feed, and into the post again: the comment is still
+    // queued, below the comments.
+    await tester.pageBack();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await openPost(tester, topPost);
+    expect(
+      find.text('Comment will send when you\'re back online'),
+      findsOneWidget,
+    );
+    expect(find.text('Queued while away'), findsOneWidget);
+    expect(inComments('Queued while away'), findsNothing);
+
+    onlineManager.setOnline(true);
+    await tester.pump();
+    expect(find.text('Sending…'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 300)); // the request
+    await tester.pump(const Duration(milliseconds: 300)); // the refetch
+    expect(find.text('Sending…'), findsNothing);
+    expect(inComments('Queued while away'), findsOneWidget);
 
     await tearDownApp(tester);
   });
