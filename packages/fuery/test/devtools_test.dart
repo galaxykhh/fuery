@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fuery/fuery.dart';
@@ -110,6 +111,48 @@ void main() {
     await tearDownApp(tester);
   });
 
+  testWidgets('leaves a floating action button uncovered by default',
+      (tester) async {
+    var pressed = 0;
+    await tester.pumpWidget(
+      FueryProvider(
+        client: client,
+        child: MaterialApp(
+          builder: (context, child) => FueryDevtools(child: child!),
+          home: Scaffold(
+            floatingActionButton: FloatingActionButton(
+              onPressed: () => pressed++,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pump();
+    expect(pressed, 1);
+    expect(openButton(), findsOneWidget);
+    await tearDownApp(tester);
+  });
+
+  testWidgets('disposes its overlay entry', (tester) async {
+    final live = <Object>{};
+    void track(ObjectEvent event) {
+      if (event.object is! OverlayEntry) return;
+      if (event is ObjectCreated) live.add(event.object);
+      if (event is ObjectDisposed) live.remove(event.object);
+    }
+
+    FlutterMemoryAllocations.instance.addListener(track);
+    addTearDown(() => FlutterMemoryAllocations.instance.removeListener(track));
+
+    await pumpApp(tester);
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pump();
+    await tearDownApp(tester);
+    expect(live, isEmpty);
+  });
+
   testWidgets('turning it off keeps the app state', (tester) async {
     final enabled = ValueNotifier(true);
     await tester.pumpWidget(
@@ -173,6 +216,18 @@ void main() {
     expect(find.text('["todos"]'), findsNothing);
     expect(find.text('["user"]'), findsOneWidget);
 
+    // The field still shows the filter after a tab switch.
+    await tester.tap(find.text('Mutations (0)'));
+    await tester.pump();
+    await tester.tap(find.text('Queries (2)'));
+    await tester.pump();
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller?.text,
+      'user',
+    );
+    expect(find.text('["todos"]'), findsNothing);
+    expect(find.text('["user"]'), findsOneWidget);
+
     unsubscribe();
     await tearDownApp(tester);
   });
@@ -213,6 +268,64 @@ void main() {
     await tester.pump(Duration.zero);
     expect(client.queryCache.getAll(), isEmpty);
     expect(find.text('Refetch'), findsNothing);
+    await tearDownApp(tester);
+  });
+
+  for (final (name, size, keyboard) in [
+    ('portrait', const Size(390, 844), 336.0),
+    ('landscape', const Size(844, 390), 200.0),
+  ]) {
+    testWidgets('stays above the keyboard in $name', (tester) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      tester.view.viewInsets = FakeViewPadding(bottom: keyboard);
+      addTearDown(tester.view.reset);
+      await pumpApp(tester);
+
+      final top = size.height - keyboard;
+      expect(tester.takeException(), isNull);
+      expect(tester.getRect(find.byType(FueryDevtoolsPanel)).bottom, top);
+      expect(
+        tester.getRect(find.byType(TextField)).bottom,
+        lessThanOrEqualTo(top),
+      );
+      await tearDownApp(tester);
+    });
+  }
+
+  testWidgets('keeps the list scrolled when a query is selected or removed',
+      (tester) async {
+    for (var i = 0; i < 60; i++) {
+      client.setQueryData(['q', i], i);
+    }
+    await pumpApp(tester);
+    await tester.pump(Duration.zero);
+
+    await tester.drag(find.byType(ListTile).first, const Offset(0, -800));
+    await tester.pumpAndSettle();
+    final scrollable = find
+        .ancestor(
+          of: find.byType(ListTile).first,
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    double offset() =>
+        tester.state<ScrollableState>(scrollable).position.pixels;
+    final scrolled = offset();
+    expect(scrolled, greaterThan(0));
+
+    final tile = find.byType(ListTile).at(2);
+    final key = (tester.widget<ListTile>(tile).title! as Text).data!;
+    await tester.tap(tile);
+    await tester.pump();
+    expect(find.text('Remove'), findsOneWidget);
+    expect(offset(), scrolled);
+
+    await tester.tap(find.text('Remove'));
+    await tester.pump();
+    expect(find.text('Remove'), findsNothing);
+    expect(find.text(key), findsNothing);
+    expect(offset(), scrolled);
     await tearDownApp(tester);
   });
 

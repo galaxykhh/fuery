@@ -54,7 +54,7 @@ The Mutations tab lists mutations, newest first, with their status, key, variabl
 |---|---|---|
 | `client` | `context.queryClient` | The client to inspect |
 | `enabled` | `!kReleaseMode` | Whether to show anything besides your app |
-| `buttonAlignment` | `Alignment.bottomRight` | Where the button sits |
+| `buttonAlignment` | `Alignment.centerRight` | Where the button sits |
 | `initiallyOpen` | `false` | Whether the panel starts open |
 
 ## The panel without the button

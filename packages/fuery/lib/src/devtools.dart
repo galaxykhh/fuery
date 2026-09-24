@@ -33,7 +33,7 @@ class FueryDevtools extends StatefulWidget {
     required this.child,
     this.client,
     this.enabled = !kReleaseMode,
-    this.buttonAlignment = Alignment.bottomRight,
+    this.buttonAlignment = Alignment.centerRight,
     this.initiallyOpen = false,
   });
 
@@ -45,7 +45,8 @@ class FueryDevtools extends StatefulWidget {
   /// Whether to show the devtools. Defaults to false in release builds.
   final bool enabled;
 
-  /// Where the button sits.
+  /// Where the button sits. Defaults to halfway down the right edge, clear of
+  /// the app bar, a floating action button, and a bottom navigation bar.
   final Alignment buttonAlignment;
 
   /// Whether the panel starts open.
@@ -61,6 +62,7 @@ class _FueryDevtoolsState extends State<FueryDevtools> {
   @override
   Widget build(BuildContext context) {
     final safeArea = MediaQuery.maybePaddingOf(context) ?? EdgeInsets.zero;
+    final keyboard = MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0;
 
     // The child keeps its place in the tree, so turning the devtools on or
     // off doesn't reset the app.
@@ -71,14 +73,24 @@ class _FueryDevtoolsState extends State<FueryDevtools> {
         if (widget.enabled)
           Positioned.fill(
             child: _open
-                ? Align(
-                    alignment: Alignment.bottomCenter,
-                    child: FractionallySizedBox(
-                      widthFactor: 1,
-                      heightFactor: 0.55,
-                      child: FueryDevtoolsPanel(
-                        client: widget.client,
-                        onClose: () => setState(() => _open = false),
+                // The panel stays above the keyboard. It takes 55% of the
+                // screen, and shrinks only when that doesn't fit above it.
+                ? LayoutBuilder(
+                    builder: (context, constraints) => Padding(
+                      padding: EdgeInsets.only(
+                        top: safeArea.top,
+                        bottom: keyboard,
+                      ),
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: constraints.maxHeight * 0.55,
+                          child: FueryDevtoolsPanel(
+                            client: widget.client,
+                            onClose: () => setState(() => _open = false),
+                          ),
+                        ),
                       ),
                     ),
                   )
@@ -115,39 +127,9 @@ class FueryDevtoolsPanel extends StatefulWidget {
   State<FueryDevtoolsPanel> createState() => _FueryDevtoolsPanelState();
 }
 
-typedef _PanelConfig = ({QueryClient client, VoidCallback? onClose});
-
 class _FueryDevtoolsPanelState extends State<FueryDevtoolsPanel> {
-  // The panel has its own overlay, so text fields work above the app's
-  // navigator. The entry is built once and follows the widget through this
-  // notifier.
-  late final ValueNotifier<_PanelConfig> _config = ValueNotifier(_read());
-  late final OverlayEntry _entry = OverlayEntry(
-    builder: (context) => ValueListenableBuilder(
-      valueListenable: _config,
-      builder: (context, config, _) => _PanelBody(
-        client: config.client,
-        onClose: config.onClose,
-      ),
-    ),
-  );
-
-  _PanelConfig _read() {
-    return (
-      client: widget.client ?? FueryProvider.of(context, listen: true),
-      onClose: widget.onClose,
-    );
-  }
-
-  @override
-  void dispose() {
-    _config.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
-    _config.value = _read();
     return Localizations(
       locale: const Locale('en'),
       delegates: const [
@@ -157,7 +139,14 @@ class _FueryDevtoolsPanelState extends State<FueryDevtoolsPanel> {
       ],
       child: Theme(
         data: _theme,
-        child: Overlay(initialEntries: [_entry]),
+        // The panel has its own overlay, so text fields work above the app's
+        // navigator.
+        child: Overlay.wrap(
+          child: _PanelBody(
+            client: widget.client ?? FueryProvider.of(context, listen: true),
+            onClose: widget.onClose,
+          ),
+        ),
       ),
     );
   }
@@ -184,6 +173,8 @@ class _PanelBody extends StatefulWidget {
 class _PanelBodyState extends State<_PanelBody> {
   var _showMutations = false;
   var _filter = '';
+  // Keeps the typed filter when the field is rebuilt after a tab switch.
+  final _filterController = TextEditingController();
   String? _selected;
   late StreamSubscription<Object> _subscription;
 
@@ -206,6 +197,7 @@ class _PanelBodyState extends State<_PanelBody> {
   @override
   void dispose() {
     _subscription.cancel();
+    _filterController.dispose();
     super.dispose();
   }
 
@@ -308,6 +300,7 @@ class _PanelBodyState extends State<_PanelBody> {
         Padding(
           padding: const EdgeInsets.all(8),
           child: TextField(
+            controller: _filterController,
             decoration: const InputDecoration(
               hintText: 'Filter by key',
               prefixIcon: Icon(Icons.search),
@@ -317,29 +310,32 @@ class _PanelBodyState extends State<_PanelBody> {
           ),
         ),
         Expanded(
-          child: selected == null
-              ? list
-              : LayoutBuilder(
-                  builder: (context, constraints) {
-                    final detail = _QueryDetail(
-                      client: client,
-                      query: selected,
-                      onRemoved: () => setState(() => _selected = null),
-                    );
-                    final wide = constraints.maxWidth >= 600;
-                    return Flex(
-                      direction: wide ? Axis.horizontal : Axis.vertical,
-                      children: [
-                        Expanded(child: list),
-                        if (wide)
-                          const VerticalDivider(width: 1)
-                        else
-                          const Divider(height: 1),
-                        Expanded(child: detail),
-                      ],
-                    );
-                  },
-                ),
+          // The list stays the first child whether or not a query is
+          // selected, so it keeps its scroll position.
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth >= 600;
+              return Flex(
+                direction: wide ? Axis.horizontal : Axis.vertical,
+                children: [
+                  Expanded(child: list),
+                  if (selected != null) ...[
+                    if (wide)
+                      const VerticalDivider(width: 1)
+                    else
+                      const Divider(height: 1),
+                    Expanded(
+                      child: _QueryDetail(
+                        client: client,
+                        query: selected,
+                        onRemoved: () => setState(() => _selected = null),
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
         ),
       ],
     );
