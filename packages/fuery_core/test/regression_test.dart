@@ -855,6 +855,32 @@ void main() {
     );
   });
 
+  fakeTest('a key read with another data type is rejected clearly', (async) {
+    // What `client.setQueryData(['todos'], [])` writes.
+    client.setQueryData(['todos'], <dynamic>[]);
+    final todos = Query(queryKey: ['todos'], queryFn: (_) async => <String>[]);
+
+    expect(() => client.getData(todos), throwsStateError);
+    expect(
+      () => client.getQueryData<List<String>>(['todos']),
+      throwsStateError,
+    );
+    var updated = false;
+    List<String>? update(List<String>? previous) {
+      updated = true;
+      return previous;
+    }
+
+    expect(() => client.updateData(todos, update), throwsStateError);
+    expect(
+      () => client.updateQueryData<List<String>>(['todos'], update),
+      throwsStateError,
+    );
+    expect(updated, isFalse);
+    // A wider type still reads it.
+    expect(client.getQueryData<Object>(['todos']), isEmpty);
+  });
+
   fakeTest('setOptions with a mismatched key leaves the observer as it was',
       (async) {
     client.setQueryData(['numbers'], 1);

@@ -488,9 +488,15 @@ class QueryClient {
     );
   }
 
-  /// The cached data for [queryKey], or `null`.
+  /// The cached data for [queryKey], or `null`. Throws a [StateError] if the
+  /// key holds another data type.
   TData? getQueryData<TData extends Object>(QueryKey queryKey) {
-    return queryCache.get(hashKey(queryKey))?.state.data as TData?;
+    final query = queryCache.get(hashKey(queryKey));
+    final data = query?.state.data;
+    if (data == null) return null;
+    // A wider type, such as Object, reads it too.
+    if (data is TData) return data;
+    throw _dataTypeMismatch(query!.queryHash, query._dataType, TData);
   }
 
   /// The cached state for [queryKey], or `null`.

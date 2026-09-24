@@ -69,6 +69,14 @@ class QueryFilters {
   }
 }
 
+/// The error for a key used with another data type than the one it holds.
+StateError _dataTypeMismatch(String queryHash, Type held, Type requested) {
+  return StateError(
+    'Query $queryHash holds $held, but was requested as $requested. Use the '
+    'same data type for the same key.',
+  );
+}
+
 /// Global callbacks for every query in a cache, for example to show an error
 /// toast whenever any query fails.
 @immutable
@@ -105,10 +113,7 @@ class QueryCache {
       // Generics are covariant, so `is CachedQuery<TData>` would also accept a wider
       // TData and fail later with an unclear cast error.
       if (existing._dataType != TData) {
-        throw StateError(
-          'Query $queryHash holds ${existing._dataType}, but was requested '
-          'as $TData. Use the same data type for the same key.',
-        );
+        throw _dataTypeMismatch(queryHash, existing._dataType, TData);
       }
       return existing as CachedQuery<TData>;
     }
