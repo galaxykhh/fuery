@@ -253,22 +253,33 @@ void main() {
         (tester) async {
       // Fresh for good, so the new observers don't refetch after the first
       // fetch, which they would on every rebuild otherwise.
-      final fresh = Query(
-        queryKey: ['post', 1],
-        queryFn: post(1).queryFn!,
-        staleTime: infiniteDuration,
-      );
+      Query<String> freshPost(int id) => Query(
+            queryKey: ['post', id],
+            queryFn: post(id).queryFn!,
+            staleTime: infiniteDuration,
+          );
+      final fresh = freshPost(1);
       // The same key as the query, which gets a warning of its own.
       final like = Mutation(
         mutationKey: ['post', 1],
         mutationFn: (int id) async => id,
       );
+      // Observers created once, each of its own key.
+      final shared = [
+        for (final id in [2, 3, 4]) freshPost(id).observe(client: client),
+      ];
+      var builds = 0;
       Widget screen() => HookBuilder(builder: (_) {
+            builds++;
             // The mistake: new observers on every build.
             useQuery(fresh.observe(client: client));
             useMutation(like.observe(client: client));
             // Definitions built in build are fine.
             useMutation(Mutation(mutationFn: (int id) async => id));
+            // So is a switch to an observer of another key, or from a
+            // definition to an observer of its key.
+            useQuery(builds.isEven ? shared[0] : shared[1]);
+            useQuery(builds == 1 ? freshPost(4) : shared[2]);
             return const SizedBox();
           });
       final printed = await printsOf(() async {
@@ -293,6 +304,9 @@ void main() {
       ]);
       await tester.pump(ms10);
       await tearDownApp(tester);
+      for (final observer in shared) {
+        observer.destroy();
+      }
     });
   });
 
@@ -493,6 +507,7 @@ void main() {
       fresh(1).observe(client: client),
       fresh(2).observe(client: client),
     ];
+    final added = fresh(3).observe(client: client);
     var builds = 0;
     Widget screen() => HookBuilder(builder: (_) {
           builds++;
@@ -506,6 +521,8 @@ void main() {
           useQueries([
             for (final id in [1, 2]) fresh(id)
           ]);
+          // So is an observer created once, added for a new key.
+          useQueries([...shared, if (builds > 1) added]);
           return const SizedBox();
         });
     final printed = await printsOf(() async {
@@ -521,7 +538,7 @@ void main() {
     ]);
     await tester.pump(ms10);
     await tearDownApp(tester);
-    for (final observer in shared) {
+    for (final observer in [...shared, added]) {
       observer.destroy();
     }
   });
