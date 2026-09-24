@@ -107,7 +107,7 @@ class MutationCache {
 
   void _add(AnyCachedMutation mutation) {
     _mutations.add(mutation);
-    final scope = mutation.options.scope?.id;
+    final scope = mutation._scopeId;
     if (scope != null) {
       (_scopes[scope] ??= []).add(mutation);
     }
@@ -118,7 +118,7 @@ class MutationCache {
     mutation._removed = true;
     mutation._destroy();
     if (_mutations.remove(mutation)) {
-      final scope = mutation.options.scope?.id;
+      final scope = mutation._scopeId;
       if (scope != null) {
         final scoped = _scopes[scope];
         scoped?.remove(mutation);
@@ -131,7 +131,7 @@ class MutationCache {
   /// Whether [mutation] may run now. In a scope, only the first pending
   /// mutation runs.
   bool _canRun(AnyCachedMutation mutation) {
-    final scope = mutation.options.scope?.id;
+    final scope = mutation._scopeId;
     if (scope == null) return true;
     final firstPending = _scopes[scope]
         ?.firstWhereOrNull((m) => m.state.status == MutationStatus.pending);
@@ -141,7 +141,7 @@ class MutationCache {
   /// Starts the next paused mutation in the scope of [mutation]. Its result
   /// and errors go to whoever started it, so they are not reported here.
   Future<void> _runNext(AnyCachedMutation mutation) {
-    final scope = mutation.options.scope?.id;
+    final scope = mutation._scopeId;
     if (scope == null) return Future.value();
     final next = _scopes[scope]
         ?.firstWhereOrNull((m) => !identical(m, mutation) && m.state.isPaused);

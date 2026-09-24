@@ -11,7 +11,8 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
     required this.mutationId,
     required Mutation<TData, TVariables, TContext> options,
   })  : _client = client,
-        _mutationCache = mutationCache {
+        _mutationCache = mutationCache,
+        _scopeId = options.scope?.id {
     _setOptions(options);
     _scheduleGc();
   }
@@ -20,6 +21,11 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
   bool _removed = false;
   final QueryClient _client;
   final MutationCache _mutationCache;
+
+  /// The scope the run was queued in. New options reach a pending run, but
+  /// a new scope applies from the next run, so the runs queued behind this
+  /// one still continue.
+  final String? _scopeId;
 
   /// Where the variables are stored while the mutation runs, if they are.
   String? _storageKey;
@@ -135,6 +141,7 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
             isPaused: isPaused,
             variables: variables,
             context: context,
+            submittedAt: _state.submittedAt,
           ));
         }
       }

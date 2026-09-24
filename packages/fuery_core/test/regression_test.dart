@@ -707,6 +707,60 @@ void main() {
       expect(client.mutationCache.getAll(), isEmpty);
     });
 
+    fakeTest('a running mutation keeps the scope it was queued in', (async) {
+      Mutation<int, int, Object?> post(String scope) => Mutation(
+            mutationKey: const ['post'],
+            mutationFn: (int x) async {
+              await Future<void>.delayed(ms10);
+              return x;
+            },
+            scope: MutationScope(scope),
+          );
+      final first = post('a').observe(client: client);
+      final second = post('a').observe(client: client);
+      first.mutate(1);
+      second.mutate(2);
+      async.flushMicrotasks();
+      expect(second.result.isPaused, isTrue);
+
+      // A widget rebuilds with another scope while the first run is sending.
+      first.setOptions(post('b'));
+      async.elapse(const Duration(milliseconds: 30));
+      expect(first.result.isSuccess, isTrue);
+      expect(second.result.isSuccess, isTrue);
+
+      // The next run in the scope isn't held up by either of them.
+      final third = post('a').observe(client: client);
+      third.mutate(3);
+      async.flushMicrotasks();
+      expect(third.result.isPaused, isFalse);
+      async.elapse(ms10);
+      expect(third.result.isSuccess, isTrue);
+    });
+
+    fakeTest('submittedAt stays the same when onMutate returns a context',
+        (async) {
+      final save = Mutation(
+        mutationFn: (int x) async => x,
+        onMutate: (_, __) async {
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+          return 'context';
+        },
+      ).observe(client: client);
+      final submitted = <int>[];
+      final unsubscribe = save.subscribe((result) {
+        if (result.isPending) submitted.add(result.submittedAt);
+      });
+      save.mutate(1);
+      async.elapse(const Duration(milliseconds: 30));
+
+      expect(save.result.context, 'context');
+      expect(submitted, hasLength(greaterThan(1)));
+      expect(submitted.toSet(), hasLength(1));
+      expect(save.result.submittedAt, submitted.first);
+      unsubscribe();
+    });
+
     fakeTest('a scoped mutation is not paused while it runs', (async) {
       Future<String> run(String value) async {
         await Future<void>.delayed(ms10);
