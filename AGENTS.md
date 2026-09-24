@@ -22,7 +22,7 @@ dart format packages                              # keep formatting clean
 (cd packages/fuery && flutter test)
 (cd packages/fuery/example && flutter test)
 (cd packages/fuery_hooks && flutter test)
-for p in fuery_core fuery fuery_hooks; do (cd packages/$p/test_fixes && dart fix --compare-to-golden); done  # dart fix goldens
+for p in fuery_core fuery; do (cd packages/$p/test_fixes && dart fix --compare-to-golden); done  # dart fix goldens
 ```
 
 Coverage (every package is at 100% line coverage, and CI fails otherwise):

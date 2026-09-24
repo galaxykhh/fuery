@@ -68,7 +68,7 @@ testWidgets('shows todos', (tester) async {
 
 ## What Fuery does for you
 
-- **Types come from your functions.** `todosQuery` is a `Query<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`, and `state` in the builder is a `QueryResult<List<Todo>>`. Mutations, infinite queries, and every widget infer their types the same way. Only reads and writes by key alone name the type, because a key doesn't carry one: `client.getQueryData<List<Todo>>(['todos'])`.
+- **Types come from your functions.** `todosQuery` is a `Query<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`, and `state` in the builder is a `QueryResult<List<Todo>>`. Mutations, infinite queries, and every widget infer their types the same way. Two cases name the type. A read or write by key alone does, because a key doesn't carry one: `client.getQueryData<List<Todo>>(['todos'])`. So does an infinite query whose first page param is `null`: see [Cursor-based pages](../guides/infinite-queries/#cursor-based-pages).
 - **No null checks.** `QueryResult(:final data?)` matches only when there is data, so `data` is a `List<Todo>`. That branch comes first, so a list that fails to refresh stays on screen and the error shows only when there is nothing to show.
 - **A query is only a description.** Defining one starts nothing, so it can live at the top level or be built in `build`. The fetch begins when `QueryBuilder` mounts, and the first frame already shows loading.
 - **Widgets share data by key.** Another screen that uses `['todos']` gets the cached list immediately and shares the same request.

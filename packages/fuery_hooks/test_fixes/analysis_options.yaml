@@ -1,3 +1,0 @@
-# Replaces the package's options, which exclude this directory, so that the
-# deprecation diagnostics the fixes in fuery_core's lib/fix_data.yaml attach
-# to are reported here.

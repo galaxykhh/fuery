@@ -13,7 +13,7 @@ Queries, infinite queries, and mutations each have four widgets, a list of queri
 | Several queries | `QueriesBuilder` | | | `QueriesSelector` |
 | Every run of a mutation | `MutationStateBuilder` | `MutationStateListener` | | `MutationStateSelector` |
 
-Each takes a definition: a `Query`, an `InfiniteQuery`, or a `Mutation`. The widget keeps one observer for it while it is mounted, so the definition can be built in `build`:
+The query, infinite query, and mutation widgets take a definition: a `Query`, an `InfiniteQuery`, or a `Mutation`. The widget keeps one observer for it while it is mounted, so the definition can be built in `build`:
 
 ```dart
 QueryBuilder(
@@ -27,9 +27,9 @@ QueryBuilder(
 - The observer uses the client of the nearest `FueryProvider`, or `Fuery.client` without one.
 - The result carries the actions: `state.refetch()`, `state.fetchNextPage()` and `state.fetchPreviousPage()` for infinite queries, and `state.mutate(...)`, `state.mutateAsync(...)`, and `state.reset()` for mutations.
 
-A `MutationBuilder` shows the runs it starts. To show or hear a mutation's runs anywhere else, give the definition a `mutationKey` and use the MutationState widgets, which find every run by that key. See [Showing every run of a mutation](../mutations/#showing-every-run-of-a-mutation).
+A `MutationBuilder` shows the runs it starts. To show or hear a mutation's runs anywhere else, give the definition a `mutationKey` and use the MutationState widgets. They take that definition, or `MutationFilters`, find every matching run in the cache, and hold no observer. See [Showing every run of a mutation](../mutations/#showing-every-run-of-a-mutation).
 
-Every widget also takes an observer from `observe()`. Most screens don't need one: see [Passing an observer](#passing-an-observer).
+The query, infinite query, and mutation widgets, `QueriesBuilder`, and `QueriesSelector` also take observers from `observe()`. Most screens don't need one: see [Passing an observer](#passing-an-observer).
 
 ## When builders and listeners run
 
@@ -225,11 +225,11 @@ MutationStateSelector(
 
 ## Where to create queries
 
-Define queries anywhere, and pass them to widgets; see [Using a query](../queries/#using-a-query). Call `observe()` only outside `build`, in a `State` field, a bloc, or another long-lived object: each call is a new observer.
+Define queries anywhere, and pass them to widgets; see [Using a query](../queries/#using-a-query). Call `observe()` only outside `build`, in a cubit, a service, or a `State` field that needs the handle itself: each call is a new observer.
 
 ## Passing an observer
 
-Every widget also takes an observer from `observe()`, and uses it as it is: its options, and the client it was created with. Widgets given the same definition already share the cached data and the request, so a screen seldom needs one. Pass an observer when a cubit and a widget must share one handle, or when several widgets must see the runs of one mutation observer and nothing else. [Sharing one observer](../mutations/#sharing-one-observer) shows the `State` field, the client to create it with, and the `reset()` in `dispose`.
+The query, infinite query, and mutation widgets also take an observer from `observe()`, and use it as it is: its options, and the client it was created with. Widgets given the same definition already share the cached data and the request, so a screen seldom needs one. Pass an observer when a cubit and a widget must share one handle, or when several widgets must see the runs of one mutation observer and nothing else. [Sharing one observer](../mutations/#sharing-one-observer) shows the `State` field, the client to create it with, and the `reset()` in `dispose`.
 
 ## Do queries need disposing?
 
@@ -272,7 +272,7 @@ QueryResult<TData> useMyQuery<TData extends Object>(QuerySource<TData> query) {
 - `result` is current as soon as `update` returns, so the frame that changed the key shows it.
 - `subscribe` delivers every later change and stays subscribed when the slot's `observer` changes. `dispose` drops it, and the observer if the slot created it.
 - `subscribe` calls its listener synchronously, sometimes while another widget is building: a widget that mounts can start a fetch. Wrap the listener in `notifyManager.batchCalls`, so changes arrive in a microtask, and ignore the ones that arrive after dispose, as the widgets and `fuery_hooks` do.
-- `listen((previous, current) {...})` is for side effects, such as navigation. It runs in a microtask after each later change, never for the `result` it starts from, with `previous` as the last result it delivered. It starts over from the new `result`, without a call, when `update` moves the slot to another observer, and reports a listener that throws to `onUncaughtError`. It returns a function that stops it. The listener widgets and the `listener` of `fuery_hooks` use it.
+- `listen((previous, current) {...})` is for side effects, such as navigation. It runs in a microtask after each later change, never for the `result` it starts from, with `previous` as the last result it delivered. It starts over from the new `result`, without a call, when `update` moves the slot to another observer, and reports a listener that throws to `onUncaughtError`. It returns a function that stops it. The query and mutation listener widgets, and the `listener` of `useQuery`, `useInfiniteQuery`, and `useMutation`, use it.
 
 `InfiniteQuerySource` and `MutationSource` are the sources of the other two slots. `QueriesSlot` takes a list of `QuerySource`s and gives a list of results, for a hook like `useQueries`. It calls `subscribe` listeners in a microtask, once for the changes that arrive together. `FueryProvider.of(context, listen: true)` rebuilds the caller when the provided client is replaced.
 
@@ -281,7 +281,7 @@ QueryResult<TData> useMyQuery<TData extends Object>(QuerySource<TData> query) {
 - It takes a `MutationStateSource`: a `Mutation` with a `mutationKey`, or `MutationFilters`. It only reads the cache, so it creates no observer, and its `observer` is the client's `MutationCache`.
 - Its `result` is the list of the runs' states, oldest first. It stays the same list until a matching run is added, removed, or changes.
 - It calls `subscribe` listeners in a microtask, once per batch, and only when the list changed, so they need no `batchCalls`.
-- `subscribeToRuns((previous, current) {...})` calls its listener for each later change of each matching run, with that run's state before it (idle for a run that started later). It never reports the states runs had when it was added, or a run that the cache removes. `MutationStateListener` uses it.
+- `subscribeToRuns((previous, current) {...})` calls its listener for each later change of each matching run, with that run's state before it (idle for a run that started later). It never reports the states runs had when it was added, or a run that the cache removes. `MutationStateListener` and the `listener` of `useMutationState` use it.
 
 ## In the example app
 

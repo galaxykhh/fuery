@@ -56,16 +56,18 @@ class MutationBuilder<TData, TVariables, TContext> extends StatelessWidget {
 ///
 /// A listener can't run a mutation, so it hears only the runs of the
 /// observer it gets. To hear every run of a mutation, wherever it started,
-/// give the definition a `mutationKey` and use [MutationStateListener]. To
-/// hear only one observer's runs, create it once with `observe()`, in a
-/// `State` field or a cubit, and pass it both here and to the widget that
-/// runs it. In debug builds, a [Mutation] definition prints a warning.
+/// give the definition a `mutationKey` and use [MutationStateListener]. For
+/// the callbacks of one call, pass `MutateOptions` to `mutate`. To hear only
+/// one observer's runs, such as the ones a cubit starts, create it once with
+/// `observe()` and pass it here. In debug builds, a [Mutation] definition
+/// prints a warning.
 ///
 /// ```dart
 /// MutationListener(
-///   mutation: adding, // addTodo.observe(), kept in a State field
-///   listenWhen: (previous, current) => current.isSuccess,
-///   listener: (context, state) => Navigator.pop(context),
+///   mutation: cubit.adding, // addTodo.observe(), kept by the cubit
+///   listenWhen: (previous, current) => current.isError,
+///   listener: (context, state) => ScaffoldMessenger.of(context)
+///       .showSnackBar(SnackBar(content: Text('${state.error}'))),
 ///   child: ...,
 /// )
 /// ```

@@ -219,7 +219,7 @@ Which runs they show:
 
 - A `Mutation` finds the runs with its `mutationKey`, exactly, typed like the definition. The runs of another definition with the same key and types count too. A definition without a key fails an assert in debug builds.
 - A run of other types under the key is left out, and reported once to [`onUncaughtError`](../query-client/#catching-errors-that-callbacks-throw). Give each definition a key of its own.
-- `MutationFilters` find the runs of any mutation that match them, as `isMutating` does: by key prefix, `exact` key, `status`, or `predicate`. Their states are typed `Object?`.
+- `MutationFilters` find the runs of any mutation that match them, as `client.mutationCache.findAll` does: by key prefix, `exact` key, `status`, or `predicate`. Without a `status`, settled runs match too. Their states are typed `Object?`.
 - The runs are listed oldest first, so `runs.lastOrNull` is the latest.
 - A settled run stays until the cache removes it, `gcTime` (default: 5 minutes) after it settles. A mounted `MutationBuilder` keeps its latest run for as long as it shows it. Build indicators from `isPending`, not from the length. `client.clear()` removes every run.
 - Only the runs of the widget's client count: the nearest `FueryProvider`'s, or `Fuery.client`.
@@ -250,7 +250,7 @@ A `MutationListener` hears only the runs of the observer it gets. Given a defini
 
 ## Sharing one observer
 
-Every widget and hook that gets the definition keeps an observer of its own, and the MutationState widgets show all their runs. Share one observer only when code outside widgets runs the mutation, or when a screen must react to its own runs and nothing else. `addTodo.observe()` returns a `MutationObserver`, and every widget given it uses it as it is:
+Every widget and hook that gets the definition keeps an observer of its own, and the MutationState widgets show all their runs. Share one observer only when code outside widgets runs the mutation, or when several widgets must follow the runs of one screen and nothing else. `addTodo.observe()` returns a `MutationObserver`, and every widget given it uses it as it is. Here the app bar shows a progress bar while this screen's form saves. A `MutationStateSelector` would also show the runs that other screens start:
 
 ```dart
 class _AddTodoScreenState extends State<AddTodoScreen> {
@@ -264,15 +264,27 @@ class _AddTodoScreenState extends State<AddTodoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return MutationListener(
-      mutation: adding,
-      listenWhen: (previous, current) => current.isSuccess,
-      listener: (context, state) => Navigator.pop(context),
-      child: AddTodoForm(onSubmit: adding.mutate),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('New todo'),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(4),
+          child: MutationSelector(
+            mutation: adding,
+            selector: (state) => state.isPending,
+            builder: (context, saving) => saving
+                ? const LinearProgressIndicator()
+                : const SizedBox(height: 4),
+          ),
+        ),
+      ),
+      body: AddTodoForm(onSubmit: adding.mutate),
     );
   }
 }
 ```
+
+Closing the screen after its own call succeeds needs no shared observer: pass `MutateOptions(onSuccess: ...)` to that call. See [Callbacks](#callbacks).
 
 - Create it once, in a `State` field or a cubit. `observe()` in `build` returns a new, idle observer on every rebuild.
 - `observe()` uses `Fuery.client` unless you pass `client:`. Under a `FueryProvider` with a client of its own, pass `context.queryClient`, as above, so the observer uses the client the widgets use.

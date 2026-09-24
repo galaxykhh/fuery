@@ -43,7 +43,7 @@ await subscription.cancel(); // stops observing; the cache is freed after gcTime
 
 The stream sends the current `QueryResult` first, then every change. `todos.result` reads the latest one at any time, and `subscribe(listener)` returns an unsubscribe function.
 
-`todosQuery` is a `Query<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`. Mutations, infinite queries, results, and callbacks infer their types the same way. Only reads and writes by key alone name the type, because a key doesn't carry one: `Fuery.client.getQueryData<List<Todo>>(['todos'])`.
+`todosQuery` is a `Query<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`. Mutations, infinite queries, results, and callbacks infer their types the same way. Two cases name the type. A read or write by key alone does, because a key doesn't carry one: `Fuery.client.getQueryData<List<Todo>>(['todos'])`. So does an infinite query whose first page param is `null`: see [Cursor-based pages](https://galaxykhh.github.io/fuery/guides/infinite-queries/#cursor-based-pages).
 
 ## Mutations
 
