@@ -3,7 +3,7 @@ title: Widgets
 description: Builder, listener, consumer, and selector widgets for cached queries and mutations in Flutter.
 ---
 
-Queries, infinite queries, and mutations each have four widgets, and a list of queries has two:
+Queries, infinite queries, and mutations each have four widgets, a list of queries has two, and the runs of a mutation have three:
 
 | | Rebuild UI | Side effects | Both | Part of the state |
 |---|---|---|---|---|
@@ -11,6 +11,7 @@ Queries, infinite queries, and mutations each have four widgets, and a list of q
 | Infinite query | `InfiniteQueryBuilder` | `InfiniteQueryListener` | `InfiniteQueryConsumer` | `InfiniteQuerySelector` |
 | Mutation | `MutationBuilder` | `MutationListener` | `MutationConsumer` | `MutationSelector` |
 | Several queries | `QueriesBuilder` | | | `QueriesSelector` |
+| Every run of a mutation | `MutationStateBuilder` | `MutationStateListener` | | `MutationStateSelector` |
 
 Each takes a definition: a `Query`, an `InfiniteQuery`, or a `Mutation`. The widget keeps one observer for it while it is mounted, so the definition can be built in `build`:
 
@@ -28,7 +29,7 @@ QueryBuilder(
 
 A widget can also take an observer you created with `observe()`, to share one handle between widgets. The widget then uses it as it is.
 
-A mutation's state belongs to the observer that runs it. A `MutationListener`, or a `MutationSelector` whose builder doesn't run the mutation, therefore needs the observer the button runs, not the definition. See [Organizing mutations](../organizing-queries/#organizing-mutations).
+A `MutationBuilder` shows the runs it starts. To show a mutation's runs anywhere else, give the definition a `mutationKey` and use the MutationState widgets, which find every run by that key. See [Showing every run of a mutation](../mutations/#showing-every-run-of-a-mutation). A `MutationListener`, or a `MutationSelector` whose builder doesn't run the mutation, hears only the observer it gets, so it needs the observer the button runs, not the definition. See [Organizing mutations](../organizing-queries/#organizing-mutations).
 
 ## When builders and listeners run
 
@@ -208,6 +209,16 @@ For a list where each item stands on its own, give each item its own `QueryBuild
 
 A bar that follows every query in the app, not one query, reads the client instead of a widget. See [Watching the cache](../query-client/#watching-the-cache).
 
+For mutations, a `MutationStateSelector` with filters shows whether any mutation is running:
+
+```dart
+MutationStateSelector(
+  mutation: const MutationFilters(),
+  selector: (runs) => runs.any((run) => run.isPending),
+  builder: (context, saving) => saving ? const Text('Saving…') : const SizedBox(),
+)
+```
+
 ## Where to create queries
 
 Define queries anywhere, and pass them to widgets; see [Using a query](../queries/#using-a-query). Call `observe()` only outside `build`, in a `State` field, a bloc, or another long-lived object: each call is a new observer.
@@ -257,6 +268,13 @@ QueryResult<TData> useMyQuery<TData extends Object>(QuerySource<TData> query) {
 
 `InfiniteQuerySource` and `MutationSource` are the sources of the other two slots. `QueriesSlot` takes a list of `QuerySource`s and gives a list of results, for a hook like `useQueries`. `FueryProvider.of(context, listen: true)` rebuilds the caller when the provided client is replaced.
 
+`MutationStateSlot` gives the state of every run of a mutation, for the MutationState widgets and `useMutationState`:
+
+- It takes a `MutationStateSource`: a `Mutation` with a `mutationKey`, or `MutationFilters`. It only reads the cache, so it creates no observer, and its `observer` is the client's `MutationCache`.
+- Its `result` is the list of the runs' states, oldest first. It stays the same list until a matching run is added, removed, or changes.
+- It calls `subscribe` listeners in a microtask, once per batch, and only when the list changed, so they need no `batchCalls`.
+- `subscribeToRuns((previous, current) {...})` calls its listener for each later change of each matching run, with that run's state before it (idle for a run that started later). It never reports the states runs had when it was added, or a run that the cache removes. `MutationStateListener` uses it.
+
 ## In the example app
 
-The example has `buildWhen` for a refetch indicator, pull to refresh with a retry button, and a `MutationListener` for a snackbar in [the feed](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/feed/feed_screen.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) maps each screen to what it shows.
+The example has `buildWhen` for a refetch indicator, pull to refresh with a retry button, and a `MutationStateListener` for a snackbar in [the feed](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/feed/feed_screen.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) maps each screen to what it shows.

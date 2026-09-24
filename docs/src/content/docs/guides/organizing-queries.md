@@ -134,7 +134,9 @@ MutationBuilder(
 )
 ```
 
-A `MutationListener` does the same for a snackbar or a dialog, with the screen's `BuildContext`. A listener can't run the mutation, so it needs the observer the button runs: create one with `addTodo.observe()` in a `State` field and pass it to both. Call its `reset()` in `dispose` so callbacks like the one above don't run after the screen closes. Under a `FueryProvider` with a client of its own, write `late final adding = addTodo.observe(client: context.queryClient);`.
+A `MutationStateListener` does the same for a snackbar or a dialog after any run of the mutation, from any screen, with the screen's `BuildContext`. It finds the runs by the definition's `mutationKey`. See [Telling the user a mutation failed](../mutations/#telling-the-user-a-mutation-failed).
+
+A `MutationListener` hears only the observer it gets, so it needs the observer the button runs: create one with `addTodo.observe()` in a `State` field and pass it to both. Call its `reset()` in `dispose` so callbacks like the one above don't run after the screen closes. Under a `FueryProvider` with a client of its own, write `late final adding = addTodo.observe(client: context.queryClient);`.
 
 ## In the example app
 

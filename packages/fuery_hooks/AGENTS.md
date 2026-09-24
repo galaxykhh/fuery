@@ -4,7 +4,7 @@ Hooks over `fuery`, for apps built with `flutter_hooks`. Fuery's own style is th
 
 ## Structure
 
-- `lib/src/hooks.dart`: `useQuery`, `useInfiniteQuery`, `useMutation`, and `useQueries` are `_SlotHook`s over `QuerySlot`, `InfiniteQuerySlot`, `MutationSlot`, and `QueriesSlot`. `useQueryClient` reads `FueryProvider.of(context, listen: true)`. `useQuery`, `useInfiniteQuery`, and `useMutation` pass their optional `listener` (a `ResultWidgetListener`, as the widgets take) and `listenWhen` to `_SlotHook`, which listens through the core's `slot.listen`; a new hook over a slot takes the same two parameters the same way. `useQueries` has no listener, as there is no widget with one for a list.
+- `lib/src/hooks.dart`: `useQuery`, `useInfiniteQuery`, `useMutation`, `useQueries`, and `useMutationState` are `_SlotHook`s over `QuerySlot`, `InfiniteQuerySlot`, `MutationSlot`, `QueriesSlot`, and `MutationStateSlot`. `_SlotHook<S, R, L>` takes a `listenTo` that decides what its listener hears: `_listenToResults` (each result, through `slot.listen`) or `_listenToRuns` (each run, through `subscribeToRuns`, where `L` is a `MutationState`). `useQueryClient` reads `FueryProvider.of(context, listen: true)`. `useQuery`, `useInfiniteQuery`, `useMutation`, and `useMutationState` pass their optional `listener` (a `ResultWidgetListener`, as the widgets take) and `listenWhen` to `_SlotHook`, which listens through its `listenTo`; a new hook over a slot takes the same two parameters the same way. `useQueries` has no listener, as there is no widget with one for a list.
 - `lib/fuery_hooks.dart` re-exports `fuery`. It hides `debugResetHookWarnings`, which only tests use, and Fuery's `FocusManager` class, whose name Flutter uses too; the `focusManager` singleton stays exported.
 - `example/main.dart` is the example pub.dev shows. It is analyzed with the package, so it must compile.
 
@@ -21,6 +21,7 @@ These match the widgets and are covered by tests; keep them:
 - A `listener` follows the rules of the listener widgets, which live in `ObserverSlot.listen`: it runs in a microtask after a change, never during a build, and not for the result it starts from. It gets `(context, result)` with the hook's own `context`, and `listenWhen` compares with the last result received, even when it said no. It doesn't hear a move to another observer, such as a replaced provider client.
 - Listening starts on the first build that passes a `listener`, from that build's result, so a hook without one costs nothing. The latest build's `listener` and `listenWhen` are used; a build that passes none keeps the registration and skips the calls. Disposing the hook stops it. `listenWhen` without a `listener` is an `AssertionError`.
 - A listener adds no observer and no rebuild: it shares the hook's slot. For a mutation definition, it hears the runs started from the hook's own result; for a shared observer, every run. A listener that throws is reported to the client's `onUncaughtError` and doesn't stop the rebuild.
+- `useMutationState` returns every run of a mutation found by its `mutationKey` (or `MutationFilters`), as `MutationStateBuilder` does. Its `listener` works as `MutationStateListener`'s: once for each run that changed, with `listenWhen` comparing that run's states, from any widget, and not for the states runs had when listening started.
 
 ## Tests
 

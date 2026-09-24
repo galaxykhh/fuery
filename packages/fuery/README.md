@@ -134,7 +134,7 @@ queryFn: (context) {
 
 ## Widgets
 
-Queries, infinite queries, and mutations each have a builder, a listener, a consumer, and a selector, and a list of queries has a builder and a selector:
+Queries, infinite queries, and mutations each have a builder, a listener, a consumer, and a selector, a list of queries has a builder and a selector, and the runs of a mutation have a builder, a listener, and a selector:
 
 | | Rebuild UI | Side effects | Both | Part of the state |
 |---|---|---|---|---|
@@ -142,6 +142,7 @@ Queries, infinite queries, and mutations each have a builder, a listener, a cons
 | Infinite query | `InfiniteQueryBuilder` | `InfiniteQueryListener` | `InfiniteQueryConsumer` | `InfiniteQuerySelector` |
 | Mutation | `MutationBuilder` | `MutationListener` | `MutationConsumer` | `MutationSelector` |
 | Several queries | `QueriesBuilder` | | | `QueriesSelector` |
+| Every run of a mutation | `MutationStateBuilder` | `MutationStateListener` | | `MutationStateSelector` |
 
 Each takes a query (or a mutation) and keeps one observer for it. Pass the same definition from several widgets, and they share one cache entry and one request. The result has the actions, too: `state.refetch()`, `state.fetchNextPage()`, and `state.mutate(...)`.
 
@@ -195,6 +196,7 @@ Mutations create, update, or delete server data. Define one, and run it from a `
 
 ```dart
 final addTodo = Mutation(
+  mutationKey: const ['todos', 'add'],
   mutationFn: (String title) => api.addTodo(title),
   onSuccess: (todo, title, context, client) {
     return client.invalidateQueries(queryKey: ['todos']);
@@ -212,7 +214,25 @@ MutationBuilder(
 
 Every callback receives the client that runs the mutation. Returning the `invalidateQueries` future from `onSuccess` keeps the mutation pending until the list has refetched. `state.mutateAsync(title)` returns the data, and throws on error.
 
-When the button and the pending state are in different places, create one observer with `addTodo.observe()` in a `State` field, pass it to both, and call its `reset()` in `dispose`. Under a `FueryProvider` with a client of its own, write `late final adding = addTodo.observe(client: context.queryClient);`.
+Anywhere else, `MutationStateBuilder`, `MutationStateSelector`, and `MutationStateListener` show and hear every run of the mutation, wherever it started, found by its `mutationKey`:
+
+```dart
+MutationStateListener(
+  mutation: addTodo,
+  listenWhen: (previous, current) => current.isError,
+  listener: (context, run) => ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text('Could not add "${run.variables}"')),
+  ),
+  child: MutationStateSelector(
+    mutation: addTodo,
+    selector: (runs) => runs.any((run) => run.isPending),
+    builder: (context, adding) =>
+        adding ? const LinearProgressIndicator() : const SizedBox.shrink(),
+  ),
+)
+```
+
+To share one observer's state instead, create it with `addTodo.observe()` in a `State` field, pass it to the widgets, and call its `reset()` in `dispose`.
 
 **Optimistic updates.** Cancel refetches of the data first, then update the cache in `onMutate` and return what you need to roll back. The returned value is passed to the other callbacks as `context`:
 

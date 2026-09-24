@@ -189,6 +189,8 @@ class _LoadingBarState extends State<LoadingBar> {
 
 In a bloc, listen to the stream like any other.
 
+For a mutation, widgets need no stream: [`MutationStateSelector`](../mutations/#showing-every-run-of-a-mutation) shows whether it is running, and so does `useMutationState` in a `HookWidget`.
+
 ## Fetching outside widgets
 
 `client.query` returns cached data if it's fresh, and fetches otherwise. It throws on failure and doesn't retry unless you set `retry`:

@@ -7,6 +7,7 @@ A mutation changes server data and reports what happened while it runs. This pag
 
 ```dart
 final addTodo = Mutation(
+  mutationKey: const ['todos', 'add'],
   mutationFn: (String title) => api.addTodo(title),
   onSuccess: (todo, title, context, client) {
     return client.invalidateQueries(queryKey: ['todos']);
@@ -14,7 +15,7 @@ final addTodo = Mutation(
 );
 ```
 
-Give the parameter of `mutationFn` a type, like `String title` above. The rest of the types are inferred from it.
+Give the parameter of `mutationFn` a type, like `String title` above. The rest of the types are inferred from it. The `mutationKey` lets any widget find the mutation's runs; see [Showing every run of a mutation](#showing-every-run-of-a-mutation).
 
 ## Running a mutation
 
@@ -57,7 +58,7 @@ class _AddTodoScreenState extends State<AddTodoScreen> {
 
 ## MutationState fields
 
-Builders, listeners, and an observer's `result` all report a `MutationResult`, a `MutationState` with `mutate`, `mutateAsync`, and `reset`:
+Builders, listeners, and an observer's `result` all report a `MutationResult`, a `MutationState` with `mutate`, `mutateAsync`, and `reset`. The [MutationState widgets](#showing-every-run-of-a-mutation) and `useMutationState` report plain `MutationState`s, one for each run, without them:
 
 | Field | Meaning |
 |---|---|
@@ -183,9 +184,72 @@ MutationBuilder(
 )
 ```
 
+## Showing every run of a mutation
+
+The MutationState widgets show the runs of a mutation wherever they started: a `MutationBuilder` on another screen, a `useMutation`, a cubit's observer, or [`restore(mutations:)`](../persistence/#persisting-mutations). They find the runs by the definition's `mutationKey`, so nothing has to share an observer, and they work in a `StatelessWidget`.
+
+| Widget | Builds from, or hears |
+|---|---|
+| `MutationStateBuilder` | The `MutationState` of every run, oldest first |
+| `MutationStateSelector` | A value selected from those states. It rebuilds only when the value changes. |
+| `MutationStateListener` | Each change of each run, for side effects |
+
+A progress bar while anything is being added:
+
+```dart
+MutationStateSelector(
+  mutation: addTodo,
+  selector: (runs) => runs.any((run) => run.isPending),
+  builder: (context, adding) =>
+      adding ? const LinearProgressIndicator() : const SizedBox(height: 4),
+)
+```
+
+The titles on their way to the server, typed as `String` like the definition's variables:
+
+```dart
+MutationStateBuilder(
+  mutation: addTodo,
+  builder: (context, runs) => Column(
+    children: [
+      for (final run in runs)
+        if (run case MutationState(isPending: true, :final variables?))
+          ListTile(title: Text(variables)),
+    ],
+  ),
+)
+```
+
+Which runs they show:
+
+- A `Mutation` finds the runs with its `mutationKey`, exactly, typed like the definition. The runs of another definition with the same key and types count too. A definition without a key fails an assert in debug builds.
+- A run of other types under the key is left out, and reported once to [`onUncaughtError`](../query-client/#catching-errors-that-callbacks-throw). Give each definition a key of its own.
+- `MutationFilters` find the runs of any mutation that match them, as `isMutating` does: by key prefix, `exact` key, `status`, or `predicate`. Their states are typed `Object?`.
+- The runs are listed oldest first, so `runs.lastOrNull` is the latest.
+- A settled run stays until the cache removes it, `gcTime` (default: 5 minutes) after it settles. A mounted `MutationBuilder` keeps its latest run for as long as it shows it. Build indicators from `isPending`, not from the length. `client.clear()` removes every run.
+- Only the runs of the widget's client count: the nearest `FueryProvider`'s, or `Fuery.client`.
+- The widgets only read. They never run a mutation and apply none of the definition's options, so a definition built in `build` costs nothing.
+
 ## Telling the user a mutation failed
 
-A failed `mutate` puts the error in the state instead of throwing, so a screen shows it with a `MutationListener`. A listener can't run the mutation, so pass it the observer that does:
+A failed `mutate` puts the error in the state instead of throwing. A `MutationStateListener` hears every run of the mutation, from any screen, and gets each run's new state:
+
+```dart
+MutationStateListener(
+  mutation: addTodo,
+  listenWhen: (previous, current) => current.isError,
+  listener: (context, run) => ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text('Could not add "${run.variables}"')),
+  ),
+  child: const TodoScreen(),
+)
+```
+
+- It is called once for each run that changed, so two runs that fail give two calls. `listenWhen` compares that run's previous state with its new one.
+- It isn't called for the states runs already had when it mounted, or for a run that the cache removes.
+- It hears restored runs and runs from other screens too, so mount it once, where the message belongs.
+
+A `MutationListener` hears only the runs of the observer it gets. A listener can't run the mutation, so pass it the observer that does:
 
 ```dart
 MutationListener(
@@ -203,4 +267,4 @@ Use `MutateOptions(onError: ...)` instead when only one call site shows the fail
 
 ## In the example app
 
-The example has an optimistic like with a rollback and a comment that pauses while offline in [the feed mutations](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/data/feed_mutations.dart), and the snackbar above in [the feed](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/feed/feed_screen.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) maps each screen to what it shows.
+The example has an optimistic like with a rollback and a comment that pauses while offline in [the feed mutations](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/data/feed_mutations.dart). [The feed](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/feed/feed_screen.dart) reports every failed like with a `MutationStateListener`, and [the post screen](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/post/post_screen.dart) lists the comments on their way with a `MutationStateBuilder`. Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) maps each screen to what it shows.

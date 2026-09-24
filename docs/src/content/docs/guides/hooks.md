@@ -140,12 +140,13 @@ FilledButton(
 )
 ```
 
-Run the mutation from that result, or pass the result to the child that runs it. Another `useMutation(addTodoMutation)` has an observer of its own, and this listener doesn't hear its runs.
+Run the mutation from that result, or pass the result to the child that runs it. Another `useMutation(addTodoMutation)` has an observer of its own, and this listener doesn't hear its runs. To hear every run, from any widget, pass the listener to [`useMutationState`](#showing-every-run-of-a-mutation) instead.
 
 | Effect | Where it goes |
 |---|---|
 | Cache work, such as invalidating `['todos']` after any run | The callbacks of the `Mutation` |
-| The screen's reaction to every run, such as closing the screen | `listener` |
+| The screen's reaction to the runs of its own `useMutation`, such as closing the screen | `listener` of `useMutation` |
+| A reaction to every run, from any widget, such as a snackbar for each failure | `listener` of `useMutationState` |
 | An effect of one call that needs that call's variables | `MutateOptions` passed to `mutate` |
 
 The widget still rebuilds when the result changes, with a listener or without. To react without rebuilding a widget, wrap its subtree in a `QueryListener` or `InfiniteQueryListener`, which `fuery_hooks` re-exports.
@@ -153,6 +154,28 @@ The widget still rebuilds when the result changes, with a listener or without. T
 The listener isn't called for the result the widget mounts with. When that result already decides what to show, such as a signed-out user, decide it in `build` from the result the hook returns.
 
 Don't show a snackbar or navigate from `useEffect` or `useValueChanged` keyed on the result: `flutter_hooks` runs them during the build, where those calls fail.
+
+## Showing every run of a mutation
+
+`useMutationState` returns the state of every run of a mutation, oldest first, wherever it started: a `useMutation` in another widget, a `MutationBuilder`, or a cubit's observer. It finds the runs by the definition's `mutationKey`, as [`MutationStateBuilder`](../mutations/#showing-every-run-of-a-mutation) does, and never runs the mutation:
+
+```dart
+final runs = useMutationState(addTodoMutation);
+
+if (runs.any((run) => run.isPending)) return const LinearProgressIndicator();
+```
+
+Its `listener` gets the new state of each run that changed, as a `MutationStateListener` does, and `listenWhen` compares that run's previous state with its new one:
+
+```dart
+useMutationState(
+  addTodoMutation,
+  listenWhen: (previous, current) => current.isError,
+  listener: (context, run) => ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text('Could not add "${run.variables}"')),
+  ),
+);
+```
 
 ## Loading more pages
 
@@ -192,6 +215,8 @@ Each query keeps its observer while its key stays in the list, even when the lis
 | `MutationBuilder` | `useMutation(mutation)` |
 | `MutationListener`, `MutationConsumer` | `useMutation(mutation, listener: ...)` |
 | `QueriesBuilder` | `useQueries(queries)` |
+| `MutationStateBuilder`, `MutationStateSelector` | `useMutationState(mutation)` |
+| `MutationStateListener` | `useMutationState(mutation, listener: ...)` |
 
 ## The client
 

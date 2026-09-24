@@ -47,9 +47,10 @@ flutter pub add fuery_hooks flutter_hooks
 | `useInfiniteQuery(query)` | The latest `InfiniteQueryResult`. `fetchNextPage()` is on the result. |
 | `useMutation(mutation)` | The latest `MutationResult`. `mutate(...)` is on the result. |
 | `useQueries(queries)` | The results of a list of queries of one data type, in order. |
+| `useMutationState(mutation)` | The state of every run of a mutation, oldest first, wherever it started, found by its `mutationKey`. |
 | `useQueryClient()` | The client the hooks use, for `invalidateQueries` and `setData`. |
 
-Each rebuilds the widget when its result changes, and needs no type arguments: `todos` above is a `QueryResult<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`. `useQuery`, `useInfiniteQuery`, and `useMutation` also take `listener` and `listenWhen`, for side effects.
+Each rebuilds the widget when its result changes, and needs no type arguments: `todos` above is a `QueryResult<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`. `useQuery`, `useInfiniteQuery`, `useMutation`, and `useMutationState` also take `listener` and `listenWhen`, for side effects.
 
 ## One query that needs another
 
@@ -104,7 +105,17 @@ final addTodo = useMutation(
 );
 ```
 
-`listenWhen` compares the previous result with the new one, as on `QueryListener`. A mutation's listener hears the runs started with the result its hook returns.
+`listenWhen` compares the previous result with the new one, as on `QueryListener`. A mutation's listener hears the runs started with the result its hook returns. The listener of `useMutationState` hears every run of the mutation, from any widget, one run at a time:
+
+```dart
+useMutationState(
+  addTodoMutation,
+  listenWhen: (previous, current) => current.isError,
+  listener: (context, run) => ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text('Could not add "${run.variables}"')),
+  ),
+);
+```
 
 ## Rules
 

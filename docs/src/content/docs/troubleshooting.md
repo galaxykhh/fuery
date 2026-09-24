@@ -182,7 +182,26 @@ See [what the callbacks return](../guides/mutations/#callbacks).
 
 A mutation's state belongs to the observer that runs it. A `MutationListener` given a definition, as in `MutationListener(mutation: addTodo)`, creates an observer of its own, and nothing runs that one. A `MutationBuilder` or `MutationSelector` that only shows the state has the same problem: it stays idle while the button's mutation runs.
 
-Create one observer, and pass it both to the widget that runs it and to the one that listens:
+To hear every run of the mutation, wherever it started, give the definition a `mutationKey` and use a `MutationStateListener`. For the widgets that only show the state, use `MutationStateBuilder` or `MutationStateSelector`. See [Showing every run of a mutation](../guides/mutations/#showing-every-run-of-a-mutation).
+
+```dart
+final addTodo = Mutation(
+  mutationKey: const ['todos', 'add'],
+  mutationFn: (String title) => api.addTodo(title),
+);
+
+MutationStateListener(
+  mutation: addTodo,
+  listenWhen: (previous, current) => current.isError,
+  listener: (context, run) => ScaffoldMessenger.of(context)
+      .showSnackBar(SnackBar(content: Text('Could not add: ${run.error}'))),
+  child: const AddTodoForm(),
+)
+```
+
+For the callbacks of one call, such as closing the form that saved, pass `MutateOptions` to `mutate`.
+
+To hear only the runs of one observer, create it once, and pass it both to the widget that runs it and to the one that listens:
 
 ```dart
 class _AddTodoScreenState extends State<AddTodoScreen> {
@@ -208,7 +227,16 @@ class _AddTodoScreenState extends State<AddTodoScreen> {
 
 A builder, consumer, or selector that runs the mutation itself, with `state.mutate`, can take the definition. In debug builds, a `MutationListener` given a definition prints a warning to the console, once, with a link here.
 
-In a `HookWidget`, pass `listener:` to the `useMutation` whose result runs the mutation. See [Reacting to changes](../guides/hooks/#reacting-to-changes).
+In a `HookWidget`, pass `listener:` to the `useMutation` whose result runs the mutation, or to `useMutationState(addTodo)` to hear every run. See [Reacting to changes](../guides/hooks/#reacting-to-changes).
+
+## A MutationStateBuilder shows no runs
+
+The MutationState widgets and `useMutationState` find runs by the definition's `mutationKey`, in the cache of the client they use.
+
+- **The definition has no `mutationKey`.** In debug builds, the widget fails an assert that says so. Give it one, such as `mutationKey: const ['todos', 'add']`.
+- **Another definition with other types uses the key.** Its runs are left out, and reported once to [`onUncaughtError`](../guides/query-client/#catching-errors-that-callbacks-throw). Give each definition a key of its own.
+- **The runs are on another client.** An observer created with `observe()` without `client:` runs on `Fuery.client`, not on the client of a `FueryProvider`. See [A screen reads another client's cache](#a-screen-reads-another-clients-cache).
+- **The runs are gone.** A settled run leaves the cache `gcTime` (default: 5 minutes) after it settles, and `client.clear()` removes every run.
 
 ## The devtools button covers part of the app
 

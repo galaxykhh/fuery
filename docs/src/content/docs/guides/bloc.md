@@ -82,6 +82,8 @@ on<TodoAdded>((event, emit) async {
 
 A cubit and a `QueryBuilder` that use the same key share one cache entry. A change made on one screen, like marking notifications read, shows up in the cubit and in every widget. The [example app](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) has a notifications screen built with Fuery widgets and a badge counted by a cubit, reading the same query.
 
+The runs a bloc starts with its own observer show in `MutationStateBuilder(mutation: addTodo)` on any screen when `addTodo` has a `mutationKey`, so the bloc doesn't have to expose its observer. See [Showing every run of a mutation](../mutations/#showing-every-run-of-a-mutation). A cubit that follows those runs itself keeps a `MutationStateSlot(addTodo, client)`, reads its `result`, and hears each run's changes with `subscribeToRuns`.
+
 ## App lifecycle
 
 An app that uses queries only from blocs has to connect the app lifecycle itself, with one call at startup. See [Refetching automatically](../lifecycle/#when-the-app-resumes).
