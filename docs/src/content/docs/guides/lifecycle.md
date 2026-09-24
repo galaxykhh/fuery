@@ -9,7 +9,7 @@ box; the second needs a connectivity source.
 
 ## When the app resumes
 
-Fuery widgets connect `AppLifecycleState` for you:
+Fuery widgets and hooks connect `AppLifecycleState` for you:
 
 | App state | Fuery treats the app as |
 |---|---|
@@ -23,7 +23,7 @@ When the app is focused again, stale queries that widgets use refetch. While it 
 
 `focusManager` is the same switch underneath. `focusManager.setFocused(false)` reports the app as hidden and `setFocused(null)` hands control back, which is how a test simulates backgrounding. `focusManager.isFocused` reads the current state. Outside Flutter, `focusManager.setEventListener` connects whatever your host uses, the way the network source below does.
 
-An app that uses queries only from blocs has no Fuery widget to connect the lifecycle, so call this once at startup:
+An app that uses queries only from blocs has no Fuery widget or hook to connect the lifecycle, so call this once at startup:
 
 ```dart
 void main() {

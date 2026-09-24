@@ -130,9 +130,19 @@ Every widget that starts using a query refetches it when the data is stale, and 
 QueryBuilder(query: todosQuery, builder: ...)
 ```
 
+A list of queries and a hook have the same fix. Pass the definitions, not new observers:
+
+```dart
+QueriesBuilder(queries: [for (final id in ids) todoQuery(id)], builder: ...)
+```
+
+With [hooks](../guides/hooks/), write `useQuery(todosQuery)`, not `useQuery(todosQuery.observe())`, and `useQueries([for (final id in ids) todoQuery(id)])`.
+
+A mutation observer created in `build`, as in `MutationBuilder(mutation: saveTodo.observe())`, swaps in an idle observer on every rebuild. The button then loses the pending or error state of the mutation it started.
+
 When you need the observer, call `observe()` once in a `State` field or a cubit, and pass that down.
 
-In debug builds, a Fuery widget that gets a new observer for the same key on a rebuild prints a warning to the console, once per key, with a link here.
+In debug builds, a Fuery widget or hook, including the list forms, that gets a new observer for the same key on a rebuild prints a warning to the console, once per key, with a link here.
 
 ## A mutation stays pending after the request finished
 
@@ -159,7 +169,7 @@ FueryDevtools(
 
 ## Nothing refetches when the app resumes
 
-Fuery widgets connect the app lifecycle for you. An app that only uses queries from blocs has no Fuery widget, so call this once at startup:
+Fuery widgets and hooks connect the app lifecycle for you. An app that uses queries only from blocs has neither, so call this once at startup:
 
 ```dart
 void main() {

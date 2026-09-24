@@ -42,7 +42,8 @@ class QueryBuilder<TData extends Object> extends StatelessWidget {
     return ResultSubscriber<QuerySource<TData>, QueryResult<TData>>(
       source: query,
       createSlot: QuerySlot<TData>.new,
-      debugKey: _debugKey,
+      debugName: 'QueryBuilder',
+      debugKey: debugSameKey(_observerKey),
       builder: builder,
       buildWhen: buildWhen,
     );
@@ -82,7 +83,8 @@ class QueryListener<TData extends Object> extends StatelessWidget {
     return ResultSubscriber<QuerySource<TData>, QueryResult<TData>>(
       source: query,
       createSlot: QuerySlot<TData>.new,
-      debugKey: _debugKey,
+      debugName: 'QueryListener',
+      debugKey: debugSameKey(_observerKey),
       listener: listener,
       listenWhen: listenWhen,
       child: child,
@@ -112,7 +114,8 @@ class QueryConsumer<TData extends Object> extends StatelessWidget {
     return ResultSubscriber<QuerySource<TData>, QueryResult<TData>>(
       source: query,
       createSlot: QuerySlot<TData>.new,
-      debugKey: _debugKey,
+      debugName: 'QueryConsumer',
+      debugKey: debugSameKey(_observerKey),
       builder: builder,
       buildWhen: buildWhen,
       listener: listener,
@@ -150,13 +153,14 @@ class QuerySelector<TData extends Object, T> extends StatelessWidget {
     return ResultSelector<QuerySource<TData>, QueryResult<TData>, T>(
       source: query,
       createSlot: QuerySlot<TData>.new,
-      debugKey: _debugKey,
+      debugName: 'QuerySelector',
+      debugKey: debugSameKey(_observerKey),
       selector: selector,
       builder: builder,
     );
   }
 }
 
-String? _debugKey<TData extends Object>(QuerySource<TData> query) {
+String? _observerKey<TData extends Object>(QuerySource<TData> query) {
   return query is QueryObserver<TData> ? hashKey(query.options.queryKey) : null;
 }

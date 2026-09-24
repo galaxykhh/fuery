@@ -43,7 +43,8 @@ class MutationBuilder<TData, TVariables, TContext> extends StatelessWidget {
         _Result<TData, TVariables, TContext>>(
       source: mutation,
       createSlot: MutationSlot<TData, TVariables, TContext>.new,
-      debugKey: _debugKey,
+      debugName: 'MutationBuilder',
+      debugKey: debugSameKey(_observerKey),
       builder: builder,
       buildWhen: buildWhen,
     );
@@ -83,7 +84,8 @@ class MutationListener<TData, TVariables, TContext> extends StatelessWidget {
         _Result<TData, TVariables, TContext>>(
       source: mutation,
       createSlot: MutationSlot<TData, TVariables, TContext>.new,
-      debugKey: _debugKey,
+      debugName: 'MutationListener',
+      debugKey: debugSameKey(_observerKey),
       listener: listener,
       listenWhen: listenWhen,
       child: child,
@@ -117,7 +119,8 @@ class MutationConsumer<TData, TVariables, TContext> extends StatelessWidget {
         _Result<TData, TVariables, TContext>>(
       source: mutation,
       createSlot: MutationSlot<TData, TVariables, TContext>.new,
-      debugKey: _debugKey,
+      debugName: 'MutationConsumer',
+      debugKey: debugSameKey(_observerKey),
       builder: builder,
       buildWhen: buildWhen,
       listener: listener,
@@ -157,14 +160,15 @@ class MutationSelector<TData, TVariables, TContext, T> extends StatelessWidget {
         _Result<TData, TVariables, TContext>, T>(
       source: mutation,
       createSlot: MutationSlot<TData, TVariables, TContext>.new,
-      debugKey: _debugKey,
+      debugName: 'MutationSelector',
+      debugKey: debugSameKey(_observerKey),
       selector: selector,
       builder: builder,
     );
   }
 }
 
-String? _debugKey<TData, TVariables, TContext>(
+String? _observerKey<TData, TVariables, TContext>(
   _Source<TData, TVariables, TContext> mutation,
 ) {
   if (mutation is! MutationObserver<TData, TVariables, TContext>) return null;
