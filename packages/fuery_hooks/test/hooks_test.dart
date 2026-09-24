@@ -125,6 +125,115 @@ void main() {
       other.clear();
     });
 
+    testWidgets('rebuilds only when the result changed', (tester) async {
+      var builds = 0;
+      Widget screen(int id) => HookBuilder(builder: (_) {
+            builds++;
+            return Text(describe(useQuery(post(id))));
+          });
+      await tester.pumpWidget(app(screen(1)));
+      await tester.pump();
+      expect(builds, 1);
+      await tester.pump(ms10);
+      expect(builds, 2);
+
+      // The new key shows in the build that changed it, and the result the
+      // update caused doesn't build again.
+      await tester.pumpWidget(app(screen(2)));
+      await tester.pump();
+      expect(builds, 3);
+      expect(find.text('post 1 (old)'), findsOneWidget);
+      await tester.pump(ms10);
+      expect(builds, 4);
+      expect(find.text('post 2'), findsOneWidget);
+      await tearDownApp(tester);
+    });
+
+    testWidgets('ignores a result that arrives after its widget went away',
+        (tester) async {
+      Widget screen(int n) => HookBuilder(
+            key: ValueKey(n),
+            builder: (_) => Text(describe(useQuery(post(1)))),
+          );
+      await tester.pumpWidget(app(screen(1)));
+      await tester.pump(ms10);
+
+      // The new screen refetches the stale query while the old one is
+      // still subscribed, and the old one is gone when the result arrives.
+      await tester.pumpWidget(app(screen(2)));
+      expect(tester.takeException(), isNull);
+      await tester.pump(ms10);
+      expect(find.text('post 1'), findsOneWidget);
+      await tearDownApp(tester);
+    });
+
+    testWidgets('ignores a result that arrives after the hook was dropped',
+        (tester) async {
+      var builds = 0;
+      // flutter_hooks disposes a trailing hook that a build no longer calls
+      // while the element stays, as a hot reload can do.
+      Widget screen({required bool show}) => Column(children: [
+            HookBuilder(
+              key: const ValueKey('refetches'),
+              builder: (_) {
+                if (!show) useQuery(post(1));
+                return const SizedBox();
+              },
+            ),
+            HookBuilder(
+              key: const ValueKey('drops'),
+              builder: (_) {
+                builds++;
+                if (show) useQuery(post(1));
+                return const SizedBox();
+              },
+            ),
+          ]);
+      await tester.pumpWidget(app(screen(show: true)));
+      await tester.pump(ms10);
+
+      builds = 0;
+      await tester.pumpWidget(app(screen(show: false)));
+      await tester.pump();
+      expect(builds, 1);
+      await tester.pump(ms10);
+      await tearDownApp(tester);
+    });
+
+    testWidgets('skips the update on a rebuild its own result caused',
+        (tester) async {
+      final query = _CountingQuery(
+        queryKey: ['post', 1],
+        queryFn: post(1).queryFn!,
+      );
+      await tester.pumpWidget(
+        app(HookBuilder(builder: (_) => Text(describe(useQuery(query))))),
+      );
+      final calls = query.observer!.setOptionsCalls;
+      await tester.pump(ms10);
+      expect(find.text('post 1'), findsOneWidget);
+      expect(query.observer!.setOptionsCalls, calls);
+      await tearDownApp(tester);
+    });
+
+    testWidgets('follows a replaced client with the same definition',
+        (tester) async {
+      final other = newClient()..setData(post(1), 'other post 1');
+      final definition = post(1);
+      final screen = HookBuilder(
+        builder: (_) => Text(describe(useQuery(definition))),
+      );
+      await tester.pumpWidget(app(screen));
+      await tester.pump(ms10);
+      expect(find.text('post 1'), findsOneWidget);
+
+      await tester.pumpWidget(app(screen, with_: other));
+      expect(find.text('other post 1'), findsOneWidget);
+      await tester.pump(ms10); // the other client's data is stale
+      await tearDownApp(tester);
+      other.clear();
+    });
+
     testWidgets('warns once about an observer created in build',
         (tester) async {
       final printed = <String>[];
@@ -280,16 +389,22 @@ void main() {
     await tearDownApp(tester);
   });
 
-  testWidgets('useQueryClient gives the provided client', (tester) async {
+  testWidgets('useQueryClient gives the provided client, and follows it',
+      (tester) async {
+    final other = newClient();
     QueryClient? used;
-    await tester.pumpWidget(
-      app(HookBuilder(builder: (_) {
-        used = useQueryClient();
-        return const SizedBox();
-      })),
-    );
+    // The same widget, so only the provider can rebuild it.
+    final screen = HookBuilder(builder: (_) {
+      used = useQueryClient();
+      return const SizedBox();
+    });
+    await tester.pumpWidget(app(screen));
     expect(used, same(client));
+
+    await tester.pumpWidget(app(screen, with_: other));
+    expect(used, same(other));
     await tearDownApp(tester);
+    other.clear();
   });
 
   testWidgets("leaves Flutter's FocusManager to Flutter", (tester) async {
@@ -299,4 +414,28 @@ void main() {
     expect(FocusManager.instance, same(WidgetsBinding.instance.focusManager));
     await tearDownApp(tester);
   });
+}
+
+/// A query that keeps the observer it creates, to count its option updates.
+class _CountingQuery extends Query<String> {
+  _CountingQuery({required super.queryKey, required super.queryFn});
+
+  _CountingObserver? observer;
+
+  @override
+  QueryObserver<String> observe({QueryClient? client}) {
+    return observer = _CountingObserver(client ?? Fuery.client, this);
+  }
+}
+
+class _CountingObserver extends QueryObserver<String> {
+  _CountingObserver(super.client, super.options);
+
+  int setOptionsCalls = 0;
+
+  @override
+  void setOptions(Query<String> options) {
+    setOptionsCalls++;
+    super.setOptions(options);
+  }
 }
