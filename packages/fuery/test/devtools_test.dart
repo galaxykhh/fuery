@@ -293,6 +293,39 @@ void main() {
     });
   }
 
+  testWidgets('goes under a keyboard that leaves no room for its header',
+      (tester) async {
+    // A short landscape phone: 90 dp above the keyboard, less than the tabs
+    // and the filter field need.
+    tester.view.physicalSize = const Size(640, 360);
+    tester.view.devicePixelRatio = 1;
+    tester.view.viewInsets = const FakeViewPadding(bottom: 270);
+    addTearDown(tester.view.reset);
+    await pumpApp(tester);
+
+    expect(tester.takeException(), isNull);
+    final panel = tester.getRect(find.byType(FueryDevtoolsPanel));
+    expect(panel.height, 120);
+    expect(panel.bottom, 120);
+    expect(find.byType(TextField), findsOneWidget);
+    await tearDownApp(tester);
+  });
+
+  testWidgets('keeps its minimum height below the status bar', (tester) async {
+    tester.view.physicalSize = const Size(640, 360);
+    tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(top: 24);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 240);
+    addTearDown(tester.view.reset);
+    await pumpApp(tester);
+
+    expect(tester.takeException(), isNull);
+    final panel = tester.getRect(find.byType(FueryDevtoolsPanel));
+    expect(panel.top, 24);
+    expect(panel.height, 120);
+    await tearDownApp(tester);
+  });
+
   testWidgets('keeps the list scrolled when a query is selected or removed',
       (tester) async {
     for (var i = 0; i < 60; i++) {
