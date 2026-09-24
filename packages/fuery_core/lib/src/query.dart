@@ -337,9 +337,12 @@ class Query<TData extends Object> implements QuerySource<TData> {
   /// [client] is given. The query fetches when the observer gets its first
   /// listener. Create the observer once, not in `build`.
   ///
-  /// Define a query once, then observe it in widgets, fetch it with
+  /// Define a query once, then pass it to widgets, fetch it with
   /// [QueryClient.query], and read or write its data with
-  /// [QueryClient.getData] and [QueryClient.updateData]:
+  /// [QueryClient.getData] and [QueryClient.updateData]. A widget given the
+  /// query observes it with its own client, and follows a new key. Call
+  /// `observe()` where code outside widgets needs the observer, such as a
+  /// cubit or a service:
   ///
   /// ```dart
   /// Query<Post> postQuery(int id) => Query(
@@ -347,7 +350,8 @@ class Query<TData extends Object> implements QuerySource<TData> {
   ///       queryFn: (_) => api.getPost(id),
   ///     );
   ///
-  /// late final post = postQuery(widget.id).observe();
+  /// final post = postQuery(1).observe();
+  /// post.stream.listen((result) => print(result.data));
   /// ```
   QueryObserver<TData> observe({QueryClient? client}) {
     return QueryObserver<TData>(client ?? Fuery.client, this);

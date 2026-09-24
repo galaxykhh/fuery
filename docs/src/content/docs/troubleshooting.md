@@ -82,13 +82,13 @@ Keep queries at the top level instead, and pass them to widgets, which use the c
 
 An observer keeps the client it was created with, and `observe()` without `client:` uses `Fuery.client`. Under a `FueryProvider` with a client of its own, an observer in a `State` field, such as `final adding = addTodo.observe();`, therefore reads and writes `Fuery.client`. The widgets around it that got definitions use the provider's client. A mutation's callbacks then invalidate the wrong cache, and the screen doesn't update.
 
-Create the observer with the client the widgets use:
+Pass the definition instead, and the widget observes it with its own client. Where code needs a shared observer, create it with the client the widgets use:
 
 ```dart
 late final adding = addTodo.observe(client: context.queryClient);
 ```
 
-Or pass the definition, and the widget observes it with its own client. In a `HookWidget`, `useQueryClient()` returns the client the hooks use. `observer.client` returns the client an observer uses. In debug builds, a Fuery widget or hook that gets an observer of another client than its own prints a warning to the console, once per widget or hook and key, with a link here.
+In a `HookWidget`, `useQueryClient()` returns the client the hooks use. `observer.client` returns the client an observer uses. In debug builds, a Fuery widget or hook that gets an observer of another client than its own prints a warning to the console, once per widget or hook and key, with a link here.
 
 ## A test hangs on await subscription.cancel()
 
