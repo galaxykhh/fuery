@@ -1107,6 +1107,381 @@ void main() {
     });
   });
 
+  group('useMutationState', () {
+    /// Saves a todo after [ms10]. A title that starts with 'fail' fails.
+    Mutation<String, String, Object?> addTodo([String list = 'home']) =>
+        Mutation(
+          mutationKey: ['todos', list, 'add'],
+          mutationFn: (title) async {
+            await Future<void>.delayed(ms10);
+            if (title.startsWith('fail')) throw StateError(title);
+            return 'saved $title';
+          },
+        );
+
+    String describeRuns(List<MutationState<String, String, Object?>> runs) {
+      if (runs.isEmpty) return 'no runs';
+      return [for (final run in runs) '${run.variables} ${run.status.name}']
+          .join(', ');
+    }
+
+    /// Starts a run of [addTodo] from an observer of its own.
+    void run(String title, {String list = 'home', QueryClient? on}) {
+      addTodo(list).observe(client: on ?? client).mutate(title);
+    }
+
+    /// A button that runs [addTodo] with a useMutation of its own.
+    Widget addButton(String title) => HookBuilder(builder: (_) {
+          final add = useMutation(addTodo());
+          return TextButton(
+            onPressed: () => add.mutate(title),
+            child: Text('add $title'),
+          );
+        });
+
+    Widget runsOf(String list, {void Function()? onBuild}) {
+      return HookBuilder(builder: (_) {
+        onBuild?.call();
+        // Inferred without a context type, then checked.
+        final runs = useMutationState(addTodo(list));
+        final List<MutationState<String, String, Object?>> typed = runs;
+        return Text(describeRuns(typed));
+      });
+    }
+
+    testWidgets('shows the runs a useMutation in another widget starts',
+        (tester) async {
+      var builds = 0;
+      await tester.pumpWidget(app(Column(children: [
+        addButton('milk'),
+        runsOf('home', onBuild: () => builds++),
+      ])));
+      expect(find.text('no runs'), findsOneWidget);
+
+      await tester.tap(find.text('add milk'));
+      await tester.pump();
+      expect(find.text('milk pending'), findsOneWidget);
+      await tester.pump(ms10);
+      expect(find.text('milk success'), findsOneWidget);
+      expect(builds, 3);
+
+      // A run of another key changes nothing it shows.
+      run('report', list: 'work');
+      await tester.pump(Duration.zero);
+      await tester.pump(ms10);
+      expect(builds, 3);
+      expect(
+        tester
+            .element(find.byType(HookBuilder).last)
+            .toDiagnosticsNode()
+            .toStringDeep(),
+        contains('useMutationState:'),
+      );
+      await tearDownApp(tester);
+    });
+
+    testWidgets(
+        'shows a new key in the same frame, and follows a replaced '
+        'client', (tester) async {
+      final other = newClient();
+      run('milk');
+      run('report', list: 'work');
+      run('plan', list: 'work', on: other);
+      await tester.pump(ms10);
+
+      await tester.pumpWidget(app(runsOf('home')));
+      expect(find.text('milk success'), findsOneWidget);
+      await tester.pumpWidget(app(runsOf('work')));
+      expect(find.text('report success'), findsOneWidget);
+      await tester.pumpWidget(app(runsOf('work'), with_: other));
+      expect(find.text('plan success'), findsOneWidget);
+
+      run('schedule', list: 'work', on: other);
+      await tester.pump(Duration.zero);
+      expect(find.text('plan success, schedule pending'), findsOneWidget);
+      await tester.pump(ms10);
+      await tester.pumpWidget(const SizedBox());
+      other.clear();
+      await tearDownApp(tester);
+    });
+
+    testWidgets('ignores what changes after the hook was dropped',
+        (tester) async {
+      var builds = 0;
+      Widget screen({required bool show}) => Column(children: [
+            HookBuilder(
+              key: const ValueKey('runs'),
+              builder: (_) {
+                // Its new observer changes the mutation cache in this build.
+                if (!show) useMutation(addTodo());
+                return const SizedBox();
+              },
+            ),
+            HookBuilder(
+              key: const ValueKey('drops'),
+              builder: (_) {
+                builds++;
+                if (show) useMutationState(addTodo());
+                return const SizedBox();
+              },
+            ),
+          ]);
+      await tester.pumpWidget(app(screen(show: true)));
+
+      builds = 0;
+      await tester.pumpWidget(app(screen(show: false)));
+      await tester.pump();
+      expect(builds, 1);
+      await tearDownApp(tester);
+    });
+
+    testWidgets('infers its types from the source', (tester) async {
+      final heard = <Object?>[];
+      await tester.pumpWidget(app(HookBuilder(builder: (_) {
+        final all = useMutationState(
+          const MutationFilters(mutationKey: ['todos']),
+        );
+        final List<MutationState<Object?, Object?, Object?>> typedAll = all;
+        final clearing = useMutationState(NoVariablesMutation(
+          mutationKey: const ['todos', 'clear'],
+          mutationFn: () async => 0,
+        ));
+        final List<MutationState<int, void, Object?>> typedClearing = clearing;
+        final adding = useMutationState(
+          addTodo(),
+          listenWhen: (previous, current) {
+            final MutationState<String, String, Object?> typedPrevious =
+                previous;
+            return typedPrevious.status != current.status;
+          },
+          listener: (context, run) {
+            final MutationState<String, String, Object?> typed = run;
+            heard.add(typed.data);
+          },
+        );
+        final List<MutationState<String, String, Object?>> typedAdding = adding;
+        return Text('${typedAll.length} ${typedClearing.length} '
+            '${typedAdding.length}');
+      })));
+      run('milk');
+      await tester.pump(ms10);
+      expect(find.text('1 0 1'), findsOneWidget);
+      expect(heard, [null, 'saved milk']);
+      await tearDownApp(tester);
+    });
+
+    group('listener', () {
+      /// Records each run that failed, from a hook of its own.
+      Widget failures(
+        List<String?> heard, {
+        String list = 'home',
+        Widget child = const SizedBox(),
+      }) {
+        return HookBuilder(builder: (_) {
+          useMutationState(
+            addTodo(list),
+            listenWhen: (previous, current) => current.isError,
+            listener: (context, run) => heard.add(run.variables),
+          );
+          return child;
+        });
+      }
+
+      testWidgets('hears every run that fails, from any widget, once',
+          (tester) async {
+        final heard = <String?>[];
+        run('fail before');
+        await tester.pump(ms10);
+        run('fail while mounting');
+
+        await tester.pumpWidget(app(failures(
+          heard,
+          child: Column(children: [addButton('fail a'), addButton('fail b')]),
+        )));
+        await tester.pump();
+        expect(heard, isEmpty);
+
+        // Overlapping runs are heard one by one, and each only once.
+        await tester.tap(find.text('add fail a'));
+        await tester.tap(find.text('add fail b'));
+        await tester.pump(ms10);
+        expect(heard, ['fail while mounting', 'fail a', 'fail b']);
+        await tester.pump(const Duration(minutes: 5));
+        expect(heard, hasLength(3));
+        await tearDownApp(tester);
+      });
+
+      testWidgets('hears a run whose useMutation went away', (tester) async {
+        final heard = <String?>[];
+        await tester.pumpWidget(
+          app(failures(heard, child: addButton('fail x'))),
+        );
+        await tester.tap(find.text('add fail x'));
+        await tester.pumpWidget(app(failures(heard)));
+        expect(find.text('add fail x'), findsNothing);
+        await tester.pump(ms10);
+        expect(heard, ['fail x']);
+        await tearDownApp(tester);
+      });
+
+      testWidgets(
+          'runs with the context of the widget, and the state the '
+          'run had before', (tester) async {
+        final compared = <String>[];
+        await tester.pumpWidget(app(Scaffold(
+          body: HookBuilder(builder: (_) {
+            useMutationState(
+              addTodo(),
+              listenWhen: (previous, current) {
+                compared.add('${current.variables}: '
+                    '${previous.status.name} > ${current.status.name}');
+                return current.isSuccess;
+              },
+              listener: (context, run) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Added ${run.variables}')),
+                );
+              },
+            );
+            return const SizedBox();
+          }),
+        )));
+        run('milk');
+        await tester.pump(ms10);
+        await tester.pump();
+        expect(compared, ['milk: idle > pending', 'milk: pending > success']);
+        expect(find.text('Added milk'), findsOneWidget);
+        await tearDownApp(tester);
+      });
+
+      testWidgets(
+          'hears nothing for the runs of a new key or client until '
+          'they change', (tester) async {
+        final other = newClient();
+        final heard = <String?>[];
+        run('fail report', list: 'work');
+        run('fail plan', list: 'work', on: other);
+        await tester.pump(ms10);
+
+        await tester.pumpWidget(app(failures(heard)));
+        await tester.pumpWidget(app(failures(heard, list: 'work')));
+        await tester.pump();
+        await tester.pumpWidget(
+          app(failures(heard, list: 'work'), with_: other),
+        );
+        await tester.pump();
+        expect(heard, isEmpty);
+
+        run('fail schedule', list: 'work', on: other);
+        run('fail on the old client', list: 'work');
+        await tester.pump(ms10);
+        expect(heard, ['fail schedule']);
+        await tester.pumpWidget(const SizedBox());
+        other.clear();
+        await tearDownApp(tester);
+      });
+
+      testWidgets('calls the listener of the latest build', (tester) async {
+        final heard = <String>[];
+        Widget screen(String name) => HookBuilder(builder: (_) {
+              useMutationState(
+                addTodo(),
+                listener: (context, run) {
+                  heard.add('$name: ${run.variables} ${run.status.name}');
+                },
+              );
+              return const SizedBox();
+            });
+        // Listening starts with the first build's listener.
+        await tester.pumpWidget(app(screen('first')));
+        await tester.pumpWidget(app(screen('second')));
+        run('milk');
+        await tester.pump(ms10);
+        expect(heard, ['second: milk pending', 'second: milk success']);
+        await tearDownApp(tester);
+      });
+
+      testWidgets(
+          'hears nothing when clear() removes a run, or after it '
+          'went away', (tester) async {
+        final heard = <String>[];
+        final screen = HookBuilder(builder: (_) {
+          useMutationState(
+            addTodo(),
+            listener: (context, run) {
+              heard.add('${run.variables} ${run.status.name}');
+            },
+          );
+          return const SizedBox();
+        });
+        onlineManager.setOnline(false);
+        await tester.pumpWidget(app(screen));
+        run('offline');
+        await tester.pump();
+        expect(heard, ['offline pending']);
+        client.clear();
+        await tester.pump();
+        expect(heard, ['offline pending']);
+
+        onlineManager.setOnline(true);
+        await tester.pumpWidget(app(const SizedBox()));
+        run('milk');
+        await tester.pump(ms10);
+        expect(heard, ['offline pending']);
+        await tearDownApp(tester);
+      });
+
+      testWidgets('adds no builds, and a listener that throws is reported',
+          (tester) async {
+        final errors = <Object>[];
+        final reporting = QueryClient(
+          onUncaughtError: (error, _) => errors.add(error),
+        );
+        var withListener = 0;
+        var without = 0;
+        await tester.pumpWidget(app(
+          Column(children: [
+            HookBuilder(builder: (_) {
+              withListener++;
+              final runs = useMutationState(
+                addTodo(),
+                listener: (context, run) => throw StateError('listener'),
+              );
+              return Text('with ${describeRuns(runs)}');
+            }),
+            HookBuilder(builder: (_) {
+              without++;
+              final runs = useMutationState(addTodo());
+              return Text('without ${describeRuns(runs)}');
+            }),
+          ]),
+          with_: reporting,
+        ));
+        run('milk', on: reporting);
+        await tester.pump(Duration.zero);
+        await tester.pump(ms10);
+
+        // The first frame, the pending run, and its success.
+        expect(without, 3);
+        expect(withListener, without);
+        expect(find.text('with milk success'), findsOneWidget);
+        expect(errors, [isA<StateError>(), isA<StateError>()]);
+        await tester.pumpWidget(const SizedBox());
+        reporting.clear();
+        await tearDownApp(tester);
+      });
+
+      testWidgets('listenWhen needs a listener', (tester) async {
+        await tester.pumpWidget(app(HookBuilder(builder: (_) {
+          useMutationState(addTodo(), listenWhen: (previous, current) => true);
+          return const SizedBox();
+        })));
+        expect(tester.takeException(), isA<AssertionError>());
+        await tearDownApp(tester);
+      });
+    });
+  });
+
   testWidgets('hooks infer their types from observers and mixed lists',
       (tester) async {
     final shared = post(2).observe(client: client);

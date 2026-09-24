@@ -44,11 +44,12 @@ QueryResult<TData> useQuery<TData extends Object>(
   ResultCondition<QueryResult<TData>>? listenWhen,
 }) {
   return use(
-    _SlotHook<QuerySource<TData>, QueryResult<TData>>(
+    _SlotHook<QuerySource<TData>, QueryResult<TData>, QueryResult<TData>>(
       query,
       QuerySlot<TData>.new,
       _recreatedQuery,
       'useQuery',
+      _listenToResults,
       listener: listener,
       listenWhen: listenWhen,
     ),
@@ -66,11 +67,12 @@ InfiniteQueryResult<TPage, TParam> useInfiniteQuery<TPage, TParam>(
 }) {
   return use(
     _SlotHook<InfiniteQuerySource<TPage, TParam>,
-        InfiniteQueryResult<TPage, TParam>>(
+        InfiniteQueryResult<TPage, TParam>, InfiniteQueryResult<TPage, TParam>>(
       query,
       InfiniteQuerySlot<TPage, TParam>.new,
       _recreatedQuery,
       'useInfiniteQuery',
+      _listenToResults,
       listener: listener,
       listenWhen: listenWhen,
     ),
@@ -115,12 +117,15 @@ MutationResult<TData, TVariables, TContext>
   ResultCondition<MutationResult<TData, TVariables, TContext>>? listenWhen,
 }) {
   return use(
-    _SlotHook<MutationSource<TData, TVariables, TContext>,
+    _SlotHook<
+        MutationSource<TData, TVariables, TContext>,
+        MutationResult<TData, TVariables, TContext>,
         MutationResult<TData, TVariables, TContext>>(
       mutation,
       MutationSlot<TData, TVariables, TContext>.new,
       _recreatedMutation,
       'useMutation',
+      _listenToResults,
       listener: listener,
       listenWhen: listenWhen,
     ),
@@ -140,11 +145,66 @@ List<QueryResult<TData>> useQueries<TData extends Object>(
   List<QuerySource<TData>> queries,
 ) {
   return use(
-    _SlotHook<List<QuerySource<TData>>, List<QueryResult<TData>>>(
+    _SlotHook<List<QuerySource<TData>>, List<QueryResult<TData>>,
+        List<QueryResult<TData>>>(
       queries,
       QueriesSlot<TData>.new,
       _recreatedInList,
       'useQueries',
+      _listenToResults,
+    ),
+  );
+}
+
+/// Returns the state of every run of [mutation], oldest first, wherever it
+/// was started: a `useMutation` or a `MutationBuilder` in another widget, a
+/// cubit's observer, or `restore(mutations:)`. Rebuilds when a run is added,
+/// removed, or changes.
+///
+/// [mutation] is a [Mutation] definition with a `mutationKey`, which finds
+/// the runs with that key, typed like the definition, or [MutationFilters],
+/// which find the runs of any mutation that match them. The hook only reads:
+/// it never runs the mutation, and it works as [MutationStateBuilder] does.
+///
+/// ```dart
+/// final runs = useMutationState(addTodoMutation);
+/// return runs.any((run) => run.isPending)
+///     ? const LinearProgressIndicator()
+///     : const SizedBox.shrink();
+/// ```
+///
+/// [listener] runs side effects for each run that changes, as a
+/// [MutationStateListener] does: it gets the run's new state, and
+/// [listenWhen] compares the state that run had before with its new one. It
+/// isn't called for the states runs had when listening started.
+///
+/// ```dart
+/// useMutationState(
+///   addTodoMutation,
+///   listenWhen: (previous, current) => current.isError,
+///   listener: (context, run) => ScaffoldMessenger.of(context).showSnackBar(
+///     SnackBar(content: Text('Could not add "${run.variables}"')),
+///   ),
+/// );
+/// ```
+List<MutationState<TData, TVariables, TContext>>
+    useMutationState<TData, TVariables, TContext>(
+  MutationStateSource<TData, TVariables, TContext> mutation, {
+  ResultWidgetListener<MutationState<TData, TVariables, TContext>>? listener,
+  ResultCondition<MutationState<TData, TVariables, TContext>>? listenWhen,
+}) {
+  return use(
+    _SlotHook<
+        MutationStateSource<TData, TVariables, TContext>,
+        List<MutationState<TData, TVariables, TContext>>,
+        MutationState<TData, TVariables, TContext>>(
+      mutation,
+      MutationStateSlot<TData, TVariables, TContext>.new,
+      _noRecreated,
+      'useMutationState',
+      _listenToRuns,
+      listener: listener,
+      listenWhen: listenWhen,
     ),
   );
 }
@@ -196,6 +256,10 @@ final _RecreatedKey<Object?> _recreatedQuery = _sameKey(_queryKey);
 
 final _RecreatedKey<Object?> _recreatedMutation = _sameKey(_mutationKey);
 
+/// For a source that never holds an observer, such as a
+/// [MutationStateSource].
+String? _noRecreated(Object? previous, Object? current) => null;
+
 /// The key of a query observer in [current] that replaced a different
 /// observer for the same key and client in [previous]. Definitions,
 /// reordering, observers passed again, and new observers of another client
@@ -215,15 +279,46 @@ String? _recreatedInList(List<Object?> previous, List<Object?> current) {
   return null;
 }
 
+/// How a hook's listener hears changes of its [slot]: as `(previous,
+/// current)` pairs of what the listener gets, [L].
+typedef _ListenTo<S, R, L> = void Function() Function(
+  ObserverSlot<S, R> slot,
+  void Function(L previous, L current) onChange,
+);
+
+/// Hears each later result of [slot], as the listener widgets do.
+void Function() _listenToResults<S, R>(
+  ObserverSlot<S, R> slot,
+  void Function(R previous, R current) onChange,
+) {
+  return slot.listen(onChange);
+}
+
+/// Hears each later change of each run of [slot], as a
+/// [MutationStateListener] does.
+void Function() _listenToRuns<TData, TVariables, TContext>(
+  ObserverSlot<MutationStateSource<TData, TVariables, TContext>,
+          List<MutationState<TData, TVariables, TContext>>>
+      slot,
+  void Function(
+    MutationState<TData, TVariables, TContext> previous,
+    MutationState<TData, TVariables, TContext> current,
+  ) onChange,
+) {
+  final runs = slot as MutationStateSlot<TData, TVariables, TContext>;
+  return runs.subscribeToRuns(onChange);
+}
+
 /// Renders a source through the [ObserverSlot] that [createSlot] creates,
 /// the way the widgets of `fuery` do, and calls [listener] after each later
-/// change of its result, as the listener widgets do.
-class _SlotHook<S, R> extends Hook<R> {
+/// change that [listenTo] reports, as the listener widgets do.
+class _SlotHook<S, R, L> extends Hook<R> {
   const _SlotHook(
     this.source,
     this.createSlot,
     this.debugKey,
-    this.name, {
+    this.name,
+    this.listenTo, {
     this.listener,
     this.listenWhen,
   }) : assert(
@@ -238,14 +333,16 @@ class _SlotHook<S, R> extends Hook<R> {
   final _RecreatedKey<S> debugKey;
   final String name;
 
-  final ResultWidgetListener<R>? listener;
-  final ResultCondition<R>? listenWhen;
+  /// What [listener] hears: each result, or each change of a run.
+  final _ListenTo<S, R, L> listenTo;
+  final ResultWidgetListener<L>? listener;
+  final ResultCondition<L>? listenWhen;
 
   @override
-  _SlotHookState<S, R> createState() => _SlotHookState<S, R>();
+  _SlotHookState<S, R, L> createState() => _SlotHookState<S, R, L>();
 }
 
-class _SlotHookState<S, R> extends HookState<R, _SlotHook<S, R>> {
+class _SlotHookState<S, R, L> extends HookState<R, _SlotHook<S, R, L>> {
   ObserverSlot<S, R>? _slot;
   void Function()? _unsubscribe;
   void Function()? _stopListening;
@@ -267,7 +364,7 @@ class _SlotHookState<S, R> extends HookState<R, _SlotHook<S, R>> {
   }
 
   @override
-  void didUpdateHook(_SlotHook<S, R> oldHook) {
+  void didUpdateHook(_SlotHook<S, R, L> oldHook) {
     super.didUpdateHook(oldHook);
     if (!identical(oldHook.source, hook.source)) {
       _debugWarnRecreated(hook, oldHook.source);
@@ -294,9 +391,12 @@ class _SlotHookState<S, R> extends HookState<R, _SlotHook<S, R>> {
     }
     _source = hook.source;
     _client = client;
-    // From the first build that passes a listener, whose result is not a
-    // change. A later build without one keeps listening and skips the calls.
-    if (hook.listener != null) _stopListening ??= slot.listen(_onChange);
+    // From the first build that passes a listener, whose result, or the
+    // states its runs have, are not changes. A later build without one keeps
+    // listening and skips the calls.
+    if (hook.listener != null) {
+      _stopListening ??= hook.listenTo(slot, _onChange);
+    }
     // Current as soon as update returns, so a new key shows in this frame.
     final result = slot.result;
     _built = result;
@@ -305,7 +405,7 @@ class _SlotHookState<S, R> extends HookState<R, _SlotHook<S, R>> {
 
   /// Runs in a microtask, never during a build, with the latest build's
   /// listener.
-  void _onChange(R previous, R current) {
+  void _onChange(L previous, L current) {
     final listener = hook.listener;
     if (listener != null &&
         (hook.listenWhen?.call(previous, current) ?? true)) {
@@ -344,7 +444,7 @@ String _definitionExample(String hookName) {
 /// on a rebuild, which is what `useQuery(todosQuery.observe())` looks like:
 /// each new query observer subscribes and refetches again, and each new
 /// mutation observer starts idle.
-void _debugWarnRecreated<S, R>(_SlotHook<S, R> hook, S previous) {
+void _debugWarnRecreated<S, R, L>(_SlotHook<S, R, L> hook, S previous) {
   assert(() {
     final keyHash = hook.debugKey(previous, hook.source);
     if (keyHash == null) return true;

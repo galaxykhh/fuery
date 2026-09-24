@@ -1,5 +1,5 @@
-/// Hooks for Fuery: `useQuery`, `useInfiniteQuery`, `useMutation`, and
-/// `useQueries` for `flutter_hooks`.
+/// Hooks for Fuery: `useQuery`, `useInfiniteQuery`, `useMutation`,
+/// `useQueries`, and `useMutationState` for `flutter_hooks`.
 library;
 
 // Flutter has a FocusManager class too, so a file that imports material and
