@@ -91,11 +91,13 @@ class _InfiniteQueryBehavior<TPage, TParam>
   final _PageParamCheck<TPage, TParam> getNextPageParam;
   final _PageParamCheck<TPage, TParam>? getPreviousPageParam;
 
-  /// Keep at most this many pages. Older pages are dropped from the other end.
+  /// Keep at most this many pages. Older pages are dropped from the other end,
+  /// down to this many when more were cached.
   final int? maxPages;
 
-  /// How many pages to load when nothing is cached. Defaults to one. With
-  /// cached pages, a full fetch reloads all of them.
+  /// How many pages to load when nothing is cached. Defaults to one, and
+  /// loads no more than [maxPages]. With cached pages, a full fetch reloads
+  /// all of them.
   final int? pages;
 
   @override
@@ -121,13 +123,14 @@ class _InfiniteQueryBehavior<TPage, TParam>
       }
 
       Future<InfiniteData<TPage, TParam>> fetchPage(
-        InfiniteData<TPage, TParam> data,
+        InfiniteData<TPage, TParam> loaded,
         TParam? param, {
         bool previous = false,
+        bool directional = false,
       }) async {
         if (cancelled) throw context.signal.reason ?? const CancelledError();
 
-        if (param == null && data.pages.isNotEmpty) return data;
+        if (param == null && loaded.pages.isNotEmpty) return loaded;
 
         final pageParam = param as TParam;
         final page = await queryFn(InfiniteQueryFunctionContext<TParam>._(
@@ -137,6 +140,18 @@ class _InfiniteQueryBehavior<TPage, TParam>
           signal: signal,
           pageParam: pageParam,
         ));
+
+        var data = loaded;
+        if (directional) {
+          // Keep writes made while the page loaded, such as an item updated
+          // with mapPages, as long as they left the same pages loaded.
+          final current = query.state.data;
+          if (current != null &&
+              InfiniteData._equality
+                  .equals(current.pageParams, loaded.pageParams)) {
+            data = current;
+          }
+        }
 
         return previous
             ? InfiniteData(
@@ -158,10 +173,21 @@ class _InfiniteQueryBehavior<TPage, TParam>
         final param = previous
             ? _previousParam(oldData, query._client)
             : _nextParam(oldData, query._client);
-        return fetchPage(oldData, param, previous: previous);
+        return fetchPage(
+          oldData,
+          param,
+          previous: previous,
+          directional: true,
+        );
       }
 
-      final remainingPages = oldPages.isEmpty ? pages ?? 1 : oldPages.length;
+      // Load no more pages than maxPages keeps, or the first ones would be
+      // fetched only to be dropped.
+      final max = maxPages;
+      var remainingPages = oldPages.isEmpty ? pages ?? 1 : oldPages.length;
+      if (oldPages.isEmpty && max != null && max > 0 && remainingPages > max) {
+        remainingPages = max;
+      }
       var result = InfiniteData<TPage, TParam>(pages: [], pageParams: []);
       var currentPage = 0;
 
@@ -196,11 +222,15 @@ class _InfiniteQueryBehavior<TPage, TParam>
   }
 
   bool hasNextPage(InfiniteData<TPage, TParam>? data, QueryClient client) {
-    return data != null && _nextParam(data, client) != null;
+    return data != null &&
+        data.pages.isNotEmpty &&
+        getNextPageParam.has(data, client);
   }
 
   bool hasPreviousPage(InfiniteData<TPage, TParam>? data, QueryClient client) {
-    return data != null && _previousParam(data, client) != null;
+    return data != null &&
+        data.pages.isNotEmpty &&
+        (getPreviousPageParam?.has(data, client) ?? false);
   }
 }
 
@@ -214,7 +244,9 @@ class InfiniteQuery<TPage, TParam> extends Query<InfiniteData<TPage, TParam>>
   /// or `null` when there are no more pages. It must return a [TParam]:
   /// Dart can't check that here without breaking inference, so another type
   /// is reported as an error when the next page is looked up, and treated as
-  /// no next page.
+  /// no next page. An error it throws while a result is built, such as
+  /// `data.lastPage.last` on an empty page, is reported once and treated the
+  /// same way; while pages load, it fails the fetch.
   ///
   /// ```dart
   /// final posts = InfiniteQuery(
@@ -229,7 +261,8 @@ class InfiniteQuery<TPage, TParam> extends Query<InfiniteData<TPage, TParam>>
   /// When the first page has no param, give `null` its type so the param type
   /// can be inferred: `initialPageParam: null as String?`. [pages] sets how
   /// many pages to load when nothing is cached, for example to prefetch
-  /// several pages with [QueryClient.infiniteQuery].
+  /// several pages with [QueryClient.infiniteQuery]. Above [maxPages], it
+  /// loads only [maxPages] pages.
   //
   // The page param functions return Object?: a return type of TParam? makes
   // Dart infer the page type before queryFn fixes it, which would make
@@ -518,7 +551,10 @@ class InfiniteQueryObserver<TPage, TParam>
 /// A param of another type means there is no such page, and is reported
 /// once per client, function, and query key, however often the definition
 /// is built again. Throwing instead would stop the result that asked for it
-/// from being built, and the error would be lost with it.
+/// from being built, and the error would be lost with it. For the same
+/// reason, a function that throws while a result is built, such as
+/// `data.lastPage.last` on an empty page, is reported once and means no
+/// page. While pages load, what it throws fails the fetch instead.
 class _PageParamCheck<TPage, TParam> {
   _PageParamCheck(this._name, this._getParam, this._queryKey);
 
@@ -541,6 +577,17 @@ class _PageParamCheck<TPage, TParam> {
       StackTrace.current,
     );
     return null;
+  }
+
+  /// Whether [data] has a page, for building results. A throw means no page
+  /// and is reported once: no caller could receive it.
+  bool has(InfiniteData<TPage, TParam> data, QueryClient client) {
+    try {
+      return call(data, client) != null;
+    } catch (error, stackTrace) {
+      client._reportOnce('$_name threw $_queryHash', error, stackTrace);
+      return false;
+    }
   }
 }
 

@@ -19,7 +19,7 @@ final posts = InfiniteQuery(
 ```
 
 - `queryFn` fetches one page. Its `InfiniteQueryFunctionContext` is a [query function context](../organizing-queries/#passing-dependencies-to-a-query-function) plus `pageParam`, the page to load.
-- `getNextPageParam` returns the param of the next page, or `null` when there are no more pages. It has to return the param type: Dart can't check that there without losing inference, so another type is reported as an error, once, and counts as no next page.
+- `getNextPageParam` returns the param of the next page, or `null` when there are no more pages. It has to return the param type: Dart can't check that there without losing inference, so another type is [reported as an error](../query-client/#catching-errors-that-callbacks-throw), once, and counts as no next page. An error it throws, such as `data.lastPage.last` on an empty page, is reported and counts the same way. While pages load, as in a refetch, that error fails the fetch instead.
 - Fuery infers the page and param types.
 
 ## Showing pages
@@ -84,6 +84,8 @@ client.updateData(
 );
 ```
 
+A write made while `fetchNextPage()` or `fetchPreviousPage()` loads a page is kept. The new page is added to the pages as they are when it arrives, unless the write changed which pages are loaded. A refetch of every page replaces the pages with what it loaded, so an optimistic update still [cancels refetches first](../mutations/#optimistic-updates).
+
 ## Cursor-based pages
 
 APIs that return a cursor for the next page work the same way. If the first request has no cursor, give `null` its type so Dart can infer the param type:
@@ -117,6 +119,8 @@ final messages = InfiniteQuery(
 ```
 
 Give `getPreviousPageParam` as well. Without it `fetchPreviousPage()` has no param to ask for, so a page dropped from the front never comes back.
+
+Cached pages above the cap, for example from `setData`, are trimmed to `maxPages` when the next page or previous page loads. With nothing cached, `pages` above `maxPages` loads only `maxPages` pages.
 
 ## Refetching every loaded page
 

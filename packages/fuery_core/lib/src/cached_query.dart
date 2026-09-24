@@ -402,7 +402,10 @@ class CachedQuery<TData extends Object> extends _Removable {
 
     notifyManager.batch(() {
       for (final observer in _observers.toList()) {
-        observer._onQueryUpdate();
+        // An observer runs callbacks of the app, such as refetchWhile,
+        // placeholderData, and its listeners. What they throw is reported,
+        // so the other observers are updated and a fetch keeps its outcome.
+        _client._guardCallback(observer._onQueryUpdate);
       }
       _cache._notify();
     });

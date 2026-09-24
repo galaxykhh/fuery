@@ -174,14 +174,20 @@ Object? replaceEqualDeep(Object? a, Object? b, [int depth = 0]) {
 /// next key is loading.
 T? keepPreviousData<T>(T? previousData, [Object? client]) => previousData;
 
+/// Adds [item] after [items], and keeps the last [max] items. Items above
+/// the cap before the call are dropped too.
 List<T> addToEnd<T>(List<T> items, T item, int? max) {
   final next = [...items, item];
-  return max != null && max > 0 && next.length > max ? next.sublist(1) : next;
+  return max != null && max > 0 && next.length > max
+      ? next.sublist(next.length - max)
+      : next;
 }
 
+/// Adds [item] before [items], and keeps the first [max] items. Items above
+/// the cap before the call are dropped too.
 List<T> addToStart<T>(List<T> items, T item, int? max) {
   final next = [item, ...items];
   return max != null && max > 0 && next.length > max
-      ? next.sublist(0, next.length - 1)
+      ? next.sublist(0, max)
       : next;
 }

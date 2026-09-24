@@ -307,7 +307,8 @@ Some errors have no caller to go to, and `onUncaughtError` receives them:
 
 - An error thrown by a `QueryCacheConfig` or `MutateOptions` callback.
 - An error thrown by `onError` or `onSettled` of a mutation that failed.
-- A mistake Fuery finds while running, such as a `getNextPageParam` that returns a param of the wrong type, or a persisted `mutationKey` that can't be stored.
+- An error thrown by `refetchWhile` or `placeholderData` while Fuery updates an observer after its query changed.
+- A mistake Fuery finds while running, such as a `getNextPageParam` that returns a param of the wrong type or throws while a result is built, or a persisted `mutationKey` that can't be stored.
 
 ```dart
 Fuery.client = QueryClient(
