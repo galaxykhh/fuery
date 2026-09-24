@@ -393,6 +393,72 @@ void main() {
     unsubscribe();
   });
 
+  group('data written by key', () {
+    fakeTest('refetches skip it until a Query for the key is used', (async) {
+      final errors = <Object>[];
+      final reporting = QueryClient(
+        queryCache: QueryCache(
+          config: QueryCacheConfig(onError: (error, _) => errors.add(error)),
+        ),
+      );
+      reporting.setQueryData(['todo', 1], 'seeded');
+
+      var refetched = false;
+      reporting
+          .refetchQueries(throwOnError: true)
+          .then((_) => refetched = true);
+      async.flushMicrotasks();
+      expect(refetched, isTrue);
+
+      var invalidated = false;
+      reporting
+          .invalidateQueries(refetchType: RefetchType.all, throwOnError: true)
+          .then((_) => invalidated = true);
+      async.flushMicrotasks();
+      expect(invalidated, isTrue);
+
+      final state = reporting.getQueryState(['todo', 1])!;
+      expect(state.status, QueryStatus.success);
+      expect(state.fetchStatus, FetchStatus.idle);
+      expect(state.data, 'seeded');
+      expect(state.errorUpdateCount, 0);
+      expect(state.isInvalidated, isTrue);
+      expect(errors, isEmpty);
+
+      final todo = Query(
+        queryKey: ['todo', 1],
+        queryFn: FakeFetcher(() => 'fetched').call,
+      ).observe(client: reporting);
+      final unsubscribe = todo.subscribe((_) {});
+      async.elapse(ms10);
+      expect(todo.result.data, 'fetched');
+      unsubscribe();
+      reporting.clear();
+    });
+
+    fakeTest('an observer listening to it brings its query function', (async) {
+      final fetcher = FakeFetcher(() => 'fetched');
+      // Created at startup. Its query is collected before anything listens,
+      // and the data comes back by key.
+      final todo = Query(
+        queryKey: ['todo', 1],
+        queryFn: fetcher.call,
+        staleTime: infiniteDuration,
+      ).observe(client: client);
+      async.elapse(const Duration(minutes: 5));
+      client.setQueryData(['todo', 1], 'seeded');
+      final unsubscribe = todo.subscribe((_) {});
+      async.flushMicrotasks();
+      expect(fetcher.calls, 0);
+
+      client.invalidateQueries(queryKey: ['todo', 1]);
+      async.elapse(ms10);
+      expect(fetcher.calls, 1);
+      expect(todo.result.data, 'fetched');
+      unsubscribe();
+    });
+  });
+
   group('cache callbacks', () {
     // A query cache callback that throws is the app's bug, not the fetch's:
     // the query keeps the fetch's outcome, and the other callbacks run.

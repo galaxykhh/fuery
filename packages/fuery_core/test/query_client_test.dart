@@ -449,19 +449,6 @@ void main() {
         ['page 1'],
       );
     });
-
-    fakeTest('refetching data set by key alone fails clearly', (async) {
-      // setQueryData knows the key, but no query function to refetch with.
-      client.setQueryData(['todos'], 'seeded');
-      Object? error;
-      client.refetchQueries(queryKey: ['todos'], throwOnError: true).then(
-          (_) {}, onError: (Object e) {
-        error = e;
-      });
-      async.flushMicrotasks();
-
-      expect(error, isA<StateError>());
-    });
   });
 
   group('refetching', () {

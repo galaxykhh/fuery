@@ -95,7 +95,7 @@ Six calls pick their queries with the same filters. Each adds arguments of its o
 | Call | What it does | Its own arguments |
 |---|---|---|
 | `invalidateQueries` | Marks the matches stale and refetches the active ones. | `refetchType`, `cancelRefetch`, `throwOnError` |
-| `refetchQueries` | Refetches the matches. Skips disabled queries, and static ones that have data. | `cancelRefetch`, `throwOnError` |
+| `refetchQueries` | Refetches the matches. Skips disabled queries, static ones that have data, and queries only `setQueryData` has written, which have no query function yet. | `cancelRefetch`, `throwOnError` |
 | `resetQueries` | Returns the matches to their initial state, then refetches the active ones. | `cancelRefetch`, `throwOnError` |
 | `cancelQueries` | Cancels the fetches in flight. | `revert`, `silent` |
 | `removeQueries` | Deletes the matches from the cache. | none |

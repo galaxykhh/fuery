@@ -567,7 +567,10 @@ class QueryClient {
 
   /// Writes [data] to the cache for [queryKey], creating the query if needed.
   ///
-  /// Use the same [TData] as the query that reads this key.
+  /// Use the same [TData] as the query that reads this key. A query this
+  /// creates has no query function, so refetches skip it until a [Query] for
+  /// the key is fetched or observed. [setData] writes with the definition
+  /// instead.
   TData setQueryData<TData extends Object>(
     QueryKey queryKey,
     TData data, {
@@ -846,6 +849,7 @@ class QueryClient {
           .findAll(filters)
           // A static query is only skipped while it has data.
           .where((query) =>
+              query._canFetch &&
               !query.isDisabled &&
               !(query.isStatic && query.state.data != null))
           .map((query) {

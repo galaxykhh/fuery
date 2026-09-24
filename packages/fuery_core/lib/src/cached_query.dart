@@ -146,6 +146,15 @@ class CachedQuery<TData extends Object> extends _Removable {
     return !isFetched;
   }
 
+  /// Whether the query has something to fetch with. A query that only
+  /// [QueryClient.setQueryData] wrote has a key but no query function until
+  /// an observer or [QueryClient.query] brings its definition. [_refetch]
+  /// fetches with the options of an observer, so one is enough.
+  bool get _canFetch =>
+      _observers.isNotEmpty ||
+      _options.queryFn != null ||
+      _options._behavior != null;
+
   /// Whether the query resolved with data or an error at least once.
   bool get isFetched => state.dataUpdateCount + state.errorUpdateCount > 0;
 
@@ -268,9 +277,20 @@ class CachedQuery<TData extends Object> extends _Removable {
 
     Future<TData> fetchFn() {
       final queryFn = _options.queryFn;
+      // Every Query has a query function, an InfiniteQuery replaces fetchFn
+      // with its behavior, observers and QueryClient.query pass their
+      // definition, and refetches skip queries that can't fetch. Only a
+      // query written by key alone has none.
+      // coverage:ignore-start
       if (queryFn == null) {
-        return Future.error(StateError("Missing queryFn: '$queryHash'"));
+        return Future.error(StateError(
+          'Query $queryHash has no queryFn to fetch with. Its data was '
+          'written by key with setQueryData or updateQueryData, and no Query '
+          'for this key has been fetched or observed. Write it with '
+          'setData(query, data) instead, or fetch or observe the Query.',
+        ));
       }
+      // coverage:ignore-end
       _abortSignalConsumed = false;
       return queryFn(QueryFunctionContext._(
         client: _client,
