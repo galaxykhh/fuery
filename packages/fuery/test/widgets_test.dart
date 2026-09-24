@@ -448,6 +448,30 @@ void main() {
       expect(heard, ['a']);
       await tearDownApp(tester);
     });
+
+    testWidgets('still rebuilds when its listener throws, and reports it',
+        (tester) async {
+      final errors = <Object>[];
+      client = QueryClient(
+        defaultOptions: const DefaultOptions(
+          queries: QueryDefaults(retry: RetryPolicy.never()),
+        ),
+        onUncaughtError: (error, _) => errors.add(error),
+      );
+      await pumpApp(
+        tester,
+        QueryConsumer(
+          query: todos(Fetcher('a')),
+          listener: (context, state) => throw StateError('listener failed'),
+          builder: (context, state) => text(state),
+        ),
+      );
+      await tester.pump(ms10);
+
+      expect(find.text('a'), findsOneWidget);
+      expect(errors, [isA<StateError>()]);
+      await tearDownApp(tester);
+    });
   });
 
   group('InfiniteQueryBuilder', () {
