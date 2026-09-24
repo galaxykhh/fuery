@@ -19,8 +19,6 @@ One screen can do both: `BlocBuilder` for the app state, `QueryBuilder` for the 
 
 Keep the query out of a repository. It is already the caching layer, so a cubit that listens to it directly has one layer less to keep in sync.
 
-The example app shows both: a list screen built with Fuery widgets, and a stats screen whose cubit listens to the same query.
-
 ## In a cubit
 
 Outside widgets, `observe()` turns a query into an observer with a `stream`. `todosQuery` is the query, as in [Organizing queries](../organizing-queries/).

@@ -21,10 +21,12 @@ void main() {
   });
 
   /// A paged source with pages 1 to [lastPage]. Page `n` contains `'<n>'`.
-  InfiniteQueryObserver<String, int> observe({
+  InfiniteQuery<String, int> pagesQuery({
     int lastPage = 3,
     int initialPage = 1,
     int? maxPages,
+    int? pages,
+    Duration? staleTime,
     String Function(int page)? render,
     List<int>? calls,
     Set<int>? failing,
@@ -45,6 +47,26 @@ void main() {
       getPreviousPageParam: (data) =>
           data.firstPageParam > 1 ? data.firstPageParam - 1 : null,
       maxPages: maxPages,
+      pages: pages,
+      staleTime: staleTime,
+    );
+  }
+
+  InfiniteQueryObserver<String, int> observe({
+    int lastPage = 3,
+    int initialPage = 1,
+    int? maxPages,
+    String Function(int page)? render,
+    List<int>? calls,
+    Set<int>? failing,
+  }) {
+    return pagesQuery(
+      lastPage: lastPage,
+      initialPage: initialPage,
+      maxPages: maxPages,
+      render: render,
+      calls: calls,
+      failing: failing,
     ).observe(client: client);
   }
 
@@ -212,6 +234,68 @@ void main() {
     async.elapse(ms10);
 
     expect(observer.result.pages, ['1', '2']);
+  });
+
+  group('maxPages trims cached pages above it', () {
+    // Pages written with setData, or cached before maxPages was lowered.
+    InfiniteData<String, int> cached(List<int> params) => InfiniteData(
+          pages: [for (final param in params) '$param'],
+          pageParams: params,
+        );
+
+    fakeTest('when the next page loads', (async) {
+      final pages =
+          pagesQuery(lastPage: 10, maxPages: 3, staleTime: infiniteDuration);
+      client.setData(pages, cached([1, 2, 3, 4, 5]));
+      final observer = pages.observe(client: client);
+      observer.subscribe((_) {});
+      observer.fetchNextPage();
+      async.elapse(ms10);
+
+      expect(observer.result.pages, ['4', '5', '6']);
+      expect(observer.result.data!.pageParams, [4, 5, 6]);
+    });
+
+    fakeTest('when the previous page loads', (async) {
+      final pages =
+          pagesQuery(lastPage: 10, maxPages: 3, staleTime: infiniteDuration);
+      client.setData(pages, cached([2, 3, 4, 5, 6]));
+      final observer = pages.observe(client: client);
+      observer.subscribe((_) {});
+      observer.fetchPreviousPage();
+      async.elapse(ms10);
+
+      expect(observer.result.pages, ['1', '2', '3']);
+      expect(observer.result.data!.pageParams, [1, 2, 3]);
+    });
+
+    fakeTest('when the query refetches', (async) {
+      // A refetch used to load every cached page and keep the last ones,
+      // so the first pages were fetched only to be dropped.
+      final calls = <int>[];
+      final pages = pagesQuery(lastPage: 10, maxPages: 3, calls: calls);
+      client.setData(pages, cached([1, 2, 3, 4, 5]));
+      final observer = pages.observe(client: client);
+      observer.subscribe((_) {});
+      async.elapse(const Duration(milliseconds: 50));
+
+      expect(calls, [1, 2, 3]);
+      expect(observer.result.pages, ['1', '2', '3']);
+      expect(observer.result.data!.pageParams, [1, 2, 3]);
+    });
+  });
+
+  fakeTest('pages loads no more than maxPages', (async) {
+    final calls = <int>[];
+    InfiniteData<String, int>? data;
+    client
+        .infiniteQuery(
+            pagesQuery(lastPage: 10, pages: 5, maxPages: 3, calls: calls))
+        .then((value) => data = value);
+    async.elapse(const Duration(milliseconds: 50));
+
+    expect(calls, [1, 2, 3]);
+    expect(data!.pages, ['1', '2', '3']);
   });
 
   fakeTest('a failed previous page is not a refetch error', (async) {

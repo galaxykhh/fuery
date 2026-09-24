@@ -44,11 +44,13 @@ class QueryClient {
   final Duration persistMaxAge;
 
   /// Receives the errors no caller can: errors thrown by the callbacks of a
-  /// [QueryCacheConfig] or a [MutateOptions], or by `onError` and
-  /// `onSettled` of a mutation that failed, and mistakes Fuery finds while
-  /// running, such as a page param of the wrong type or a mutation key that
-  /// can't be stored. The query or mutation goes on as if the callback
-  /// hadn't thrown. A mistake is reported once per client.
+  /// [QueryCacheConfig] or a [MutateOptions], by `onError` and `onSettled`
+  /// of a mutation that failed, or by an observer callback such as
+  /// `refetchWhile` or `placeholderData` when its query changes, and
+  /// mistakes Fuery finds while running, such as a page param function that
+  /// returns a param of the wrong type or throws while a result is built, or
+  /// a mutation key that can't be stored. The query or mutation goes on as
+  /// if the callback hadn't thrown. A mistake is reported once per client.
   ///
   /// Without it, these errors go to the current zone, which in Flutter
   /// reports them to `PlatformDispatcher.onError`.
@@ -65,14 +67,17 @@ class QueryClient {
   final Set<Future<void>> _deletions = {};
 
   /// Changes whenever persisted data is deleted, so a [restore] that was
-  /// reading at the time drops what it read.
+  /// reading at the time reads again.
   int _deletionEpoch = 0;
 
-  /// Storage keys of stored mutations that [restore] has loaded, so a
-  /// second restore doesn't run them again.
+  /// Storage keys of the stored mutations this client is running, started
+  /// here or loaded by [restore], so a restore doesn't run them again.
   final Set<String> _loadedMutationKeys = {};
-  final Map<String, (QueryKey, QueryDefaults)> _queryDefaults = {};
-  final Map<String, (MutationKey, MutationDefaults)> _mutationDefaults = {};
+
+  /// Defaults by key hash, with the key in the form [partialMatchForms]
+  /// takes.
+  final Map<String, (Object?, QueryDefaults)> _queryDefaults = {};
+  final Map<String, (Object?, MutationDefaults)> _mutationDefaults = {};
   int _mountCount = 0;
   void Function()? _unsubscribeFocus;
   void Function()? _unsubscribeOnline;
@@ -84,12 +89,14 @@ class QueryClient {
 
     _unsubscribeFocus = focusManager.subscribe((focused) async {
       if (focused) {
+        queryCache._resumePausedLoads();
         await resumePausedMutations();
         queryCache._onFocus();
       }
     });
     _unsubscribeOnline = onlineManager.subscribe((online) async {
       if (online) {
+        queryCache._resumePausedLoads();
         await resumePausedMutations();
         queryCache._onOnline();
       }
@@ -161,16 +168,10 @@ class QueryClient {
   }) async {
     final storage = this.storage;
     if (storage == null) return;
-    await _deletionsDone();
-    final epoch = _deletionEpoch;
-    final Map<String, String> entries;
-    try {
-      entries = await storage.readAll();
-    } catch (_) {
-      return; // A failing storage is treated as empty.
-    }
-    // Something was deleted while reading; queries read on their own instead.
-    if (epoch != _deletionEpoch) return;
+    // Without a snapshot, queries read on their own, and stored mutations
+    // stay for the next restore.
+    final entries = await _readAllStored(storage);
+    if (entries == null) return;
     final preloaded = <String, Map<String, Object?>>{};
     final loaded = {
       for (final query in queryCache.getAll()) query._storageHash
@@ -198,6 +199,25 @@ class QueryClient {
       }
       _restoreMutations(entries, mutations);
     });
+  }
+
+  /// Reads every stored entry, or returns null when the storage fails or
+  /// something is deleted during every read.
+  Future<Map<String, String>?> _readAllStored(QueryStorage storage) async {
+    // A deletion during the read may have removed entries it returned, so
+    // read again once deletions are done.
+    for (var attempt = 0; attempt < 3; attempt++) {
+      await _deletionsDone();
+      final epoch = _deletionEpoch;
+      final Map<String, String> entries;
+      try {
+        entries = await storage.readAll();
+      } catch (_) {
+        return null; // A failing storage is treated as empty.
+      }
+      if (epoch == _deletionEpoch) return entries;
+    }
+    return null;
   }
 
   /// Starts the stored mutations in [entries] that have options in
@@ -488,9 +508,15 @@ class QueryClient {
     );
   }
 
-  /// The cached data for [queryKey], or `null`.
+  /// The cached data for [queryKey], or `null`. Throws a [StateError] if the
+  /// key holds another data type.
   TData? getQueryData<TData extends Object>(QueryKey queryKey) {
-    return queryCache.get(hashKey(queryKey))?.state.data as TData?;
+    final query = queryCache.get(hashKey(queryKey));
+    final data = query?.state.data;
+    if (data == null) return null;
+    // A wider type, such as Object, reads it too.
+    if (data is TData) return data;
+    throw _dataTypeMismatch(query!.queryHash, query._dataType, TData);
   }
 
   /// The cached state for [queryKey], or `null`.
@@ -567,7 +593,10 @@ class QueryClient {
 
   /// Writes [data] to the cache for [queryKey], creating the query if needed.
   ///
-  /// Use the same [TData] as the query that reads this key.
+  /// Use the same [TData] as the query that reads this key. A query this
+  /// creates has no query function, so refetches skip it until a [Query] for
+  /// the key is fetched or observed. [setData] writes with the definition
+  /// instead.
   TData setQueryData<TData extends Object>(
     QueryKey queryKey,
     TData data, {
@@ -805,7 +834,7 @@ class QueryClient {
       };
 
       return _refetch(
-        filters._copyWith(type: refetchFilter),
+        filters._withType(refetchFilter),
         cancelRefetch: cancelRefetch,
         throwOnError: throwOnError,
       );
@@ -846,6 +875,7 @@ class QueryClient {
           .findAll(filters)
           // A static query is only skipped while it has data.
           .where((query) =>
+              query._canFetch &&
               !query.isDisabled &&
               !(query.isStatic && query.state.data != null))
           .map((query) {
@@ -872,26 +902,30 @@ class QueryClient {
 
   /// Sets defaults for every query whose key starts with [queryKey].
   void setQueryDefaults(QueryKey queryKey, QueryDefaults defaults) {
-    _queryDefaults[hashKey(queryKey)] = (queryKey, defaults);
+    _queryDefaults[hashKey(queryKey)] = (keyForm(queryKey), defaults);
   }
 
   QueryDefaults getQueryDefaults(QueryKey queryKey) {
     var result = const QueryDefaults();
-    for (final (key, defaults) in _queryDefaults.values) {
-      if (partialMatchKey(queryKey, key)) result = result.merge(defaults);
+    if (_queryDefaults.isEmpty) return result;
+    final form = keyForm(queryKey);
+    for (final (prefix, defaults) in _queryDefaults.values) {
+      if (partialMatchForms(form, prefix)) result = result.merge(defaults);
     }
     return result;
   }
 
   /// Sets defaults for every mutation whose key starts with [mutationKey].
   void setMutationDefaults(MutationKey mutationKey, MutationDefaults defaults) {
-    _mutationDefaults[hashKey(mutationKey)] = (mutationKey, defaults);
+    _mutationDefaults[hashKey(mutationKey)] = (keyForm(mutationKey), defaults);
   }
 
   MutationDefaults getMutationDefaults(MutationKey mutationKey) {
     var result = const MutationDefaults();
-    for (final (key, defaults) in _mutationDefaults.values) {
-      if (partialMatchKey(mutationKey, key)) result = result.merge(defaults);
+    if (_mutationDefaults.isEmpty) return result;
+    final form = keyForm(mutationKey);
+    for (final (prefix, defaults) in _mutationDefaults.values) {
+      if (partialMatchForms(form, prefix)) result = result.merge(defaults);
     }
     return result;
   }

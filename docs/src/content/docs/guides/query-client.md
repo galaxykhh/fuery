@@ -95,7 +95,7 @@ Six calls pick their queries with the same filters. Each adds arguments of its o
 | Call | What it does | Its own arguments |
 |---|---|---|
 | `invalidateQueries` | Marks the matches stale and refetches the active ones. | `refetchType`, `cancelRefetch`, `throwOnError` |
-| `refetchQueries` | Refetches the matches. Skips disabled queries, and static ones that have data. | `cancelRefetch`, `throwOnError` |
+| `refetchQueries` | Refetches the matches. Skips disabled queries, static ones that have data, and queries only `setQueryData` has written, which have no query function yet. | `cancelRefetch`, `throwOnError` |
 | `resetQueries` | Returns the matches to their initial state, then refetches the active ones. | `cancelRefetch`, `throwOnError` |
 | `cancelQueries` | Cancels the fetches in flight. | `revert`, `silent` |
 | `removeQueries` | Deletes the matches from the cache. | none |
@@ -307,7 +307,8 @@ Some errors have no caller to go to, and `onUncaughtError` receives them:
 
 - An error thrown by a `QueryCacheConfig` or `MutateOptions` callback.
 - An error thrown by `onError` or `onSettled` of a mutation that failed.
-- A mistake Fuery finds while running, such as a `getNextPageParam` that returns a param of the wrong type, or a persisted `mutationKey` that can't be stored.
+- An error thrown by `refetchWhile` or `placeholderData` while Fuery updates an observer after its query changed.
+- A mistake Fuery finds while running, such as a `getNextPageParam` that returns a param of the wrong type or throws while a result is built, or a persisted `mutationKey` that can't be stored.
 
 ```dart
 Fuery.client = QueryClient(
@@ -342,6 +343,8 @@ Future<void> logout() async {
 
 `clear()` removes every query and every mutation, and deletes all [persisted data](../persistence/#deleting-stored-data). The client itself stays, along with the defaults registered through `setQueryDefaults` and `setMutationDefaults`.
 
+A mutation already sending finishes. A mutation still waiting, for the network or for its turn in a scope, is dropped: it fails with a `CancelledError`, which `mutateAsync` throws and its state shows. None of its callbacks run, including those of `MutationCacheConfig` and of its `mutate` call. The optimistic update they would roll back is gone with the cache, and a rollback would write the old session's data back.
+
 Clear once the screens that use queries are gone. An observer still subscribed when `clear()` or `removeQueries` runs doesn't stop: Fuery moves it to a new query for the same key, and that query loads like a new one. A list still on screen therefore refetches right away, with the logged-out session. Navigate to the login screen first, and unsubscribe any observer you subscribed by hand.
 
 ## Which client a query uses
@@ -349,26 +352,36 @@ Clear once the screens that use queries are gone. An observer still subscribed w
 A `Query` holds no client. The client is chosen where the query is used:
 
 - A widget that gets a query or a mutation uses the client of the nearest `FueryProvider`, or `Fuery.client` without one. It follows a provider whose client is replaced.
-- `observe()` uses the client you pass as `client:`, or `Fuery.client` at that moment, and keeps it for the observer's whole life.
+- `observe()` uses the client you pass as `client:`, or `Fuery.client` at that moment, and keeps it for the observer's whole life. The observer's `client` returns it.
+- A widget that gets an observer uses it with the observer's client. In debug builds, it prints a warning when that isn't its own client. See [A screen reads another client's cache](../../troubleshooting/#a-screen-reads-another-clients-cache).
 - Query functions, `placeholderData`, and mutation callbacks receive the client that runs them.
 
 So queries can be top-level values, and a test that gives each widget test a fresh client through `Fuery.client` or a `FueryProvider` needs nothing else. Configure the client before creating observers: a storage or defaults set afterwards don't reach an observer that already exists.
 
 ## Giving a subtree its own client
 
-To run part of the app on another client, for example in a widget test, wrap it in `FueryProvider`:
+To run part of the app on another client, for example in a widget test, wrap it in `FueryProvider`. Keep the client in a `State` field, so the subtree keeps one client while it is mounted:
 
 ```dart
-FueryProvider(client: QueryClient(), child: const App());
+class _SettingsPageState extends State<SettingsPage> {
+  final client = QueryClient();
+
+  @override
+  Widget build(BuildContext context) {
+    return FueryProvider(client: client, child: const SettingsView());
+  }
+}
 ```
 
-Widgets below it use that client. `context.queryClient` returns it, and falls back to `Fuery.client` when there is no provider. Pass it to `observe` for an observer of your own:
+Create the client once, in `main`, in a `State` field, or in a test's `setUp`. A `QueryClient` created in `build` is a new, empty cache on every rebuild, including every hot reload: the provider replaces its client, and the widgets below go back to loading and fetch again. `FueryProvider` mounts the client and unmounts it when it goes away, so the `State` needs no `dispose`.
+
+Widgets below the provider use its client. `context.queryClient` returns it, and falls back to `Fuery.client` when there is no provider. Pass it to `observe` for an observer of your own:
 
 ```dart
 late final todos = todosQuery.observe(client: context.queryClient);
 ```
 
-An adapter for another way of building widgets, such as hooks, reads the client with `FueryProvider.of(context, listen: true)`, which rebuilds when the provider's client is replaced.
+An adapter of your own, such as one for another state library, reads the client with `FueryProvider.of(context, listen: true)`, which rebuilds when the provider's client is replaced.
 
 ## In the example app
 

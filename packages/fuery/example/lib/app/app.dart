@@ -15,8 +15,6 @@ class FeedApp extends StatelessWidget {
       // demo is a release build, so it turns them on with a define.
       builder: (context, child) => FueryDevtools(
         enabled: !kReleaseMode || const bool.fromEnvironment('fuery.demo'),
-        // Out of the way of the navigation bar and the compose button.
-        buttonAlignment: Alignment.centerRight,
         child: child!,
       ),
       home: const HomeShell(),

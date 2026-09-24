@@ -39,6 +39,16 @@ Write the closure instead. Where the type is already known, as in a function tha
 placeholderData: (previous, client) => previous,
 ```
 
+## The name FocusManager is defined in two libraries
+
+`package:fuery/fuery.dart` exports Fuery's `FocusManager` class, and Flutter has a `FocusManager` class too. A file that imports both and names it, as in `FocusManager.instance.primaryFocus?.unfocus()` to dismiss the keyboard, fails to compile with `ambiguous_import`. Hide Fuery's class:
+
+```dart
+import 'package:fuery/fuery.dart' hide FocusManager;
+```
+
+`FocusManager` then means Flutter's class, and Fuery's `focusManager` singleton stays available. `package:fuery_hooks/fuery_hooks.dart` hides it already.
+
 ## A Timer is still pending even after the widget tree was disposed
 
 A cached query keeps a garbage collection timer, and `testWidgets` fails if any timer outlives the test. End each widget test by unmounting the tree and emptying the cache:
@@ -57,6 +67,18 @@ Unsubscribe any observer you subscribed by hand before `clear()`. Clearing moves
 An observer keeps the client it was created with. An observer created at the top level of a file, as in `final todos = todosQuery.observe();`, therefore keeps the client from the first test that used it, while later tests create fresh clients that never see it.
 
 Keep queries at the top level instead, and pass them to widgets, which use the current client. Call `observe()` where the observer is used, such as in a cubit, so each test gets one on its own client. See [Which client a query uses](../guides/query-client/#which-client-a-query-uses).
+
+## A screen reads another client's cache
+
+An observer keeps the client it was created with, and `observe()` without `client:` uses `Fuery.client`. Under a `FueryProvider` with a client of its own, an observer in a `State` field, such as `final adding = addTodo.observe();`, therefore reads and writes `Fuery.client`. The widgets around it that got definitions use the provider's client. A mutation's callbacks then invalidate the wrong cache, and the screen doesn't update.
+
+Create the observer with the client the widgets use:
+
+```dart
+late final adding = addTodo.observe(client: context.queryClient);
+```
+
+Or pass the definition, and the widget observes it with its own client. In a `HookWidget`, `useQueryClient()` returns the client the hooks use. `observer.client` returns the client an observer uses. In debug builds, a Fuery widget or hook that gets an observer of another client than its own prints a warning to the console, once per widget or hook and key, with a link here.
 
 ## A test hangs on await subscription.cancel()
 
@@ -130,9 +152,19 @@ Every widget that starts using a query refetches it when the data is stale, and 
 QueryBuilder(query: todosQuery, builder: ...)
 ```
 
+A list of queries and a hook have the same fix. Pass the definitions, not new observers:
+
+```dart
+QueriesBuilder(queries: [for (final id in ids) todoQuery(id)], builder: ...)
+```
+
+With [hooks](../guides/hooks/), write `useQuery(todosQuery)`, not `useQuery(todosQuery.observe())`, and `useQueries([for (final id in ids) todoQuery(id)])`.
+
+A mutation observer created in `build`, as in `MutationBuilder(mutation: saveTodo.observe())`, swaps in an idle observer on every rebuild. The button then loses the pending or error state of the mutation it started.
+
 When you need the observer, call `observe()` once in a `State` field or a cubit, and pass that down.
 
-In debug builds, a Fuery widget that gets a new observer for the same key on a rebuild prints a warning to the console, once per key, with a link here.
+In debug builds, a Fuery widget or hook, including the list forms, that gets a new observer for the same key and client on a rebuild prints a warning to the console, once per key, with a link here. A new observer for a replaced provider client is expected, so it doesn't print one.
 
 ## A mutation stays pending after the request finished
 
@@ -146,20 +178,50 @@ onSuccess: (post, _, __, client) {
 
 See [what the callbacks return](../guides/mutations/#callbacks).
 
+## A MutationListener never runs
+
+A mutation's state belongs to the observer that runs it. A `MutationListener` given a definition, as in `MutationListener(mutation: addTodo)`, creates an observer of its own, and nothing runs that one. A `MutationBuilder` or `MutationSelector` that only shows the state has the same problem: it stays idle while the button's mutation runs.
+
+Create one observer, and pass it both to the widget that runs it and to the one that listens:
+
+```dart
+class _AddTodoScreenState extends State<AddTodoScreen> {
+  final adding = addTodo.observe();
+
+  @override
+  void dispose() {
+    adding.reset();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MutationListener(
+      mutation: adding,
+      listenWhen: (previous, current) => current.isSuccess,
+      listener: (context, state) => Navigator.pop(context),
+      child: AddTodoForm(onSubmit: adding.mutate),
+    );
+  }
+}
+```
+
+A builder, consumer, or selector that runs the mutation itself, with `state.mutate`, can take the definition. In debug builds, a `MutationListener` given a definition prints a warning to the console, once, with a link here.
+
 ## The devtools button covers part of the app
 
-`FueryDevtools` puts its button in the bottom right corner, over a navigation bar or a floating action button that lives there. Move it with `buttonAlignment`:
+`FueryDevtools` puts its button halfway down the right edge, over any content there. Move it with `buttonAlignment`:
 
 ```dart
 FueryDevtools(
-  buttonAlignment: Alignment.centerRight,
+  buttonAlignment: Alignment.centerLeft,
   child: child!,
 )
 ```
 
 ## Nothing refetches when the app resumes
 
-Fuery widgets connect the app lifecycle for you. An app that only uses queries from blocs has no Fuery widget, so call this once at startup:
+Fuery widgets and hooks connect the app lifecycle for you. An app that uses queries only from blocs has neither, so call this once at startup:
 
 ```dart
 void main() {

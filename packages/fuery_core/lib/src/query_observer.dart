@@ -24,6 +24,9 @@ class QueryObserver<TData extends Object>
   Timer? _refetchTimer;
   Duration? _currentRefetchInterval;
 
+  /// The client this observer reads and writes, fixed for its whole life.
+  QueryClient get client => _client;
+
   Query<TData> get options => _options!;
 
   CachedQuery<TData> get currentQuery => _query!;
@@ -379,7 +382,9 @@ class QueryObserver<TData extends Object>
 
     notifyManager.batch(() {
       for (final listener in listeners) {
-        listener(nextResult);
+        // A listener that throws is reported, so the other listeners still
+        // get the result and this observer still updates its timers.
+        _client._guardCallback(() => listener(nextResult));
       }
       _client.queryCache._notify();
     });

@@ -39,7 +39,7 @@ The buttons act on the selected query:
 
 | Button | Does |
 |---|---|
-| Refetch | Fetches it again |
+| Refetch | Fetches it again, like [`refetchQueries`](../query-client/#choosing-which-queries-an-operation-touches): it skips a disabled query, a static one that has data, and one only `setQueryData` has written, which has no query function yet |
 | Invalidate | Marks it stale, which refetches it if it's in use |
 | Reset | Returns it to its initial state and deletes its [persisted data](../persistence/) |
 | Remove | Removes it from the cache and deletes its persisted data |
@@ -54,7 +54,7 @@ The Mutations tab lists mutations, newest first, with their status, key, variabl
 |---|---|---|
 | `client` | `context.queryClient` | The client to inspect |
 | `enabled` | `!kReleaseMode` | Whether to show anything besides your app |
-| `buttonAlignment` | `Alignment.bottomRight` | Where the button sits |
+| `buttonAlignment` | `Alignment.centerRight` | Where the button sits |
 | `initiallyOpen` | `false` | Whether the panel starts open |
 
 ## The panel without the button

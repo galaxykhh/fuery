@@ -128,6 +128,11 @@ class CachedQuery<TData extends Object> extends _Removable {
   void _reset() {
     _restoreGeneration++;
     _destroy();
+    // The update counts start over, so observers count "after mount" from
+    // the reset. Set before the state, which notifies them.
+    for (final observer in _observers) {
+      observer._currentQueryInitialState = _initialState;
+    }
     _setState(_initialState);
     if (_observers.isEmpty) _scheduleGc();
   }
@@ -140,6 +145,15 @@ class CachedQuery<TData extends Object> extends _Removable {
     if (_observers.isNotEmpty) return !isActive;
     return !isFetched;
   }
+
+  /// Whether the query has something to fetch with. A query that only
+  /// [QueryClient.setQueryData] wrote has a key but no query function until
+  /// an observer or [QueryClient.query] brings its definition. [_refetch]
+  /// fetches with the options of an observer, so one is enough.
+  bool get _canFetch =>
+      _observers.isNotEmpty ||
+      _options.queryFn != null ||
+      _options._behavior != null;
 
   /// Whether the query resolved with data or an error at least once.
   bool get isFetched => state.dataUpdateCount + state.errorUpdateCount > 0;
@@ -263,9 +277,20 @@ class CachedQuery<TData extends Object> extends _Removable {
 
     Future<TData> fetchFn() {
       final queryFn = _options.queryFn;
+      // Every Query has a query function, an InfiniteQuery replaces fetchFn
+      // with its behavior, observers and QueryClient.query pass their
+      // definition, and refetches skip queries that can't fetch. Only a
+      // query written by key alone has none.
+      // coverage:ignore-start
       if (queryFn == null) {
-        return Future.error(StateError("Missing queryFn: '$queryHash'"));
+        return Future.error(StateError(
+          'Query $queryHash has no queryFn to fetch with. Its data was '
+          'written by key with setQueryData or updateQueryData, and no Query '
+          'for this key has been fetched or observed. Write it with '
+          'setData(query, data) instead, or fetch or observe the Query.',
+        ));
       }
+      // coverage:ignore-end
       _abortSignalConsumed = false;
       return queryFn(QueryFunctionContext._(
         client: _client,
@@ -326,6 +351,14 @@ class CachedQuery<TData extends Object> extends _Removable {
       );
       return data;
     } on CancelledError catch (error) {
+      // The query function can throw a CancelledError of its own, for example
+      // from awaiting a query that was cancelled. Only a cancel of this fetch
+      // aborts the signal and updates the state in onCancel; anything else is
+      // a failure.
+      if (!abortController.signal.aborted) {
+        _onFetchError(error);
+        rethrow;
+      }
       if (error.silent) {
         // Follow the fetch that replaced this one, if any.
         final current = _retryer;
@@ -369,7 +402,10 @@ class CachedQuery<TData extends Object> extends _Removable {
 
     notifyManager.batch(() {
       for (final observer in _observers.toList()) {
-        observer._onQueryUpdate();
+        // An observer runs callbacks of the app, such as refetchWhile,
+        // placeholderData, and its listeners. What they throw is reported,
+        // so the other observers are updated and a fetch keeps its outcome.
+        _client._guardCallback(observer._onQueryUpdate);
       }
       _cache._notify();
     });
@@ -440,6 +476,9 @@ class CachedQuery<TData extends Object> extends _Removable {
 
   /// The hash data is stored under, the same in every build.
   late final String _storageHash = storageHash(queryKey);
+
+  /// [queryKey] converted once, for filters that match keys by prefix.
+  late final Object? _keyForm = keyForm(queryKey);
 
   String get _storageKey => '$persistKeyPrefix$_storageHash';
 

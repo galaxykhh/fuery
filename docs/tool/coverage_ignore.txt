@@ -18,7 +18,6 @@
 QueryClient.mount: assigning Fuery.client mounts the client
 QueryClient.unmount: assigning Fuery.client unmounts the old client
 NotifyManager.schedule: the package schedules its own notifications
-NotifyManager.batchCalls: wraps package callbacks
 FocusManager.onFocus: called by FueryBinding
 
 # Callback shapes. Readers write closures; the docs show each shape inline.

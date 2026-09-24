@@ -24,16 +24,26 @@ class QueryFilters {
   final FetchStatus? fetchStatus;
   final bool Function(CachedQuery<Object> query)? predicate;
 
-  bool matches(CachedQuery<Object> query) {
-    final queryKey = this.queryKey;
-    if (queryKey != null) {
-      if (exact) {
-        if (query.queryHash != hashKey(queryKey)) return false;
-      } else if (!partialMatchKey(query.queryKey, queryKey)) {
-        return false;
-      }
-    }
+  bool matches(CachedQuery<Object> query) => _matcher()(query);
 
+  /// A test for [matches] that converts [queryKey] once, for testing many
+  /// queries.
+  bool Function(CachedQuery<Object> query) _matcher() {
+    final queryKey = this.queryKey;
+    if (queryKey == null) return _matchesState;
+    // Converted on first use, so a key that can't be converted only throws
+    // once there is a query to test.
+    if (exact) {
+      late final hash = hashKey(queryKey);
+      return (query) => query.queryHash == hash && _matchesState(query);
+    }
+    late final form = keyForm(queryKey);
+    return (query) =>
+        partialMatchForms(query._keyForm, form) && _matchesState(query);
+  }
+
+  /// Whether [query] matches every filter but [queryKey].
+  bool _matchesState(CachedQuery<Object> query) {
     if (type != QueryTypeFilter.all) {
       final isActive = query.isActive;
       if (type == QueryTypeFilter.active && !isActive) return false;
@@ -52,21 +62,24 @@ class QueryFilters {
     return true;
   }
 
-  QueryFilters _copyWith({
-    bool? exact,
-    QueryTypeFilter? type,
-    FetchStatus? fetchStatus,
-    bool Function(CachedQuery<Object> query)? predicate,
-  }) {
+  QueryFilters _withType(QueryTypeFilter type) {
     return QueryFilters(
       queryKey: queryKey,
-      exact: exact ?? this.exact,
-      type: type ?? this.type,
+      exact: exact,
+      type: type,
       stale: stale,
-      fetchStatus: fetchStatus ?? this.fetchStatus,
-      predicate: predicate ?? this.predicate,
+      fetchStatus: fetchStatus,
+      predicate: predicate,
     );
   }
+}
+
+/// The error for a key used with another data type than the one it holds.
+StateError _dataTypeMismatch(String queryHash, Type held, Type requested) {
+  return StateError(
+    'Query $queryHash holds $held, but was requested as $requested. Use the '
+    'same data type for the same key.',
+  );
 }
 
 /// Global callbacks for every query in a cache, for example to show an error
@@ -105,10 +118,7 @@ class QueryCache {
       // Generics are covariant, so `is CachedQuery<TData>` would also accept a wider
       // TData and fail later with an unclear cast error.
       if (existing._dataType != TData) {
-        throw StateError(
-          'Query $queryHash holds ${existing._dataType}, but was requested '
-          'as $TData. Use the same data type for the same key.',
-        );
+        throw _dataTypeMismatch(queryHash, existing._dataType, TData);
       }
       return existing as CachedQuery<TData>;
     }
@@ -151,13 +161,28 @@ class QueryCache {
 
   /// Returns the first query matching [filters], comparing keys exactly.
   CachedQuery<Object>? find(QueryFilters filters) {
-    final exact = filters._copyWith(exact: true);
-    return getAll().firstWhereOrNull(exact.matches);
+    final queryKey = filters.queryKey;
+    if (queryKey != null) return _findExact(queryKey, filters);
+    return getAll().firstWhereOrNull(filters._matchesState);
   }
 
   List<CachedQuery<Object>> findAll(
       [QueryFilters filters = const QueryFilters()]) {
-    return getAll().where(filters.matches).toList();
+    final queryKey = filters.queryKey;
+    if (queryKey != null && filters.exact) {
+      final query = _findExact(queryKey, filters);
+      return [if (query != null) query];
+    }
+    return getAll().where(filters._matcher()).toList();
+  }
+
+  /// The query for exactly [queryKey], if it matches the rest of [filters].
+  /// Queries are stored by hash, so it takes one lookup.
+  CachedQuery<Object>? _findExact(QueryKey queryKey, QueryFilters filters) {
+    // A key that can't be hashed only throws once there is a query to test.
+    if (_queries.isEmpty) return null;
+    final query = _queries[hashKey(queryKey)];
+    return query != null && filters._matchesState(query) ? query : null;
   }
 
   /// Calls [listener] whenever a query or its observers change.
@@ -170,6 +195,17 @@ class QueryCache {
     notifyManager.batch(() {
       for (final listener in _listeners.toList()) {
         listener();
+      }
+    });
+  }
+
+  /// Resumes paused fetches of queries without data. Refetches of queries
+  /// with data wait for paused mutations instead, so they don't overwrite
+  /// optimistic updates.
+  void _resumePausedLoads() {
+    notifyManager.batch(() {
+      for (final query in getAll()) {
+        if (query.state.data == null) query._retryer?.resume();
       }
     });
   }

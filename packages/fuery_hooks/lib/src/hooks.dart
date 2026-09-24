@@ -26,7 +26,7 @@ QueryResult<TData> useQuery<TData extends Object>(QuerySource<TData> query) {
     _SlotHook<QuerySource<TData>, QueryResult<TData>>(
       query,
       QuerySlot<TData>.new,
-      _queryKey,
+      _recreatedQuery,
       'useQuery',
     ),
   );
@@ -44,7 +44,7 @@ InfiniteQueryResult<TPage, TParam> useInfiniteQuery<TPage, TParam>(
         InfiniteQueryResult<TPage, TParam>>(
       query,
       InfiniteQuerySlot<TPage, TParam>.new,
-      _queryKey,
+      _recreatedQuery,
       'useInfiniteQuery',
     ),
   );
@@ -54,8 +54,10 @@ InfiniteQueryResult<TPage, TParam> useInfiniteQuery<TPage, TParam>(
 /// Run it with `mutate` on the result.
 ///
 /// [mutation] is a [Mutation] definition, or an observer that is already
-/// shared. When the widget goes away, the runs it started finish, and the
-/// callbacks passed to their `mutate` calls are dropped.
+/// shared. For a definition, when the widget goes away the runs it started
+/// finish, and the callbacks passed to their `mutate` calls are dropped. A
+/// shared observer is left alone and still runs them, so check
+/// `context.mounted` in them, or call `reset()` where the observer is owned.
 ///
 /// ```dart
 /// final addTodo = useMutation(addTodoMutation);
@@ -64,6 +66,8 @@ InfiniteQueryResult<TPage, TParam> useInfiniteQuery<TPage, TParam>(
 ///   child: const Text('Add'),
 /// );
 /// ```
+///
+/// A [NoVariablesMutation] runs with `mutate(null)`.
 MutationResult<TData, TVariables, TContext>
     useMutation<TData, TVariables, TContext>(
   MutationSource<TData, TVariables, TContext> mutation,
@@ -73,7 +77,7 @@ MutationResult<TData, TVariables, TContext>
         MutationResult<TData, TVariables, TContext>>(
       mutation,
       MutationSlot<TData, TVariables, TContext>.new,
-      _mutationKey,
+      _recreatedMutation,
       'useMutation',
     ),
   );
@@ -95,7 +99,7 @@ List<QueryResult<TData>> useQueries<TData extends Object>(
     _SlotHook<List<QuerySource<TData>>, List<QueryResult<TData>>>(
       queries,
       QueriesSlot<TData>.new,
-      null,
+      _recreatedInList,
       'useQueries',
     ),
   );
@@ -106,7 +110,11 @@ List<QueryResult<TData>> useQueries<TData extends Object>(
 /// provided client is replaced.
 QueryClient useQueryClient() => FueryProvider.of(useContext(), listen: true);
 
-String? _queryKey(Object source) {
+/// Returns the key of an observer in `current` that replaced a different
+/// observer for the same key in `previous`, or null.
+typedef _RecreatedKey<S> = String? Function(S previous, S current);
+
+String? _queryKey(Object? source) {
   return source is QueryObserver ? hashKey(source.options.queryKey) : null;
 }
 
@@ -114,6 +122,53 @@ String? _mutationKey(Object? source) {
   if (source is! MutationObserver) return null;
   final key = source.options.mutationKey;
   return key == null ? null : hashKey(key);
+}
+
+/// The client of [source] when it is an observer, or null for a definition.
+QueryClient? _clientOf(Object? source) => switch (source) {
+      QueryObserver(:final client) => client,
+      MutationObserver(:final client) => client,
+      _ => null,
+    };
+
+/// The [_RecreatedKey] of a source that holds one observer, from the key of
+/// that observer, or null for a definition.
+///
+/// A new observer of another client is null too: it replaces the old one on
+/// purpose, as `useMemoized(() => todosQuery.observe(client: client),
+/// [client])` does when the provided client is replaced.
+_RecreatedKey<Object?> _sameKey(String? Function(Object? source) key) {
+  return (previous, current) {
+    final keyHash = key(current);
+    return keyHash != null &&
+            keyHash == key(previous) &&
+            identical(_clientOf(previous), _clientOf(current))
+        ? keyHash
+        : null;
+  };
+}
+
+final _RecreatedKey<Object?> _recreatedQuery = _sameKey(_queryKey);
+
+final _RecreatedKey<Object?> _recreatedMutation = _sameKey(_mutationKey);
+
+/// The key of a query observer in [current] that replaced a different
+/// observer for the same key and client in [previous]. Definitions,
+/// reordering, observers passed again, and new observers of another client
+/// are silent.
+String? _recreatedInList(List<Object?> previous, List<Object?> current) {
+  final before = Set<Object?>.identity()..addAll(previous);
+  // QueryClient compares by identity, so the records do too.
+  final keys = {
+    for (final source in previous)
+      if (_queryKey(source) case final key?) (_clientOf(source), key),
+  };
+  for (final source in current) {
+    if (before.contains(source)) continue;
+    final key = _queryKey(source);
+    if (key != null && keys.contains((_clientOf(source), key))) return key;
+  }
+  return null;
 }
 
 /// Renders a source through the [ObserverSlot] that [createSlot] creates,
@@ -124,9 +179,8 @@ class _SlotHook<S, R> extends Hook<R> {
   final S source;
   final ObserverSlot<S, R> Function(S source, QueryClient client) createSlot;
 
-  /// The key of [source] when it is an observer, for the warning about
-  /// observers created on every build.
-  final String? Function(S source)? debugKey;
+  /// Finds an observer created on every build, for the debug warning.
+  final _RecreatedKey<S> debugKey;
   final String name;
 
   @override
@@ -167,6 +221,7 @@ class _SlotHookState<S, R> extends HookState<R, _SlotHook<S, R>> {
     var slot = _slot;
     if (slot == null) {
       slot = _slot = hook.createSlot(hook.source, client);
+      _debugWarnOtherClient(hook.name, hook.source, client);
       // Results arrive in a microtask, never during a build.
       _unsubscribe = slot.subscribe(
         notifyManager.batchCalls((R result) {
@@ -176,6 +231,7 @@ class _SlotHookState<S, R> extends HookState<R, _SlotHook<S, R>> {
     } else if (!identical(hook.source, _source) ||
         !identical(client, _client)) {
       slot.update(hook.source, client);
+      _debugWarnOtherClient(hook.name, hook.source, client);
     }
     _source = hook.source;
     _client = client;
@@ -200,22 +256,72 @@ class _SlotHookState<S, R> extends HookState<R, _SlotHook<S, R>> {
 /// Keys already warned about, so each mistake is reported once.
 final Set<String> _warnedKeys = {};
 
+const _troubleshooting = 'https://galaxykhh.github.io/fuery/troubleshooting/';
+
+/// How to pass the hook named [hookName] a definition, for the warnings.
+String _definitionExample(String hookName) {
+  return switch (hookName) {
+    'useMutation' => 'useMutation(addTodoMutation)',
+    'useQueries' => 'useQueries([for (final id in ids) todoQuery(id)])',
+    _ => '$hookName(todosQuery)',
+  };
+}
+
 /// Warns, in debug builds, when a hook got a new observer for the same key
-/// on a rebuild, which is what `useQuery(todosQuery.observe())` looks like.
+/// on a rebuild, which is what `useQuery(todosQuery.observe())` looks like:
+/// each new query observer subscribes and refetches again, and each new
+/// mutation observer starts idle.
 void _debugWarnRecreated<S, R>(_SlotHook<S, R> hook, S previous) {
   assert(() {
-    final key = hook.debugKey;
-    if (key == null) return true;
-    final keyHash = key(hook.source);
-    if (keyHash == null || keyHash != key(previous)) return true;
-    if (!_warnedKeys.add(keyHash)) return true;
+    final keyHash = hook.debugKey(previous, hook.source);
+    if (keyHash == null) return true;
+    final mutation = hook.source is MutationObserver;
+    if (!_warnedKeys.add('${mutation ? 'mutation' : 'query'}:$keyHash')) {
+      return true;
+    }
+    final list = hook.source is List;
+    final effect = mutation
+        ? 'A new observer starts idle, so the hook stops showing a running '
+            "mutation's pending or error state."
+        : 'A new observer subscribes and refetches again each time.';
     debugPrint(
       '[fuery] ${hook.name} received a new observer for the key $keyHash on '
-      'a rebuild. A new observer subscribes and refetches again each time. '
-      'Pass the definition instead, such as ${hook.name}(todosQuery), and '
-      'the hook keeps one observer for it. See https://galaxykhh.github.io/'
-      'fuery/troubleshooting/#a-query-fetches-on-every-rebuild',
+      'a rebuild. $effect Pass the definition${list ? 's' : ''} instead, '
+      'such as ${_definitionExample(hook.name)}, and the hook keeps one '
+      'observer for ${list ? 'each' : 'it'}. See $_troubleshooting'
+      '#a-query-fetches-on-every-rebuild',
     );
+    return true;
+  }());
+}
+
+/// Warns, in debug builds, when [source] holds an observer of another client
+/// than the [client] the hook uses. That is `observe()` without a client
+/// under a [FueryProvider] with its own.
+///
+/// Warns once per hook name and key, or once per hook name for a mutation
+/// without a key, so observers created in `build` warn once.
+void _debugWarnOtherClient(
+  String hookName,
+  Object? source,
+  QueryClient client,
+) {
+  assert(() {
+    for (final observer in source is List ? source : [source]) {
+      final own = _clientOf(observer);
+      if (own == null || identical(own, client)) continue;
+      final keyHash = _queryKey(observer) ?? _mutationKey(observer) ?? '';
+      if (!_warnedKeys.add('other-client:$hookName:$keyHash')) continue;
+      debugPrint(
+        '[fuery] $hookName received an observer of another QueryClient than '
+        "the one it uses here (FueryProvider's, or Fuery.client). The "
+        "observer reads and writes its own client's cache, so it and the "
+        "other hooks and widgets of this screen don't see each other's "
+        'changes. Pass the definition, as in ${_definitionExample(hookName)}, '
+        'or create the observer with the client useQueryClient() returns. '
+        'See $_troubleshooting#a-screen-reads-another-clients-cache',
+      );
+    }
     return true;
   }());
 }

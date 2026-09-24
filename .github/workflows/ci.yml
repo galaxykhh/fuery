@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
   workflow_call:
+  # CI follows the latest stable Flutter and resolves dependencies fresh (no
+  # lockfile is committed), so a new release can break main without a commit.
+  schedule:
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
 
 jobs:
   test:
@@ -27,6 +32,28 @@ jobs:
           flutter-version: ${{ matrix.version }}
           cache: true
       - run: flutter pub get
+      # publish.yml dry-runs every package before it uploads any, and a dry-run
+      # fails on pub's warnings too, such as a checked-in file that `flutter
+      # pub get` rewrote. Run them here, before the tests write anything, so a
+      # pull request finds that instead of the release tag.
+      - if: matrix.version == ''
+        run: dart pub publish --dry-run
+        working-directory: packages/fuery_core
+      - if: matrix.version == ''
+        run: flutter pub publish --dry-run
+        working-directory: packages/fuery
+      - if: matrix.version == ''
+        run: flutter pub publish --dry-run
+        working-directory: packages/fuery_hooks
+      # The packages share one version and depend on each other at it. On a tag
+      # push from publish.yml, the tag and the changelogs must match it too.
+      - if: matrix.version == ''
+        run: python3 tool/check_versions.py
+      # Released packages keep printing their docs links, so a renamed page or
+      # heading must not break one. It runs here because docs.yml runs only
+      # when some paths change, and misses READMEs and fuery_hooks.
+      - if: matrix.version == ''
+        run: python3 tool/check_doc_links.py
       # Formatting can differ between Dart versions; check it on the latest.
       - if: matrix.version == ''
         run: dart format --output=none --set-exit-if-changed packages

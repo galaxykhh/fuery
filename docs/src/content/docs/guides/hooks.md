@@ -83,6 +83,17 @@ ElevatedButton(
 )
 ```
 
+A `NoVariablesMutation` runs with `mutate(null)`, as from a `MutationBuilder`:
+
+```dart
+final logout = useMutation(logoutMutation);
+
+TextButton(
+  onPressed: () => logout.mutate(null),
+  child: const Text('Log out'),
+)
+```
+
 For a side effect of one call, such as a snackbar, pass `MutateOptions` to `mutate`:
 
 ```dart
@@ -95,7 +106,29 @@ addTodo.mutate(
 );
 ```
 
-When the widget goes away, the request still finishes, and the callbacks passed to its `mutate` calls are dropped.
+When the widget goes away, the request still finishes. For a definition, the callbacks passed to its `mutate` calls are dropped. A shared observer is left alone and still runs them, so check `context.mounted` in them, or call the observer's `reset()` in the `dispose` of the screen that created it.
+
+## Reacting to changes
+
+For navigation, snackbars, and other one-off effects of a query, wrap what the widget builds in a `QueryListener` with the same query. `fuery_hooks` re-exports it. The listener runs after a change, never during a build, and not for the result the widget mounts with:
+
+```dart
+final todos = useQuery(todosQuery);
+
+return QueryListener(
+  query: todosQuery,
+  listenWhen: (previous, current) =>
+      !previous.isRefetchError && current.isRefetchError,
+  listener: (context, result) => ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text('Could not refresh: ${result.error}')),
+  ),
+  child: TodoList(todos.data ?? []),
+);
+```
+
+An `InfiniteQueryListener` does the same for an infinite query. Don't show a snackbar or navigate from `useEffect` or `useValueChanged` keyed on the result: `flutter_hooks` runs them during the build, where those calls fail.
+
+For a mutation, pass `MutateOptions` to `mutate`, as above. A `MutationListener` given the same definition has an observer of its own, so it doesn't hear the calls of `useMutation`. See [Reacting to changes](../widgets/#reacting-to-changes) for the listeners.
 
 ## Loading more pages
 
@@ -122,7 +155,7 @@ final posts = useQueries([for (final id in ids) postQuery(id)]);
 final loaded = posts.where((post) => post.hasData).length;
 ```
 
-Each query keeps its observer while its key stays in the list, even when the list is reordered. Changes that arrive together rebuild once.
+Each query keeps its observer while its key stays in the list, even when the list is reordered. Changes that arrive together rebuild once. Pass the definitions, not `.observe()`: new observers on every build fetch again, and in debug builds the hook prints a warning.
 
 ## The client
 
@@ -136,6 +169,26 @@ RefreshIndicator(
   child: TodoList(todos.data ?? []),
 )
 ```
+
+A shared observer keeps the client it was created with, and `observe()` without `client:` uses `Fuery.client`. Under a `FueryProvider` with a client of its own, pass the definition, or create the observer with the client `useQueryClient()` returns. In debug builds, a hook that gets an observer of another client prints a warning. See [A screen reads another client's cache](../../troubleshooting/#a-screen-reads-another-clients-cache).
+
+## Watching the client
+
+`useStream` renders a value from `client.watch`, such as whether anything is fetching. Create the stream once, with `useMemoized`:
+
+```dart
+final client = useQueryClient();
+final fetching = useStream(
+  useMemoized(
+    () => client.watch((client) => client.isFetching() > 0),
+    [client],
+  ),
+);
+
+if (fetching.data ?? false) return const LinearProgressIndicator();
+```
+
+Each `watch` call returns a new stream, and each listener gets the current value first. `useStream` subscribes to every new stream it gets, so a stream created on every build rebuilds the widget on every frame. List the client in the keys of `useMemoized`, and anything from `build` that the selector reads, so the stream follows them. See [Watching the cache](../query-client/#watching-the-cache).
 
 ## Testing
 

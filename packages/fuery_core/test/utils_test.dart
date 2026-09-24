@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:fuery_core/fuery_core.dart';
 import 'package:fuery_core/src/utils.dart' show partialMatchKey;
 import 'package:test/test.dart';
@@ -69,6 +71,44 @@ void main() {
         ]),
         isFalse,
       );
+    });
+  });
+
+  group('replaceEqualDeep', () {
+    test('returns the previous map when it is deeply equal', () {
+      const json = '{"items": [{"id": 1, "author": {"name": "a"}}], '
+          '"next": null}';
+      final previous = jsonDecode(json);
+      expect(
+        identical(replaceEqualDeep(previous, jsonDecode(json)), previous),
+        isTrue,
+      );
+
+      final ordered = {'a': 1, 'b': 2};
+      expect(
+        identical(replaceEqualDeep(ordered, {'b': 2, 'a': 1}), ordered),
+        isTrue,
+      );
+    });
+
+    test('returns the next map when anything differs', () {
+      void expectNext(Map<Object?, Object?> a, Map<Object?, Object?> b) {
+        expect(identical(replaceEqualDeep(a, b), b), isTrue);
+      }
+
+      expectNext({'a': 1}, {'a': 1, 'b': 2});
+      expectNext(<String, int>{'a': 1}, <String, Object>{'a': 1});
+      expectNext({'x': null}, {'y': null});
+      expectNext({
+        'a': {'b': 1},
+      }, {
+        'a': {'b': 2},
+      });
+      expectNext({
+        'a': [1],
+      }, {
+        'a': [2],
+      });
     });
   });
 }

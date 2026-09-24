@@ -1,3 +1,21 @@
+## 1.4.4
+- Add `QueryObserver.client` and `MutationObserver.client`, the client an observer reads and writes.
+- Fix: a listener that throws no longer stops the other notifications of its batch, or the other listeners of its observer or slot. Before, it could freeze `QueryClient.watch` streams, `QueriesSlot`, and persistence for the rest of the session.
+- Fix: `restore(mutations:)` no longer runs a persisted mutation again while it is still running or paused, or while its stored entry is waiting to be deleted.
+- Fix: a query whose function throws a `CancelledError` of its own, for example from awaiting a query that was cancelled or removed, fails like any other error instead of staying in a fetching state.
+- Fix: a page param function or an observer callback (`refetchWhile`, `placeholderData`) that throws while a result is built is reported to `onUncaughtError`. Before, it could leave observers loading, fail a successful fetch, or skip the other observers.
+- Fix: `fetchNextPage` and `fetchPreviousPage` keep cache writes made while the page loads, such as an item updated with `mapPages`.
+- Fix: `maxPages` trims cached pages above the cap when a page loads, and a refetch, or `pages` above `maxPages`, loads only the first `maxPages` pages.
+- Fix: `clear()` fails a mutation paused offline or waiting for its turn in a scope with a `CancelledError`, instead of leaving it pending forever, and runs none of its callbacks, so an `onError` rollback can't write the cleared data back. A mutation already sending still finishes.
+- Fix: when something deletes stored data while `restore(mutations:)` reads, it reads again, up to three times, instead of skipping the stored mutations.
+- Fix: a running mutation keeps the scope it was queued in when its options change, and `submittedAt` no longer changes when `onMutate` returns a context.
+- Fix: `refetchQueries` and `invalidateQueries` skip queries that only `setQueryData` wrote, which have no query function yet. Before, they retried for about 7 seconds and left the query in an error.
+- Fix: reading a key that holds another data type with `getData`, `updateData`, or `getQueryData` throws the explained `StateError` instead of a cast error.
+- Fix: `isFetchedAfterMount` is true again once a reset query has loaded.
+- Fix: the default retry delay stays at 30 seconds however many times a query or mutation retries. After about 54 failures it overflowed.
+- A query that paused while loading its first data resumes as soon as the app is back online or in the foreground, without waiting for paused mutations. Refetches of queries with data still wait for them.
+- Structural sharing compares maps key by key, which is much faster for JSON-shaped data. Filters convert their key once per call, and `find` and `exact: true` filters look the query up by its hash instead of scanning the cache.
+
 ## 1.4.3
 - Released together with the first version of `fuery_hooks`. No changes in `fuery_core`.
 

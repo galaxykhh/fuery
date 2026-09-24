@@ -11,15 +11,28 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
     required this.mutationId,
     required Mutation<TData, TVariables, TContext> options,
   })  : _client = client,
-        _mutationCache = mutationCache {
+        _mutationCache = mutationCache,
+        _scopeId = options.scope?.id {
     _setOptions(options);
     _scheduleGc();
   }
 
   final int mutationId;
   bool _removed = false;
+
+  /// Set when `clear()` cancels this run while it waits to start or to
+  /// retry; nothing else removes a pending mutation. Its callbacks don't
+  /// run: the optimistic update they would roll back was cleared too, and a
+  /// rollback would write the cleared session's data back.
+  bool _dropped = false;
+
   final QueryClient _client;
   final MutationCache _mutationCache;
+
+  /// The scope the run was queued in. New options reach a pending run, but
+  /// a new scope applies from the next run, so the runs queued behind this
+  /// one still continue.
+  final String? _scopeId;
 
   /// Where the variables are stored while the mutation runs, if they are.
   String? _storageKey;
@@ -58,8 +71,16 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
   @override
   void _destroy() {
     super._destroy();
-    // A removed mutation doesn't wait to retry; the current attempt finishes.
-    _retryer?.stopRetrying();
+    if (_state.isPaused) {
+      // Nothing resumes a removed mutation, and a paused one has no attempt
+      // in flight, so it fails now.
+      _dropped = true;
+      _retryer?.cancel();
+    } else {
+      // A removed mutation doesn't wait to retry; the current attempt
+      // finishes.
+      _retryer?.stopRetrying();
+    }
   }
 
   @override
@@ -96,7 +117,14 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
       onFail: (failureCount, error) {
         _dispatch(_MutationFailedAction(failureCount, error));
       },
-      onPause: () => _dispatch(const _MutationPauseAction()),
+      onPause: () {
+        // A mutation removed during onMutate would never be resumed.
+        if (_removed) {
+          _dropped = true;
+          return _retryer?.cancel();
+        }
+        _dispatch(const _MutationPauseAction());
+      },
       onContinue: () => _dispatch(const _MutationContinueAction()),
       retry: _options.retry ?? const RetryPolicy.never(),
       retryDelay: _options.retryDelay,
@@ -124,6 +152,7 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
             isPaused: isPaused,
             variables: variables,
             context: context,
+            submittedAt: _state.submittedAt,
           ));
         }
       }
@@ -157,40 +186,48 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
       );
       return data;
     } catch (error, stackTrace) {
-      // Errors thrown by the error callbacks must not hide the mutation error.
-      await _client._guardAsyncCallback(
-        () => cacheConfig.onError?.call(error, variables, _state.context, this),
-      );
-      await _client._guardAsyncCallback(
-        () => _options.onError?.call(
-          error,
-          variables,
-          _state.context,
-          _client,
-        ),
-      );
-      await _client._guardAsyncCallback(
-        () => cacheConfig.onSettled?.call(
-          null,
-          error,
-          _state.variables,
-          _state.context,
-          this,
-        ),
-      );
-      await _client._guardAsyncCallback(
-        () => _options.onSettled?.call(
-          null,
-          error,
-          variables,
-          _state.context,
-          _client,
-        ),
-      );
+      // A run that clear() dropped still fails, so its observers and
+      // mutateAsync see the error, but none of its callbacks run.
+      if (!_dropped) {
+        // Errors thrown by the error callbacks must not hide the mutation
+        // error.
+        await _client._guardAsyncCallback(
+          () =>
+              cacheConfig.onError?.call(error, variables, _state.context, this),
+        );
+        await _client._guardAsyncCallback(
+          () => _options.onError?.call(
+            error,
+            variables,
+            _state.context,
+            _client,
+          ),
+        );
+        await _client._guardAsyncCallback(
+          () => cacheConfig.onSettled?.call(
+            null,
+            error,
+            _state.variables,
+            _state.context,
+            this,
+          ),
+        );
+        await _client._guardAsyncCallback(
+          () => _options.onSettled?.call(
+            null,
+            error,
+            variables,
+            _state.context,
+            _client,
+          ),
+        );
+      }
 
       _dispatch(
         _MutationErrorAction(error),
-        onCallSettled == null ? null : () => onCallSettled(null, error),
+        onCallSettled == null || _dropped
+            ? null
+            : () => onCallSettled(null, error),
       );
       Error.throwWithStackTrace(error, stackTrace);
     } finally {
@@ -233,23 +270,31 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
       return; // Variables that can't be encoded aren't stored.
     }
     _storageKey = key;
+    // A restore while it runs must not run it again.
+    _client._loadedMutationKeys.add(key);
     _storeWrite = Future<void>.sync(() => storage.write(key, value))
         .then((_) {}, onError: (Object _) {});
   }
 
   /// Deletes the stored variables once the mutation has settled, after a
-  /// write that is still in flight.
+  /// write that is still in flight. A restore skips the entry until the
+  /// delete starts, and a restore reading then sees the delete and reads
+  /// again.
   void _deleteStored() {
     final key = _storageKey;
     if (key == null) return;
     _storageKey = null;
-    _client._loadedMutationKeys.remove(key);
     final write = _storeWrite;
     _storeWrite = null;
-    if (write == null) {
+    void forget() {
+      _client._loadedMutationKeys.remove(key);
       _client._deleteStored(key);
+    }
+
+    if (write == null) {
+      forget();
     } else {
-      write.whenComplete(() => _client._deleteStored(key));
+      write.whenComplete(forget);
     }
   }
 

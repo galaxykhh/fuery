@@ -62,3 +62,4 @@ reader can find it or understand it, which is what the rules above are for.
 - Every internal link and anchor still resolves. Heading renames break links silently.
 - Snippets match the API in `packages/`.
 - `python3 docs/tool/api_coverage.py` leaves `api-coverage.md` unchanged, or the change is intended.
+- `python3 tool/check_doc_links.py` passes: the debug warnings, READMEs, and pubspecs link to docs pages and anchors that exist. A released package keeps printing its links, so keep a page or heading that a warning links to instead of renaming it.

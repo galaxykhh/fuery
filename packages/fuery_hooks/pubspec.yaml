@@ -1,6 +1,6 @@
 name: fuery_hooks
 description: "Hooks for Fuery: render cached server data with useQuery, useInfiniteQuery, useMutation, and useQueries in a flutter_hooks HookWidget."
-version: 1.4.3
+version: 1.4.4
 homepage: https://galaxykhh.github.io/fuery/guides/hooks/
 repository: https://github.com/galaxykhh/fuery/tree/main/packages/fuery_hooks
 documentation: https://galaxykhh.github.io/fuery/guides/hooks/
@@ -21,7 +21,7 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_hooks: ^0.21.2
-  fuery: ^1.4.3
+  fuery: ^1.4.4
 
 dev_dependencies:
   flutter_test:

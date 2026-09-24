@@ -281,6 +281,28 @@ void main() {
     });
   });
 
+  test('observers expose the client they use, to check a shared one', () {
+    final other = QueryClient();
+    final query = post(1).observe(client: other);
+    final infinite = InfiniteQuery(
+      queryKey: ['pages'],
+      queryFn: (context) async => 'page ${context.pageParam}',
+      initialPageParam: 1,
+      getNextPageParam: (data) => null,
+    ).observe(client: client);
+    final mutation = Mutation(mutationFn: (int x) async => x).observe(
+      client: other,
+    );
+
+    // An adapter compares them with the client it uses itself.
+    expect(identical(query.client, other), isTrue);
+    expect(identical(infinite.client, client), isTrue);
+    expect(identical(mutation.client, other), isTrue);
+    expect(identical(post(2).observe().client, Fuery.client), isTrue);
+    other.clear();
+    Fuery.client.clear();
+  });
+
   group('results act on their query', () {
     fakeTest('QueryResult.refetch', (async) {
       final fetcher = FakeFetcher(() => 'todos');

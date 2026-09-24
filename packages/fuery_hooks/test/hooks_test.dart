@@ -47,14 +47,29 @@ void main() {
         placeholderData: keepPreviousData,
       );
 
+  /// Runs [body] and returns what it printed with `debugPrint`.
+  Future<List<String>> printsOf(Future<void> Function() body) async {
+    final printed = <String>[];
+    final print = debugPrint;
+    debugPrint = (message, {wrapWidth}) => printed.add(message ?? '');
+    try {
+      await body();
+    } finally {
+      debugPrint = print;
+    }
+    return printed;
+  }
+
   String describe(QueryResult<String> post) =>
       '${post.data ?? 'loading'}${post.isPlaceholderData ? ' (old)' : ''}';
 
   group('useQuery', () {
     Widget postScreen(int id) => HookBuilder(builder: (context) {
-          // The declared type fails to compile if inference widens it.
-          final QueryResult<String> result = useQuery(post(id));
-          return Text(describe(result));
+          // Inferred without a context type, then checked: this stops
+          // compiling if the hook infers a wider type.
+          final result = useQuery(post(id));
+          final QueryResult<String> typed = result;
+          return Text(describe(typed));
         });
 
     testWidgets('keeps one observer for a definition built in build',
@@ -125,42 +140,172 @@ void main() {
       other.clear();
     });
 
+    testWidgets('rebuilds only when the result changed', (tester) async {
+      var builds = 0;
+      Widget screen(int id) => HookBuilder(builder: (_) {
+            builds++;
+            return Text(describe(useQuery(post(id))));
+          });
+      await tester.pumpWidget(app(screen(1)));
+      await tester.pump();
+      expect(builds, 1);
+      await tester.pump(ms10);
+      expect(builds, 2);
+
+      // The new key shows in the build that changed it, and the result the
+      // update caused doesn't build again.
+      await tester.pumpWidget(app(screen(2)));
+      await tester.pump();
+      expect(builds, 3);
+      expect(find.text('post 1 (old)'), findsOneWidget);
+      await tester.pump(ms10);
+      expect(builds, 4);
+      expect(find.text('post 2'), findsOneWidget);
+      await tearDownApp(tester);
+    });
+
+    testWidgets('ignores a result that arrives after its widget went away',
+        (tester) async {
+      Widget screen(int n) => HookBuilder(
+            key: ValueKey(n),
+            builder: (_) => Text(describe(useQuery(post(1)))),
+          );
+      await tester.pumpWidget(app(screen(1)));
+      await tester.pump(ms10);
+
+      // The new screen refetches the stale query while the old one is
+      // still subscribed, and the old one is gone when the result arrives.
+      await tester.pumpWidget(app(screen(2)));
+      expect(tester.takeException(), isNull);
+      await tester.pump(ms10);
+      expect(find.text('post 1'), findsOneWidget);
+      await tearDownApp(tester);
+    });
+
+    testWidgets('ignores a result that arrives after the hook was dropped',
+        (tester) async {
+      var builds = 0;
+      // flutter_hooks disposes a trailing hook that a build no longer calls
+      // while the element stays, as a hot reload can do.
+      Widget screen({required bool show}) => Column(children: [
+            HookBuilder(
+              key: const ValueKey('refetches'),
+              builder: (_) {
+                if (!show) useQuery(post(1));
+                return const SizedBox();
+              },
+            ),
+            HookBuilder(
+              key: const ValueKey('drops'),
+              builder: (_) {
+                builds++;
+                if (show) useQuery(post(1));
+                return const SizedBox();
+              },
+            ),
+          ]);
+      await tester.pumpWidget(app(screen(show: true)));
+      await tester.pump(ms10);
+
+      builds = 0;
+      await tester.pumpWidget(app(screen(show: false)));
+      await tester.pump();
+      expect(builds, 1);
+      await tester.pump(ms10);
+      await tearDownApp(tester);
+    });
+
+    testWidgets('skips the update on a rebuild its own result caused',
+        (tester) async {
+      final query = _CountingQuery(
+        queryKey: ['post', 1],
+        queryFn: post(1).queryFn!,
+      );
+      await tester.pumpWidget(
+        app(HookBuilder(builder: (_) => Text(describe(useQuery(query))))),
+      );
+      final calls = query.observer!.setOptionsCalls;
+      await tester.pump(ms10);
+      expect(find.text('post 1'), findsOneWidget);
+      expect(query.observer!.setOptionsCalls, calls);
+      await tearDownApp(tester);
+    });
+
+    testWidgets('follows a replaced client with the same definition',
+        (tester) async {
+      final other = newClient()..setData(post(1), 'other post 1');
+      final definition = post(1);
+      final screen = HookBuilder(
+        builder: (_) => Text(describe(useQuery(definition))),
+      );
+      await tester.pumpWidget(app(screen));
+      await tester.pump(ms10);
+      expect(find.text('post 1'), findsOneWidget);
+
+      await tester.pumpWidget(app(screen, with_: other));
+      expect(find.text('other post 1'), findsOneWidget);
+      await tester.pump(ms10); // the other client's data is stale
+      await tearDownApp(tester);
+      other.clear();
+    });
+
     testWidgets('warns once about an observer created in build',
         (tester) async {
-      final printed = <String>[];
-      final print = debugPrint;
-      debugPrint = (message, {wrapWidth}) => printed.add(message ?? '');
-      try {
-        // Fresh for good, so the new observers don't refetch after the
-        // first fetch, which they would on every rebuild otherwise.
-        final fresh = Query(
-          queryKey: ['post', 1],
-          queryFn: post(1).queryFn!,
-          staleTime: infiniteDuration,
-        );
-        final like = Mutation(
-          mutationKey: ['like'],
-          mutationFn: (int id) async => id,
-        );
-        Widget screen() => HookBuilder(builder: (_) {
-              // The mistake: new observers on every build.
-              useQuery(fresh.observe(client: client));
-              useMutation(like.observe(client: client));
-              // Definitions built in build are fine.
-              useMutation(Mutation(mutationFn: (int id) async => id));
-              return const SizedBox();
-            });
+      // Fresh for good, so the new observers don't refetch after the first
+      // fetch, which they would on every rebuild otherwise.
+      Query<String> freshPost(int id) => Query(
+            queryKey: ['post', id],
+            queryFn: post(id).queryFn!,
+            staleTime: infiniteDuration,
+          );
+      final fresh = freshPost(1);
+      // The same key as the query, which gets a warning of its own.
+      final like = Mutation(
+        mutationKey: ['post', 1],
+        mutationFn: (int id) async => id,
+      );
+      // Observers created once, each of its own key.
+      final shared = [
+        for (final id in [2, 3, 4]) freshPost(id).observe(client: client),
+      ];
+      var builds = 0;
+      Widget screen() => HookBuilder(builder: (_) {
+            builds++;
+            // The mistake: new observers on every build.
+            useQuery(fresh.observe(client: client));
+            useMutation(like.observe(client: client));
+            // Definitions built in build are fine.
+            useMutation(Mutation(mutationFn: (int id) async => id));
+            // So is a switch to an observer of another key, or from a
+            // definition to an observer of its key.
+            useQuery(builds.isEven ? shared[0] : shared[1]);
+            useQuery(builds == 1 ? freshPost(4) : shared[2]);
+            return const SizedBox();
+          });
+      final printed = await printsOf(() async {
         await tester.pumpWidget(app(screen()));
         await tester.pumpWidget(app(screen()));
         await tester.pumpWidget(app(screen()));
-        expect(printed, [
+      });
+      expect(printed, [
+        allOf(
           contains('useQuery received a new observer for the key ["post",1]'),
-          contains('useMutation received a new observer for the key ["like"]'),
-        ]);
-        await tester.pump(ms10);
-        await tearDownApp(tester);
-      } finally {
-        debugPrint = print;
+          contains('refetches'),
+          contains('useQuery(todosQuery)'),
+        ),
+        allOf(
+          contains('useMutation received a new observer for the key '
+              '["post",1]'),
+          contains('starts idle'),
+          contains('useMutation(addTodoMutation)'),
+          isNot(contains('refetches')),
+          isNot(contains('todosQuery')),
+        ),
+      ]);
+      await tester.pump(ms10);
+      await tearDownApp(tester);
+      for (final observer in shared) {
+        observer.destroy();
       }
     });
   });
@@ -179,7 +324,8 @@ void main() {
     await tester.pumpWidget(
       app(
         HookBuilder(builder: (_) {
-          final InfiniteQueryResult<String, int> feed = useInfiniteQuery(pages);
+          final result = useInfiniteQuery(pages);
+          final InfiniteQueryResult<String, int> feed = result;
           return TextButton(
             onPressed: feed.hasNextPage ? feed.fetchNextPage : null,
             child: Text(feed.pages.join(', ')),
@@ -209,8 +355,8 @@ void main() {
       await tester.pumpWidget(
         app(
           HookBuilder(builder: (_) {
-            final MutationResult<String, String, Object?> add =
-                useMutation(addTodo);
+            final result = useMutation(addTodo);
+            final MutationResult<String, String, Object?> add = result;
             return TextButton(
               onPressed: () => add.mutate('Buy milk'),
               child: Text(add.status.name),
@@ -238,7 +384,8 @@ void main() {
       await tester.pumpWidget(
         app(
           HookBuilder(builder: (_) {
-            final run = useMutation(sync);
+            final result = useMutation(sync);
+            final MutationResult<void, void, Object?> run = result;
             return TextButton(
               onPressed: () => run.mutate(
                 null,
@@ -258,13 +405,82 @@ void main() {
       expect(events, isEmpty);
       await tearDownApp(tester);
     });
+
+    testWidgets('leaves the callbacks of a shared observer to run',
+        (tester) async {
+      final events = <String>[];
+      final shared = NoVariablesMutation(
+        mutationFn: () => Future<void>.delayed(ms10),
+      ).observe(client: client);
+      await tester.pumpWidget(
+        app(
+          HookBuilder(builder: (_) {
+            final run = useMutation(shared);
+            return TextButton(
+              onPressed: () => run.mutate(
+                null,
+                MutateOptions(onSuccess: (_, __, ___, ____) {
+                  events.add('success');
+                }),
+              ),
+              child: const Text('sync'),
+            );
+          }),
+        ),
+      );
+      await tester.tap(find.byType(TextButton));
+      await tester.pump();
+      await tester.pumpWidget(app(const SizedBox()));
+      await tester.pump(ms10);
+      expect(events, ['success']);
+      shared.reset();
+      await tearDownApp(tester);
+    });
+  });
+
+  testWidgets('a memoized watch stream rebuilds only when its value changes',
+      (tester) async {
+    var builds = 0;
+    final seen = <bool?>[];
+    await tester.pumpWidget(
+      app(HookBuilder(builder: (_) {
+        builds++;
+        // As the hooks guide shows it.
+        final client = useQueryClient();
+        final fetching = useStream(
+          useMemoized(
+            () => client.watch((client) => client.isFetching() > 0),
+            [client],
+          ),
+        );
+        seen.add(fetching.data);
+        return const SizedBox();
+      })),
+    );
+    for (var frame = 0; frame < 10; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    // The first build, then the first value.
+    expect(builds, 2);
+    expect(seen, [null, false]);
+
+    // The stream delivers the change in a microtask, and the next frame
+    // shows it.
+    final done = client.query(post(1));
+    await tester.pump();
+    await tester.pump();
+    expect(seen.last, isTrue);
+    await tester.pump(ms10);
+    expect(seen.last, isFalse);
+    expect(await done, 'post 1');
+    await tearDownApp(tester);
   });
 
   testWidgets('useQueries gives the results in order, and follows the list',
       (tester) async {
     Widget posts(List<int> ids) => HookBuilder(builder: (_) {
-          final List<QueryResult<String>> results =
-              useQueries([for (final id in ids) post(id)]);
+          final inferred = useQueries([for (final id in ids) post(id)]);
+          final List<QueryResult<String>> results = inferred;
           return Text(results.map(describe).join(', '));
         });
     await tester.pumpWidget(app(posts([1, 2])));
@@ -280,15 +496,287 @@ void main() {
     await tearDownApp(tester);
   });
 
-  testWidgets('useQueryClient gives the provided client', (tester) async {
-    QueryClient? used;
+  testWidgets('useQueries warns once about observers created in build',
+      (tester) async {
+    Query<String> fresh(int id) => Query(
+          queryKey: ['post', id],
+          queryFn: post(id).queryFn!,
+          staleTime: infiniteDuration,
+        );
+    final shared = [
+      fresh(1).observe(client: client),
+      fresh(2).observe(client: client),
+    ];
+    final added = fresh(3).observe(client: client);
+    var builds = 0;
+    Widget screen() => HookBuilder(builder: (_) {
+          builds++;
+          // The mistake: new observers on every build.
+          useQueries([
+            for (final id in [1, 2]) fresh(id).observe(client: client)
+          ]);
+          // Observers created once, in a new list that is reordered on
+          // every build, and definitions are fine.
+          useQueries(builds.isEven ? [shared[1], shared[0]] : [...shared]);
+          useQueries([
+            for (final id in [1, 2]) fresh(id)
+          ]);
+          // So is an observer created once, added for a new key.
+          useQueries([...shared, if (builds > 1) added]);
+          return const SizedBox();
+        });
+    final printed = await printsOf(() async {
+      await tester.pumpWidget(app(screen()));
+      await tester.pumpWidget(app(screen()));
+      await tester.pumpWidget(app(screen()));
+    });
+    expect(printed, [
+      allOf(
+        contains('useQueries received a new observer for the key ["post",1]'),
+        contains('useQueries([for (final id in ids) todoQuery(id)])'),
+      ),
+    ]);
+    await tester.pump(ms10);
+    await tearDownApp(tester);
+    for (final observer in [...shared, added]) {
+      observer.destroy();
+    }
+  });
+
+  group('an observer of another client', () {
+    const warning = 'received an observer of another QueryClient';
+
+    testWidgets('warns once for each hook given one', (tester) async {
+      final other = newClient();
+      final otherPost = post(1).observe(client: other);
+      final otherLike =
+          Mutation(mutationFn: (int id) async => id).observe(client: other);
+      final otherPosts = [post(2).observe(client: other)];
+      final own = post(3).observe(client: client);
+      Widget screen() => HookBuilder(builder: (_) {
+            useQuery(otherPost);
+            useMutation(otherLike);
+            // A new list on every build, with the same foreign observer.
+            useQueries([post(4), ...otherPosts]);
+            // Observers of the provided client, and definitions, are fine.
+            useQuery(own);
+            useQuery(post(5));
+            useMutation(Mutation(mutationFn: (int id) async => id));
+            return const SizedBox();
+          });
+      final printed = await printsOf(() async {
+        await tester.pumpWidget(app(screen()));
+        await tester.pumpWidget(app(screen()));
+        await tester.pumpWidget(app(screen()));
+      });
+      expect(printed, [
+        allOf(
+          contains('useQuery $warning'),
+          contains('useQuery(todosQuery)'),
+          contains('the client useQueryClient() returns'),
+          contains('#a-screen-reads-another-clients-cache'),
+        ),
+        allOf(
+          contains('useMutation $warning'),
+          contains('useMutation(addTodoMutation)'),
+        ),
+        contains('useQueries $warning'),
+      ]);
+      await tester.pump(ms10);
+      await tearDownApp(tester);
+      for (final observer in [otherPost, ...otherPosts, own]) {
+        observer.destroy();
+      }
+      otherLike.reset();
+      other.clear();
+    });
+
+    testWidgets('warns once per hook and key about observers created in build',
+        (tester) async {
+      final other = newClient();
+      Query<String> fresh(int id) => Query(
+            queryKey: ['post', id],
+            queryFn: post(id).queryFn!,
+            staleTime: infiniteDuration,
+          );
+      Widget screen() => HookBuilder(builder: (_) {
+            // The mistake: observers of another client, created in build.
+            useQuery(fresh(1).observe(client: other));
+            useQueries([
+              for (final id in [2, 3]) fresh(id).observe(client: other),
+            ]);
+            useMutation(
+              Mutation(
+                mutationKey: ['like'],
+                mutationFn: (int id) async => id,
+              ).observe(client: other),
+            );
+            useMutation(
+              Mutation(mutationFn: (int id) async => id).observe(client: other),
+            );
+            return const SizedBox();
+          });
+      final printed = await printsOf(() async {
+        await tester.pumpWidget(app(screen()));
+        await tester.pumpWidget(app(screen()));
+        await tester.pumpWidget(app(screen()));
+      });
+      expect(
+        [
+          for (final message in printed)
+            if (message.contains(warning)) message,
+        ],
+        [
+          contains('useQuery $warning'),
+          contains('useQueries $warning'),
+          contains('useQueries $warning'),
+          contains('useMutation $warning'),
+          contains('useMutation $warning'),
+        ],
+        reason: 'once per hook and key, or per hook without a key',
+      );
+      await tester.pump(ms10);
+      await tearDownApp(tester);
+      other.clear();
+    });
+
+    testWidgets('new observers of a replaced client are silent',
+        (tester) async {
+      final other = newClient();
+      final like = Mutation(
+        mutationKey: ['like'],
+        mutationFn: (int id) async => id,
+      );
+      final screen = HookBuilder(builder: (_) {
+        // Observers created again for a replaced client, as they should be.
+        final client = useQueryClient();
+        useQuery(useMemoized(() => post(1).observe(client: client), [client]));
+        useMutation(useMemoized(() => like.observe(client: client), [client]));
+        useQueries(
+          useMemoized(
+            () => [
+              for (final id in [2, 3]) post(id).observe(client: client),
+            ],
+            [client],
+          ),
+        );
+        return const SizedBox();
+      });
+      final printed = await printsOf(() async {
+        await tester.pumpWidget(app(screen));
+        await tester.pump(ms10);
+        await tester.pumpWidget(app(screen, with_: other));
+        await tester.pump(ms10);
+      });
+      expect(printed, isEmpty);
+      await tearDownApp(tester);
+      other.clear();
+    });
+
+    testWidgets('warns when the provided client is replaced', (tester) async {
+      final shared = post(1).observe(client: client);
+      final other = newClient();
+      final screen = HookBuilder(
+        builder: (_) => Text(describe(useQuery(shared))),
+      );
+      final printed = await printsOf(() async {
+        await tester.pumpWidget(app(screen));
+        await tester.pump(ms10);
+        expect(find.text('post 1'), findsOneWidget);
+        await tester.pumpWidget(app(screen, with_: other));
+      });
+      expect(printed, [contains('useQuery $warning')]);
+      // The observer keeps its own client.
+      expect(find.text('post 1'), findsOneWidget);
+      await tearDownApp(tester);
+      shared.destroy();
+      other.clear();
+    });
+  });
+
+  testWidgets('hooks infer their types from observers and mixed lists',
+      (tester) async {
+    final shared = post(2).observe(client: client);
+    final pages = InfiniteQuery(
+      queryKey: ['pages'],
+      queryFn: (context) async => 'page ${context.pageParam}',
+      initialPageParam: 1,
+      getNextPageParam: (data) => null,
+    ).observe(client: client);
+    final rename = Mutation(
+      mutationFn: (String name) async => name.length,
+      onMutate: (_, client) => ['renaming'],
+    );
     await tester.pumpWidget(
       app(HookBuilder(builder: (_) {
-        used = useQueryClient();
-        return const SizedBox();
+        // Each is inferred without a context type, then checked.
+        final posts = useQueries([post(1), shared]);
+        final List<QueryResult<String>> typedPosts = posts;
+        final feed = useInfiniteQuery(pages);
+        final InfiniteQueryResult<String, int> typedFeed = feed;
+        final renaming = useMutation(rename);
+        final MutationResult<int, String, List<String>> typedRenaming =
+            renaming;
+        return Text(
+          '${typedPosts.length} ${typedFeed.pages.length} '
+          '${typedRenaming.status.name}',
+        );
       })),
     );
+    await tester.pump(ms10);
+    expect(find.text('2 1 idle'), findsOneWidget);
+    await tearDownApp(tester);
+    shared.destroy();
+    pages.destroy();
+  });
+
+  testWidgets('useQueryClient gives the provided client, and follows it',
+      (tester) async {
+    final other = newClient();
+    QueryClient? used;
+    // The same widget, so only the provider can rebuild it.
+    final screen = HookBuilder(builder: (_) {
+      used = useQueryClient();
+      return const SizedBox();
+    });
+    await tester.pumpWidget(app(screen));
     expect(used, same(client));
+
+    await tester.pumpWidget(app(screen, with_: other));
+    expect(used, same(other));
+    await tearDownApp(tester);
+    other.clear();
+  });
+
+  testWidgets("leaves Flutter's FocusManager to Flutter", (tester) async {
+    // Imported with material, FocusManager must still mean Flutter's class,
+    // the usual way to dismiss the keyboard.
+    await tester.pumpWidget(app(const SizedBox()));
+    expect(FocusManager.instance, same(WidgetsBinding.instance.focusManager));
     await tearDownApp(tester);
   });
+}
+
+/// A query that keeps the observer it creates, to count its option updates.
+class _CountingQuery extends Query<String> {
+  _CountingQuery({required super.queryKey, required super.queryFn});
+
+  _CountingObserver? observer;
+
+  @override
+  QueryObserver<String> observe({QueryClient? client}) {
+    return observer = _CountingObserver(client ?? Fuery.client, this);
+  }
+}
+
+class _CountingObserver extends QueryObserver<String> {
+  _CountingObserver(super.client, super.options);
+
+  int setOptionsCalls = 0;
+
+  @override
+  void setOptions(Query<String> options) {
+    setOptionsCalls++;
+    super.setOptions(options);
+  }
 }

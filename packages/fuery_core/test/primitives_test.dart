@@ -83,6 +83,24 @@ void main() {
     test('returns the batch result', () {
       expect(NotifyManager().batch(() => 42), 42);
     });
+
+    test('a callback that throws leaves the rest of its batch to run', () {
+      fakeAsync((async) {
+        final manager = NotifyManager();
+        final calls = <int>[];
+        final errors = <Object>[];
+        runZonedGuarded(() {
+          manager.batch(() {
+            manager.schedule(() => throw StateError('first'));
+            manager.schedule(() => calls.add(2));
+          });
+          async.flushMicrotasks();
+        }, (error, _) => errors.add(error));
+
+        expect(calls, [2]);
+        expect(errors.single, isA<StateError>());
+      });
+    });
   });
 
   group('FocusManager', () {

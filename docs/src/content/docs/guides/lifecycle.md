@@ -9,7 +9,7 @@ box; the second needs a connectivity source.
 
 ## When the app resumes
 
-Fuery widgets connect `AppLifecycleState` for you:
+Fuery widgets and hooks connect `AppLifecycleState` for you:
 
 | App state | Fuery treats the app as |
 |---|---|
@@ -23,7 +23,7 @@ When the app is focused again, stale queries that widgets use refetch. While it 
 
 `focusManager` is the same switch underneath. `focusManager.setFocused(false)` reports the app as hidden and `setFocused(null)` hands control back, which is how a test simulates backgrounding. `focusManager.isFocused` reads the current state. Outside Flutter, `focusManager.setEventListener` connects whatever your host uses, the way the network source below does.
 
-An app that uses queries only from blocs has no Fuery widget to connect the lifecycle, so call this once at startup:
+An app that uses queries only from blocs has no Fuery widget or hook to connect the lifecycle, so call this once at startup:
 
 ```dart
 void main() {
@@ -47,6 +47,8 @@ onlineManager.setEventListener((setOnline) {
 ```
 
 While offline, a query that needs to fetch reports `fetchStatus: paused` and keeps showing its data. Mutations started offline wait and run when the connection returns.
+
+When the connection returns, Fuery resumes the paused mutations first and refetches queries after they are done, so a refetch can't overwrite an optimistic update. A query still loading its first data doesn't wait for them: it resumes right away. The same happens when the app returns to the foreground.
 
 `onlineManager.isOnline` reads what Fuery currently believes, which is `true` until a source says otherwise.
 

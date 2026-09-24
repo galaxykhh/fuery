@@ -7,27 +7,123 @@ import 'fuery_provider.dart';
 /// Keys already warned about, so each mistake is reported once.
 final Set<String> _warnedKeys = {};
 
+const _troubleshooting = 'https://galaxykhh.github.io/fuery/troubleshooting/';
+
+/// Returns the key of an observer in `current` that replaced a different
+/// observer for the same key in `previous`, or null.
+typedef DebugRecreatedKey<S> = String? Function(S previous, S current);
+
+/// The client of [source] when it is an observer, or null for a definition.
+QueryClient? _clientOf(Object? source) => switch (source) {
+      QueryObserver(:final client) => client,
+      MutationObserver(:final client) => client,
+      _ => null,
+    };
+
+/// The [DebugRecreatedKey] of a source that holds one observer, from the key
+/// of that observer, or null for a definition.
+///
+/// A new observer of another client is null too: it replaces the old one on
+/// purpose, as after the provided client was replaced.
+DebugRecreatedKey<S> debugSameKey<S>(String? Function(S source) key) {
+  return (previous, current) {
+    final keyHash = key(current);
+    return keyHash != null &&
+            keyHash == key(previous) &&
+            identical(_clientOf(previous), _clientOf(current))
+        ? keyHash
+        : null;
+  };
+}
+
 /// Warns, in debug builds, when a widget got a new observer for the same key
-/// on a rebuild. That is what `todosQuery.observe()` in `build` looks like,
-/// and each new observer subscribes and refetches again.
+/// on a rebuild. That is what `todosQuery.observe()` in `build` looks like:
+/// each new query observer subscribes and refetches again, and each new
+/// mutation observer starts idle.
 void debugWarnRecreated<S>(
   String widgetName,
-  String? Function(S source)? key,
+  DebugRecreatedKey<S> key,
   S previous,
   S current,
 ) {
   assert(() {
-    if (key == null) return true;
-    final keyHash = key(current);
-    if (keyHash == null || keyHash != key(previous)) return true;
-    if (!_warnedKeys.add(keyHash)) return true;
+    final keyHash = key(previous, current);
+    if (keyHash == null) return true;
+    final mutation = current is MutationObserver;
+    if (!_warnedKeys.add('${mutation ? 'mutation' : 'query'}:$keyHash')) {
+      return true;
+    }
+    final advice = mutation
+        ? 'A new observer starts idle, so the widget stops showing a running '
+            "mutation's pending or error state. Create the observer once, in "
+            'a State field or a cubit, or pass the definition to a widget '
+            'that runs it, such as MutationBuilder(mutation: saveTodo).'
+        : current is List
+            ? 'A new observer subscribes and refetches again each time. Pass '
+                'the definitions instead, such as $widgetName(queries: [for '
+                '(final id in ids) todoQuery(id)]), and the widget keeps one '
+                'observer for each.'
+            : 'A new observer subscribes and refetches again each time. Pass '
+                'the definition instead, such as $widgetName(query: '
+                'todosQuery), and the widget keeps one observer for it.';
     debugPrint(
       '[fuery] $widgetName received a new observer for the key $keyHash on '
-      'a rebuild. A new observer subscribes and refetches again each time. '
-      'Pass the definition instead, such as QueryBuilder(query: todosQuery), '
-      'and the widget keeps one observer for it. See https://galaxykhh.github'
-      '.io/fuery/troubleshooting/#a-query-fetches-on-every-rebuild',
+      'a rebuild. $advice See $_troubleshooting'
+      '#a-query-fetches-on-every-rebuild',
     );
+    return true;
+  }());
+}
+
+/// Warns, in debug builds, when a widget that can't run a mutation got a
+/// [Mutation] definition. The widget then watches an observer of its own
+/// that nothing runs, so it never hears a change.
+void debugWarnMutationDefinition(String widgetName) {
+  assert(() {
+    if (!_warnedKeys.add('definition:$widgetName')) return true;
+    debugPrint(
+      '[fuery] $widgetName got a Mutation definition, so it watches an '
+      'observer of its own that nothing runs, and it never hears a change. '
+      'Create one observer with addTodo.observe() in a State field or a '
+      'cubit, and pass it both to this widget and to the widget that runs '
+      'it. See $_troubleshooting#a-mutationlistener-never-runs',
+    );
+    return true;
+  }());
+}
+
+/// Warns, in debug builds, when [source] holds an observer of another client
+/// than the [client] the widget uses. That is `observe()` without a client
+/// under a [FueryProvider] with its own.
+///
+/// Warns once per widget name and key, or once per widget name for a
+/// mutation without a key, so observers created in `build` warn once.
+void debugWarnOtherClient(
+  String widgetName,
+  Object? source,
+  QueryClient client,
+) {
+  assert(() {
+    for (final observer in source is List ? source : [source]) {
+      final own = _clientOf(observer);
+      if (own == null || identical(own, client)) continue;
+      final keyHash = switch (observer) {
+        QueryObserver(:final options) => hashKey(options.queryKey),
+        MutationObserver(options: Mutation(:final mutationKey?)) =>
+          hashKey(mutationKey),
+        _ => '',
+      };
+      if (!_warnedKeys.add('other-client:$widgetName:$keyHash')) continue;
+      debugPrint(
+        '[fuery] $widgetName received an observer of another QueryClient '
+        "than the one it uses here (FueryProvider's, or Fuery.client). The "
+        "observer reads and writes its own client's cache, so it and the "
+        "other widgets of this screen don't see each other's changes. Create "
+        'it with observe(client: context.queryClient), or pass the '
+        'definition. See $_troubleshooting'
+        '#a-screen-reads-another-clients-cache',
+      );
+    }
     return true;
   }());
 }
@@ -56,7 +152,7 @@ typedef SlotFactory<S, R> = ObserverSlot<S, R> Function(
 mixin _SlotHost<S, R, W extends StatefulWidget> on State<W> {
   S get _source;
   SlotFactory<S, R> get _createSlot;
-  String? Function(S source)? get _debugKey;
+  DebugRecreatedKey<S> get _debugKey;
   String get _debugName;
 
   ObserverSlot<S, R>? _slot;
@@ -79,6 +175,7 @@ mixin _SlotHost<S, R, W extends StatefulWidget> on State<W> {
     if (slot == null) {
       _client = client;
       final created = _slot = _createSlot(_source, client);
+      debugWarnOtherClient(_debugName, _source, client);
       _onAttached(created.result);
       // Results arrive in a microtask, never during build or initState.
       _unsubscribe = created.subscribe(
@@ -87,7 +184,6 @@ mixin _SlotHost<S, R, W extends StatefulWidget> on State<W> {
         }),
       );
     } else if (!identical(client, _client)) {
-      _client = client;
       _update();
     }
   }
@@ -101,10 +197,17 @@ mixin _SlotHost<S, R, W extends StatefulWidget> on State<W> {
 
   /// Points the slot at the current source and client, and takes its result
   /// right away, so this frame already shows it.
+  ///
+  /// Reads the provided client here: Flutter calls `didUpdateWidget` before
+  /// `didChangeDependencies`, so a new key and a new client that arrive in
+  /// one frame must both reach the slot at once, or the new key would load
+  /// on the old client first.
   void _update() {
     final slot = this.slot;
     final observer = slot.observer;
-    slot.update(_source, _client!);
+    final client = _client = FueryProvider.of(context, listen: true);
+    slot.update(_source, client);
+    debugWarnOtherClient(_debugName, _source, client);
     final result = slot.result;
     if (identical(observer, slot.observer)) {
       _onUpdated(result);
@@ -144,15 +247,18 @@ class ResultSubscriber<S, R> extends StatefulWidget {
     this.listener,
     this.listenWhen,
     this.child,
-    this.debugKey,
+    required this.debugName,
+    required this.debugKey,
   }) : assert(builder != null || child != null);
 
   final S source;
   final SlotFactory<S, R> createSlot;
 
-  /// The cache key of [source] when it is an observer, for the debug warning
-  /// about observers created on every rebuild.
-  final String? Function(S source)? debugKey;
+  /// The name of the widget, such as `QueryBuilder`, for debug warnings.
+  final String debugName;
+
+  /// Finds an observer created on every rebuild, for the debug warning.
+  final DebugRecreatedKey<S> debugKey;
   final ResultWidgetBuilder<R>? builder;
   final ResultCondition<R>? buildWhen;
   final ResultWidgetListener<R>? listener;
@@ -175,10 +281,10 @@ class _ResultSubscriberState<S, R> extends State<ResultSubscriber<S, R>>
   SlotFactory<S, R> get _createSlot => widget.createSlot;
 
   @override
-  String? Function(S source)? get _debugKey => widget.debugKey;
+  DebugRecreatedKey<S> get _debugKey => widget.debugKey;
 
   @override
-  String get _debugName => widget.builder != null ? 'A builder' : 'A listener';
+  String get _debugName => widget.debugName;
 
   @override
   void didUpdateWidget(ResultSubscriber<S, R> oldWidget) {
@@ -238,14 +344,18 @@ class ResultSelector<S, R, T> extends StatefulWidget {
     required this.createSlot,
     required this.selector,
     required this.builder,
-    this.debugKey,
+    required this.debugName,
+    required this.debugKey,
   });
 
   final S source;
   final SlotFactory<S, R> createSlot;
 
+  /// See [ResultSubscriber.debugName].
+  final String debugName;
+
   /// See [ResultSubscriber.debugKey].
-  final String? Function(S source)? debugKey;
+  final DebugRecreatedKey<S> debugKey;
   final T Function(R result) selector;
   final ResultWidgetBuilder<T> builder;
 
@@ -265,10 +375,10 @@ class _ResultSelectorState<S, R, T> extends State<ResultSelector<S, R, T>>
   SlotFactory<S, R> get _createSlot => widget.createSlot;
 
   @override
-  String? Function(S source)? get _debugKey => widget.debugKey;
+  DebugRecreatedKey<S> get _debugKey => widget.debugKey;
 
   @override
-  String get _debugName => 'A selector';
+  String get _debugName => widget.debugName;
 
   @override
   void didUpdateWidget(ResultSelector<S, R, T> oldWidget) {

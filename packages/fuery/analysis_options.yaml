@@ -4,6 +4,11 @@ include: package:flutter_lints/flutter.yaml
 # https://dart.dev/guides/language/analysis-options
 
 analyzer:
+  # `flutter pub get` on the latest Flutter adds any of these that are
+  # missing, which would leave this checked-in file modified and fail
+  # `pub publish --dry-run`.
+  exclude:
+    - build/**
   language:
     strict-casts: true
     strict-inference: true
