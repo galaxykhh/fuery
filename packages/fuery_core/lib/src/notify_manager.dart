@@ -38,13 +38,10 @@ class NotifyManager {
   void _flush() {
     final queue = _queue;
     _queue = [];
-    if (queue.isEmpty) return;
-
-    scheduleMicrotask(() {
-      for (final callback in queue) {
-        callback();
-      }
-    });
+    // One microtask per callback, as outside a batch: one that throws reaches
+    // the zone without dropping the ones after it. Microtasks run in order,
+    // so the batch still runs before anything its callbacks schedule.
+    queue.forEach(scheduleMicrotask);
   }
 }
 

@@ -910,6 +910,48 @@ void main() {
     expect(changes(), 1);
   });
 
+  fakeTest('a throwing listener leaves the rest of its batch notified',
+      (async) {
+    final count = Query(
+      queryKey: ['count'],
+      queryFn: (_) async => 0,
+      staleTime: infiniteDuration,
+    );
+    client.setQueryData(['count'], 0);
+    final watched = <int?>[];
+    final pushed = <int?>[];
+    final errors = <Object>[];
+    runZonedGuarded(() {
+      final unsubscribe = count.observe(client: client).subscribe(
+        notifyManager.batchCalls((QueryResult<int> result) {
+          if (result.data == 1) throw StateError('listener');
+        }),
+      );
+      final watching = client
+          .watch((client) => client.getQueryData<int>(['count']))
+          .listen(watched.add);
+      final slot = QueriesSlot([count], client);
+      final unsubscribeSlot =
+          slot.subscribe((results) => pushed.add(results.single.data));
+      async.flushMicrotasks();
+
+      for (final value in [1, 2, 3]) {
+        client.setQueryData(['count'], value);
+        async.flushMicrotasks();
+      }
+      unsubscribe();
+      unsubscribeSlot();
+      slot.dispose();
+      watching.cancel();
+    }, (error, _) => errors.add(error));
+
+    // Watch streams and QueriesSlot schedule one update at a time, so a
+    // dropped update used to stop them for good.
+    expect(watched.last, 3);
+    expect(pushed.last, 3);
+    expect(errors.single, isA<StateError>());
+  });
+
   fakeTest('removed queries and mutations keep no garbage collection timer',
       (async) {
     onlineManager.setOnline(false);
