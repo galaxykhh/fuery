@@ -1,3 +1,6 @@
+## 1.4.3
+- Released together with the first version of `fuery_hooks`. No changes in `fuery_core`.
+
 ## 1.4.2
 - Add `QueryClient.onUncaughtError`, which receives the errors no caller can: errors thrown by `QueryCacheConfig` and `MutateOptions` callbacks or by `onError` and `onSettled` of a failed mutation, and mistakes Fuery finds while running, such as a page param of the wrong type. Without it, they go to the current zone as before.
 - Fix: a `QueryCacheConfig` callback that throws no longer turns a successful fetch into an error, and an `onError` that throws no longer skips `onSettled`.

@@ -14,7 +14,7 @@ flutter pub add fuery
 
 `fuery` includes `fuery_core`, so this is the only package you need in a Flutter app. For Dart code without Flutter, such as a server or CLI, use `dart pub add fuery_core` instead.
 
-It needs Dart 3.6 and Flutter 3.27 or newer. There is no native code and no platform setup: `fuery_core` depends only on `clock`, `collection`, and `meta`, so it runs on every platform Flutter targets, the web included.
+It needs Dart 3.6 and Flutter 3.27 or newer. Fuery depends on nothing beyond Dart and Flutter: `fuery` adds only `fuery_core`, which depends only on the Dart team's `clock`, `collection`, and `meta`. There is no native code and no platform setup, so it runs on every platform Flutter targets, the web included.
 
 ## 2. Write your first query
 
@@ -44,6 +44,8 @@ class TodoListScreen extends StatelessWidget {
 ```
 
 `api.getTodos()` is any function that returns a `Future<List<Todo>>`, and `TodoList` is your own widget that takes the list.
+
+The query lives outside `build`, and a widget renders it, the way `StreamBuilder` renders a stream. If you prefer hooks, [`fuery_hooks`](../guides/hooks/) renders the same query with `useQuery(todosQuery)` in a `HookWidget`. It is a package of its own, so only apps that choose `flutter_hooks` depend on it.
 
 ## 3. Test it
 

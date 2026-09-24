@@ -1,3 +1,6 @@
+## 1.4.3
+- Released together with the first version of `fuery_hooks`, which renders queries and mutations with `flutter_hooks`. No changes in `fuery`.
+
 ## 1.4.2
 - Released together with `fuery_core` 1.4.2, which adds `QueryClient.onUncaughtError` for errors that callbacks throw, and keeps a fetch successful when a `QueryCacheConfig` callback throws.
 

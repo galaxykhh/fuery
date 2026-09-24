@@ -34,7 +34,11 @@ ROOT = Path(__file__).resolve().parents[2]
 DOCS = ROOT / "docs" / "src" / "content" / "docs"
 REPORT = ROOT / "docs" / "api-coverage.md"
 IGNORE = Path(__file__).parent / "coverage_ignore.txt"
-PACKAGES = [ROOT / "packages" / "fuery_core", ROOT / "packages" / "fuery"]
+PACKAGES = [
+    ROOT / "packages" / "fuery_core",
+    ROOT / "packages" / "fuery",
+    ROOT / "packages" / "fuery_hooks",
+]
 
 # dartdoc's numeric kinds, as they appear in index.json.
 CLASS, ENUM, FUNCTION, METHOD, FIELD, CONSTANT, VARIABLE, TYPEDEF = 3, 5, 8, 10, 16, 19, 20, 21
