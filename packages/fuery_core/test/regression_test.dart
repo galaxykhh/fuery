@@ -548,6 +548,167 @@ void main() {
         for (var i = 0; i < 3; i++) ['page 1', 'page 2'],
       ]);
     });
+
+    group('page param functions and callbacks that throw', () {
+      // A page param function that throws while a result is built, or an
+      // observer callback that throws, has no caller to receive the error.
+      // Before, it left observers loading and failed the fetch that caused
+      // the update.
+      late List<Object> uncaught;
+      late List<Object> cacheErrors;
+      late QueryClient client;
+
+      setUp(() {
+        uncaught = [];
+        cacheErrors = [];
+        client = QueryClient(
+          queryCache: QueryCache(
+            config: QueryCacheConfig(
+              onError: (error, _) => cacheErrors.add(error),
+            ),
+          ),
+          onUncaughtError: (error, _) => uncaught.add(error),
+        )..mount();
+      });
+
+      tearDown(() {
+        client.unmount();
+        client.clear();
+      });
+
+      InfiniteQueryObserver<List<int>, int> feed({
+        List<int> Function(int param)? page,
+        Object? Function(InfiniteData<List<int>, int> data)? previous,
+      }) {
+        return InfiniteQuery(
+          queryKey: ['feed'],
+          queryFn: (context) async => (page ??
+              (param) => param == 0 ? [1, 2] : <int>[])(context.pageParam),
+          initialPageParam: 0,
+          // Throws "No element" on an empty page.
+          getNextPageParam: (data) => data.lastPage.last + 1,
+          getPreviousPageParam: previous,
+        ).observe(client: client);
+      }
+
+      fakeTest('a next page param that throws on an empty page is no page',
+          (async) {
+        final observer = feed();
+        observer.subscribe((_) {});
+        async.flushMicrotasks();
+        expect(observer.result.hasNextPage, isTrue);
+
+        InfiniteQueryResult<List<int>, int>? fetched;
+        Object? rejected;
+        observer.fetchNextPage().then(
+              (result) => fetched = result,
+              onError: (Object error) => rejected = error,
+            );
+        async.flushMicrotasks();
+
+        expect(rejected, isNull);
+        expect(fetched!.pages, [
+          [1, 2],
+          <int>[],
+        ]);
+        expect(observer.result.fetchStatus, FetchStatus.idle);
+        expect(observer.result.isSuccess, isTrue);
+        expect(observer.result.data!.pageParams, [0, 3]);
+        expect(observer.result.hasNextPage, isFalse);
+
+        // Results are built again with the same data.
+        observer.fetchNextPage();
+        observer.refetch();
+        async.flushMicrotasks();
+        expect(uncaught, [isA<StateError>()]);
+        expect(cacheErrors, isEmpty);
+      });
+
+      fakeTest('an empty first page loads with no next page', (async) {
+        final observer = feed(page: (_) => []);
+        observer.subscribe((_) {});
+        async.flushMicrotasks();
+
+        expect(observer.result.isSuccess, isTrue);
+        expect(observer.result.fetchStatus, FetchStatus.idle);
+        expect(observer.result.pages, [<int>[]]);
+        expect(observer.result.hasNextPage, isFalse);
+        expect(uncaught, [isA<StateError>()]);
+        expect(cacheErrors, isEmpty);
+      });
+
+      fakeTest('a previous page param that throws is no page', (async) {
+        final observer = feed(previous: (_) => throw StateError('previous'));
+        observer.subscribe((_) {});
+        async.flushMicrotasks();
+
+        expect(observer.result.isSuccess, isTrue);
+        expect(observer.result.hasPreviousPage, isFalse);
+        expect(observer.result.hasNextPage, isTrue);
+
+        InfiniteQueryResult<List<int>, int>? fetched;
+        observer.fetchPreviousPage().then((result) => fetched = result);
+        async.flushMicrotasks();
+        expect(fetched!.pages, [
+          [1, 2]
+        ]);
+        expect(uncaught.map((error) => (error as StateError).message),
+            ['previous']);
+        expect(cacheErrors, isEmpty);
+      });
+
+      fakeTest('a refetchWhile that throws leaves the fetch successful',
+          (async) {
+        final posts = Query(
+          queryKey: ['posts'],
+          queryFn: FakeFetcher(() => 'posts').call,
+          refetchInterval: const Duration(minutes: 1),
+          refetchWhile: (result) {
+            if (result.data != null) throw StateError('refetchWhile');
+            return true;
+          },
+        ).observe(client: client);
+        final other = Query(
+          queryKey: ['posts'],
+          queryFn: FakeFetcher(() => 'posts').call,
+        ).observe(client: client);
+        posts.subscribe((_) {});
+        final results = <QueryResult<String>>[];
+        other.subscribe(results.add);
+        async.elapse(ms10);
+
+        final query =
+            client.queryCache.find(QueryFilters(queryKey: ['posts']))!;
+        expect(query.state.status, QueryStatus.success);
+        expect(query.state.fetchStatus, FetchStatus.idle);
+        expect(posts.result.data, 'posts');
+        expect(results.last.data, 'posts');
+        expect(uncaught.map((error) => (error as StateError).message),
+            ['refetchWhile']);
+        expect(cacheErrors, isEmpty);
+        posts.destroy();
+        other.destroy();
+      });
+
+      fakeTest('a page param that throws while pages load fails the fetch',
+          (async) {
+        Object? rejected;
+        client
+            .infiniteQuery(InfiniteQuery(
+              queryKey: ['feed'],
+              queryFn: (context) async => [context.pageParam],
+              initialPageParam: 0,
+              getNextPageParam: (_) => throw StateError('next'),
+              pages: 2,
+            ))
+            .then<void>((_) {}, onError: (Object error) => rejected = error);
+        async.flushMicrotasks();
+
+        expect((rejected! as StateError).message, 'next');
+        expect(cacheErrors, [rejected]);
+        expect(uncaught, isEmpty);
+      });
+    });
   });
 
   group('mutations', () {

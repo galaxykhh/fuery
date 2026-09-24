@@ -196,11 +196,15 @@ class _InfiniteQueryBehavior<TPage, TParam>
   }
 
   bool hasNextPage(InfiniteData<TPage, TParam>? data, QueryClient client) {
-    return data != null && _nextParam(data, client) != null;
+    return data != null &&
+        data.pages.isNotEmpty &&
+        getNextPageParam.has(data, client);
   }
 
   bool hasPreviousPage(InfiniteData<TPage, TParam>? data, QueryClient client) {
-    return data != null && _previousParam(data, client) != null;
+    return data != null &&
+        data.pages.isNotEmpty &&
+        (getPreviousPageParam?.has(data, client) ?? false);
   }
 }
 
@@ -214,7 +218,9 @@ class InfiniteQuery<TPage, TParam> extends Query<InfiniteData<TPage, TParam>>
   /// or `null` when there are no more pages. It must return a [TParam]:
   /// Dart can't check that here without breaking inference, so another type
   /// is reported as an error when the next page is looked up, and treated as
-  /// no next page.
+  /// no next page. An error it throws while a result is built, such as
+  /// `data.lastPage.last` on an empty page, is reported once and treated the
+  /// same way; while pages load, it fails the fetch.
   ///
   /// ```dart
   /// final posts = InfiniteQuery(
@@ -518,7 +524,10 @@ class InfiniteQueryObserver<TPage, TParam>
 /// A param of another type means there is no such page, and is reported
 /// once per client, function, and query key, however often the definition
 /// is built again. Throwing instead would stop the result that asked for it
-/// from being built, and the error would be lost with it.
+/// from being built, and the error would be lost with it. For the same
+/// reason, a function that throws while a result is built, such as
+/// `data.lastPage.last` on an empty page, is reported once and means no
+/// page. While pages load, what it throws fails the fetch instead.
 class _PageParamCheck<TPage, TParam> {
   _PageParamCheck(this._name, this._getParam, this._queryKey);
 
@@ -541,6 +550,17 @@ class _PageParamCheck<TPage, TParam> {
       StackTrace.current,
     );
     return null;
+  }
+
+  /// Whether [data] has a page, for building results. A throw means no page
+  /// and is reported once: no caller could receive it.
+  bool has(InfiniteData<TPage, TParam> data, QueryClient client) {
+    try {
+      return call(data, client) != null;
+    } catch (error, stackTrace) {
+      client._reportOnce('$_name threw $_queryHash', error, stackTrace);
+      return false;
+    }
   }
 }
 

@@ -44,11 +44,13 @@ class QueryClient {
   final Duration persistMaxAge;
 
   /// Receives the errors no caller can: errors thrown by the callbacks of a
-  /// [QueryCacheConfig] or a [MutateOptions], or by `onError` and
-  /// `onSettled` of a mutation that failed, and mistakes Fuery finds while
-  /// running, such as a page param of the wrong type or a mutation key that
-  /// can't be stored. The query or mutation goes on as if the callback
-  /// hadn't thrown. A mistake is reported once per client.
+  /// [QueryCacheConfig] or a [MutateOptions], by `onError` and `onSettled`
+  /// of a mutation that failed, or by an observer callback such as
+  /// `refetchWhile` or `placeholderData` when its query changes, and
+  /// mistakes Fuery finds while running, such as a page param function that
+  /// returns a param of the wrong type or throws while a result is built, or
+  /// a mutation key that can't be stored. The query or mutation goes on as
+  /// if the callback hadn't thrown. A mistake is reported once per client.
   ///
   /// Without it, these errors go to the current zone, which in Flutter
   /// reports them to `PlatformDispatcher.onError`.

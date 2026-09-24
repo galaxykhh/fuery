@@ -19,7 +19,7 @@ final posts = InfiniteQuery(
 ```
 
 - `queryFn` fetches one page. Its `InfiniteQueryFunctionContext` is a [query function context](../organizing-queries/#passing-dependencies-to-a-query-function) plus `pageParam`, the page to load.
-- `getNextPageParam` returns the param of the next page, or `null` when there are no more pages. It has to return the param type: Dart can't check that there without losing inference, so another type is reported as an error, once, and counts as no next page.
+- `getNextPageParam` returns the param of the next page, or `null` when there are no more pages. It has to return the param type: Dart can't check that there without losing inference, so another type is [reported as an error](../query-client/#catching-errors-that-callbacks-throw), once, and counts as no next page. An error it throws, such as `data.lastPage.last` on an empty page, is reported and counts the same way. While a refetch reloads the pages, that error fails the refetch instead.
 - Fuery infers the page and param types.
 
 ## Showing pages
