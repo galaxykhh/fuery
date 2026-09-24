@@ -209,6 +209,41 @@ void main() {
       slot.dispose();
     });
 
+    fakeTest(
+        'pushes nothing to a listener added before result was read until '
+        'the list changes', (async) {
+      run(addTodo(), 'a', client);
+      async.flushMicrotasks();
+      final slot = MutationStateSlot(addTodo(), client);
+      final pushed = <List<Run>>[];
+      // The order a hook uses: subscribe, then read.
+      slot.subscribe(pushed.add);
+      final built = slot.result;
+      expect(variablesOf(built), ['a']);
+
+      run(removeTodo(), 'x', client);
+      async.flushMicrotasks();
+      expect(pushed, isEmpty);
+
+      // After a time when only run listeners followed the cache.
+      final other = MutationStateSlot(addTodo(), client);
+      expect(variablesOf(other.result), ['a']);
+      final stop = other.subscribeToRuns((_, __) {});
+      run(addTodo(), 'b', client);
+      async.flushMicrotasks();
+      final otherPushed = <List<Run>>[];
+      other.subscribe(otherPushed.add);
+      expect(variablesOf(other.result), ['a', 'b']);
+      run(removeTodo(), 'y', client);
+      async.flushMicrotasks();
+      expect(otherPushed, isEmpty);
+
+      stop();
+      async.elapse(ms10);
+      slot.dispose();
+      other.dispose();
+    });
+
     fakeTest('pushes the list of a new key, and of a new client', (async) {
       final other = newClient();
       run(addTodo(), 'a', client);

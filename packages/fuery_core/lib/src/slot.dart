@@ -693,8 +693,12 @@ final class MutationStateSlot<TData, TVariables, TContext> extends ObserverSlot<
 
   @override
   void onSubscribe() {
-    if (listeners.length == 1) _pushed = _result;
+    // Before reading, so the slot follows the cache even when a predicate
+    // throws.
     _startListening();
+    // The list as it is now, which the adapter renders whether it read
+    // [result] before subscribing or reads it after.
+    if (listeners.length == 1) _pushed = result;
   }
 
   @override
