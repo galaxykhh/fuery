@@ -110,6 +110,30 @@ void main() {
     expect(typed.result.hasNextPage, isFalse);
   });
 
+  fakeTest('a declared InfiniteQuery type types a null first cursor', (async) {
+    final cursors = <String?>[];
+    InfiniteQuery<CursorPage, String?> itemsQuery() => InfiniteQuery(
+          queryKey: ['items'],
+          queryFn: (context) async {
+            cursors.add(context.pageParam);
+            return context.pageParam == null
+                ? const CursorPage(['a'], 'next')
+                : const CursorPage(['b'], null);
+          },
+          initialPageParam: null,
+          getNextPageParam: (data) => data.lastPage.nextCursor,
+        );
+    final items = itemsQuery().observe(client: client);
+    items.subscribe((_) {});
+    async.flushMicrotasks();
+    items.fetchNextPage();
+    async.flushMicrotasks();
+
+    expect(cursors, [null, 'next']);
+    expect(items.result.pages.expand((page) => page.items), ['a', 'b']);
+    expect(items.result.hasNextPage, isFalse);
+  });
+
   fakeTest('refetchWhile gets the typed result', (async) {
     final todo = Query(
       queryKey: ['todo'],

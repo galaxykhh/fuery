@@ -266,11 +266,12 @@ class InfiniteQuery<TPage, TParam> extends Query<InfiniteData<TPage, TParam>>
   /// );
   /// ```
   ///
-  /// When the first page has no param, give `null` its type so the param type
-  /// can be inferred: `initialPageParam: null as String?`. [pages] sets how
-  /// many pages to load when nothing is cached, for example to prefetch
-  /// several pages with [QueryClient.infiniteQuery]. Above [maxPages], it
-  /// loads only [maxPages] pages.
+  /// When the first page has no param, declare the param type, as in a
+  /// function that returns `InfiniteQuery<ItemPage, String?>`, and pass
+  /// `initialPageParam: null`. [pages] sets how many pages to load when
+  /// nothing is cached, for example to prefetch several pages with
+  /// [QueryClient.infiniteQuery]. Above [maxPages], it loads only [maxPages]
+  /// pages.
   //
   // The page param functions return Object?: a return type of TParam? makes
   // Dart infer the page type before queryFn fixes it, which would make

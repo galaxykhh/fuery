@@ -20,7 +20,7 @@ final posts = InfiniteQuery(
 
 - `queryFn` fetches one page. Its `InfiniteQueryFunctionContext` is a [query function context](../organizing-queries/#passing-dependencies-to-a-query-function) plus `pageParam`, the page to load.
 - `getNextPageParam` returns the param of the next page, or `null` when there are no more pages. It has to return the param type: Dart can't check that there without losing inference, so another type is [reported as an error](../query-client/#catching-errors-that-callbacks-throw), once, and counts as no next page. An error it throws, such as `data.lastPage.last` on an empty page, is reported and counts the same way. While pages load, as in a refetch, that error fails the fetch instead.
-- Fuery infers the page and param types.
+- Fuery infers the page type from `queryFn` and the param type from `initialPageParam`. A first param of `null` needs a declared type: see [Cursor-based pages](#cursor-based-pages).
 
 ## Showing pages
 
@@ -88,16 +88,18 @@ A write made while `fetchNextPage()` or `fetchPreviousPage()` loads a page is ke
 
 ## Cursor-based pages
 
-APIs that return a cursor for the next page work the same way. If the first request has no cursor, give `null` its type so Dart can infer the param type:
+APIs that return a cursor for the next page work the same way. When the first request has no cursor, `initialPageParam` is `null`, which says nothing about the cursor's type. Declare the type instead: keep the query in a function that returns `InfiniteQuery<ItemPage, String?>`, with the page type first and the cursor type second:
 
 ```dart
-final items = InfiniteQuery(
-  queryKey: ['items'],
-  queryFn: (context) => api.getItems(cursor: context.pageParam),
-  initialPageParam: null as String?,
-  getNextPageParam: (data) => data.lastPage.nextCursor,
-);
+InfiniteQuery<ItemPage, String?> itemsQuery() => InfiniteQuery(
+      queryKey: ['items'],
+      queryFn: (context) => api.getItems(cursor: context.pageParam),
+      initialPageParam: null,
+      getNextPageParam: (data) => data.lastPage.nextCursor,
+    );
 ```
+
+`context.pageParam` is then a `String?`, and `data.lastPage` an `ItemPage`.
 
 ## Fetching previous pages
 
@@ -108,14 +110,15 @@ Add `getPreviousPageParam` and call `state.fetchPreviousPage()` for lists that s
 `maxPages` caps the number of cached pages. At the cap, loading a next page drops the first page, and loading a previous page drops the last one:
 
 ```dart
-final messages = InfiniteQuery(
-  queryKey: ['messages', roomId],
-  queryFn: (context) => api.getMessages(cursor: context.pageParam),
-  initialPageParam: null as String?,
-  getNextPageParam: (data) => data.lastPage.nextCursor,
-  getPreviousPageParam: (data) => data.firstPage.previousCursor,
-  maxPages: 5,
-);
+InfiniteQuery<MessagePage, String?> messagesQuery(String roomId) =>
+    InfiniteQuery(
+      queryKey: ['messages', roomId],
+      queryFn: (context) => api.getMessages(roomId, cursor: context.pageParam),
+      initialPageParam: null,
+      getNextPageParam: (data) => data.lastPage.nextCursor,
+      getPreviousPageParam: (data) => data.firstPage.previousCursor,
+      maxPages: 5,
+    );
 ```
 
 Give `getPreviousPageParam` as well. Without it `fetchPreviousPage()` has no param to ask for, so a page dropped from the front never comes back.
