@@ -184,8 +184,11 @@ mixin _SlotHost<S, R, W extends StatefulWidget> on State<W> {
       final created = _slot = _createSlot(_source, client);
       debugWarnOtherClient(_debugName, _source, client);
       _onAttached(created.result);
-      _onCreated(created);
+      // Subscribes first: the first subscribe can report a result that
+      // corrects the one read above, such as the failures of a fetch it
+      // joins, and only the listeners it has by then hear it.
       _unsubscribe = _subscribeTo(created);
+      _onCreated(created);
     } else if (!identical(client, _client)) {
       _update();
     }
@@ -229,7 +232,7 @@ mixin _SlotHost<S, R, W extends StatefulWidget> on State<W> {
   /// The slot started rendering from another observer, with [result].
   void _onAttached(R result);
 
-  /// The slot was created, before the widget subscribes to it.
+  /// The slot was created, and the widget subscribed to it.
   void _onCreated(ObserverSlot<S, R> slot) {}
 
   /// Subscribes to the new [slot], and returns the function that stops it.
@@ -320,8 +323,10 @@ class _ResultSubscriberState<S, R> extends State<ResultSubscriber<S, R>>
   @override
   void _onAttached(R result) => _built = result;
 
-  /// Listens before the widget subscribes to rebuild, so the listener hears
-  /// each change before the rebuild that shows it.
+  /// Listens after the widget subscribed to rebuild, from the result that
+  /// subscribing reported. The listener still hears each change before the
+  /// rebuild that shows it: both run in a microtask, and a rebuild only
+  /// marks the widget to build in the next frame.
   @override
   void _onCreated(ObserverSlot<S, R> slot) {
     if (widget.listener == null) return;

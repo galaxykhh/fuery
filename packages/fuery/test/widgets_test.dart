@@ -19,6 +19,21 @@ class Fetcher {
   }
 }
 
+/// A storage that holds nothing, and takes [ms10] to read a key.
+class _SlowReadStorage implements QueryStorage {
+  @override
+  Future<String?> read(String key) => Future<String?>.delayed(ms10);
+
+  @override
+  void write(String key, String value) {}
+
+  @override
+  void delete(String key) {}
+
+  @override
+  Map<String, String> readAll() => {};
+}
+
 /// Creates its observers with the provided client, again when that client is
 /// replaced, and again on the same client when [rebuild] changes.
 class _ObserversOfClient extends StatefulWidget {
@@ -478,6 +493,146 @@ void main() {
       await tearDownApp(tester);
     });
 
+    testWidgets(
+        'builds what the query reports when it subscribes, such as the '
+        'failures of a fetch it joins', (tester) async {
+      var attempts = 0;
+      final query = Query(
+        queryKey: ['todos'],
+        queryFn: (_) async {
+          await Future<void>.delayed(ms10);
+          if (++attempts == 1) throw StateError('offline');
+          return 'a';
+        },
+        retry: const RetryPolicy.count(3),
+        retryDelay: (_, __) => const Duration(seconds: 5),
+      );
+      // Another observer's fetch failed once and waits to retry.
+      final unsubscribe = query.observe(client: client).subscribe((_) {});
+      await tester.pump(ms10);
+
+      final consumer = <int>[];
+      final builder = <int>[];
+      final heard = <int>[];
+      await pumpApp(
+        tester,
+        Column(
+          children: [
+            QueryConsumer(
+              query: query,
+              listener: (context, state) => heard.add(state.failureCount),
+              builder: (context, state) {
+                consumer.add(state.failureCount);
+                return const SizedBox();
+              },
+            ),
+            QueryBuilder(
+              query: query,
+              builder: (context, state) {
+                builder.add(state.failureCount);
+                return const SizedBox();
+              },
+            ),
+          ],
+        ),
+      );
+      await tester.pump();
+      // The first frame can only predict the fetch it joins.
+      expect(builder, [0, 1]);
+      expect(consumer, builder);
+      expect(heard, isEmpty);
+
+      await tester.pump(const Duration(seconds: 5) + ms10);
+      expect(consumer, [0, 1, 0]);
+      expect(heard, [0]);
+      unsubscribe();
+      await tearDownApp(tester);
+    });
+
+    testWidgets('builds the frames a QueryBuilder does while a restore reads',
+        (tester) async {
+      client = QueryClient(
+        defaultOptions: const DefaultOptions(
+          queries: QueryDefaults(retry: RetryPolicy.never()),
+        ),
+        storage: _SlowReadStorage(),
+      );
+      final query = Query(
+        queryKey: ['todos'],
+        queryFn: Fetcher('a').call,
+        persist: QueryPersist(
+          toJson: (data) => data,
+          fromJson: (json) => json! as String,
+        ),
+      );
+      String describe(QueryResult<String> state) =>
+          '${state.status.name}/${state.fetchStatus.name}';
+      final consumer = <String>[];
+      final builder = <String>[];
+      final heard = <String>[];
+      await pumpApp(
+        tester,
+        Column(
+          children: [
+            QueryConsumer(
+              query: query,
+              listener: (context, state) => heard.add(describe(state)),
+              builder: (context, state) {
+                consumer.add(describe(state));
+                return const SizedBox();
+              },
+            ),
+            QueryBuilder(
+              query: query,
+              builder: (context, state) {
+                builder.add(describe(state));
+                return const SizedBox();
+              },
+            ),
+          ],
+        ),
+      );
+      // The restore reads, then the query fetches.
+      await tester.pump();
+      await tester.pump(ms10);
+      await tester.pump(ms10);
+      expect(builder, [
+        'pending/fetching',
+        'pending/idle',
+        'pending/fetching',
+        'success/idle',
+      ]);
+      expect(consumer, builder);
+      // Not for the state the query had when the listener mounted.
+      expect(heard, ['pending/fetching', 'success/idle']);
+      await tearDownApp(tester);
+    });
+
+    testWidgets('calls the listener before the rebuild that shows the change',
+        (tester) async {
+      client.setQueryData(['todos'], 'a');
+      final log = <String>[];
+      await pumpApp(
+        tester,
+        QueryConsumer(
+          query: Query(
+            queryKey: ['todos'],
+            queryFn: Fetcher('fetched').call,
+            staleTime: infiniteDuration,
+          ),
+          listener: (context, state) => log.add('listen ${state.data}'),
+          builder: (context, state) {
+            log.add('build ${state.data}');
+            return const SizedBox();
+          },
+        ),
+      );
+      client.setQueryData(['todos'], 'b');
+      await tester.pump();
+      expect(log, ['build a', 'listen b', 'build b']);
+      await tearDownApp(tester);
+    });
+
     testWidgets('still rebuilds when its listener throws, and reports it',
         (tester) async {
       final errors = <Object>[];
@@ -590,6 +745,50 @@ void main() {
 
       expect(find.text('1 pages'), findsOneWidget);
       expect(heard, [1]);
+      await tearDownApp(tester);
+    });
+
+    testWidgets('InfiniteQueryConsumer builds a next page that it joins',
+        (tester) async {
+      final other = posts();
+      final unsubscribe = other.subscribe((_) {});
+      await tester.pump(ms10);
+      other.fetchNextPage();
+
+      final consumer = <bool>[];
+      final builder = <bool>[];
+      final heard = <bool>[];
+      await pumpApp(
+        tester,
+        Column(
+          children: [
+            InfiniteQueryConsumer(
+              query: posts(),
+              listener: (context, state) => heard.add(state.isFetchingNextPage),
+              builder: (context, state) {
+                consumer.add(state.isFetchingNextPage);
+                return const SizedBox();
+              },
+            ),
+            InfiniteQueryBuilder(
+              query: posts(),
+              builder: (context, state) {
+                builder.add(state.isFetchingNextPage);
+                return const SizedBox();
+              },
+            ),
+          ],
+        ),
+      );
+      await tester.pump();
+      expect(builder, [false, true]);
+      expect(consumer, builder);
+      expect(heard, isEmpty);
+
+      await tester.pump(ms10);
+      expect(consumer, [false, true, false]);
+      expect(heard, [false]);
+      unsubscribe();
       await tearDownApp(tester);
     });
   });
