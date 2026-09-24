@@ -93,10 +93,8 @@ void main() {
     );
 
     // Back to the feed, and into the post again: the comment is still
-    // queued, below the comments. Newer Flutter versions animate the route
-    // longer, so wait until the post has left the tree.
-    await tester.pageBack();
-    await tester.pumpAndSettle();
+    // queued, below the comments.
+    await leavePost(tester);
     await openPost(tester, topPost);
     expect(
       find.text('Comment will send when you\'re back online'),
