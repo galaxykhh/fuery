@@ -1,3 +1,9 @@
+## Unreleased
+- Fix: when the provided client and a query's key change in the same frame, the new key is no longer fetched on the old client.
+- Debug warnings: a `MutationListener` given a `Mutation` definition, whose runs it can never hear, and a widget given an observer of another client than the one it uses. The warning about observers created on every rebuild also covers `QueriesBuilder` and `QueriesSelector`, names the widget, and explains the effect for mutations.
+- Devtools: the button sits halfway down the right edge by default, so it no longer covers a floating action button. The panel stays above the on-screen keyboard, keeps the filter text across tabs and the query list's scroll position, and disposes its overlay entry.
+- Released together with `fuery_core`'s fixes, among them: a listener that throws no longer freezes `QueriesBuilder` or other widgets notified in the same batch, a query that awaits a cancelled query no longer loads forever, and refetches (including the devtools buttons) skip queries that only `setQueryData` wrote.
+
 ## 1.4.3
 - Released together with the first version of `fuery_hooks`, which renders queries and mutations with `flutter_hooks`. No changes in `fuery`.
 
