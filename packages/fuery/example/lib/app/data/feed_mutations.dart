@@ -127,7 +127,7 @@ Mutation<Post, String, void> createPostMutation() {
 }
 
 /// Marks every notification read on screen first, then on the server. It
-/// takes no variables, so its observer runs it with `mutate()`.
+/// takes no variables, so a result runs it with `mutate(null)`.
 NoVariablesMutation<void, List<FeedNotification>> markAllReadMutation() {
   return NoVariablesMutation(
     mutationFn: () => DemoApi().markAllRead(),

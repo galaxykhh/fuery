@@ -5,17 +5,8 @@ import 'package:fuery/fuery.dart';
 
 /// Notifications, refreshed every five seconds while the app is open. The
 /// badge in the navigation bar reads the same query through a cubit.
-class NotificationsScreen extends StatefulWidget {
+class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
-
-  @override
-  State<NotificationsScreen> createState() => _NotificationsScreenState();
-}
-
-class _NotificationsScreenState extends State<NotificationsScreen> {
-  // An observer of a mutation without variables runs it with mutate(), so
-  // the button takes its tear-off.
-  final markAllRead = markAllReadMutation().observe();
 
   @override
   Widget build(BuildContext context) {
@@ -30,11 +21,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   'Checks for new ones every 5 seconds while the app is open',
                   style: theme.textTheme.bodySmall,
                 ),
-                trailing: TextButton(
-                  onPressed: data.any((notification) => !notification.read)
-                      ? markAllRead.mutate
-                      : null,
-                  child: const Text('Mark all read'),
+                // A mutation without variables runs from its result with
+                // mutate(null).
+                trailing: MutationBuilder(
+                  mutation: markAllReadMutation(),
+                  builder: (context, markAllRead) => TextButton(
+                    onPressed: !markAllRead.isPending &&
+                            data.any((notification) => !notification.read)
+                        ? () => markAllRead.mutate(null)
+                        : null,
+                    child: const Text('Mark all read'),
+                  ),
                 ),
               ),
               Expanded(
