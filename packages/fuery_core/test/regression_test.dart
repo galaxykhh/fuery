@@ -185,6 +185,60 @@ void main() {
       async.elapse(const Duration(minutes: 10));
       expect(client.getQueryState(['a']), isNull);
     });
+    fakeTest('a cancelled dependency fails the query that awaited it', (async) {
+      final errors = <Object>[];
+      final reporting = QueryClient(
+        queryCache: QueryCache(
+          config: QueryCacheConfig(onError: (error, _) => errors.add(error)),
+        ),
+      );
+      final user = Query(
+        queryKey: ['user'],
+        queryFn: FakeFetcher(() => 'alice').call,
+      );
+      final posts = Query(
+        queryKey: ['posts'],
+        queryFn: (context) async => ['by ${await context.client.query(user)}'],
+        retry: const RetryPolicy.never(),
+      ).observe(client: reporting);
+      final unsubscribe = posts.subscribe((_) {});
+      async.flushMicrotasks();
+
+      reporting.cancelQueries(queryKey: ['user']);
+      async.flushMicrotasks();
+      expect(posts.result.isFetching, isFalse);
+      expect(posts.result.error, isA<CancelledError>());
+      expect(reporting.isFetching(), 0);
+      expect(errors.single, isA<CancelledError>());
+
+      unsubscribe();
+      reporting.clear();
+      async.elapse(ms10);
+    });
+
+    fakeTest('a dependency removed mid-fetch fails the query that awaited it',
+        (async) {
+      final user = Query(
+        queryKey: ['user'],
+        queryFn: FakeFetcher(() => 'alice').call,
+      );
+      final posts = Query(
+        queryKey: ['posts'],
+        queryFn: (context) async => ['by ${await context.client.query(user)}'],
+        retry: const RetryPolicy.never(),
+      ).observe(client: client);
+      final unsubscribe = posts.subscribe((_) {});
+      async.flushMicrotasks();
+
+      client.removeQueries(queryKey: ['user']);
+      async.flushMicrotasks();
+      expect(posts.result.isFetching, isFalse);
+      expect(posts.result.isError, isTrue);
+      expect(client.isFetching(), 0);
+
+      unsubscribe();
+      async.elapse(ms10);
+    });
   });
 
   group('retry timers', () {

@@ -326,6 +326,14 @@ class CachedQuery<TData extends Object> extends _Removable {
       );
       return data;
     } on CancelledError catch (error) {
+      // The query function can throw a CancelledError of its own, for example
+      // from awaiting a query that was cancelled. Only a cancel of this fetch
+      // aborts the signal and updates the state in onCancel; anything else is
+      // a failure.
+      if (!abortController.signal.aborted) {
+        _onFetchError(error);
+        rethrow;
+      }
       if (error.silent) {
         // Follow the fetch that replaced this one, if any.
         final current = _retryer;
