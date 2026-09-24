@@ -1,3 +1,6 @@
+## 1.4.2
+- Released together with `fuery_core` 1.4.2, which adds `QueryClient.onUncaughtError` for errors that callbacks throw, and keeps a fetch successful when a `QueryCacheConfig` callback throws.
+
 ## 1.4.1
 - Released together with `fuery_core` 1.4.1, which stores persisted queries under keys that are the same in every build, so queries with enums in their keys are restored after an app update, and stores persisted mutations whose keys hold enums.
 

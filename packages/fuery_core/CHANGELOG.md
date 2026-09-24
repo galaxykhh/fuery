@@ -1,3 +1,8 @@
+## 1.4.2
+- Add `QueryClient.onUncaughtError`, which receives the errors no caller can: errors thrown by `QueryCacheConfig` and `MutateOptions` callbacks or by `onError` and `onSettled` of a failed mutation, and mistakes Fuery finds while running, such as a page param of the wrong type. Without it, they go to the current zone as before.
+- Fix: a `QueryCacheConfig` callback that throws no longer turns a successful fetch into an error, and an `onError` that throws no longer skips `onSettled`.
+- A mistake Fuery finds while running is reported once per client.
+
 ## 1.4.1
 - Fix: persisted data is stored under a key that is the same in every build. The stored key included the type name of an enum in the query key, which obfuscated and minified builds rename, so such a query wasn't restored after an app update. Keys in memory are unchanged. Queries an earlier version stored under keys with enums are fetched again once, and `restore()` deletes their old entries once they expire.
 - Fix: a persisted mutation whose key holds an enum or a `DateTime` is stored. A key that can't be stored is reported once instead of skipped without a word, and it no longer makes `restore` drop other mutations' runs. `restore` reports two mutations whose keys differ only in enum types and restores neither.

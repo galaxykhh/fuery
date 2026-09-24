@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:fuery_core/fuery_core.dart';
 import 'package:test/test.dart';
 
 import 'helpers.dart';
+import 'storages.dart';
 
 void main() {
   late QueryClient client;
@@ -607,4 +610,150 @@ void main() {
     async.flushMicrotasks();
     expect(mutation.result.isPaused, isTrue);
   });
+
+  group('onUncaughtError', () {
+    late List<String> reported;
+    late List<Object> zone;
+    late QueryClient client;
+
+    setUp(() {
+      reported = [];
+      zone = [];
+      client = QueryClient(
+        queryCache: QueryCache(
+          config: QueryCacheConfig(
+            onSuccess: (data, _) {
+              if (data == 'throw') throw StateError('cache onSuccess');
+            },
+          ),
+        ),
+        storage: MemoryStorage(),
+        onUncaughtError: (error, _) => reported.add('$error'),
+      );
+    });
+
+    tearDown(() => client.clear());
+
+    fakeTest('receives what callbacks throw, instead of the zone', (async) {
+      runZonedGuarded(() {
+        client.query(
+          Query(queryKey: ['a'], queryFn: FakeFetcher(() => 'throw').call),
+        );
+        Mutation(
+          mutationFn: (String variables) async => throw StateError('down'),
+          onError: (_, __, ___, ____) => throw StateError('onError'),
+        ).observe(client: client).mutate(
+              'a',
+              MutateOptions(
+                onError: (_, __, ___, ____) async =>
+                    throw StateError('async mutate onError'),
+                onSettled: (_, __, ___, ____, _____) =>
+                    throw StateError('mutate onSettled'),
+              ),
+            );
+        async.elapse(ms10);
+      }, (error, _) => zone.add(error));
+
+      expect(reported, [
+        'Bad state: onError',
+        'Bad state: mutate onSettled',
+        'Bad state: async mutate onError',
+        'Bad state: cache onSuccess',
+      ]);
+      expect(zone, isEmpty);
+    });
+
+    fakeTest('receives what an async cache callback throws', (async) {
+      final asyncCallbacks = QueryClient(
+        queryCache: QueryCache(
+          config: QueryCacheConfig(
+            onSettled: (_, __, ___) async => throw StateError('async'),
+          ),
+        ),
+        onUncaughtError: (error, _) => reported.add('$error'),
+      );
+      runZonedGuarded(() {
+        asyncCallbacks.query(
+          Query(queryKey: ['a'], queryFn: FakeFetcher(() => 'a').call),
+        );
+        async.elapse(ms10);
+      }, (error, _) => zone.add(error));
+
+      expect(reported, ['Bad state: async']);
+      expect(zone, isEmpty);
+      asyncCallbacks.clear();
+    });
+
+    fakeTest('receives mistakes Fuery finds, once per client', (async) {
+      InfiniteQuery<int, int> pagesQuery() => InfiniteQuery(
+            queryKey: ['pages'],
+            queryFn: (context) async => context.pageParam,
+            initialPageParam: 1,
+            getNextPageParam: (data) => 'two',
+          );
+      final errors = <Object>[];
+      final other =
+          QueryClient(onUncaughtError: (error, _) => errors.add(error));
+      runZonedGuarded(() {
+        for (final client in [client, client, other]) {
+          pagesQuery().observe(client: client).subscribe((_) {});
+          async.flushMicrotasks();
+        }
+        final unstorable = Mutation(
+          mutationKey: [Object()],
+          mutationFn: (String variables) async => variables,
+          persist: const MutationPersist<String>(
+            toJson: _same,
+            fromJson: _string,
+          ),
+        ).observe(client: client);
+        unstorable
+          ..mutate('a')
+          ..mutate('b');
+        async.flushMicrotasks();
+      }, (error, _) => zone.add(error));
+
+      expect(reported, [
+        contains('getNextPageParam returned String'),
+        contains('Keys must contain only'),
+      ]);
+      expect(errors, hasLength(1));
+      expect(zone, isEmpty);
+      other.clear();
+
+      // clear() forgets what was reported, like everything else.
+      client.clear();
+      pagesQuery().observe(client: client).subscribe((_) {});
+      async.flushMicrotasks();
+      expect(reported, hasLength(3));
+    });
+
+    fakeTest('an error it throws goes to the zone, after the one it got',
+        (async) {
+      final failing = QueryClient(
+        queryCache: QueryCache(
+          config: QueryCacheConfig(
+            onSuccess: (_, __) => throw StateError('onSuccess'),
+          ),
+        ),
+        onUncaughtError: (error, _) => throw StateError('reporting'),
+      );
+      runZonedGuarded(() {
+        failing.query(
+          Query(queryKey: ['a'], queryFn: FakeFetcher(() => 'a').call),
+        );
+        async.elapse(ms10);
+      }, (error, _) => zone.add(error));
+
+      expect(zone.map((e) => '$e'), [
+        'Bad state: onSuccess',
+        'Bad state: reporting',
+      ]);
+      failing.clear();
+    });
+  });
 }
+
+Object? _same(String variables) => variables;
+
+String _string(Object? json) => json! as String;

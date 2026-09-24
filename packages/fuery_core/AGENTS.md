@@ -19,6 +19,7 @@ Pure Dart. Never import Flutter. Runtime dependencies are limited to `clock`, `c
 - Errors are `Object`; there is no error type parameter.
 - Durations are `Duration`. Timestamps are milliseconds from `now()` in `utils.dart`, which uses `package:clock`. Never call `DateTime.now()`: it ignores `fake_async`.
 - `infiniteDuration` means "fresh until invalidated"; `staticStaleTime` means "never stale, never refetched automatically".
+- Report errors no caller can receive (callbacks that throw, mistakes found while running) through `QueryClient._reportError`, or `_reportOnce` for a mistake that would repeat on every run, never with `Zone.current.handleUncaughtError` directly. They go to `onUncaughtError`, or without it to the zone.
 - Notify listeners through `notifyManager.batch` / `batchCalls`, and iterate over a copy (`.toList()`) so listeners can unsubscribe while being notified.
 - A future that may be dropped must not leak errors: use `.ignore()` or `then(..., onError: ...)`.
 - Cancel every `Timer` in the matching destroy/clear path. Leftover timers keep Dart processes alive and fail Flutter widget tests.

@@ -301,6 +301,26 @@ A cancelled fetch is not a failure and reaches none of them.
 
 Each of these runs before the matching [callback on the mutation itself](../mutations/#callbacks), and Fuery awaits a future it returns. The mutation arrives as `AnyCachedMutation`, a mutation of unknown types, so `data`, `variables`, and `context` come in as `Object?`. Identify it by `mutation.options.mutationKey` or `mutation.options.meta`.
 
+## Catching errors that callbacks throw
+
+Some errors have no caller to go to, and `onUncaughtError` receives them:
+
+- An error thrown by a `QueryCacheConfig` or `MutateOptions` callback.
+- An error thrown by `onError` or `onSettled` of a mutation that failed.
+- A mistake Fuery finds while running, such as a `getNextPageParam` that returns a param of the wrong type, or a persisted `mutationKey` that can't be stored.
+
+```dart
+Fuery.client = QueryClient(
+  onUncaughtError: (error, stackTrace) => reportError(error, stackTrace),
+);
+```
+
+The query or mutation goes on as if the callback hadn't thrown. Fuery reports a mistake once per client, not every time the code runs. When `onUncaughtError` throws, its error and the one it received go to the current zone.
+
+Without `onUncaughtError`, these errors go to the current zone, and Flutter passes them to `PlatformDispatcher.onError`. A crash reporter that records everything there as fatal counts them as crashes, although the app keeps running. With `onUncaughtError`, you decide how to record them.
+
+The callbacks of a `Mutation` and a `MutationCacheConfig` are part of the mutation: an error thrown by `onMutate`, or by `onSuccess` or `onSettled` after a success, fails the mutation and reaches its `onError`.
+
 ## Resuming mutations that paused offline
 
 A mutation started while the device is offline waits, and Fuery resumes it when the app is focused again or the network reconnects. Call `resumePausedMutations` to resume at another moment:
