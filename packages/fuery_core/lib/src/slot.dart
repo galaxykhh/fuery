@@ -73,7 +73,9 @@ sealed class ObserverSlot<TSource, TResult> extends Subscribable<TResult> {
   /// it delivered before, for side effects such as navigation or a snackbar.
   /// Returns a function that stops it.
   ///
-  /// Never called for [result] as it is now. Called in a microtask, or at the
+  /// Never called for the result it starts from: [result] as it is after
+  /// listening subscribes, which can correct the result read before, such as
+  /// with the failures of a fetch it joins. Called in a microtask, or at the
   /// end of the outer `notifyManager.batch`, never during a render. A result
   /// equal to the previous one is not a change. When [update] moves the slot
   /// to another observer, it starts over from that observer's result, and
@@ -96,6 +98,10 @@ sealed class ObserverSlot<TSource, TResult> extends Subscribable<TResult> {
         _reportTo._guardCallback(() => listener(previous, current));
       });
     });
+    // Subscribing can correct a result read before it, such as with the
+    // failures of a fetch it joins. That is the result as it was when
+    // listening started, not a change.
+    listening.previous = result;
     return () {
       listening.active = false;
       _listenings.remove(listening);

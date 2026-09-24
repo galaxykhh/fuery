@@ -440,6 +440,44 @@ void main() {
       slot.dispose();
     });
 
+    fakeTest(
+        'starts from the result after subscribing, when it corrects the '
+        'result before', (async) {
+      var attempts = 0;
+      final query = Query(
+        queryKey: ['post', 1],
+        queryFn: (_) async {
+          await Future<void>.delayed(ms10);
+          if (++attempts == 1) throw StateError('offline');
+          return 'post 1';
+        },
+        retry: const RetryPolicy.count(3),
+        retryDelay: (_, __) => const Duration(seconds: 5),
+      );
+      // Another observer's fetch failed once and waits to retry.
+      final other = query.observe(client: client);
+      final unsubscribe = other.subscribe((_) {});
+      async.elapse(ms10);
+      expect(other.result.failureCount, 1);
+
+      // The result before subscribing can only predict the fetch it joins.
+      final slot = QuerySlot(query, client);
+      expect(slot.result.failureCount, 0);
+      final heard = <(int, int)>[];
+      slot.listen((previous, current) {
+        heard.add((previous.failureCount, current.failureCount));
+      });
+      async.flushMicrotasks();
+      expect(slot.result.failureCount, 1);
+      expect(heard, isEmpty);
+
+      async.elapse(const Duration(seconds: 5) + ms10);
+      expect(slot.result.data, 'post 1');
+      expect(heard, [(1, 0)]);
+      unsubscribe();
+      slot.dispose();
+    });
+
     fakeTest('delivers at the end of the outer batch', (async) {
       client.setQueryData(['post', 1], 'post 1');
       final slot = QuerySlot(fresh(1), client);
