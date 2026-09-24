@@ -1,4 +1,4 @@
-## Unreleased
+## 1.4.4
 - Fix: when the provided client and a query's key change in the same frame, the new key is no longer fetched on the old client.
 - Debug warnings: a `MutationListener` given a `Mutation` definition, whose runs it can never hear, and a widget given an observer of another client than the one it uses, once per widget and key. The warning about observers created on every rebuild also covers `QueriesBuilder` and `QueriesSelector`, names the widget, and explains the effect for mutations.
 - Devtools: the button sits halfway down the right edge by default, so it no longer covers a floating action button. The panel stays above the on-screen keyboard while there is room for its tabs and filter field, and goes under it otherwise. It keeps the filter text across tabs and the query list's scroll position, and disposes its overlay entry.

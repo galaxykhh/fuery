@@ -1,4 +1,4 @@
-## Unreleased
+## 1.4.4
 - Add `QueryObserver.client` and `MutationObserver.client`, the client an observer reads and writes.
 - Fix: a listener that throws no longer stops the other notifications of its batch, or the other listeners of its observer or slot. Before, it could freeze `QueryClient.watch` streams, `QueriesSlot`, and persistence for the rest of the session.
 - Fix: `restore(mutations:)` no longer runs a persisted mutation again while it is still running or paused, or while its stored entry is waiting to be deleted.
