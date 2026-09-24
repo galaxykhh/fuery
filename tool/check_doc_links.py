@@ -9,6 +9,12 @@ a page in docs/src/content/docs, and its #anchor must be a heading on that
 page. A released package keeps printing its links until the next release, so
 renaming a page or a heading must not break one.
 
+A warning may split its link across adjacent string literals, or build it
+from a top-level const string of the same file, as in '$_page#heading'. The
+check fails if it finds no link with an #anchor in packages/*/lib, or finds
+an anchor after an interpolation it can't fill in, so a refactor that hides
+the warnings' links from it fails instead of passing.
+
 The site root and the web demo (demo/, built only in CI) aren't checked.
 """
 
@@ -23,6 +29,15 @@ LINK = re.compile(r"https?://galaxykhh\.github\.io/fuery/[^\s'\"<>()\[\]`]*")
 # Adjacent string literals, which Dart joins into one: 'https://...'
 # on one line and '...#anchor' on the next.
 ADJACENT_LITERALS = re.compile(r"(['\"])[ \t]*\n[ \t]*\1")
+# A top-level const string, such as a page's URL, that a warning
+# interpolates as $name or ${name}.
+CONST_STRING = re.compile(
+    r"^const[ \t]+(?:String[ \t]+)?(\w+)[ \t]*=[ \t]*(['\"])([^'\"\n]*)\2[ \t]*;",
+    re.MULTILINE,
+)
+# An interpolation right before an #anchor, left over when no const of the
+# file names it.
+INTERPOLATED_ANCHOR = re.compile(r"\$(?:\{\w+\}|\w+)#[\w-]+")
 FENCE = re.compile(r"^(```|~~~).*?^\1", re.MULTILINE | re.DOTALL)
 HEADING = re.compile(r"^#{2,6}[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$", re.MULTILINE)
 HTML_ID = re.compile(r"\bid=[\"']([^\"']+)[\"']")
@@ -44,10 +59,19 @@ def sources(root: Path) -> list[Path]:
     ]
 
 
+def expand(text: str) -> str:
+    """Dart source with adjacent literals joined and top-level consts filled in."""
+    text = ADJACENT_LITERALS.sub("", text)
+    for name, _, value in CONST_STRING.findall(text):
+        pattern = rf"\$(?:\{{{re.escape(name)}\}}|{re.escape(name)}\b)"
+        text = re.sub(pattern, lambda _, value=value: value, text)
+    return text
+
+
 def links(path: Path) -> list[str]:
     text = path.read_text()
     if path.suffix == ".dart":
-        text = ADJACENT_LITERALS.sub("", text)
+        text = expand(text)
     return [match.group(0).rstrip(".,;:!?*_") for match in LINK.finditer(text)]
 
 
@@ -85,15 +109,25 @@ def find_page(path: str) -> Path | None:
 
 def check(root: Path) -> list[str]:
     problems = []
+    # Links with an #anchor in the Dart sources, all of which are in lib/.
+    anchored_in_lib = 0
     for source in sources(root):
+        where = source.relative_to(root)
+        if source.suffix == ".dart":
+            for match in INTERPOLATED_ANCHOR.finditer(expand(source.read_text())):
+                problems.append(
+                    f"{where}: {match.group(0)}: builds a link from something other "
+                    "than a top-level const string of this file, so it can't be checked"
+                )
         for link in links(source):
             url, _, anchor = link.partition("#")
+            if source.suffix == ".dart" and anchor:
+                anchored_in_lib += 1
             path = re.sub(r"^.*?galaxykhh\.github\.io/fuery/", "", url).split("?")[0].strip("/")
             if not path or path == "demo" or path.startswith("demo/"):
                 continue
             if "." in path.rsplit("/", 1)[-1]:
                 continue  # a file, such as an image, not a page
-            where = source.relative_to(root)
             page = find_page(path)
             if page is None:
                 problems.append(f"{where}: {link}: no page docs/src/content/docs/{path}.md")
@@ -101,13 +135,21 @@ def check(root: Path) -> list[str]:
                 problems.append(
                     f"{where}: {link}: no heading #{anchor} in {page.relative_to(root)}"
                 )
+    # The debug warnings link to headings of the troubleshooting page. Finding
+    # none means the check lost track of them, not that they're gone.
+    if not anchored_in_lib:
+        problems.append(
+            "packages/*/lib: found no docs link with an #anchor, though the debug "
+            "warnings link to headings. Write each link as string literals, or "
+            "build it from a top-level const string of the same file."
+        )
     return problems
 
 
 def main() -> int:
     problems = check(ROOT)
     if problems:
-        print("Links to the docs site that don't resolve:")
+        print("Links to the docs site that don't resolve or can't be checked:")
         for problem in problems:
             print(f"  {problem}")
         return 1

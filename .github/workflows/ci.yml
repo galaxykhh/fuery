@@ -32,6 +32,19 @@ jobs:
           flutter-version: ${{ matrix.version }}
           cache: true
       - run: flutter pub get
+      # publish.yml dry-runs every package before it uploads any, and a dry-run
+      # fails on pub's warnings too, such as a checked-in file that `flutter
+      # pub get` rewrote. Run them here, before the tests write anything, so a
+      # pull request finds that instead of the release tag.
+      - if: matrix.version == ''
+        run: dart pub publish --dry-run
+        working-directory: packages/fuery_core
+      - if: matrix.version == ''
+        run: flutter pub publish --dry-run
+        working-directory: packages/fuery
+      - if: matrix.version == ''
+        run: flutter pub publish --dry-run
+        working-directory: packages/fuery_hooks
       # The packages share one version and depend on each other at it. On a tag
       # push from publish.yml, the tag and the changelogs must match it too.
       - if: matrix.version == ''
