@@ -291,4 +291,12 @@ void main() {
     expect(used, same(client));
     await tearDownApp(tester);
   });
+
+  testWidgets("leaves Flutter's FocusManager to Flutter", (tester) async {
+    // Imported with material, FocusManager must still mean Flutter's class,
+    // the usual way to dismiss the keyboard.
+    await tester.pumpWidget(app(const SizedBox()));
+    expect(FocusManager.instance, same(WidgetsBinding.instance.focusManager));
+    await tearDownApp(tester);
+  });
 }
