@@ -530,7 +530,9 @@ final class QueriesSlot<TData extends Object>
       if (identical(result, _pushed)) return;
       _pushed = result;
       for (final listener in listeners) {
-        listener(result);
+        // A listener that throws is reported, so the others, such as a
+        // listen, still get the result.
+        _client._guardCallback(() => listener(result));
       }
     });
   }

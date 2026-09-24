@@ -1728,6 +1728,34 @@ void main() {
           uncaught.map((error) => (error as StateError).message), ['listener']);
       slot.dispose();
     });
+
+    fakeTest('a QueriesSlot listener that throws leaves the other listeners',
+        (async) {
+      // It used to stop the push, so a listen added later never heard the
+      // change, and the error reached the zone.
+      final post = Query(
+        queryKey: ['post'],
+        queryFn: (_) async => 'post',
+        staleTime: infiniteDuration,
+      );
+      client.setQueryData(['post'], 'post');
+      final slot = QueriesSlot([post], client);
+      slot.subscribe((_) => throw StateError('listener'));
+      final pushed = <String?>[];
+      slot.subscribe((results) => pushed.add(results.single.data));
+      final heard = <(String?, String?)>[];
+      slot.listen((previous, current) {
+        heard.add((previous.single.data, current.single.data));
+      });
+
+      client.setQueryData(['post'], 'edited');
+      async.flushMicrotasks();
+      expect(pushed, ['edited']);
+      expect(heard, [('post', 'edited')]);
+      expect(
+          uncaught.map((error) => (error as StateError).message), ['listener']);
+      slot.dispose();
+    });
   });
 
   fakeTest('a throwing listener leaves the rest of its batch notified',
