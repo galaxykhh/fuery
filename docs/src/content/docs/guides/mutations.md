@@ -32,7 +32,26 @@ MutationBuilder(
 
 `state.mutate` puts errors in the state and passes them to the callbacks. `await state.mutateAsync('Buy milk')` returns the data, and throws on error. `state.reset()` returns the state to idle.
 
-When the button and the state are in different places, or outside widgets, create one observer with `addTodo.observe()`, a `MutationObserver`, and call `mutate` on it. Keep it in a `State` field or a cubit, not in `build`, and pass it to the widgets that show its state.
+When the button and the state are in different places, or outside widgets, create one observer with `addTodo.observe()`, a `MutationObserver`, and call `mutate` on it. Keep it in a `State` field or a cubit, not in `build`, and pass it to the widgets that show its state:
+
+```dart
+class _AddTodoScreenState extends State<AddTodoScreen> {
+  final adding = addTodo.observe();
+
+  @override
+  void dispose() {
+    adding.reset();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AddTodoForm(onSubmit: adding.mutate);
+  }
+}
+```
+
+`reset()` in `dispose` drops the callbacks of the latest `mutate` call, which belong to this screen. The sections below pass `adding` to the widgets that show its state.
 
 ## MutationState fields
 
@@ -138,9 +157,11 @@ A mutation that waits for its turn in the scope reports `isPaused`, and so does 
 
 ## Showing mutation state
 
+A mutation's state belongs to the observer that runs it. A widget that only shows the state gets that observer, such as `adding` from [Running a mutation](#running-a-mutation). Given the definition, it would watch an observer of its own that nothing runs.
+
 ```dart
 MutationBuilder(
-  mutation: deleteTodo,
+  mutation: adding,
   builder: (context, state) =>
       state.isPending ? const LinearProgressIndicator() : const SizedBox(),
 )
@@ -150,7 +171,7 @@ Switch on `status` when a widget draws every branch:
 
 ```dart
 MutationBuilder(
-  mutation: addTodo,
+  mutation: adding,
   builder: (context, state) => switch (state.status) {
     MutationStatus.idle => const Text('Nothing added yet'),
     MutationStatus.pending => const CircularProgressIndicator(),
@@ -162,17 +183,19 @@ MutationBuilder(
 
 ## Telling the user a mutation failed
 
-A failed `mutate` puts the error in the state instead of throwing, so a screen shows it with a `MutationListener`:
+A failed `mutate` puts the error in the state instead of throwing, so a screen shows it with a `MutationListener`. A listener can't run the mutation, so pass it the observer that does:
 
 ```dart
 MutationListener(
-  mutation: deleteTodo,
+  mutation: adding,
   listenWhen: (previous, current) => current.isError,
   listener: (context, state) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: Text('Could not delete: ${state.error}'))),
-  child: const TodoListView(),
+      .showSnackBar(SnackBar(content: Text('Could not add: ${state.error}'))),
+  child: AddTodoForm(onSubmit: adding.mutate),
 )
 ```
+
+Given a definition, a `MutationListener` hears nothing, and in debug builds it prints a warning. See [A MutationListener never runs](../../troubleshooting/#a-mutationlistener-never-runs).
 
 Use `MutateOptions(onError: ...)` instead when only one call site shows the failure, and `mutateAsync` inside a `try`/`catch` when the caller handles it.
 

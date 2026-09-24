@@ -61,6 +61,23 @@ void debugWarnRecreated<S>(
   }());
 }
 
+/// Warns, in debug builds, when a widget that can't run a mutation got a
+/// [Mutation] definition. The widget then watches an observer of its own
+/// that nothing runs, so it never hears a change.
+void debugWarnMutationDefinition(String widgetName) {
+  assert(() {
+    if (!_warnedKeys.add('definition:$widgetName')) return true;
+    debugPrint(
+      '[fuery] $widgetName got a Mutation definition, so it watches an '
+      'observer of its own that nothing runs, and it never hears a change. '
+      'Create one observer with addTodo.observe() in a State field or a '
+      'cubit, and pass it both to this widget and to the widget that runs '
+      'it. See $_troubleshooting#a-mutationlistener-never-runs',
+    );
+    return true;
+  }());
+}
+
 /// Forgets which keys were warned about, for tests.
 @visibleForTesting
 void debugResetRecreatedWarnings() => _warnedKeys.clear();

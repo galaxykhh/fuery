@@ -832,6 +832,87 @@ void main() {
         await tearDownApp(tester);
       });
     });
+
+    Mutation<String, String, Object?> addTodo() => Mutation(
+          mutationFn: (String title) async => title,
+        );
+
+    testWidgets('a MutationListener warns once when it gets a definition',
+        (tester) async {
+      await withWarnings((messages) async {
+        final rebuild = ValueNotifier(0);
+        await pumpApp(
+          tester,
+          ValueListenableBuilder(
+            valueListenable: rebuild,
+            builder: (context, _, __) => MutationListener(
+              mutation: addTodo(),
+              listener: (context, state) {},
+              child: const SizedBox(),
+            ),
+          ),
+        );
+        rebuild.value++;
+        await tester.pump();
+
+        expect(messages, hasLength(1));
+        expect(
+          messages.single,
+          startsWith('[fuery] MutationListener got a Mutation definition'),
+        );
+        expect(messages.single, contains('#a-mutationlistener-never-runs'));
+        await tearDownApp(tester);
+      });
+    });
+
+    testWidgets(
+        'a shared observer, or a definition for a widget that can run it, '
+        'is silent', (tester) async {
+      await withWarnings((messages) async {
+        final adding = addTodo().observe(client: client);
+        final heard = <String>[];
+        await pumpApp(
+          tester,
+          Column(
+            children: [
+              // One observer: the button runs it, and the listener hears it.
+              MutationListener(
+                mutation: adding,
+                listenWhen: (previous, current) => current.isSuccess,
+                listener: (context, state) => heard.add(state.data!),
+                child: MutationBuilder(
+                  mutation: adding,
+                  builder: (context, state) => TextButton(
+                    onPressed: () => state.mutate('milk'),
+                    child: const Text('add'),
+                  ),
+                ),
+              ),
+              MutationBuilder(
+                mutation: addTodo(),
+                builder: (context, state) => const SizedBox(),
+              ),
+              MutationConsumer(
+                mutation: addTodo(),
+                listener: (context, state) {},
+                builder: (context, state) => const SizedBox(),
+              ),
+              MutationSelector(
+                mutation: addTodo(),
+                selector: (state) => state.isPending,
+                builder: (context, pending) => const SizedBox(),
+              ),
+            ],
+          ),
+        );
+        await tester.tap(find.text('add'));
+        await tester.pump();
+
+        expect(heard, ['milk']);
+        expect(messages, isEmpty);
+        await tearDownApp(tester);
+      });
+    });
   });
 
   group('FueryProvider', () {

@@ -54,9 +54,15 @@ class MutationBuilder<TData, TVariables, TContext> extends StatelessWidget {
 /// Runs side effects when a mutation changes. Not called for the state the
 /// mutation already had when the listener mounted.
 ///
+/// A mutation's state belongs to the observer that runs it, and a listener
+/// can't run one, so it hears only the runs of the observer it gets. Create
+/// that observer once with `observe()`, in a `State` field or a cubit, and
+/// pass it both here and to the widget that runs it. In debug builds, a
+/// [Mutation] definition prints a warning.
+///
 /// ```dart
 /// MutationListener(
-///   mutation: addTodo,
+///   mutation: adding, // addTodo.observe(), kept in a State field
 ///   listenWhen: (previous, current) => current.isSuccess,
 ///   listener: (context, state) => Navigator.pop(context),
 ///   child: ...,
@@ -80,6 +86,8 @@ class MutationListener<TData, TVariables, TContext> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A listener can't run the mutation, so a definition is never run.
+    if (mutation is Mutation) debugWarnMutationDefinition('MutationListener');
     return ResultSubscriber<_Source<TData, TVariables, TContext>,
         _Result<TData, TVariables, TContext>>(
       source: mutation,
@@ -132,12 +140,16 @@ class MutationConsumer<TData, TVariables, TContext> extends StatelessWidget {
 /// Builds UI from a value selected from a mutation's state, and rebuilds only
 /// when that value changes.
 ///
+/// A mutation's state belongs to the observer that runs it. Unless the
+/// builder runs the mutation itself, pass the observer that runs it,
+/// created once with `observe()`, rather than a definition.
+///
 /// ```dart
 /// MutationSelector(
-///   mutation: addTodo,
+///   mutation: adding, // addTodo.observe(), kept in a State field
 ///   selector: (state) => state.isPending,
 ///   builder: (context, saving) => FilledButton(
-///     onPressed: saving ? null : save,
+///     onPressed: saving ? null : () => adding.mutate(title),
 ///     child: const Text('Save'),
 ///   ),
 /// )

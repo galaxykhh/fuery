@@ -156,6 +156,36 @@ onSuccess: (post, _, __, client) {
 
 See [what the callbacks return](../guides/mutations/#callbacks).
 
+## A MutationListener never runs
+
+A mutation's state belongs to the observer that runs it. A `MutationListener` given a definition, as in `MutationListener(mutation: addTodo)`, creates an observer of its own, and nothing runs that one. A `MutationBuilder` or `MutationSelector` that only shows the state has the same problem: it stays idle while the button's mutation runs.
+
+Create one observer, and pass it both to the widget that runs it and to the one that listens:
+
+```dart
+class _AddTodoScreenState extends State<AddTodoScreen> {
+  final adding = addTodo.observe();
+
+  @override
+  void dispose() {
+    adding.reset();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MutationListener(
+      mutation: adding,
+      listenWhen: (previous, current) => current.isSuccess,
+      listener: (context, state) => Navigator.pop(context),
+      child: AddTodoForm(onSubmit: adding.mutate),
+    );
+  }
+}
+```
+
+A builder, consumer, or selector that runs the mutation itself, with `state.mutate`, can take the definition. In debug builds, a `MutationListener` given a definition prints a warning to the console, once, with a link here.
+
 ## The devtools button covers part of the app
 
 `FueryDevtools` puts its button in the bottom right corner, over a navigation bar or a floating action button that lives there. Move it with `buttonAlignment`:

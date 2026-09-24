@@ -28,6 +28,8 @@ QueryBuilder(
 
 A widget can also take an observer you created with `observe()`, to share one handle between widgets. The widget then uses it as it is.
 
+A mutation's state belongs to the observer that runs it. A `MutationListener`, or a `MutationSelector` whose builder doesn't run the mutation, therefore needs the observer the button runs, not the definition. See [Organizing mutations](../organizing-queries/#organizing-mutations).
+
 ## When builders and listeners run
 
 - `buildWhen(previous, current)` compares with the last built result.
@@ -63,13 +65,13 @@ QuerySelector(
 - The selector runs again when the parent rebuilds, so it can use values from the parent.
 - Use `buildWhen` when the builder needs the whole result, and a selector when it needs one value derived from it.
 
-The same works for a mutation:
+The same works for a mutation. This one shows the state of the observer that the save button runs:
 
 ```dart
 MutationSelector(
-  mutation: saveTodo,
+  mutation: saving, // saveTodo.observe(), kept in a State field
   selector: (state) => state.isPending,
-  builder: (context, saving) => Text(saving ? 'Saving…' : 'Saved'),
+  builder: (context, pending) => Text(pending ? 'Saving…' : 'Saved'),
 )
 ```
 
@@ -87,14 +89,18 @@ QueryListener(
 )
 ```
 
+A mutation listener hears the runs of the observer it gets, so give it the observer the form runs:
+
 ```dart
 MutationListener(
-  mutation: addTodo,
+  mutation: adding, // addTodo.observe(), kept in a State field
   listenWhen: (previous, current) => current.isSuccess,
   listener: (context, state) => Navigator.pop(context),
-  child: const AddTodoForm(),
+  child: AddTodoForm(adding: adding),
 )
 ```
+
+Given a definition, a `MutationListener` watches an observer of its own that nothing runs, and in debug builds it prints a warning.
 
 ## Pull to refresh
 
