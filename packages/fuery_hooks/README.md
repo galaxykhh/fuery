@@ -79,12 +79,25 @@ ElevatedButton(
 )
 ```
 
-For a side effect of one call, such as a snackbar, pass `MutateOptions` to `mutate`. The callbacks of a call are dropped when the widget goes away, and the request itself still finishes.
+A `NoVariablesMutation` runs with `mutate(null)`, as from a `MutationBuilder`:
+
+```dart
+final logout = useMutation(logoutMutation);
+
+TextButton(
+  onPressed: () => logout.mutate(null),
+  child: const Text('Log out'),
+)
+```
+
+For a side effect of one call, such as a snackbar, pass `MutateOptions` to `mutate`. The request itself still finishes when the widget goes away. For a definition, the callbacks of its calls are dropped then. A shared observer is left alone and still runs them, so check `context.mounted` in them.
 
 ## Rules
 
 - **Pass a definition.** A `Query` or a `Mutation` can be a top-level value or be built in `build`: the hook keeps one observer for it and updates its options, so a new key shows in the same frame.
-- **Don't call `.observe()` in `build`.** A new observer every build subscribes and fetches again. In debug builds the hook prints a warning once per key.
-- **The client** is the one a `FueryProvider` above provides, or `Fuery.client`.
+- **Don't call `.observe()` in `build`.** A new query observer every build subscribes and fetches again, and a new mutation observer starts idle. In debug builds the hook prints a warning once per key.
+- **Run side effects in a listener.** For a snackbar or navigation, wrap what the widget builds in a `QueryListener` with the same query. `useEffect` and `useValueChanged` run during the build, where those calls fail.
+- **Watch the client with a memoized stream**: `useStream(useMemoized(() => client.watch(selector), [client]))`. A new stream every build rebuilds the widget on every frame.
+- **The client** is the one a `FueryProvider` above provides, or `Fuery.client`, and `useQueryClient()` returns it. A shared observer keeps the client it was created with instead.
 
 Everything else, from keys and freshness to persistence and devtools, is Fuery's. See the [documentation](https://galaxykhh.github.io/fuery/).

@@ -139,7 +139,7 @@ final logout = NoVariablesMutation(
 TextButton(onPressed: logout.mutate, child: const Text('Log out'))
 ```
 
-Its callbacks drop the variables argument as well: `onMutate(client)`, `onSuccess(data, context, client)`, `onError(error, context, client)`, and `onSettled(data, error, context, client)`. From a `MutationBuilder`, where the state is typed like any mutation's, call `state.mutate(null)`.
+Its callbacks drop the variables argument as well: `onMutate(client)`, `onSuccess(data, context, client)`, `onError(error, context, client)`, and `onSettled(data, error, context, client)`. From a `MutationBuilder` or `useMutation`, where the result is typed like any mutation's, call `mutate(null)`.
 
 Empty the cache once the app has left the screens that were using it. [Clearing everything at logout](../query-client/#clearing-everything-at-logout) explains why the order matters.
 

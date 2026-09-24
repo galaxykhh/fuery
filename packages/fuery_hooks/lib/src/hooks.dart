@@ -54,8 +54,10 @@ InfiniteQueryResult<TPage, TParam> useInfiniteQuery<TPage, TParam>(
 /// Run it with `mutate` on the result.
 ///
 /// [mutation] is a [Mutation] definition, or an observer that is already
-/// shared. When the widget goes away, the runs it started finish, and the
-/// callbacks passed to their `mutate` calls are dropped.
+/// shared. For a definition, when the widget goes away the runs it started
+/// finish, and the callbacks passed to their `mutate` calls are dropped. A
+/// shared observer is left alone and still runs them, so check
+/// `context.mounted` in them, or call `reset()` where the observer is owned.
 ///
 /// ```dart
 /// final addTodo = useMutation(addTodoMutation);
@@ -64,6 +66,8 @@ InfiniteQueryResult<TPage, TParam> useInfiniteQuery<TPage, TParam>(
 ///   child: const Text('Add'),
 /// );
 /// ```
+///
+/// A [NoVariablesMutation] runs with `mutate(null)`.
 MutationResult<TData, TVariables, TContext>
     useMutation<TData, TVariables, TContext>(
   MutationSource<TData, TVariables, TContext> mutation,
@@ -301,8 +305,8 @@ void _debugWarnOtherClient(
         "observer reads and writes its own client's cache, so it and the "
         "other hooks and widgets of this screen don't see each other's "
         'changes. Pass the definition, as in ${_definitionExample(hookName)}, '
-        'or create the observer with observe(client: useQueryClient()). See '
-        '$_troubleshooting#a-screen-reads-another-clients-cache',
+        'or create the observer with the client useQueryClient() returns. '
+        'See $_troubleshooting#a-screen-reads-another-clients-cache',
       );
     }
     return true;

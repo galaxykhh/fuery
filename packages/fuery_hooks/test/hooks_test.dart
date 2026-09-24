@@ -391,6 +391,75 @@ void main() {
       expect(events, isEmpty);
       await tearDownApp(tester);
     });
+
+    testWidgets('leaves the callbacks of a shared observer to run',
+        (tester) async {
+      final events = <String>[];
+      final shared = NoVariablesMutation(
+        mutationFn: () => Future<void>.delayed(ms10),
+      ).observe(client: client);
+      await tester.pumpWidget(
+        app(
+          HookBuilder(builder: (_) {
+            final run = useMutation(shared);
+            return TextButton(
+              onPressed: () => run.mutate(
+                null,
+                MutateOptions(onSuccess: (_, __, ___, ____) {
+                  events.add('success');
+                }),
+              ),
+              child: const Text('sync'),
+            );
+          }),
+        ),
+      );
+      await tester.tap(find.byType(TextButton));
+      await tester.pump();
+      await tester.pumpWidget(app(const SizedBox()));
+      await tester.pump(ms10);
+      expect(events, ['success']);
+      shared.reset();
+      await tearDownApp(tester);
+    });
+  });
+
+  testWidgets('a memoized watch stream rebuilds only when its value changes',
+      (tester) async {
+    var builds = 0;
+    final seen = <bool?>[];
+    await tester.pumpWidget(
+      app(HookBuilder(builder: (_) {
+        builds++;
+        // As the hooks guide shows it.
+        final client = useQueryClient();
+        final fetching = useStream(
+          useMemoized(
+            () => client.watch((client) => client.isFetching() > 0),
+            [client],
+          ),
+        );
+        seen.add(fetching.data);
+        return const SizedBox();
+      })),
+    );
+    for (var frame = 0; frame < 10; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    // The first build, then the first value.
+    expect(builds, 2);
+    expect(seen, [null, false]);
+
+    // The stream delivers the change in a microtask, and the next frame
+    // shows it.
+    final done = client.query(post(1));
+    await tester.pump();
+    await tester.pump();
+    expect(seen.last, isTrue);
+    await tester.pump(ms10);
+    expect(seen.last, isFalse);
+    expect(await done, 'post 1');
+    await tearDownApp(tester);
   });
 
   testWidgets('useQueries gives the results in order, and follows the list',
@@ -487,7 +556,7 @@ void main() {
         allOf(
           contains('useQuery $warning'),
           contains('useQuery(todosQuery)'),
-          contains('observe(client: useQueryClient())'),
+          contains('the client useQueryClient() returns'),
           contains('#a-screen-reads-another-clients-cache'),
         ),
         allOf(

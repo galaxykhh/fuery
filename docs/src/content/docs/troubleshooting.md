@@ -78,7 +78,7 @@ Create the observer with the client the widgets use:
 late final adding = addTodo.observe(client: context.queryClient);
 ```
 
-Or pass the definition, and the widget observes it with its own client. `observer.client` returns the client an observer uses. In debug builds, a Fuery widget or hook that gets an observer of another client than its own prints a warning to the console, once per observer, with a link here.
+Or pass the definition, and the widget observes it with its own client. In a `HookWidget`, `useQueryClient()` returns the client the hooks use. `observer.client` returns the client an observer uses. In debug builds, a Fuery widget or hook that gets an observer of another client than its own prints a warning to the console, once per observer, with a link here.
 
 ## A test hangs on await subscription.cancel()
 
