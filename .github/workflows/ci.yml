@@ -32,6 +32,10 @@ jobs:
           flutter-version: ${{ matrix.version }}
           cache: true
       - run: flutter pub get
+      # The packages share one version and depend on each other at it. On a tag
+      # push from publish.yml, the tag and the changelogs must match it too.
+      - if: matrix.version == ''
+        run: python3 tool/check_versions.py
       # Formatting can differ between Dart versions; check it on the latest.
       - if: matrix.version == ''
         run: dart format --output=none --set-exit-if-changed packages
