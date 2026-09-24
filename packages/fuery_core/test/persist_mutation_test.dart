@@ -97,6 +97,23 @@ class _SlowWriteStorage implements QueryStorage {
   Map<String, String> readAll() => inner.readAll();
 }
 
+/// Deletes stored data through [onReadAll] whenever `readAll` is called,
+/// like an app that keeps removing queries.
+class _DeletingStorage extends MemoryStorage {
+  void Function()? onReadAll;
+  var _reading = false;
+
+  @override
+  Map<String, String> readAll() {
+    if (!_reading) {
+      _reading = true;
+      onReadAll?.call();
+      _reading = false;
+    }
+    return super.readAll();
+  }
+}
+
 void main() {
   late MemoryStorage storage;
   late QueryClient client;
@@ -522,6 +539,65 @@ void main() {
       async.elapse(const Duration(milliseconds: 100));
       expect(mutator.calls, ['once']);
       expect(memory.entries, isEmpty);
+    });
+
+    fakeTest('restore reads again when a query deletes its entry meanwhile',
+        (async) {
+      final run = storedEntry('stored');
+      storage.entries[run.key] = run.value;
+      storage.entries[storageKey(['old'])] =
+          entry(['old'], age: const Duration(days: 2));
+      client.unmount();
+      client = QueryClient(storage: AsyncStorage(storage))..mount();
+      final mutator = FakeMutator();
+
+      client.restore(mutations: [commentOptions(mutator)]);
+      // A first frame reads its query, which deletes its expired entry.
+      final unsubscribe = Query(
+        queryKey: ['old'],
+        queryFn: FakeFetcher(() => ['new']).call,
+        persist: todosPersist,
+      ).observe(client: client).subscribe((_) {});
+      async.elapse(const Duration(milliseconds: 100));
+
+      expect(mutator.calls, ['stored']);
+      expect(storedMutations(), isEmpty);
+      unsubscribe();
+    });
+
+    fakeTest('restore does not run a mutation that settles while it reads',
+        (async) {
+      client.unmount();
+      client = QueryClient(storage: AsyncStorage(storage))..mount();
+      final mutator = FakeMutator(delay: const Duration(milliseconds: 15));
+      final options = commentOptions(mutator);
+      options.observe(client: client).mutate('once');
+      async.elapse(const Duration(milliseconds: 12));
+
+      // Its delete starts at 15 ms, while restore reads until 22 ms.
+      client.restore(mutations: [options]);
+      async.elapse(const Duration(milliseconds: 100));
+      expect(mutator.calls, ['once']);
+      expect(storedMutations(), isEmpty);
+    });
+
+    fakeTest('restore gives up on an app that deletes during every read',
+        (async) {
+      final deleting = _DeletingStorage();
+      final run = storedEntry('kept');
+      deleting.entries[run.key] = run.value;
+      client.unmount();
+      client = QueryClient(storage: deleting)..mount();
+      deleting.onReadAll = () => client.removeQueries(queryKey: ['old']);
+      final mutator = FakeMutator();
+
+      var restored = false;
+      client.restore(
+          mutations: [commentOptions(mutator)]).then((_) => restored = true);
+      async.elapse(ms10);
+      expect(restored, isTrue);
+      expect(mutator.calls, isEmpty);
+      expect(deleting.entries.keys, [run.key]);
     });
 
     fakeTest('restore reads an asynchronous storage', (async) {
