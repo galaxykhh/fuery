@@ -36,6 +36,10 @@ DebugRecreatedKey<S> debugSameKey<S>(String? Function(S source) key) {
   };
 }
 
+/// The [DebugRecreatedKey] of a source that never holds an observer, such
+/// as a [MutationStateSource]: never a key.
+String? debugNoRecreatedKey(Object? previous, Object? current) => null;
+
 /// Warns, in debug builds, when a widget got a new observer for the same key
 /// on a rebuild. That is what `todosQuery.observe()` in `build` looks like:
 /// each new query observer subscribes and refetches again, and each new
@@ -84,9 +88,12 @@ void debugWarnMutationDefinition(String widgetName) {
     debugPrint(
       '[fuery] $widgetName got a Mutation definition, so it watches an '
       'observer of its own that nothing runs, and it never hears a change. '
-      'Create one observer with addTodo.observe() in a State field or a '
-      'cubit, and pass it both to this widget and to the widget that runs '
-      'it. See $_troubleshooting#a-mutationlistener-never-runs',
+      'To hear every run of the mutation, give it a mutationKey and use '
+      'MutationStateListener(mutation: addTodo, ...). For one call, pass '
+      "MutateOptions to mutate. To hear only one observer's runs, create it "
+      'with addTodo.observe() in a State field or a cubit and pass it here '
+      'and to the widget that runs it. See $_troubleshooting'
+      '#a-mutationlistener-never-runs',
     );
     return true;
   }());
@@ -178,12 +185,7 @@ mixin _SlotHost<S, R, W extends StatefulWidget> on State<W> {
       debugWarnOtherClient(_debugName, _source, client);
       _onAttached(created.result);
       _onCreated(created);
-      // Results arrive in a microtask, never during build or initState.
-      _unsubscribe = created.subscribe(
-        notifyManager.batchCalls((R result) {
-          if (mounted) _onResult(result);
-        }),
-      );
+      _unsubscribe = _subscribeTo(created);
     } else if (!identical(client, _client)) {
       _update();
     }
@@ -230,8 +232,24 @@ mixin _SlotHost<S, R, W extends StatefulWidget> on State<W> {
   /// The slot was created, before the widget subscribes to it.
   void _onCreated(ObserverSlot<S, R> slot) {}
 
+  /// Subscribes to the new [slot], and returns the function that stops it.
+  void Function() _subscribeTo(ObserverSlot<S, R> slot);
+
   /// The same observer has [result] after an update, before this build.
   void _onUpdated(R result);
+}
+
+/// A [_SlotHost] that hears each new result of its slot, to rebuild.
+mixin _ResultHost<S, R, W extends StatefulWidget> on _SlotHost<S, R, W> {
+  @override
+  void Function() _subscribeTo(ObserverSlot<S, R> slot) {
+    // Results arrive in a microtask, never during build or initState.
+    return slot.subscribe(
+      notifyManager.batchCalls((R result) {
+        if (mounted) _onResult(result);
+      }),
+    );
+  }
 
   /// A result arrived after the last build.
   void _onResult(R result);
@@ -275,7 +293,9 @@ class ResultSubscriber<S, R> extends StatefulWidget {
 }
 
 class _ResultSubscriberState<S, R> extends State<ResultSubscriber<S, R>>
-    with _SlotHost<S, R, ResultSubscriber<S, R>> {
+    with
+        _SlotHost<S, R, ResultSubscriber<S, R>>,
+        _ResultHost<S, R, ResultSubscriber<S, R>> {
   late R _built;
   void Function()? _stopListening;
 
@@ -377,7 +397,9 @@ class ResultSelector<S, R, T> extends StatefulWidget {
 }
 
 class _ResultSelectorState<S, R, T> extends State<ResultSelector<S, R, T>>
-    with _SlotHost<S, R, ResultSelector<S, R, T>> {
+    with
+        _SlotHost<S, R, ResultSelector<S, R, T>>,
+        _ResultHost<S, R, ResultSelector<S, R, T>> {
   late T _value;
 
   @override
@@ -422,4 +444,91 @@ class _ResultSelectorState<S, R, T> extends State<ResultSelector<S, R, T>>
 
   @override
   Widget build(BuildContext context) => widget.builder(context, _value);
+}
+
+typedef _Runs<TData, TVariables, TContext>
+    = List<MutationState<TData, TVariables, TContext>>;
+
+/// Calls [listener] for each later change of each run that [source] finds,
+/// through [MutationStateSlot.subscribeToRuns], and builds [child]. It never
+/// rebuilds.
+///
+/// [listenWhen] compares the state that run had before with its new state.
+class MutationRunListener<TData, TVariables, TContext> extends StatefulWidget {
+  const MutationRunListener({
+    super.key,
+    required this.source,
+    required this.listener,
+    this.listenWhen,
+    required this.child,
+    required this.debugName,
+  });
+
+  final MutationStateSource<TData, TVariables, TContext> source;
+  final ResultWidgetListener<MutationState<TData, TVariables, TContext>>
+      listener;
+  final ResultCondition<MutationState<TData, TVariables, TContext>>? listenWhen;
+  final Widget child;
+
+  /// See [ResultSubscriber.debugName].
+  final String debugName;
+
+  @override
+  State<MutationRunListener<TData, TVariables, TContext>> createState() =>
+      _MutationRunListenerState<TData, TVariables, TContext>();
+}
+
+class _MutationRunListenerState<TData, TVariables, TContext>
+    extends State<MutationRunListener<TData, TVariables, TContext>>
+    with
+        _SlotHost<
+            MutationStateSource<TData, TVariables, TContext>,
+            _Runs<TData, TVariables, TContext>,
+            MutationRunListener<TData, TVariables, TContext>> {
+  @override
+  MutationStateSource<TData, TVariables, TContext> get _source => widget.source;
+
+  @override
+  SlotFactory<MutationStateSource<TData, TVariables, TContext>,
+          _Runs<TData, TVariables, TContext>>
+      get _createSlot => MutationStateSlot<TData, TVariables, TContext>.new;
+
+  @override
+  DebugRecreatedKey<MutationStateSource<TData, TVariables, TContext>>
+      get _debugKey => debugNoRecreatedKey;
+
+  @override
+  String get _debugName => widget.debugName;
+
+  @override
+  void didUpdateWidget(
+    MutationRunListener<TData, TVariables, TContext> oldWidget,
+  ) {
+    super.didUpdateWidget(oldWidget);
+    _didUpdateSource(oldWidget.source);
+  }
+
+  // The core keeps what each run was before, so the list isn't needed.
+  @override
+  void _onAttached(_Runs<TData, TVariables, TContext> result) {}
+
+  @override
+  void _onUpdated(_Runs<TData, TVariables, TContext> result) {}
+
+  @override
+  void Function() _subscribeTo(
+    ObserverSlot<MutationStateSource<TData, TVariables, TContext>,
+            _Runs<TData, TVariables, TContext>>
+        slot,
+  ) {
+    final runs = slot as MutationStateSlot<TData, TVariables, TContext>;
+    return runs.subscribeToRuns((previous, current) {
+      if (widget.listenWhen?.call(previous, current) ?? true) {
+        widget.listener(context, current);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

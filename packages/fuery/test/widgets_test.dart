@@ -989,6 +989,16 @@ void main() {
           messages.single,
           startsWith('[fuery] MutationListener got a Mutation definition'),
         );
+        // The ways to hear runs: every run by key, one call, one observer.
+        expect(
+          messages.single,
+          allOf(
+            contains('give it a mutationKey and use '
+                'MutationStateListener(mutation: addTodo, ...)'),
+            contains('pass MutateOptions to mutate'),
+            contains('addTodo.observe() in a State field or a cubit'),
+          ),
+        );
         expect(messages.single, contains('#a-mutationlistener-never-runs'));
         await tearDownApp(tester);
       });
