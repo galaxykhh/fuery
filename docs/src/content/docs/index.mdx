@@ -76,11 +76,12 @@ QueryBuilder(
 </CardGrid>
 
 <p style="margin-top: 3rem;">
-	<strong>Tested.</strong> Every package has 100% line coverage, enforced in CI on the
-	oldest supported Flutter and the latest. The core's tests run under fake time, and a
-	regression suite keeps fixed edge cases fixed. Every timer is cancelled on its destroy
-	path and time comes from <code>package:clock</code>, so your own <code>fake_async</code>
-	and widget tests don't leak timers. See <a href="guides/testing/">Testing</a>.
+	<strong>Tested.</strong> Every package has 100% line coverage, and CI fails when a
+	line loses it. The tests run on the oldest supported Flutter (3.27) and the latest.
+	The core's tests run under fake time, and a regression suite keeps fixed edge cases
+	fixed. Every timer is cancelled on its destroy path and time comes from
+	<code>package:clock</code>, so your own <code>fake_async</code> and widget tests
+	don't leak timers. See <a href="guides/testing/">Testing</a>.
 </p>
 
 <p style="font-size: var(--sl-text-sm); color: var(--sl-color-gray-3);">
