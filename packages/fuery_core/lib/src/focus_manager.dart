@@ -7,11 +7,12 @@ typedef FocusSetup = void Function()? Function(
   void Function([bool? focused]) setFocused,
 );
 
-/// Tracks whether the app is focused (in the foreground).
+/// Tracks whether the app is focused (in the foreground). This is the app's
+/// focus, not keyboard focus, which Flutter's `FocusManager` tracks.
 ///
 /// Pure Dart has no notion of focus, so the app is considered focused unless
 /// told otherwise. The Flutter binding connects this to the app lifecycle.
-class FocusManager extends Subscribable<bool> {
+class FueryFocusManager extends Subscribable<bool> {
   bool? _focused;
   void Function()? _cleanup;
   FocusSetup _setup = (_) => null;
@@ -61,4 +62,8 @@ class FocusManager extends Subscribable<bool> {
   bool get isFocused => _focused ?? true;
 }
 
-final FocusManager focusManager = FocusManager();
+/// The former name of [FueryFocusManager].
+@Deprecated('Use FueryFocusManager.')
+typedef FocusManager = FueryFocusManager;
+
+final FueryFocusManager focusManager = FueryFocusManager();

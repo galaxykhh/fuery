@@ -750,9 +750,10 @@ void main() {
 
   testWidgets("leaves Flutter's FocusManager to Flutter", (tester) async {
     // Imported with material, FocusManager must still mean Flutter's class,
-    // the usual way to dismiss the keyboard.
+    // the usual way to dismiss the keyboard. Fuery's class keeps its own name.
     await tester.pumpWidget(app(const SizedBox()));
     expect(FocusManager.instance, same(WidgetsBinding.instance.focusManager));
+    expect(focusManager, isA<FueryFocusManager>());
     await tearDownApp(tester);
   });
 }

@@ -6,12 +6,20 @@ typedef InfiniteQueryFn<TPage, TParam> = Future<TPage> Function(
 
 /// Returns the param for the page after `data.lastPage`, or `null` if there is
 /// no next page.
+@Deprecated(
+  'Nothing takes this type. Write the function inline: InfiniteQuery takes '
+  'Object? Function(InfiniteData<TPage, TParam> data).',
+)
 typedef GetNextPageParam<TPage, TParam> = TParam? Function(
   InfiniteData<TPage, TParam> data,
 );
 
 /// Returns the param for the page before `data.firstPage`, or `null` if there
 /// is no previous page.
+@Deprecated(
+  'Nothing takes this type. Write the function inline: InfiniteQuery takes '
+  'Object? Function(InfiniteData<TPage, TParam> data).',
+)
 typedef GetPreviousPageParam<TPage, TParam> = TParam? Function(
   InfiniteData<TPage, TParam> data,
 );
