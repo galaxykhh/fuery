@@ -53,8 +53,8 @@ jobs:
         working-directory: packages/fuery
       - run: flutter pub publish --dry-run
         working-directory: packages/fuery_hooks
-      # fuery depends on fuery_core, so publish the core first. A re-run skips
-      # a version that is already on pub.dev.
+      # fuery depends on fuery_core, and fuery_hooks on fuery, so publish them
+      # in that order. A re-run skips a version that is already on pub.dev.
       - name: Publish fuery_core
         run: |
           if curl -sfo /dev/null "https://pub.dev/api/packages/fuery_core/versions/${GITHUB_REF_NAME#v}"; then
@@ -71,6 +71,14 @@ jobs:
             flutter pub publish --force
           fi
         working-directory: packages/fuery
+      - name: Publish fuery_hooks
+        run: |
+          if curl -sfo /dev/null "https://pub.dev/api/packages/fuery_hooks/versions/${GITHUB_REF_NAME#v}"; then
+            echo "fuery_hooks ${GITHUB_REF_NAME#v} is already on pub.dev."
+          else
+            flutter pub publish --force
+          fi
+        working-directory: packages/fuery_hooks
 
   release:
     needs: publish
