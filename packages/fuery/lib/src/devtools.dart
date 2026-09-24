@@ -33,7 +33,7 @@ class FueryDevtools extends StatefulWidget {
     required this.child,
     this.client,
     this.enabled = !kReleaseMode,
-    this.buttonAlignment = Alignment.bottomRight,
+    this.buttonAlignment = Alignment.centerRight,
     this.initiallyOpen = false,
   });
 
@@ -45,7 +45,8 @@ class FueryDevtools extends StatefulWidget {
   /// Whether to show the devtools. Defaults to false in release builds.
   final bool enabled;
 
-  /// Where the button sits.
+  /// Where the button sits. Defaults to halfway down the right edge, clear of
+  /// the app bar, a floating action button, and a bottom navigation bar.
   final Alignment buttonAlignment;
 
   /// Whether the panel starts open.

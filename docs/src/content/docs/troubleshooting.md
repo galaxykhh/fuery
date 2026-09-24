@@ -148,11 +148,11 @@ See [what the callbacks return](../guides/mutations/#callbacks).
 
 ## The devtools button covers part of the app
 
-`FueryDevtools` puts its button in the bottom right corner, over a navigation bar or a floating action button that lives there. Move it with `buttonAlignment`:
+`FueryDevtools` puts its button halfway down the right edge, over any content there. Move it with `buttonAlignment`:
 
 ```dart
 FueryDevtools(
-  buttonAlignment: Alignment.centerRight,
+  buttonAlignment: Alignment.centerLeft,
   child: child!,
 )
 ```

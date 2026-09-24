@@ -110,6 +110,30 @@ void main() {
     await tearDownApp(tester);
   });
 
+  testWidgets('leaves a floating action button uncovered by default',
+      (tester) async {
+    var pressed = 0;
+    await tester.pumpWidget(
+      FueryProvider(
+        client: client,
+        child: MaterialApp(
+          builder: (context, child) => FueryDevtools(child: child!),
+          home: Scaffold(
+            floatingActionButton: FloatingActionButton(
+              onPressed: () => pressed++,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pump();
+    expect(pressed, 1);
+    expect(openButton(), findsOneWidget);
+    await tearDownApp(tester);
+  });
+
   testWidgets('turning it off keeps the app state', (tester) async {
     final enabled = ValueNotifier(true);
     await tester.pumpWidget(
