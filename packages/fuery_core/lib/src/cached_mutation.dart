@@ -158,10 +158,10 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
       return data;
     } catch (error, stackTrace) {
       // Errors thrown by the error callbacks must not hide the mutation error.
-      await _guard(
+      await _client._guardAsyncCallback(
         () => cacheConfig.onError?.call(error, variables, _state.context, this),
       );
-      await _guard(
+      await _client._guardAsyncCallback(
         () => _options.onError?.call(
           error,
           variables,
@@ -169,7 +169,7 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
           _client,
         ),
       );
-      await _guard(
+      await _client._guardAsyncCallback(
         () => cacheConfig.onSettled?.call(
           null,
           error,
@@ -178,7 +178,7 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
           this,
         ),
       );
-      await _guard(
+      await _client._guardAsyncCallback(
         () => _options.onSettled?.call(
           null,
           error,
@@ -217,7 +217,7 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
     } catch (error, stackTrace) {
       // A key that can't be hashed can't be restored either. Report it
       // rather than lose the run without a word; the run itself goes on.
-      _reportUnstorableKey(mutationKey, error, stackTrace);
+      _client._reportOnce('mutationKey $mutationKey', error, stackTrace);
       return;
     }
     final key = '$_mutationKeyPrefix${_state.submittedAt}:$mutationId';
@@ -306,22 +306,4 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
 
   @override
   String toString() => 'CachedMutation($mutationId, ${_state.status.name})';
-}
-
-/// Mutation keys reported as ones that can't be stored, by their toString(),
-/// so each is reported once rather than on every run.
-final Set<String> _unstorableKeys = {};
-
-void _reportUnstorableKey(QueryKey key, Object error, StackTrace stackTrace) {
-  if (_unstorableKeys.add(key.toString())) {
-    Zone.current.handleUncaughtError(error, stackTrace);
-  }
-}
-
-Future<void> _guard(FutureOr<void> Function() callback) async {
-  try {
-    await callback();
-  } catch (error, stackTrace) {
-    Zone.current.handleUncaughtError(error, stackTrace);
-  }
 }

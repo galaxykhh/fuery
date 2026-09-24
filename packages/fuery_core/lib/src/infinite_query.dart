@@ -88,8 +88,8 @@ class _InfiniteQueryBehavior<TPage, TParam>
 
   final InfiniteQueryFn<TPage, TParam> queryFn;
   final TParam initialPageParam;
-  final GetNextPageParam<TPage, TParam> getNextPageParam;
-  final GetPreviousPageParam<TPage, TParam>? getPreviousPageParam;
+  final _PageParamCheck<TPage, TParam> getNextPageParam;
+  final _PageParamCheck<TPage, TParam>? getPreviousPageParam;
 
   /// Keep at most this many pages. Older pages are dropped from the other end.
   final int? maxPages;
@@ -155,7 +155,9 @@ class _InfiniteQueryBehavior<TPage, TParam>
           pages: oldPages,
           pageParams: oldPageParams,
         );
-        final param = previous ? _previousParam(oldData) : _nextParam(oldData);
+        final param = previous
+            ? _previousParam(oldData, query._client)
+            : _nextParam(oldData, query._client);
         return fetchPage(oldData, param, previous: previous);
       }
 
@@ -169,7 +171,7 @@ class _InfiniteQueryBehavior<TPage, TParam>
           param =
               oldPageParams.isNotEmpty ? oldPageParams.first : initialPageParam;
         } else {
-          param = _nextParam(result);
+          param = _nextParam(result, query._client);
           if (param == null) break;
         }
         result = await fetchPage(result, param);
@@ -180,22 +182,25 @@ class _InfiniteQueryBehavior<TPage, TParam>
     };
   }
 
-  TParam? _nextParam(InfiniteData<TPage, TParam> data) {
+  TParam? _nextParam(InfiniteData<TPage, TParam> data, QueryClient client) {
     if (data.pages.isEmpty) return null;
-    return getNextPageParam(data);
+    return getNextPageParam(data, client);
   }
 
-  TParam? _previousParam(InfiniteData<TPage, TParam> data) {
+  TParam? _previousParam(
+    InfiniteData<TPage, TParam> data,
+    QueryClient client,
+  ) {
     if (data.pages.isEmpty) return null;
-    return getPreviousPageParam?.call(data);
+    return getPreviousPageParam?.call(data, client);
   }
 
-  bool hasNextPage(InfiniteData<TPage, TParam>? data) {
-    return data != null && _nextParam(data) != null;
+  bool hasNextPage(InfiniteData<TPage, TParam>? data, QueryClient client) {
+    return data != null && _nextParam(data, client) != null;
   }
 
-  bool hasPreviousPage(InfiniteData<TPage, TParam>? data) {
-    return data != null && _previousParam(data) != null;
+  bool hasPreviousPage(InfiniteData<TPage, TParam>? data, QueryClient client) {
+    return data != null && _previousParam(data, client) != null;
   }
 }
 
@@ -273,14 +278,14 @@ class InfiniteQuery<TPage, TParam> extends Query<InfiniteData<TPage, TParam>>
               'getNextPageParam',
               getNextPageParam,
               queryKey,
-            ).call,
+            ),
             getPreviousPageParam: getPreviousPageParam == null
                 ? null
                 : _PageParamCheck<TPage, TParam>(
                     'getPreviousPageParam',
                     getPreviousPageParam,
                     queryKey,
-                  ).call,
+                  ),
             maxPages: maxPages,
             pages: pages,
           ),
@@ -448,8 +453,8 @@ class InfiniteQueryObserver<TPage, TParam>
       final behavior =
           options._behavior! as _InfiniteQueryBehavior<TPage, TParam>;
       final hasPage = direction == _FetchDirection.forward
-          ? behavior.hasNextPage(data)
-          : behavior.hasPreviousPage(data);
+          ? behavior.hasNextPage(data, _client)
+          : behavior.hasPreviousPage(data, _client);
       // Fetching would return the same pages, but still cancel a refetch in
       // flight and mark the old pages as fresh.
       if (!hasPage) {
@@ -497,8 +502,8 @@ class InfiniteQueryObserver<TPage, TParam>
 
     return InfiniteQueryResult<TPage, TParam>._fromBase(
       base,
-      hasNextPage: behavior.hasNextPage(data),
-      hasPreviousPage: behavior.hasPreviousPage(data),
+      hasNextPage: behavior.hasNextPage(data, _client),
+      hasPreviousPage: behavior.hasPreviousPage(data, _client),
       isFetchingNextPage: base.isFetching && forward,
       isFetchingPreviousPage: base.isFetching && backward,
       isFetchNextPageError: base.isError && forward,
@@ -511,32 +516,28 @@ class InfiniteQueryObserver<TPage, TParam>
 /// return, which the [InfiniteQuery] constructor can't check statically.
 ///
 /// A param of another type means there is no such page, and is reported
-/// once per function and query key as an uncaught error, however often the
-/// definition is built again. Throwing instead would stop the result that
-/// asked for it from being built, and the error would be lost with it.
+/// once per client, function, and query key, however often the definition
+/// is built again. Throwing instead would stop the result that asked for it
+/// from being built, and the error would be lost with it.
 class _PageParamCheck<TPage, TParam> {
   _PageParamCheck(this._name, this._getParam, this._queryKey);
-
-  /// What was reported, by function name and query hash.
-  static final Set<String> _reported = {};
 
   final String _name;
   final Object? Function(InfiniteData<TPage, TParam> data) _getParam;
   final QueryKey _queryKey;
 
-  TParam? call(InfiniteData<TPage, TParam> data) {
+  TParam? call(InfiniteData<TPage, TParam> data, QueryClient client) {
     final param = _getParam(data);
     if (param is TParam?) return param;
     final queryHash = hashKey(_queryKey);
-    if (_reported.add('$_name $queryHash')) {
-      Zone.current.handleUncaughtError(
-        StateError(
-          '$_name returned ${param.runtimeType}, but the page params of the '
-          'query $queryHash are $TParam.',
-        ),
-        StackTrace.current,
-      );
-    }
+    client._reportOnce(
+      '$_name $queryHash',
+      StateError(
+        '$_name returned ${param.runtimeType}, but the page params of the '
+        'query $queryHash are $TParam.',
+      ),
+      StackTrace.current,
+    );
     return null;
   }
 }

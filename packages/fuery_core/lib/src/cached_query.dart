@@ -320,8 +320,10 @@ class CachedQuery<TData extends Object> extends _Removable {
     try {
       final data = await retryer.start();
       _setData(data);
-      _cache.config.onSuccess?.call(data, this);
-      _cache.config.onSettled?.call(data, null, this);
+      _client._guardCallback(() => _cache.config.onSuccess?.call(data, this));
+      _client._guardCallback(
+        () => _cache.config.onSettled?.call(data, null, this),
+      );
       return data;
     } on CancelledError catch (error) {
       if (error.silent) {
@@ -352,8 +354,10 @@ class CachedQuery<TData extends Object> extends _Removable {
 
   void _onFetchError(Object error) {
     _dispatch(_QueryErrorAction(error));
-    _cache.config.onError?.call(error, this);
-    _cache.config.onSettled?.call(state.data, error, this);
+    _client._guardCallback(() => _cache.config.onError?.call(error, this));
+    _client._guardCallback(
+      () => _cache.config.onSettled?.call(state.data, error, this),
+    );
   }
 
   void _dispatch(_QueryAction action) {

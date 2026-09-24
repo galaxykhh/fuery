@@ -128,25 +128,25 @@ class MutationObserver<TData, TVariables, TContext>
       final context = mutation.state.context;
       if (error == null) {
         if (current()) {
-          _guardSync(
+          _client._guardCallback(
             () => options.onSuccess
                 ?.call(data as TData, variables, context, _client),
           );
         }
         if (current()) {
-          _guardSync(
+          _client._guardCallback(
             () => options.onSettled
                 ?.call(data, null, variables, context, _client),
           );
         }
       } else {
         if (current()) {
-          _guardSync(
+          _client._guardCallback(
             () => options.onError?.call(error, variables, context, _client),
           );
         }
         if (current()) {
-          _guardSync(
+          _client._guardCallback(
             () => options.onSettled
                 ?.call(null, error, variables, context, _client),
           );
@@ -204,13 +204,5 @@ class NoVariablesMutationObserver<TData, TContext>
     MutateOptions<TData, void, TContext>? options,
   ]) {
     super.mutate(null, options);
-  }
-}
-
-void _guardSync(void Function() callback) {
-  try {
-    callback();
-  } catch (error, stackTrace) {
-    Zone.current.handleUncaughtError(error, stackTrace);
   }
 }

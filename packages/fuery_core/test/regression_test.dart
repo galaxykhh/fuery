@@ -1,4 +1,6 @@
 // Regression tests for cache, refetch, and mutation edge cases.
+import 'dart:async';
+
 import 'package:fake_async/fake_async.dart';
 import 'package:fuery_core/fuery_core.dart';
 import 'package:fuery_core/src/utils.dart' show storageHash;
@@ -303,6 +305,70 @@ void main() {
     expect(todos.result.isFetchedAfterMount, isFalse);
     expect(fetcher.calls, 2);
     unsubscribe();
+  });
+
+  group('cache callbacks', () {
+    // A callback that throws is the app's bug, not the fetch's: the query
+    // keeps the fetch's outcome, and the other callbacks still run.
+    fakeTest('a throwing onSuccess leaves the fetch successful', (async) {
+      final settled = <Object?>[];
+      final client = QueryClient(
+        queryCache: QueryCache(
+          config: QueryCacheConfig(
+            onSuccess: (_, __) => throw StateError('onSuccess'),
+            onSettled: (data, _, __) => settled.add(data),
+          ),
+        ),
+      );
+      final errors = <Object>[];
+      Object? fetched;
+      runZonedGuarded(() {
+        client
+            .query(Query(queryKey: ['a'], queryFn: FakeFetcher(() => 'a').call))
+            .then((data) => fetched = data, onError: (Object e) => fetched = e);
+        async.elapse(ms10);
+      }, (error, _) => errors.add(error));
+
+      expect(fetched, 'a');
+      expect(
+          client.queryCache.find(QueryFilters(queryKey: ['a']))!.state.status,
+          QueryStatus.success);
+      expect(settled, ['a']);
+      expect((errors.single as StateError).message, 'onSuccess');
+      client.clear();
+    });
+
+    fakeTest('a throwing onError leaves the fetch error and runs onSettled',
+        (async) {
+      final settled = <Object?>[];
+      final client = QueryClient(
+        queryCache: QueryCache(
+          config: QueryCacheConfig(
+            onError: (_, __) => throw StateError('onError'),
+            onSettled: (_, error, __) => settled.add(error),
+          ),
+        ),
+      );
+      final fetcher = FakeFetcher(() => 'a')..error = StateError('down');
+      final errors = <Object>[];
+      runZonedGuarded(() {
+        client
+            .query(Query(
+              queryKey: ['a'],
+              queryFn: fetcher.call,
+              retry: const RetryPolicy.never(),
+            ))
+            .ignore();
+        async.elapse(ms10);
+      }, (error, _) => errors.add(error));
+
+      final state =
+          client.queryCache.find(QueryFilters(queryKey: ['a']))!.state;
+      expect((state.error! as StateError).message, 'down');
+      expect(settled, [state.error]);
+      expect((errors.single as StateError).message, 'onError');
+      client.clear();
+    });
   });
 
   group('stored keys are the same in obfuscated builds', () {

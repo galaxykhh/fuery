@@ -27,6 +27,7 @@ class QueryClient {
     this.defaultOptions = const DefaultOptions(),
     this.storage,
     this.persistMaxAge = const Duration(days: 1),
+    this.onUncaughtError,
   })  : queryCache = queryCache ?? QueryCache(),
         mutationCache = mutationCache ?? MutationCache();
 
@@ -41,6 +42,20 @@ class QueryClient {
   /// How long persisted data can be restored, unless [QueryPersist.maxAge]
   /// says otherwise.
   final Duration persistMaxAge;
+
+  /// Receives the errors no caller can: errors thrown by the callbacks of a
+  /// [QueryCacheConfig] or a [MutateOptions], or by `onError` and
+  /// `onSettled` of a mutation that failed, and mistakes Fuery finds while
+  /// running, such as a page param of the wrong type or a mutation key that
+  /// can't be stored. The query or mutation goes on as if the callback
+  /// hadn't thrown. A mistake is reported once per client.
+  ///
+  /// Without it, these errors go to the current zone, which in Flutter
+  /// reports them to `PlatformDispatcher.onError`.
+  final void Function(Object error, StackTrace stackTrace)? onUncaughtError;
+
+  /// What [_reportOnce] reported, by its key.
+  final Set<String> _reported = {};
 
   /// Entries read by [restore], by query hash, until a query uses them.
   Map<String, Map<String, Object?>>? _preloaded;
@@ -230,7 +245,7 @@ class QueryClient {
         // Stored keys leave out enum types, so a stored run of either key
         // could belong to the other. Neither is restored, and the runs stay.
         if (byKey[stored] != null) {
-          Zone.current.handleUncaughtError(
+          _reportError(
             StateError(
               'The mutation keys $first and $inMemory differ only in enum '
               'types, which stored keys leave out, so neither is restored. '
@@ -241,7 +256,7 @@ class QueryClient {
         }
         byKey[stored] = null;
       } catch (error, stackTrace) {
-        _reportUnstorableKey(mutationKey, error, stackTrace);
+        _reportOnce('mutationKey $mutationKey', error, stackTrace);
       }
     }
 
@@ -262,6 +277,44 @@ class QueryClient {
         _loadedMutationKeys.remove(key);
         _deleteStored(key);
       }
+    }
+  }
+
+  /// Reports [error] to [onUncaughtError], or without it to the current
+  /// zone. An error thrown by [onUncaughtError] goes to the zone too.
+  void _reportError(Object error, StackTrace stackTrace) {
+    final onUncaughtError = this.onUncaughtError;
+    if (onUncaughtError == null) {
+      return Zone.current.handleUncaughtError(error, stackTrace);
+    }
+    try {
+      onUncaughtError(error, stackTrace);
+    } catch (error, stackTrace) {
+      Zone.current.handleUncaughtError(error, stackTrace);
+    }
+  }
+
+  /// Reports [error] like [_reportError], once per [key], for mistakes that
+  /// would otherwise be reported every time the same code runs.
+  void _reportOnce(String key, Object error, StackTrace stackTrace) {
+    if (_reported.add(key)) _reportError(error, stackTrace);
+  }
+
+  /// Runs a callback of the app, reporting what it throws.
+  void _guardCallback(void Function() callback) {
+    try {
+      callback();
+    } catch (error, stackTrace) {
+      _reportError(error, stackTrace);
+    }
+  }
+
+  /// Like [_guardCallback], for callbacks that can be asynchronous.
+  Future<void> _guardAsyncCallback(FutureOr<void> Function() callback) async {
+    try {
+      await callback();
+    } catch (error, stackTrace) {
+      _reportError(error, stackTrace);
     }
   }
 
