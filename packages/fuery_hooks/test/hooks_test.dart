@@ -253,22 +253,33 @@ void main() {
         (tester) async {
       // Fresh for good, so the new observers don't refetch after the first
       // fetch, which they would on every rebuild otherwise.
-      final fresh = Query(
-        queryKey: ['post', 1],
-        queryFn: post(1).queryFn!,
-        staleTime: infiniteDuration,
-      );
+      Query<String> freshPost(int id) => Query(
+            queryKey: ['post', id],
+            queryFn: post(id).queryFn!,
+            staleTime: infiniteDuration,
+          );
+      final fresh = freshPost(1);
       // The same key as the query, which gets a warning of its own.
       final like = Mutation(
         mutationKey: ['post', 1],
         mutationFn: (int id) async => id,
       );
+      // Observers created once, each of its own key.
+      final shared = [
+        for (final id in [2, 3, 4]) freshPost(id).observe(client: client),
+      ];
+      var builds = 0;
       Widget screen() => HookBuilder(builder: (_) {
+            builds++;
             // The mistake: new observers on every build.
             useQuery(fresh.observe(client: client));
             useMutation(like.observe(client: client));
             // Definitions built in build are fine.
             useMutation(Mutation(mutationFn: (int id) async => id));
+            // So is a switch to an observer of another key, or from a
+            // definition to an observer of its key.
+            useQuery(builds.isEven ? shared[0] : shared[1]);
+            useQuery(builds == 1 ? freshPost(4) : shared[2]);
             return const SizedBox();
           });
       final printed = await printsOf(() async {
@@ -293,6 +304,9 @@ void main() {
       ]);
       await tester.pump(ms10);
       await tearDownApp(tester);
+      for (final observer in shared) {
+        observer.destroy();
+      }
     });
   });
 
@@ -493,6 +507,7 @@ void main() {
       fresh(1).observe(client: client),
       fresh(2).observe(client: client),
     ];
+    final added = fresh(3).observe(client: client);
     var builds = 0;
     Widget screen() => HookBuilder(builder: (_) {
           builds++;
@@ -506,6 +521,8 @@ void main() {
           useQueries([
             for (final id in [1, 2]) fresh(id)
           ]);
+          // So is an observer created once, added for a new key.
+          useQueries([...shared, if (builds > 1) added]);
           return const SizedBox();
         });
     final printed = await printsOf(() async {
@@ -521,7 +538,7 @@ void main() {
     ]);
     await tester.pump(ms10);
     await tearDownApp(tester);
-    for (final observer in shared) {
+    for (final observer in [...shared, added]) {
       observer.destroy();
     }
   });
@@ -529,7 +546,7 @@ void main() {
   group('an observer of another client', () {
     const warning = 'received an observer of another QueryClient';
 
-    testWidgets('warns once per observer', (tester) async {
+    testWidgets('warns once for each hook given one', (tester) async {
       final other = newClient();
       final otherPost = post(1).observe(client: other);
       final otherLike =
@@ -571,6 +588,88 @@ void main() {
         observer.destroy();
       }
       otherLike.reset();
+      other.clear();
+    });
+
+    testWidgets('warns once per hook and key about observers created in build',
+        (tester) async {
+      final other = newClient();
+      Query<String> fresh(int id) => Query(
+            queryKey: ['post', id],
+            queryFn: post(id).queryFn!,
+            staleTime: infiniteDuration,
+          );
+      Widget screen() => HookBuilder(builder: (_) {
+            // The mistake: observers of another client, created in build.
+            useQuery(fresh(1).observe(client: other));
+            useQueries([
+              for (final id in [2, 3]) fresh(id).observe(client: other),
+            ]);
+            useMutation(
+              Mutation(
+                mutationKey: ['like'],
+                mutationFn: (int id) async => id,
+              ).observe(client: other),
+            );
+            useMutation(
+              Mutation(mutationFn: (int id) async => id).observe(client: other),
+            );
+            return const SizedBox();
+          });
+      final printed = await printsOf(() async {
+        await tester.pumpWidget(app(screen()));
+        await tester.pumpWidget(app(screen()));
+        await tester.pumpWidget(app(screen()));
+      });
+      expect(
+        [
+          for (final message in printed)
+            if (message.contains(warning)) message,
+        ],
+        [
+          contains('useQuery $warning'),
+          contains('useQueries $warning'),
+          contains('useQueries $warning'),
+          contains('useMutation $warning'),
+          contains('useMutation $warning'),
+        ],
+        reason: 'once per hook and key, or per hook without a key',
+      );
+      await tester.pump(ms10);
+      await tearDownApp(tester);
+      other.clear();
+    });
+
+    testWidgets('new observers of a replaced client are silent',
+        (tester) async {
+      final other = newClient();
+      final like = Mutation(
+        mutationKey: ['like'],
+        mutationFn: (int id) async => id,
+      );
+      final screen = HookBuilder(builder: (_) {
+        // Observers created again for a replaced client, as they should be.
+        final client = useQueryClient();
+        useQuery(useMemoized(() => post(1).observe(client: client), [client]));
+        useMutation(useMemoized(() => like.observe(client: client), [client]));
+        useQueries(
+          useMemoized(
+            () => [
+              for (final id in [2, 3]) post(id).observe(client: client),
+            ],
+            [client],
+          ),
+        );
+        return const SizedBox();
+      });
+      final printed = await printsOf(() async {
+        await tester.pumpWidget(app(screen));
+        await tester.pump(ms10);
+        await tester.pumpWidget(app(screen, with_: other));
+        await tester.pump(ms10);
+      });
+      expect(printed, isEmpty);
+      await tearDownApp(tester);
       other.clear();
     });
 

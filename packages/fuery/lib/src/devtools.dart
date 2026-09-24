@@ -14,6 +14,10 @@ const _lavender = Color(0xFFC9BEFF);
 const _ink = Color(0xFF14112B);
 const _mono = TextStyle(fontFamily: 'monospace', fontSize: 12);
 
+/// The height the open panel keeps above the keyboard: its tabs and filter
+/// field, and a little of the list.
+const _minPanelHeight = 120.0;
+
 /// Shows a button over the app that opens a [FueryDevtoolsPanel], to inspect
 /// queries and mutations while developing.
 ///
@@ -74,12 +78,20 @@ class _FueryDevtoolsState extends State<FueryDevtools> {
           Positioned.fill(
             child: _open
                 // The panel stays above the keyboard. It takes 55% of the
-                // screen, and shrinks only when that doesn't fit above it.
+                // screen, and shrinks only when that doesn't fit above it,
+                // down to room for its tabs and filter field. With less room
+                // than that, it goes under the keyboard instead.
                 ? LayoutBuilder(
                     builder: (context, constraints) => Padding(
                       padding: EdgeInsets.only(
                         top: safeArea.top,
-                        bottom: keyboard,
+                        bottom: clampDouble(
+                          constraints.maxHeight -
+                              safeArea.top -
+                              _minPanelHeight,
+                          0,
+                          keyboard,
+                        ),
                       ),
                       child: Align(
                         alignment: Alignment.bottomCenter,
