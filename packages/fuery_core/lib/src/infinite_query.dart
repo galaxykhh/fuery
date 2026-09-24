@@ -91,11 +91,13 @@ class _InfiniteQueryBehavior<TPage, TParam>
   final _PageParamCheck<TPage, TParam> getNextPageParam;
   final _PageParamCheck<TPage, TParam>? getPreviousPageParam;
 
-  /// Keep at most this many pages. Older pages are dropped from the other end.
+  /// Keep at most this many pages. Older pages are dropped from the other end,
+  /// down to this many when more were cached.
   final int? maxPages;
 
-  /// How many pages to load when nothing is cached. Defaults to one. With
-  /// cached pages, a full fetch reloads all of them.
+  /// How many pages to load when nothing is cached. Defaults to one, and
+  /// loads no more than [maxPages]. With cached pages, a full fetch reloads
+  /// all of them.
   final int? pages;
 
   @override
@@ -179,7 +181,13 @@ class _InfiniteQueryBehavior<TPage, TParam>
         );
       }
 
-      final remainingPages = oldPages.isEmpty ? pages ?? 1 : oldPages.length;
+      // Load no more pages than maxPages keeps, or the first ones would be
+      // fetched only to be dropped.
+      final max = maxPages;
+      var remainingPages = oldPages.isEmpty ? pages ?? 1 : oldPages.length;
+      if (oldPages.isEmpty && max != null && max > 0 && remainingPages > max) {
+        remainingPages = max;
+      }
       var result = InfiniteData<TPage, TParam>(pages: [], pageParams: []);
       var currentPage = 0;
 
@@ -253,7 +261,8 @@ class InfiniteQuery<TPage, TParam> extends Query<InfiniteData<TPage, TParam>>
   /// When the first page has no param, give `null` its type so the param type
   /// can be inferred: `initialPageParam: null as String?`. [pages] sets how
   /// many pages to load when nothing is cached, for example to prefetch
-  /// several pages with [QueryClient.infiniteQuery].
+  /// several pages with [QueryClient.infiniteQuery]. Above [maxPages], it
+  /// loads only [maxPages] pages.
   //
   // The page param functions return Object?: a return type of TParam? makes
   // Dart infer the page type before queryFn fixes it, which would make

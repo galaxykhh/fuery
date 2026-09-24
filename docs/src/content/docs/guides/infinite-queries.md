@@ -120,6 +120,8 @@ final messages = InfiniteQuery(
 
 Give `getPreviousPageParam` as well. Without it `fetchPreviousPage()` has no param to ask for, so a page dropped from the front never comes back.
 
+Cached pages above the cap, for example from `setData`, are trimmed to `maxPages` when the next page or previous page loads. With nothing cached, `pages` above `maxPages` loads only `maxPages` pages.
+
 ## Refetching every loaded page
 
 Refetching an infinite query reloads every loaded page in order. It starts from the first page and asks `getNextPageParam` for each next one, so the list stays consistent even if items moved between pages.
