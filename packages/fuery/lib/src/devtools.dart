@@ -185,6 +185,8 @@ class _PanelBody extends StatefulWidget {
 class _PanelBodyState extends State<_PanelBody> {
   var _showMutations = false;
   var _filter = '';
+  // Keeps the typed filter when the field is rebuilt after a tab switch.
+  final _filterController = TextEditingController();
   String? _selected;
   late StreamSubscription<Object> _subscription;
 
@@ -207,6 +209,7 @@ class _PanelBodyState extends State<_PanelBody> {
   @override
   void dispose() {
     _subscription.cancel();
+    _filterController.dispose();
     super.dispose();
   }
 
@@ -309,6 +312,7 @@ class _PanelBodyState extends State<_PanelBody> {
         Padding(
           padding: const EdgeInsets.all(8),
           child: TextField(
+            controller: _filterController,
             decoration: const InputDecoration(
               hintText: 'Filter by key',
               prefixIcon: Icon(Icons.search),

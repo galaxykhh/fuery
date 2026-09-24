@@ -197,6 +197,18 @@ void main() {
     expect(find.text('["todos"]'), findsNothing);
     expect(find.text('["user"]'), findsOneWidget);
 
+    // The field still shows the filter after a tab switch.
+    await tester.tap(find.text('Mutations (0)'));
+    await tester.pump();
+    await tester.tap(find.text('Queries (2)'));
+    await tester.pump();
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller?.text,
+      'user',
+    );
+    expect(find.text('["todos"]'), findsNothing);
+    expect(find.text('["user"]'), findsOneWidget);
+
     unsubscribe();
     await tearDownApp(tester);
   });
