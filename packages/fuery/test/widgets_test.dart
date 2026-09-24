@@ -913,6 +913,98 @@ void main() {
         await tearDownApp(tester);
       });
     });
+
+    testWidgets('warns once about each observer of another client',
+        (tester) async {
+      await withWarnings((messages) async {
+        final other = QueryClient();
+        final rebuild = ValueNotifier(0);
+        final foreignQuery = fresh('post', 1).observe(client: other);
+        final foreignMutation = addTodo().observe(client: other);
+        final foreignInList = fresh('user', 3).observe(client: other);
+        final own = fresh('post', 2).observe(client: client);
+        await pumpApp(
+          tester,
+          ValueListenableBuilder(
+            valueListenable: rebuild,
+            builder: (context, _, __) => Column(
+              children: [
+                QueryBuilder(
+                  query: foreignQuery,
+                  builder: (context, state) => const SizedBox(),
+                ),
+                MutationBuilder(
+                  mutation: foreignMutation,
+                  builder: (context, state) => const SizedBox(),
+                ),
+                QueriesBuilder(
+                  queries: [fresh('user', 1), own, foreignInList],
+                  builder: (context, results) => const SizedBox(),
+                ),
+                QueryBuilder(
+                  query: own,
+                  builder: (context, state) => const SizedBox(),
+                ),
+              ],
+            ),
+          ),
+        );
+        rebuild.value++;
+        await tester.pump();
+
+        expect(messages, hasLength(3), reason: 'once per foreign observer');
+        expect(
+          messages[0],
+          startsWith('[fuery] QueryBuilder received an observer of another '
+              'QueryClient'),
+        );
+        expect(
+          messages[0],
+          contains('#a-screen-reads-another-clients-cache'),
+        );
+        expect(messages[1], startsWith('[fuery] MutationBuilder received'));
+        expect(messages[2], startsWith('[fuery] QueriesBuilder received'));
+        await tester.pumpWidget(const SizedBox());
+        other.clear();
+        await tearDownApp(tester);
+      });
+    });
+
+    testWidgets('warns when the provided client changes under an observer',
+        (tester) async {
+      await withWarnings((messages) async {
+        final other = QueryClient();
+        final current = ValueNotifier(client);
+        final shared = fresh('post', 1).observe(client: client);
+        await tester.pumpWidget(
+          ValueListenableBuilder(
+            valueListenable: current,
+            builder: (context, on, child) =>
+                FueryProvider(client: on, child: child!),
+            child: Directionality(
+              textDirection: TextDirection.ltr,
+              child: QueryBuilder(
+                query: shared,
+                builder: (context, state) => Text(state.data ?? 'loading'),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        expect(messages, isEmpty);
+
+        current.value = other;
+        await tester.pump();
+        expect(messages, hasLength(1));
+        expect(
+          messages.single,
+          contains('QueryBuilder received an observer of another QueryClient'),
+        );
+        await tester.pumpWidget(const SizedBox());
+        other.clear();
+        await tearDownApp(tester);
+      });
+    });
   });
 
   group('FueryProvider', () {

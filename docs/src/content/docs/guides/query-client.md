@@ -349,7 +349,8 @@ Clear once the screens that use queries are gone. An observer still subscribed w
 A `Query` holds no client. The client is chosen where the query is used:
 
 - A widget that gets a query or a mutation uses the client of the nearest `FueryProvider`, or `Fuery.client` without one. It follows a provider whose client is replaced.
-- `observe()` uses the client you pass as `client:`, or `Fuery.client` at that moment, and keeps it for the observer's whole life.
+- `observe()` uses the client you pass as `client:`, or `Fuery.client` at that moment, and keeps it for the observer's whole life. The observer's `client` returns it.
+- A widget that gets an observer uses it with the observer's client. In debug builds, it prints a warning when that isn't its own client. See [A screen reads another client's cache](../../troubleshooting/#a-screen-reads-another-clients-cache).
 - Query functions, `placeholderData`, and mutation callbacks receive the client that runs them.
 
 So queries can be top-level values, and a test that gives each widget test a fresh client through `Fuery.client` or a `FueryProvider` needs nothing else. Configure the client before creating observers: a storage or defaults set afterwards don't reach an observer that already exists.

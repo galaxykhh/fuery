@@ -212,7 +212,7 @@ MutationBuilder(
 
 Every callback receives the client that runs the mutation. Returning the `invalidateQueries` future from `onSuccess` keeps the mutation pending until the list has refetched. `state.mutateAsync(title)` returns the data, and throws on error.
 
-When the button and the pending state are in different places, create one observer with `addTodo.observe()` in a `State` field, pass it to both, and call its `reset()` in `dispose`.
+When the button and the pending state are in different places, create one observer with `addTodo.observe()` in a `State` field, pass it to both, and call its `reset()` in `dispose`. Under a `FueryProvider` with a client of its own, write `late final adding = addTodo.observe(client: context.queryClient);`.
 
 **Optimistic updates.** Cancel refetches of the data first, then update the cache in `onMutate` and return what you need to roll back. The returned value is passed to the other callbacks as `context`:
 

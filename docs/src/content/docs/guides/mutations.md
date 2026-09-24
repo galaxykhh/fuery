@@ -53,6 +53,8 @@ class _AddTodoScreenState extends State<AddTodoScreen> {
 
 `reset()` in `dispose` drops the callbacks of the latest `mutate` call, which belong to this screen. The sections below pass `adding` to the widgets that show its state.
 
+`observe()` uses `Fuery.client` unless you pass another. Under a `FueryProvider` with a client of its own, write `late final adding = addTodo.observe(client: context.queryClient);`, so the observer uses the client the widgets use.
+
 ## MutationState fields
 
 Builders, listeners, and an observer's `result` all report a `MutationResult`, a `MutationState` with `mutate`, `mutateAsync`, and `reset`:

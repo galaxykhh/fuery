@@ -24,6 +24,9 @@ class QueryObserver<TData extends Object>
   Timer? _refetchTimer;
   Duration? _currentRefetchInterval;
 
+  /// The client this observer reads and writes, fixed for its whole life.
+  QueryClient get client => _client;
+
   Query<TData> get options => _options!;
 
   CachedQuery<TData> get currentQuery => _query!;

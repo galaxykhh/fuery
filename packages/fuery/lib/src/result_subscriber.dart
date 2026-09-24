@@ -78,9 +78,47 @@ void debugWarnMutationDefinition(String widgetName) {
   }());
 }
 
-/// Forgets which keys were warned about, for tests.
+/// Observers already warned about for using another client.
+Expando<bool> _warnedObservers = Expando();
+
+/// Warns, in debug builds, once per observer, when [source] holds an
+/// observer of another client than the [client] the widget uses. That is
+/// `observe()` without a client under a [FueryProvider] with its own.
+void debugWarnOtherClient(
+  String widgetName,
+  Object? source,
+  QueryClient client,
+) {
+  assert(() {
+    for (final observer in source is List ? source : [source]) {
+      final QueryClient? own = switch (observer) {
+        QueryObserver(:final client) => client,
+        MutationObserver(:final client) => client,
+        _ => null,
+      };
+      if (own == null || identical(own, client)) continue;
+      if (_warnedObservers[observer as Object] ?? false) continue;
+      _warnedObservers[observer] = true;
+      debugPrint(
+        '[fuery] $widgetName received an observer of another QueryClient '
+        "than the one it uses here (FueryProvider's, or Fuery.client). The "
+        "observer reads and writes its own client's cache, so it and the "
+        "other widgets of this screen don't see each other's changes. Create "
+        'it with observe(client: context.queryClient), or pass the '
+        'definition. See $_troubleshooting'
+        '#a-screen-reads-another-clients-cache',
+      );
+    }
+    return true;
+  }());
+}
+
+/// Forgets which keys and observers were warned about, for tests.
 @visibleForTesting
-void debugResetRecreatedWarnings() => _warnedKeys.clear();
+void debugResetRecreatedWarnings() {
+  _warnedKeys.clear();
+  _warnedObservers = Expando();
+}
 
 typedef ResultWidgetBuilder<R> = Widget Function(
     BuildContext context, R result);
@@ -125,6 +163,7 @@ mixin _SlotHost<S, R, W extends StatefulWidget> on State<W> {
     if (slot == null) {
       _client = client;
       final created = _slot = _createSlot(_source, client);
+      debugWarnOtherClient(_debugName, _source, client);
       _onAttached(created.result);
       // Results arrive in a microtask, never during build or initState.
       _unsubscribe = created.subscribe(
@@ -156,6 +195,7 @@ mixin _SlotHost<S, R, W extends StatefulWidget> on State<W> {
     final observer = slot.observer;
     final client = _client = FueryProvider.of(context, listen: true);
     slot.update(_source, client);
+    debugWarnOtherClient(_debugName, _source, client);
     final result = slot.result;
     if (identical(observer, slot.observer)) {
       _onUpdated(result);
