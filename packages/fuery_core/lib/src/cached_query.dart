@@ -128,6 +128,11 @@ class CachedQuery<TData extends Object> extends _Removable {
   void _reset() {
     _restoreGeneration++;
     _destroy();
+    // The update counts start over, so observers count "after mount" from
+    // the reset. Set before the state, which notifies them.
+    for (final observer in _observers) {
+      observer._currentQueryInitialState = _initialState;
+    }
     _setState(_initialState);
     if (_observers.isEmpty) _scheduleGc();
   }

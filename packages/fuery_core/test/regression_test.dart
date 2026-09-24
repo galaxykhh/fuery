@@ -368,6 +368,31 @@ void main() {
     unsubscribe();
   });
 
+  fakeTest('isFetchedAfterMount counts from a reset', (async) {
+    final fetcher = FakeFetcher(() => 'todos');
+    client.query(Query(queryKey: ['todos'], queryFn: fetcher.call)).ignore();
+    async.elapse(ms10);
+    final todos = Query(
+      queryKey: ['todos'],
+      queryFn: fetcher.call,
+      staleTime: infiniteDuration,
+    ).observe(client: client);
+    final unsubscribe = todos.subscribe((_) {});
+    async.flushMicrotasks();
+    expect(todos.result.isFetchedAfterMount, isFalse);
+
+    // For example, after logging out.
+    client.resetQueries(queryKey: ['todos']);
+    expect(todos.result.isFetchedAfterMount, isFalse);
+    expect(todos.result.isPending, isTrue);
+    expect(todos.result.isFetching, isTrue);
+
+    async.elapse(ms10);
+    expect(todos.result.isFetchedAfterMount, isTrue);
+    expect(fetcher.calls, 2);
+    unsubscribe();
+  });
+
   group('cache callbacks', () {
     // A query cache callback that throws is the app's bug, not the fetch's:
     // the query keeps the fetch's outcome, and the other callbacks run.
