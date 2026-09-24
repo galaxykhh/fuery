@@ -78,7 +78,7 @@ Create the observer with the client the widgets use:
 late final adding = addTodo.observe(client: context.queryClient);
 ```
 
-Or pass the definition, and the widget observes it with its own client. In a `HookWidget`, `useQueryClient()` returns the client the hooks use. `observer.client` returns the client an observer uses. In debug builds, a Fuery widget or hook that gets an observer of another client than its own prints a warning to the console, once per observer, with a link here.
+Or pass the definition, and the widget observes it with its own client. In a `HookWidget`, `useQueryClient()` returns the client the hooks use. `observer.client` returns the client an observer uses. In debug builds, a Fuery widget or hook that gets an observer of another client than its own prints a warning to the console, once per widget or hook and key, with a link here.
 
 ## A test hangs on await subscription.cancel()
 
@@ -164,7 +164,7 @@ A mutation observer created in `build`, as in `MutationBuilder(mutation: saveTod
 
 When you need the observer, call `observe()` once in a `State` field or a cubit, and pass that down.
 
-In debug builds, a Fuery widget or hook, including the list forms, that gets a new observer for the same key on a rebuild prints a warning to the console, once per key, with a link here.
+In debug builds, a Fuery widget or hook, including the list forms, that gets a new observer for the same key and client on a rebuild prints a warning to the console, once per key, with a link here. A new observer for a replaced provider client is expected, so it doesn't print one.
 
 ## A mutation stays pending after the request finished
 
