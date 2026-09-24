@@ -3,6 +3,7 @@
 - Listener widgets and consumers listen through `ObserverSlot.listen`. A listener that throws is now reported to the client's `onUncaughtError` when it is set. Before, its error always went to the zone.
 - Fix: a listener that throws no longer skips the rebuild of a `QueryConsumer`, `InfiniteQueryConsumer`, or `MutationConsumer`.
 - Fix: a listener no longer hears a change that the widget's previous observer had queued, as after the provided client was replaced.
+- Fix: listener widgets and consumers are no longer called when they mount for a state the query already had, such as while a persisted query's restore is still reading, or when they join a fetch that already failed.
 - The debug warning for a `MutationListener` given a `Mutation` definition points to `MutationStateListener` with a `mutationKey`, then to `MutateOptions`, then to one shared observer.
 - The example reports every failed like, also when likes overlap, keeps the comments queued on a post listed after leaving it, and runs "mark all read" from a `MutationBuilder`.
 - Released together with `fuery_core` 1.5.0, which renames Fuery's focus manager class to `FueryFocusManager`. `package:fuery/fuery.dart` exports it, and still exports the deprecated `FocusManager` alias. In a file that also imports Flutter, write `primaryFocus` or `WidgetsBinding.instance.focusManager`, or hide `FocusManager`.

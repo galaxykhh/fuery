@@ -5,6 +5,7 @@
 - Add `ObserverSlot.listen((previous, current) {...})` on every slot, for side effects. It reports each later change with the result before it, in a microtask, and never the result it starts from. It starts over without a call when the slot moves to another observer, and drops what that observer had queued. A listener that throws is reported to the client's `onUncaughtError`, or without it to the zone.
 - Add `FueryFocusManager`, the new name of the class of `focusManager`. Flutter has a `FocusManager` class too, so a file that imported Flutter and Fuery could name neither. `focusManager` is the same object.
 - Deprecate `FocusManager`, now an alias of `FueryFocusManager`. `dart fix --apply` replaces it, whether the file imports `fuery_core` or `fuery`.
+- Fix: a `QueriesSlot` `subscribe` listener that throws is reported to the client's `onUncaughtError` and no longer stops the slot's other listeners.
 - Deprecate `GetNextPageParam` and `GetPreviousPageParam`, which no API takes. `InfiniteQuery` takes `Object? Function(InfiniteData<TPage, TParam> data)`.
 
 ## 1.4.4
