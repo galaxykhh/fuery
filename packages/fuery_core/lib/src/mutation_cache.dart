@@ -23,18 +23,34 @@ class MutationFilters {
   final MutationStatus? status;
   final bool Function(AnyCachedMutation mutation)? predicate;
 
-  bool matches(AnyCachedMutation mutation) {
-    final mutationKey = this.mutationKey;
-    if (mutationKey != null) {
-      final key = mutation.options.mutationKey;
-      if (key == null) return false;
-      if (exact) {
-        if (hashKey(key) != hashKey(mutationKey)) return false;
-      } else if (!partialMatchKey(key, mutationKey)) {
-        return false;
-      }
-    }
+  bool matches(AnyCachedMutation mutation) => _matcher()(mutation);
 
+  /// A test for [matches] that converts [mutationKey] once, for testing many
+  /// mutations. A mutation's key can change while it runs, so its own key is
+  /// converted on every test.
+  bool Function(AnyCachedMutation mutation) _matcher() {
+    final mutationKey = this.mutationKey;
+    if (mutationKey == null) return _matchesState;
+    // Converted on first use, so a key that can't be converted only throws
+    // once there is a mutation with a key to test.
+    if (exact) {
+      late final hash = hashKey(mutationKey);
+      return (mutation) {
+        final key = mutation.options.mutationKey;
+        return key != null && hashKey(key) == hash && _matchesState(mutation);
+      };
+    }
+    late final form = keyForm(mutationKey);
+    return (mutation) {
+      final key = mutation.options.mutationKey;
+      return key != null &&
+          partialMatchForms(keyForm(key), form) &&
+          _matchesState(mutation);
+    };
+  }
+
+  /// Whether [mutation] matches every filter but [mutationKey].
+  bool _matchesState(AnyCachedMutation mutation) {
     if (status != null && mutation.state.status != status) return false;
 
     final predicate = this.predicate;
@@ -168,13 +184,13 @@ class MutationCache {
       status: filters.status,
       predicate: filters.predicate,
     );
-    return getAll().firstWhereOrNull(exact.matches);
+    return getAll().firstWhereOrNull(exact._matcher());
   }
 
   List<AnyCachedMutation> findAll([
     MutationFilters filters = const MutationFilters(),
   ]) {
-    return getAll().where(filters.matches).toList();
+    return getAll().where(filters._matcher()).toList();
   }
 
   /// Calls [listener] whenever a mutation or its observers change.

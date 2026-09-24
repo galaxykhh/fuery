@@ -47,7 +47,11 @@ int timeUntilStale(int updatedAt, Duration? staleTime) {
 ///
 /// Supported values are `null`, [bool], [num], [String], [Enum], [DateTime],
 /// [Iterable], [Map], and objects that implement `toJson()`.
-String hashKey(List<Object?> key) => jsonEncode(_canonicalize(key, false));
+String hashKey(List<Object?> key) => jsonEncode(keyForm(key));
+
+/// [key] in the JSON form [hashKey] encodes, for comparing it with
+/// [partialMatchForms] without converting it again for every comparison.
+Object? keyForm(List<Object?> key) => _canonicalize(key, false);
 
 /// Like [hashKey], but the same in every build, obfuscated and minified ones
 /// included, for storing data under the key.
@@ -63,8 +67,11 @@ Object? storageKeyForm(List<Object?> key) => _canonicalize(key, true);
 
 /// Returns true when [b] is a prefix (for lists) or subset (for maps) of [a].
 bool partialMatchKey(List<Object?> a, List<Object?> b) {
-  return _partialMatch(_canonicalize(a, false), _canonicalize(b, false));
+  return partialMatchForms(keyForm(a), keyForm(b));
 }
+
+/// [partialMatchKey] for keys already converted with [keyForm].
+bool partialMatchForms(Object? a, Object? b) => _partialMatch(a, b);
 
 /// Returns a test for whether [key] is a prefix (for lists) or subset (for
 /// maps) of a key read back from storage, stored in the form of

@@ -549,6 +549,111 @@ void main() {
     });
   });
 
+  group('filters', () {
+    fakeTest('find and exact findAll apply the other filters', (async) {
+      client.setQueryData(['post', 1], 'a');
+      final cache = client.queryCache;
+      final post = cache.getAll().single;
+
+      expect(cache.find(const QueryFilters(queryKey: ['post', 1])), same(post));
+      expect(
+        cache.find(const QueryFilters(
+          queryKey: ['post', 1],
+          type: QueryTypeFilter.active,
+        )),
+        isNull,
+      );
+      expect(cache.find(const QueryFilters(queryKey: ['post'])), isNull);
+      expect(
+        cache.find(QueryFilters(predicate: (q) => q.queryKey.last == 1)),
+        same(post),
+      );
+
+      List<CachedQuery<Object>> exact(
+        QueryKey queryKey, {
+        bool Function(CachedQuery<Object> query)? predicate,
+      }) {
+        return cache.findAll(QueryFilters(
+          queryKey: queryKey,
+          exact: true,
+          predicate: predicate,
+        ));
+      }
+
+      expect(exact(['post', 1]), [post]);
+      expect(exact(['post', 1], predicate: (_) => false), isEmpty);
+      expect(exact(['post']), isEmpty);
+    });
+
+    fakeTest('matches compares keys by prefix, or whole with exact', (async) {
+      client.setQueryData(['post', 1, 'comments'], 'a');
+      final query = client.queryCache.getAll().single;
+
+      expect(const QueryFilters(queryKey: ['post']).matches(query), isTrue);
+      expect(const QueryFilters(queryKey: ['user']).matches(query), isFalse);
+      expect(
+        const QueryFilters(queryKey: ['post'], exact: true).matches(query),
+        isFalse,
+      );
+      expect(
+        const QueryFilters(queryKey: ['post', 1, 'comments'], exact: true)
+            .matches(query),
+        isTrue,
+      );
+      expect(
+        const QueryFilters(type: QueryTypeFilter.active).matches(query),
+        isFalse,
+      );
+    });
+
+    fakeTest('an exact invalidate leaves longer keys alone', (async) {
+      client.setQueryData(['post', 1], 'a');
+      client.setQueryData(['post', 1, 'comments'], 'b');
+
+      client.invalidateQueries(queryKey: ['post', 1], exact: true);
+
+      expect(client.getQueryState(['post', 1])!.isInvalidated, isTrue);
+      expect(
+        client.getQueryState(['post', 1, 'comments'])!.isInvalidated,
+        isFalse,
+      );
+    });
+
+    fakeTest('a key that cannot be hashed throws once an entry is tested',
+        (async) {
+      final key = [Object()];
+      expect(client.isFetching(queryKey: key), 0);
+      expect(client.isFetching(queryKey: key, exact: true), 0);
+      expect(client.queryCache.find(QueryFilters(queryKey: key)), isNull);
+      expect(client.isMutating(mutationKey: key), 0);
+      expect(client.isMutating(mutationKey: key, exact: true), 0);
+
+      client.setQueryData(['post'], 'a');
+      expect(() => client.isFetching(queryKey: key), throwsArgumentError);
+      expect(
+        () => client.isFetching(queryKey: key, exact: true),
+        throwsArgumentError,
+      );
+
+      // A mutation without a key matches no key, so its key isn't tested.
+      Mutation(mutationFn: (int x) async => x)
+          .observe(client: client)
+          .mutate(1);
+      async.flushMicrotasks();
+      expect(client.isMutating(mutationKey: key), 0);
+
+      Mutation(mutationFn: (int x) async => x, mutationKey: ['todos'])
+          .observe(client: client)
+          .mutate(1);
+      async.flushMicrotasks();
+      expect(() => client.isMutating(mutationKey: key), throwsArgumentError);
+      expect(
+        () => client.isMutating(mutationKey: key, exact: true),
+        throwsArgumentError,
+      );
+    });
+  });
+
   fakeTest('watch sees queries added, observed, updated, and removed', (async) {
     final snapshots = <List<(QueryStatus, int)>>[];
     final subscription = client

@@ -441,6 +441,9 @@ class CachedQuery<TData extends Object> extends _Removable {
   /// The hash data is stored under, the same in every build.
   late final String _storageHash = storageHash(queryKey);
 
+  /// [queryKey] converted once, for filters that match keys by prefix.
+  late final Object? _keyForm = keyForm(queryKey);
+
   String get _storageKey => '$persistKeyPrefix$_storageHash';
 
   /// Restores persisted data the first time the query has a [QueryPersist]
