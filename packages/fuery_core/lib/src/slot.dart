@@ -36,8 +36,9 @@ sealed class MutationStateSource<TData, TVariables, TContext> {}
 /// while another component renders, for example when one that mounts starts
 /// a fetch. Wrap them in `notifyManager.batchCalls` when the framework can't
 /// update during a render, so changes arrive in a microtask, and ignore the
-/// ones that arrive after the slot is disposed. A [MutationStateSlot] is the
-/// exception: it always calls them in a microtask.
+/// ones that arrive after the slot is disposed. A [QueriesSlot] and a
+/// [MutationStateSlot] are the exceptions: they always call them in a
+/// microtask, once per batch.
 ///
 /// [listen] is for side effects, such as navigation or a snackbar. Its
 /// listeners run in a microtask, never during a render, with the result
@@ -392,9 +393,13 @@ final class MutationSlot<TData, TVariables, TContext> extends _Slot<
 /// when the list is reordered; a key that leaves the list lets its observer
 /// go. A query whose key changes therefore starts over, and its
 /// `placeholderData` gets no previous data: one item's data never stands in
-/// for another's. Changes that arrive together reach listeners once. The
-/// result is a new list only when one of its results changed, so [listen]
-/// compares lists by identity.
+/// for another's. [subscribe] listeners are called in a microtask, once for
+/// the changes that arrive together.
+///
+/// While the slot has listeners, its result is a new list only when one of
+/// its results changed, so [listen], which subscribes, compares lists by
+/// identity. Without listeners, each read builds the results again, so it
+/// can return a new list of equal results.
 final class QueriesSlot<TData extends Object>
     extends ObserverSlot<List<QuerySource<TData>>, List<QueryResult<TData>>> {
   QueriesSlot(List<QuerySource<TData>> queries, QueryClient client) {
@@ -577,8 +582,8 @@ typedef _RunListener<TData, TVariables, TContext> = void Function(
 /// cache removes it: `gcTime` after it settles with no observer, or on
 /// `clear()`.
 ///
-/// Unlike the other slots, the slot calls [subscribe] listeners in a
-/// microtask, once per batch, and only when the list changed.
+/// Like a [QueriesSlot], the slot calls [subscribe] listeners in a
+/// microtask, once per batch, and it calls them only when the list changed.
 /// [subscribeToRuns] reports each change of each run instead, for side
 /// effects such as a snackbar when any run fails.
 ///
