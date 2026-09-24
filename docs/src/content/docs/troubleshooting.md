@@ -41,13 +41,23 @@ placeholderData: (previous, client) => previous,
 
 ## The name FocusManager is defined in two libraries
 
-`package:fuery/fuery.dart` exports Fuery's `FocusManager` class, and Flutter has a `FocusManager` class too. A file that imports both and names it, as in `FocusManager.instance.primaryFocus?.unfocus()` to dismiss the keyboard, fails to compile with `ambiguous_import`. Hide Fuery's class:
+`package:fuery/fuery.dart` exports `FocusManager`, the deprecated former name of Fuery's `FueryFocusManager`. Flutter has a `FocusManager` class too. A file that imports both and names `FocusManager`, as in `FocusManager.instance.primaryFocus?.unfocus()` to dismiss the keyboard, fails to compile with `ambiguous_import`.
+
+Reach Flutter's focus manager without naming the class. Flutter's top-level `primaryFocus` is the focused node, so this dismisses the keyboard:
+
+```dart
+primaryFocus?.unfocus();
+```
+
+For anything else, `WidgetsBinding.instance.focusManager` is the same object as `FocusManager.instance`.
+
+Or hide Fuery's name:
 
 ```dart
 import 'package:fuery/fuery.dart' hide FocusManager;
 ```
 
-`FocusManager` then means Flutter's class, and Fuery's `focusManager` singleton stays available. `package:fuery_hooks/fuery_hooks.dart` hides it already.
+`FocusManager` then means Flutter's class. `FueryFocusManager` and the `focusManager` singleton stay available. `package:fuery_hooks/fuery_hooks.dart` hides `FocusManager` already.
 
 ## A Timer is still pending even after the widget tree was disposed
 

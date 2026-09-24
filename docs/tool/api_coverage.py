@@ -52,7 +52,7 @@ MEMBERS_OF = {
     "NoVariablesMutationObserver", "QueryResult", "InfiniteQueryResult", "InfiniteData",
     "MutationResult", "QuerySlot", "InfiniteQuerySlot", "MutationSlot", "QueriesSlot",
     "MutationState", "QueryState", "Fuery", "QueryStorage", "QueryPersist",
-    "InfiniteQueryPersist", "FocusManager", "OnlineManager", "NotifyManager",
+    "InfiniteQueryPersist", "FueryFocusManager", "OnlineManager", "NotifyManager",
     "AbortSignal", "QueryCache", "MutationCache",
 }
 
