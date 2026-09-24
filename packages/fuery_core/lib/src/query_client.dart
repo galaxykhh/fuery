@@ -84,12 +84,14 @@ class QueryClient {
 
     _unsubscribeFocus = focusManager.subscribe((focused) async {
       if (focused) {
+        queryCache._resumePausedLoads();
         await resumePausedMutations();
         queryCache._onFocus();
       }
     });
     _unsubscribeOnline = onlineManager.subscribe((online) async {
       if (online) {
+        queryCache._resumePausedLoads();
         await resumePausedMutations();
         queryCache._onOnline();
       }

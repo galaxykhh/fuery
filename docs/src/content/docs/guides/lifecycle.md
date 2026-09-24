@@ -48,6 +48,8 @@ onlineManager.setEventListener((setOnline) {
 
 While offline, a query that needs to fetch reports `fetchStatus: paused` and keeps showing its data. Mutations started offline wait and run when the connection returns.
 
+When the connection returns, Fuery resumes the paused mutations first and refetches queries after they are done, so a refetch can't overwrite an optimistic update. A query still loading its first data doesn't wait for them: it resumes right away. The same happens when the app returns to the foreground.
+
 `onlineManager.isOnline` reads what Fuery currently believes, which is `true` until a source says otherwise.
 
 `networkMode` changes this per query or mutation:

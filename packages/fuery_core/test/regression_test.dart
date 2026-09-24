@@ -733,6 +733,92 @@ void main() {
     });
   });
 
+  group('reconnecting with paused mutations', () {
+    Mutation<int, int, Object?> slowPost() => Mutation(
+          mutationFn: (int x) async {
+            await Future<void>.delayed(const Duration(seconds: 3));
+            return x;
+          },
+          scope: const MutationScope('posts'),
+        );
+
+    fakeTest('a paused first load does not wait for the mutations', (async) {
+      onlineManager.setOnline(false);
+      for (var i = 0; i < 3; i++) {
+        slowPost().observe(client: client).mutate(i);
+      }
+      final fetcher = FakeFetcher(() => 'me');
+      final profile = Query(queryKey: ['profile'], queryFn: fetcher.call)
+          .observe(client: client);
+      final unsubscribe = profile.subscribe((_) {});
+      async.flushMicrotasks();
+      expect(profile.result.fetchStatus, FetchStatus.paused);
+
+      onlineManager.setOnline(true);
+      async.elapse(ms10);
+      expect(profile.result.data, 'me');
+      expect(client.isMutating(), 3);
+
+      // Once the mutations are done, the reconnect refetches as usual.
+      async.elapse(const Duration(seconds: 9));
+      expect(client.isMutating(), 0);
+      expect(fetcher.calls, 2);
+      unsubscribe();
+    });
+
+    fakeTest('a refetch of a query with data waits for the mutations', (async) {
+      client.setQueryData(['a'], 'old');
+      onlineManager.setOnline(false);
+      final fetcher = FakeFetcher(() => 'new');
+      final a =
+          Query(queryKey: ['a'], queryFn: fetcher.call).observe(client: client);
+      final unsubscribe = a.subscribe((_) {});
+      slowPost().observe(client: client).mutate(1);
+      async.flushMicrotasks();
+      expect(a.result.fetchStatus, FetchStatus.paused);
+
+      onlineManager.setOnline(true);
+      async.elapse(ms10);
+      expect(fetcher.calls, 0);
+      expect(a.result.data, 'old');
+
+      async.elapse(const Duration(seconds: 3));
+      expect(fetcher.calls, 1);
+      async.elapse(ms10);
+      expect(a.result.data, 'new');
+      unsubscribe();
+    });
+
+    fakeTest('a paused first load resumes on focus', (async) {
+      var attempts = 0;
+      final profile = Query(
+        queryKey: ['profile'],
+        queryFn: (_) async {
+          if (++attempts == 1) throw StateError('down');
+          return 'me';
+        },
+        retryDelay: (_, __) => ms10,
+      ).observe(client: client);
+      final unsubscribe = profile.subscribe((_) {});
+      async.flushMicrotasks();
+      // Its retry pauses while the app is in the background, and the second
+      // post waits for the first.
+      focusManager.setFocused(false);
+      for (var i = 0; i < 2; i++) {
+        slowPost().observe(client: client).mutate(i);
+      }
+      async.elapse(ms10);
+      expect(profile.result.fetchStatus, FetchStatus.paused);
+
+      focusManager.setFocused(true);
+      async.flushMicrotasks();
+      expect(profile.result.data, 'me');
+      expect(client.isMutating(), 2);
+      async.elapse(const Duration(seconds: 6));
+      unsubscribe();
+    });
+  });
+
   fakeTest('a failing scoped mutation only reports to its caller', (async) {
     Future<String> run(String value) async {
       await Future<void>.delayed(ms10);
