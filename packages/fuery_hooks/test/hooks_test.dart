@@ -546,7 +546,7 @@ void main() {
   group('an observer of another client', () {
     const warning = 'received an observer of another QueryClient';
 
-    testWidgets('warns once per observer', (tester) async {
+    testWidgets('warns once for each hook given one', (tester) async {
       final other = newClient();
       final otherPost = post(1).observe(client: other);
       final otherLike =
@@ -588,6 +588,88 @@ void main() {
         observer.destroy();
       }
       otherLike.reset();
+      other.clear();
+    });
+
+    testWidgets('warns once per hook and key about observers created in build',
+        (tester) async {
+      final other = newClient();
+      Query<String> fresh(int id) => Query(
+            queryKey: ['post', id],
+            queryFn: post(id).queryFn!,
+            staleTime: infiniteDuration,
+          );
+      Widget screen() => HookBuilder(builder: (_) {
+            // The mistake: observers of another client, created in build.
+            useQuery(fresh(1).observe(client: other));
+            useQueries([
+              for (final id in [2, 3]) fresh(id).observe(client: other),
+            ]);
+            useMutation(
+              Mutation(
+                mutationKey: ['like'],
+                mutationFn: (int id) async => id,
+              ).observe(client: other),
+            );
+            useMutation(
+              Mutation(mutationFn: (int id) async => id).observe(client: other),
+            );
+            return const SizedBox();
+          });
+      final printed = await printsOf(() async {
+        await tester.pumpWidget(app(screen()));
+        await tester.pumpWidget(app(screen()));
+        await tester.pumpWidget(app(screen()));
+      });
+      expect(
+        [
+          for (final message in printed)
+            if (message.contains(warning)) message,
+        ],
+        [
+          contains('useQuery $warning'),
+          contains('useQueries $warning'),
+          contains('useQueries $warning'),
+          contains('useMutation $warning'),
+          contains('useMutation $warning'),
+        ],
+        reason: 'once per hook and key, or per hook without a key',
+      );
+      await tester.pump(ms10);
+      await tearDownApp(tester);
+      other.clear();
+    });
+
+    testWidgets('new observers of a replaced client are silent',
+        (tester) async {
+      final other = newClient();
+      final like = Mutation(
+        mutationKey: ['like'],
+        mutationFn: (int id) async => id,
+      );
+      final screen = HookBuilder(builder: (_) {
+        // Observers created again for a replaced client, as they should be.
+        final client = useQueryClient();
+        useQuery(useMemoized(() => post(1).observe(client: client), [client]));
+        useMutation(useMemoized(() => like.observe(client: client), [client]));
+        useQueries(
+          useMemoized(
+            () => [
+              for (final id in [2, 3]) post(id).observe(client: client),
+            ],
+            [client],
+          ),
+        );
+        return const SizedBox();
+      });
+      final printed = await printsOf(() async {
+        await tester.pumpWidget(app(screen));
+        await tester.pump(ms10);
+        await tester.pumpWidget(app(screen, with_: other));
+        await tester.pump(ms10);
+      });
+      expect(printed, isEmpty);
+      await tearDownApp(tester);
       other.clear();
     });
 

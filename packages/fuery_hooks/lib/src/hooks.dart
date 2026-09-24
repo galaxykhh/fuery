@@ -124,12 +124,27 @@ String? _mutationKey(Object? source) {
   return key == null ? null : hashKey(key);
 }
 
+/// The client of [source] when it is an observer, or null for a definition.
+QueryClient? _clientOf(Object? source) => switch (source) {
+      QueryObserver(:final client) => client,
+      MutationObserver(:final client) => client,
+      _ => null,
+    };
+
 /// The [_RecreatedKey] of a source that holds one observer, from the key of
 /// that observer, or null for a definition.
+///
+/// A new observer of another client is null too: it replaces the old one on
+/// purpose, as `useMemoized(() => todosQuery.observe(client: client),
+/// [client])` does when the provided client is replaced.
 _RecreatedKey<Object?> _sameKey(String? Function(Object? source) key) {
   return (previous, current) {
     final keyHash = key(current);
-    return keyHash != null && keyHash == key(previous) ? keyHash : null;
+    return keyHash != null &&
+            keyHash == key(previous) &&
+            identical(_clientOf(previous), _clientOf(current))
+        ? keyHash
+        : null;
   };
 }
 
@@ -138,18 +153,20 @@ final _RecreatedKey<Object?> _recreatedQuery = _sameKey(_queryKey);
 final _RecreatedKey<Object?> _recreatedMutation = _sameKey(_mutationKey);
 
 /// The key of a query observer in [current] that replaced a different
-/// observer for the same key in [previous]. Definitions, reordering, and
-/// observers passed again are silent.
+/// observer for the same key and client in [previous]. Definitions,
+/// reordering, observers passed again, and new observers of another client
+/// are silent.
 String? _recreatedInList(List<Object?> previous, List<Object?> current) {
   final before = Set<Object?>.identity()..addAll(previous);
+  // QueryClient compares by identity, so the records do too.
   final keys = {
     for (final source in previous)
-      if (_queryKey(source) case final key?) key,
+      if (_queryKey(source) case final key?) (_clientOf(source), key),
   };
   for (final source in current) {
     if (before.contains(source)) continue;
     final key = _queryKey(source);
-    if (key != null && keys.contains(key)) return key;
+    if (key != null && keys.contains((_clientOf(source), key))) return key;
   }
   return null;
 }
@@ -239,9 +256,6 @@ class _SlotHookState<S, R> extends HookState<R, _SlotHook<S, R>> {
 /// Keys already warned about, so each mistake is reported once.
 final Set<String> _warnedKeys = {};
 
-/// Observers already warned about for using another client.
-Expando<bool> _warnedObservers = Expando();
-
 const _troubleshooting = 'https://galaxykhh.github.io/fuery/troubleshooting/';
 
 /// How to pass the hook named [hookName] a definition, for the warnings.
@@ -281,9 +295,12 @@ void _debugWarnRecreated<S, R>(_SlotHook<S, R> hook, S previous) {
   }());
 }
 
-/// Warns, in debug builds, once per observer, when [source] holds an
-/// observer of another client than the [client] the hook uses. That is
-/// `observe()` without a client under a [FueryProvider] with its own.
+/// Warns, in debug builds, when [source] holds an observer of another client
+/// than the [client] the hook uses. That is `observe()` without a client
+/// under a [FueryProvider] with its own.
+///
+/// Warns once per hook name and key, or once per hook name for a mutation
+/// without a key, so observers created in `build` warn once.
 void _debugWarnOtherClient(
   String hookName,
   Object? source,
@@ -291,14 +308,10 @@ void _debugWarnOtherClient(
 ) {
   assert(() {
     for (final observer in source is List ? source : [source]) {
-      final QueryClient? own = switch (observer) {
-        QueryObserver(:final client) => client,
-        MutationObserver(:final client) => client,
-        _ => null,
-      };
+      final own = _clientOf(observer);
       if (own == null || identical(own, client)) continue;
-      if (_warnedObservers[observer as Object] ?? false) continue;
-      _warnedObservers[observer] = true;
+      final keyHash = _queryKey(observer) ?? _mutationKey(observer) ?? '';
+      if (!_warnedKeys.add('other-client:$hookName:$keyHash')) continue;
       debugPrint(
         '[fuery] $hookName received an observer of another QueryClient than '
         "the one it uses here (FueryProvider's, or Fuery.client). The "
@@ -313,9 +326,6 @@ void _debugWarnOtherClient(
   }());
 }
 
-/// Forgets which keys and observers were warned about, for tests.
+/// Forgets which keys were warned about, for tests.
 @visibleForTesting
-void debugResetHookWarnings() {
-  _warnedKeys.clear();
-  _warnedObservers = Expando();
-}
+void debugResetHookWarnings() => _warnedKeys.clear();
