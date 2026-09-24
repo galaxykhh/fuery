@@ -1,4 +1,5 @@
-// A todo list written with hooks: one query, one mutation, and a text field.
+// A todo list written with hooks: one query, one mutation that shows a
+// snackbar when it fails, and a text field.
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:fuery_hooks/fuery_hooks.dart';
@@ -22,7 +23,14 @@ class TodoScreen extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final todos = useQuery(todosQuery);
-    final addTodo = useMutation(addTodoMutation);
+    final addTodo = useMutation(
+      addTodoMutation,
+      // Runs after the change, never during a build.
+      listenWhen: (previous, current) => current.isError,
+      listener: (context, result) => ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not add the todo: ${result.error}')),
+      ),
+    );
     final title = useTextEditingController();
 
     return Scaffold(

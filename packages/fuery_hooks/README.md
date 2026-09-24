@@ -49,7 +49,7 @@ flutter pub add fuery_hooks flutter_hooks
 | `useQueries(queries)` | The results of a list of queries of one data type, in order. |
 | `useQueryClient()` | The client the hooks use, for `invalidateQueries` and `setData`. |
 
-Each rebuilds the widget when its result changes, and needs no type arguments: `todos` above is a `QueryResult<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`.
+Each rebuilds the widget when its result changes, and needs no type arguments: `todos` above is a `QueryResult<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`. `useQuery`, `useInfiniteQuery`, and `useMutation` also take `listener` and `listenWhen`, for side effects.
 
 ## One query that needs another
 
@@ -92,11 +92,25 @@ TextButton(
 
 For a side effect of one call, such as a snackbar, pass `MutateOptions` to `mutate`. The request itself still finishes when the widget goes away. For a definition, the callbacks of its calls are dropped then. A shared observer is left alone and still runs them, so check `context.mounted` in them.
 
+## Reacting to changes
+
+Pass `listener` to the hook for navigation, snackbars, and other one-off effects. It runs after a change, never during a build, and not for the result the widget mounts with:
+
+```dart
+final addTodo = useMutation(
+  addTodoMutation,
+  listenWhen: (previous, current) => current.isSuccess,
+  listener: (context, result) => Navigator.pop(context),
+);
+```
+
+`listenWhen` compares the previous result with the new one, as on `QueryListener`. A mutation's listener hears the runs started with the result its hook returns.
+
 ## Rules
 
 - **Pass a definition.** A `Query` or a `Mutation` can be a top-level value or be built in `build`: the hook keeps one observer for it and updates its options, so a new key shows in the same frame.
 - **Don't call `.observe()` in `build`.** A new query observer every build subscribes and fetches again, and a new mutation observer starts idle. In debug builds the hook prints a warning once per key.
-- **Run side effects in a listener.** For a snackbar or navigation, wrap what the widget builds in a `QueryListener` with the same query. `useEffect` and `useValueChanged` run during the build, where those calls fail.
+- **Run side effects in a listener.** For a snackbar or navigation, pass `listener:` to the hook. `useEffect` and `useValueChanged` run during the build, where those calls fail.
 - **Watch the client with a memoized stream**: `useStream(useMemoized(() => client.watch(selector), [client]))`. A new stream every build rebuilds the widget on every frame.
 - **The client** is the one a `FueryProvider` above provides, or `Fuery.client`, and `useQueryClient()` returns it. A shared observer keeps the client it was created with instead.
 

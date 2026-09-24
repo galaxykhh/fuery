@@ -21,13 +21,36 @@ import 'package:fuery/fuery.dart';
 ///   }
 /// }
 /// ```
-QueryResult<TData> useQuery<TData extends Object>(QuerySource<TData> query) {
+///
+/// [listener] runs side effects, such as a snackbar or navigation, after
+/// each later change, as a [QueryListener] does: never during a build, and
+/// not for the result the widget mounts with. [listenWhen] compares the
+/// previous result received with the new one, and needs a [listener]. The
+/// listener gets the widget's own `context`, and the latest build's
+/// [listener] and [listenWhen] are used.
+///
+/// ```dart
+/// final todos = useQuery(
+///   todosQuery,
+///   listenWhen: (previous, current) =>
+///       !previous.isRefetchError && current.isRefetchError,
+///   listener: (context, result) => ScaffoldMessenger.of(context)
+///       .showSnackBar(SnackBar(content: Text('${result.error}'))),
+/// );
+/// ```
+QueryResult<TData> useQuery<TData extends Object>(
+  QuerySource<TData> query, {
+  ResultWidgetListener<QueryResult<TData>>? listener,
+  ResultCondition<QueryResult<TData>>? listenWhen,
+}) {
   return use(
     _SlotHook<QuerySource<TData>, QueryResult<TData>>(
       query,
       QuerySlot<TData>.new,
       _recreatedQuery,
       'useQuery',
+      listener: listener,
+      listenWhen: listenWhen,
     ),
   );
 }
@@ -35,10 +58,12 @@ QueryResult<TData> useQuery<TData extends Object>(QuerySource<TData> query) {
 /// Returns the latest result of an infinite [query], and rebuilds when it
 /// changes. Load more with `fetchNextPage` on the result.
 ///
-/// See [useQuery].
+/// [listener] and [listenWhen] work as in [useQuery]. See [useQuery].
 InfiniteQueryResult<TPage, TParam> useInfiniteQuery<TPage, TParam>(
-  InfiniteQuerySource<TPage, TParam> query,
-) {
+  InfiniteQuerySource<TPage, TParam> query, {
+  ResultWidgetListener<InfiniteQueryResult<TPage, TParam>>? listener,
+  ResultCondition<InfiniteQueryResult<TPage, TParam>>? listenWhen,
+}) {
   return use(
     _SlotHook<InfiniteQuerySource<TPage, TParam>,
         InfiniteQueryResult<TPage, TParam>>(
@@ -46,6 +71,8 @@ InfiniteQueryResult<TPage, TParam> useInfiniteQuery<TPage, TParam>(
       InfiniteQuerySlot<TPage, TParam>.new,
       _recreatedQuery,
       'useInfiniteQuery',
+      listener: listener,
+      listenWhen: listenWhen,
     ),
   );
 }
@@ -68,10 +95,25 @@ InfiniteQueryResult<TPage, TParam> useInfiniteQuery<TPage, TParam>(
 /// ```
 ///
 /// A [NoVariablesMutation] runs with `mutate(null)`.
+///
+/// [listener] and [listenWhen] work as in [useQuery]. For a definition, the
+/// listener hears the runs started with the result this hook returns, also
+/// when a child runs it; another `useMutation` of the same definition has
+/// an observer of its own. For a shared observer, it hears every run.
+///
+/// ```dart
+/// final addTodo = useMutation(
+///   addTodoMutation,
+///   listenWhen: (previous, current) => current.isSuccess,
+///   listener: (context, result) => Navigator.pop(context),
+/// );
+/// ```
 MutationResult<TData, TVariables, TContext>
     useMutation<TData, TVariables, TContext>(
-  MutationSource<TData, TVariables, TContext> mutation,
-) {
+  MutationSource<TData, TVariables, TContext> mutation, {
+  ResultWidgetListener<MutationResult<TData, TVariables, TContext>>? listener,
+  ResultCondition<MutationResult<TData, TVariables, TContext>>? listenWhen,
+}) {
   return use(
     _SlotHook<MutationSource<TData, TVariables, TContext>,
         MutationResult<TData, TVariables, TContext>>(
@@ -79,6 +121,8 @@ MutationResult<TData, TVariables, TContext>
       MutationSlot<TData, TVariables, TContext>.new,
       _recreatedMutation,
       'useMutation',
+      listener: listener,
+      listenWhen: listenWhen,
     ),
   );
 }
@@ -172,9 +216,20 @@ String? _recreatedInList(List<Object?> previous, List<Object?> current) {
 }
 
 /// Renders a source through the [ObserverSlot] that [createSlot] creates,
-/// the way the widgets of `fuery` do.
+/// the way the widgets of `fuery` do, and calls [listener] after each later
+/// change of its result, as the listener widgets do.
 class _SlotHook<S, R> extends Hook<R> {
-  const _SlotHook(this.source, this.createSlot, this.debugKey, this.name);
+  const _SlotHook(
+    this.source,
+    this.createSlot,
+    this.debugKey,
+    this.name, {
+    this.listener,
+    this.listenWhen,
+  }) : assert(
+          listener != null || listenWhen == null,
+          'listenWhen needs a listener',
+        );
 
   final S source;
   final ObserverSlot<S, R> Function(S source, QueryClient client) createSlot;
@@ -183,6 +238,9 @@ class _SlotHook<S, R> extends Hook<R> {
   final _RecreatedKey<S> debugKey;
   final String name;
 
+  final ResultWidgetListener<R>? listener;
+  final ResultCondition<R>? listenWhen;
+
   @override
   _SlotHookState<S, R> createState() => _SlotHookState<S, R>();
 }
@@ -190,6 +248,7 @@ class _SlotHook<S, R> extends Hook<R> {
 class _SlotHookState<S, R> extends HookState<R, _SlotHook<S, R>> {
   ObserverSlot<S, R>? _slot;
   void Function()? _unsubscribe;
+  void Function()? _stopListening;
   R? _built;
 
   /// What the slot was last updated with, so a rebuild with the same ones,
@@ -235,14 +294,28 @@ class _SlotHookState<S, R> extends HookState<R, _SlotHook<S, R>> {
     }
     _source = hook.source;
     _client = client;
+    // From the first build that passes a listener, whose result is not a
+    // change. A later build without one keeps listening and skips the calls.
+    if (hook.listener != null) _stopListening ??= slot.listen(_onChange);
     // Current as soon as update returns, so a new key shows in this frame.
     final result = slot.result;
     _built = result;
     return result;
   }
 
+  /// Runs in a microtask, never during a build, with the latest build's
+  /// listener.
+  void _onChange(R previous, R current) {
+    final listener = hook.listener;
+    if (listener != null &&
+        (hook.listenWhen?.call(previous, current) ?? true)) {
+      listener(context, current);
+    }
+  }
+
   @override
   void dispose() {
+    _stopListening?.call();
     _disposed = true;
     _unsubscribe?.call();
     _slot?.dispose();
