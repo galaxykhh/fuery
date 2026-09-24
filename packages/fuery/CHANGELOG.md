@@ -1,3 +1,12 @@
+## 1.5.0
+- Add `MutationStateBuilder`, `MutationStateListener`, and `MutationStateSelector`. Each takes `mutation:` and shows or hears every run of a mutation, found by its `mutationKey` or by `MutationFilters`, wherever the run was started. They work in a `StatelessWidget`, without sharing an observer. `MutationStateListener` is called once for each run that changes, and never for the states runs had when it mounted.
+- Listener widgets and consumers listen through `ObserverSlot.listen`. A listener that throws is now reported to the client's `onUncaughtError` when it is set. Before, its error always went to the zone.
+- Fix: a listener that throws no longer skips the rebuild of a `QueryConsumer`, `InfiniteQueryConsumer`, or `MutationConsumer`.
+- Fix: a listener no longer hears a change that the widget's previous observer had queued, as after the provided client was replaced.
+- The debug warning for a `MutationListener` given a `Mutation` definition points to `MutationStateListener` with a `mutationKey`, then to `MutateOptions`, then to one shared observer.
+- The example reports every failed like, also when likes overlap, keeps the comments queued on a post listed after leaving it, and runs "mark all read" from a `MutationBuilder`.
+- Released together with `fuery_core` 1.5.0, which renames Fuery's focus manager class to `FueryFocusManager`. `package:fuery/fuery.dart` exports it, and still exports the deprecated `FocusManager` alias. In a file that also imports Flutter, write `primaryFocus` or `WidgetsBinding.instance.focusManager`, or hide `FocusManager`.
+
 ## 1.4.4
 - Fix: when the provided client and a query's key change in the same frame, the new key is no longer fetched on the old client.
 - Debug warnings: a `MutationListener` given a `Mutation` definition, whose runs it can never hear, and a widget given an observer of another client than the one it uses, once per widget and key. The warning about observers created on every rebuild also covers `QueriesBuilder` and `QueriesSelector`, names the widget, and explains the effect for mutations.

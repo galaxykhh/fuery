@@ -35,7 +35,7 @@ Fuery caches server data, deduplicates requests, retries failures, paginates, an
 
 ## Tested
 
-Every package has 100% line coverage, and CI fails when a line loses it. The core's 340 tests run under `fake_async`, so every retry delay, stale timer, and garbage collection is checked against fake time, and the widget tests run on the oldest supported Flutter (3.27) as well as the latest. A regression suite keeps the edge cases that were found and fixed from coming back, such as a cancelled fetch overwriting the one that replaced it, a restore racing a reset, or a removed query leaving a timer that keeps a test process alive.
+Every package has 100% line coverage, and CI fails when a line loses it. The core's 378 tests run under `fake_async`, so every retry delay, stale timer, and garbage collection is checked against fake time, and the widget tests run on the oldest supported Flutter (3.27) as well as the latest. A regression suite keeps the edge cases that were found and fixed from coming back, such as a cancelled fetch overwriting the one that replaced it, a restore racing a reset, or a removed query leaving a timer that keeps a test process alive.
 
 Every timer Fuery starts is cancelled on the matching destroy path, and time comes from `package:clock`, so your own tests can use `fake_async` and `testWidgets` without leaked timers. See [Testing](https://galaxykhh.github.io/fuery/guides/testing/).
 
