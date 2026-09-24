@@ -268,6 +268,21 @@ void main() {
       expect(observer.result.pages, ['1', '2', '3']);
       expect(observer.result.data!.pageParams, [1, 2, 3]);
     });
+
+    fakeTest('when the query refetches', (async) {
+      // A refetch used to load every cached page and keep the last ones,
+      // so the first pages were fetched only to be dropped.
+      final calls = <int>[];
+      final pages = pagesQuery(lastPage: 10, maxPages: 3, calls: calls);
+      client.setData(pages, cached([1, 2, 3, 4, 5]));
+      final observer = pages.observe(client: client);
+      observer.subscribe((_) {});
+      async.elapse(const Duration(milliseconds: 50));
+
+      expect(calls, [1, 2, 3]);
+      expect(observer.result.pages, ['1', '2', '3']);
+      expect(observer.result.data!.pageParams, [1, 2, 3]);
+    });
   });
 
   fakeTest('pages loads no more than maxPages', (async) {

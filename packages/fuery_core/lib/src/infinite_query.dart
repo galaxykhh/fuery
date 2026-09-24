@@ -95,9 +95,9 @@ class _InfiniteQueryBehavior<TPage, TParam>
   /// down to this many when more were cached.
   final int? maxPages;
 
-  /// How many pages to load when nothing is cached. Defaults to one, and
-  /// loads no more than [maxPages]. With cached pages, a full fetch reloads
-  /// all of them.
+  /// How many pages to load when nothing is cached. Defaults to one. With
+  /// cached pages, a full fetch reloads them, starting from the first. Either
+  /// way it loads no more than [maxPages].
   final int? pages;
 
   @override
@@ -185,7 +185,7 @@ class _InfiniteQueryBehavior<TPage, TParam>
       // fetched only to be dropped.
       final max = maxPages;
       var remainingPages = oldPages.isEmpty ? pages ?? 1 : oldPages.length;
-      if (oldPages.isEmpty && max != null && max > 0 && remainingPages > max) {
+      if (max != null && max > 0 && remainingPages > max) {
         remainingPages = max;
       }
       var result = InfiniteData<TPage, TParam>(pages: [], pageParams: []);
