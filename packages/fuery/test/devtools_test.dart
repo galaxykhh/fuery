@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fuery/fuery.dart';
@@ -132,6 +133,24 @@ void main() {
     expect(pressed, 1);
     expect(openButton(), findsOneWidget);
     await tearDownApp(tester);
+  });
+
+  testWidgets('disposes its overlay entry', (tester) async {
+    final live = <Object>{};
+    void track(ObjectEvent event) {
+      if (event.object is! OverlayEntry) return;
+      if (event is ObjectCreated) live.add(event.object);
+      if (event is ObjectDisposed) live.remove(event.object);
+    }
+
+    FlutterMemoryAllocations.instance.addListener(track);
+    addTearDown(() => FlutterMemoryAllocations.instance.removeListener(track));
+
+    await pumpApp(tester);
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pump();
+    await tearDownApp(tester);
+    expect(live, isEmpty);
   });
 
   testWidgets('turning it off keeps the app state', (tester) async {

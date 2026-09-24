@@ -127,39 +127,9 @@ class FueryDevtoolsPanel extends StatefulWidget {
   State<FueryDevtoolsPanel> createState() => _FueryDevtoolsPanelState();
 }
 
-typedef _PanelConfig = ({QueryClient client, VoidCallback? onClose});
-
 class _FueryDevtoolsPanelState extends State<FueryDevtoolsPanel> {
-  // The panel has its own overlay, so text fields work above the app's
-  // navigator. The entry is built once and follows the widget through this
-  // notifier.
-  late final ValueNotifier<_PanelConfig> _config = ValueNotifier(_read());
-  late final OverlayEntry _entry = OverlayEntry(
-    builder: (context) => ValueListenableBuilder(
-      valueListenable: _config,
-      builder: (context, config, _) => _PanelBody(
-        client: config.client,
-        onClose: config.onClose,
-      ),
-    ),
-  );
-
-  _PanelConfig _read() {
-    return (
-      client: widget.client ?? FueryProvider.of(context, listen: true),
-      onClose: widget.onClose,
-    );
-  }
-
-  @override
-  void dispose() {
-    _config.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
-    _config.value = _read();
     return Localizations(
       locale: const Locale('en'),
       delegates: const [
@@ -169,7 +139,14 @@ class _FueryDevtoolsPanelState extends State<FueryDevtoolsPanel> {
       ],
       child: Theme(
         data: _theme,
-        child: Overlay(initialEntries: [_entry]),
+        // The panel has its own overlay, so text fields work above the app's
+        // navigator.
+        child: Overlay.wrap(
+          child: _PanelBody(
+            client: widget.client ?? FueryProvider.of(context, listen: true),
+            onClose: widget.onClose,
+          ),
+        ),
       ),
     );
   }
