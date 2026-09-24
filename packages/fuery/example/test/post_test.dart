@@ -92,8 +92,9 @@ void main() {
     onlineManager.setOnline(true);
     await Fuery.client.restore(mutations: [addCommentMutation()]);
     await tester.pumpWidget(const FeedApp());
+    // The stored feed is on screen at once, before any request.
+    expect(find.text(topPost), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 300)); // the comment
-    await tester.pump(const Duration(milliseconds: 400)); // the feed
     await openPost(tester, topPost);
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Sent after a restart'), findsOneWidget);

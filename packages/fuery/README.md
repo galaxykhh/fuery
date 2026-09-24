@@ -72,7 +72,7 @@ Each key holds one data type. Write to it with `client.setData(todosQuery, todos
 
 **Freshness.** Data is *fresh* for `staleTime` (default: zero) and *stale* afterwards. Stale data is still shown, and it's refetched in the background when:
 
-- the first widget using it mounts, or an observer from `observe()` gets its first listener,
+- a widget using it mounts (every widget, not only the first), or an observer from `observe()` gets its first listener,
 - the app returns to the foreground,
 - the network reconnects,
 - it is invalidated.

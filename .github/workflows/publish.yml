@@ -1,11 +1,24 @@
 name: Publish
 
 # Push a tag like v0.3.0 to publish the packages and create a GitHub release
-# from their CHANGELOG entries. Their versions must match the tag, and each
-# package on pub.dev must allow automated publishing from this repository with
-# the tag pattern v{{version}}. pub.dev allows that only for a package that
-# exists, so a new package's first version is published by hand after the
-# tag, and gets a step here once it's on pub.dev.
+# from their CHANGELOG entries. CI checks first that the versions match the
+# tag and that every CHANGELOG has an entry for it (tool/check_versions.py).
+# Each package on pub.dev must allow automated publishing from this repository
+# with the tag pattern v{{version}}.
+#
+# A failed run can be re-run: it skips a package whose version is already on
+# pub.dev, and publishes the rest at the same version.
+#
+# pub.dev allows automated publishing only for a package that exists, so a new
+# package's first version is published by hand from a checkout of its tag, not
+# from main:
+#
+#   git worktree add ../fuery-vX.Y.Z vX.Y.Z
+#   (cd ../fuery-vX.Y.Z && flutter pub get)
+#   (cd ../fuery-vX.Y.Z/packages/<package> && flutter pub publish)
+#   git worktree remove ../fuery-vX.Y.Z
+#
+# The package gets a publish step here once it's on pub.dev.
 on:
   push:
     tags:
@@ -29,10 +42,31 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      # fuery depends on fuery_core, so publish the core first.
-      - run: dart pub publish --force
+      # Validate every package before uploading any, so a package pub.dev
+      # would reject doesn't leave the others published without it.
+      - run: dart pub publish --dry-run
         working-directory: packages/fuery_core
-      - run: flutter pub publish --force
+      - run: flutter pub publish --dry-run
+        working-directory: packages/fuery
+      - run: flutter pub publish --dry-run
+        working-directory: packages/fuery_hooks
+      # fuery depends on fuery_core, so publish the core first. A re-run skips
+      # a version that is already on pub.dev.
+      - name: Publish fuery_core
+        run: |
+          if curl -sfo /dev/null "https://pub.dev/api/packages/fuery_core/versions/${GITHUB_REF_NAME#v}"; then
+            echo "fuery_core ${GITHUB_REF_NAME#v} is already on pub.dev."
+          else
+            dart pub publish --force
+          fi
+        working-directory: packages/fuery_core
+      - name: Publish fuery
+        run: |
+          if curl -sfo /dev/null "https://pub.dev/api/packages/fuery/versions/${GITHUB_REF_NAME#v}"; then
+            echo "fuery ${GITHUB_REF_NAME#v} is already on pub.dev."
+          else
+            flutter pub publish --force
+          fi
         working-directory: packages/fuery
 
   release:
