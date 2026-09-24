@@ -55,8 +55,11 @@ typedef RetryDelay = Duration Function(int failureCount, Object error);
 
 /// Exponential backoff: 1s, 2s, 4s, ... capped at 30s.
 Duration defaultRetryDelay(int failureCount, Object error) {
-  final ms = math.min(1000 * math.pow(2, failureCount).toInt(), 30000);
-  return Duration(milliseconds: ms);
+  // Caps the exponent too: 2^failureCount overflows a 64-bit int after about
+  // 53 failures (and is Infinity on the web), which RetryPolicy.always()
+  // reaches.
+  final ms = 1000 * math.pow(2, math.min(failureCount, 5)).toInt();
+  return Duration(milliseconds: math.min(ms, 30000));
 }
 
 bool canFetch(NetworkMode? networkMode) {

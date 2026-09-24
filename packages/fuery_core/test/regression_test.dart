@@ -242,6 +242,13 @@ void main() {
   });
 
   group('retry timers', () {
+    test('the default retry delay stays at 30 seconds after many failures', () {
+      final error = StateError('down');
+      for (final count in [5, 53, 54, 55, 64, 100, 1024]) {
+        expect(defaultRetryDelay(count, error), const Duration(seconds: 30));
+      }
+    });
+
     fakeTest('clear() cancels a query waiting to retry', (async) {
       final observer = Query(
         queryKey: ['a'],
