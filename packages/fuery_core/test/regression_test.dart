@@ -7,6 +7,7 @@ import 'package:fuery_core/src/utils.dart' show storageHash;
 import 'package:test/test.dart';
 
 import 'helpers.dart';
+import 'storages.dart';
 
 class Item {
   const Item(this.id, this.name);
@@ -303,7 +304,7 @@ void main() {
       client.clear();
       async.flushMicrotasks();
       expect(error, isA<CancelledError>());
-      expect(callbackError, isA<CancelledError>());
+      expect(callbackError, isNull);
       expect(mutation.result.isPaused, isFalse);
       expect(mutation.result.isError, isTrue);
       expect(async.pendingTimers, isEmpty);
@@ -364,11 +365,18 @@ void main() {
     });
 
     fakeTest('clear() during onMutate drops a run that would pause', (async) {
+      final called = <String>[];
       final mutation = Mutation(
         mutationFn: (int x) async => x,
         onMutate: (_, __) async {
           await Future<void>.delayed(ms10);
           return 'context';
+        },
+        onError: (error, x, context, client) {
+          called.add('onError');
+        },
+        onSettled: (data, error, x, context, client) {
+          called.add('onSettled');
         },
       ).observe(client: client);
       final paused = <bool>[];
@@ -386,7 +394,92 @@ void main() {
       expect(error, isA<CancelledError>());
       expect(mutation.result.isError, isTrue);
       expect(paused, everyElement(isFalse));
+      expect(called, isEmpty);
       expect(async.pendingTimers, isEmpty);
+      unsubscribe();
+    });
+
+    fakeTest('clear() runs no callback of a mutation it drops', (async) {
+      // The optimistic update the rollback would undo was cleared too, so
+      // the rollback wrote the cleared session's data back into the cache
+      // and the storage.
+      final called = <String>[];
+      final storage = MemoryStorage();
+      final persisted = QueryClient(
+        storage: storage,
+        mutationCache: MutationCache(
+          config: MutationCacheConfig(
+            onError: (error, variables, context, mutation) {
+              called.add('cache onError');
+            },
+            onSettled: (data, error, variables, context, mutation) {
+              called.add('cache onSettled');
+            },
+          ),
+        ),
+      )..mount();
+      final todos = Query(
+        queryKey: ['todos'],
+        queryFn: (_) async => ['a', 'b'],
+        staleTime: const Duration(minutes: 5),
+        persist: QueryPersist(
+          toJson: (todos) => todos,
+          fromJson: (json) => [
+            for (final todo in json! as List<Object?>) todo! as String,
+          ],
+        ),
+      );
+      persisted.query(todos).ignore();
+      async.flushMicrotasks();
+      expect(storage.entries, isNotEmpty);
+
+      onlineManager.setOnline(false);
+      final deleteTodo = Mutation(
+        mutationFn: (String id) async => id,
+        onMutate: (id, client) {
+          final previous = client.getData(todos);
+          client.updateData(
+            todos,
+            (list) => list?.where((todo) => todo != id).toList(),
+          );
+          return previous;
+        },
+        onError: (error, id, previous, client) {
+          called.add('onError');
+          if (previous != null) client.setData(todos, previous);
+        },
+        onSettled: (data, error, id, previous, client) {
+          called.add('onSettled');
+        },
+      ).observe(client: persisted);
+      final unsubscribe = deleteTodo.subscribe((_) {});
+      Object? error;
+      deleteTodo
+          .mutateAsync(
+        'a',
+        MutateOptions(
+          onError: (error, id, previous, client) {
+            called.add('call onError');
+          },
+          onSettled: (data, error, id, previous, client) {
+            called.add('call onSettled');
+          },
+        ),
+      )
+          .then<void>((_) {}, onError: (Object e) {
+        error = e;
+      });
+      async.flushMicrotasks();
+      expect(deleteTodo.result.isPaused, isTrue);
+
+      persisted.clear();
+      async.flushMicrotasks();
+      expect(error, isA<CancelledError>());
+      expect(deleteTodo.result.isError, isTrue);
+      expect(persisted.getData(todos), isNull);
+      expect(storage.entries, isEmpty);
+      expect(async.pendingTimers, isEmpty);
+      expect(called, isEmpty);
       unsubscribe();
     });
   });

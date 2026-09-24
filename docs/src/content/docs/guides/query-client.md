@@ -343,7 +343,7 @@ Future<void> logout() async {
 
 `clear()` removes every query and every mutation, and deletes all [persisted data](../persistence/#deleting-stored-data). The client itself stays, along with the defaults registered through `setQueryDefaults` and `setMutationDefaults`.
 
-A mutation already sending finishes. A mutation still waiting, for the network or for its turn in a scope, is dropped: it fails with a `CancelledError`, which reaches its `onError` and `onSettled` callbacks.
+A mutation already sending finishes. A mutation still waiting, for the network or for its turn in a scope, is dropped: it fails with a `CancelledError`, which `mutateAsync` throws and its state shows. None of its callbacks run, including those of `MutationCacheConfig` and of its `mutate` call. The optimistic update they would roll back is gone with the cache, and a rollback would write the old session's data back.
 
 Clear once the screens that use queries are gone. An observer still subscribed when `clear()` or `removeQueries` runs doesn't stop: Fuery moves it to a new query for the same key, and that query loads like a new one. A list still on screen therefore refetches right away, with the logged-out session. Navigate to the login screen first, and unsubscribe any observer you subscribed by hand.
 

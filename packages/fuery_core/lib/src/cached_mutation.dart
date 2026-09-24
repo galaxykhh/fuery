@@ -19,6 +19,13 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
 
   final int mutationId;
   bool _removed = false;
+
+  /// Set when `clear()` cancels this run while it waits to start or to
+  /// retry; nothing else removes a pending mutation. Its callbacks don't
+  /// run: the optimistic update they would roll back was cleared too, and a
+  /// rollback would write the cleared session's data back.
+  bool _dropped = false;
+
   final QueryClient _client;
   final MutationCache _mutationCache;
 
@@ -67,6 +74,7 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
     if (_state.isPaused) {
       // Nothing resumes a removed mutation, and a paused one has no attempt
       // in flight, so it fails now.
+      _dropped = true;
       _retryer?.cancel();
     } else {
       // A removed mutation doesn't wait to retry; the current attempt
@@ -111,7 +119,10 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
       },
       onPause: () {
         // A mutation removed during onMutate would never be resumed.
-        if (_removed) return _retryer?.cancel();
+        if (_removed) {
+          _dropped = true;
+          return _retryer?.cancel();
+        }
         _dispatch(const _MutationPauseAction());
       },
       onContinue: () => _dispatch(const _MutationContinueAction()),
@@ -175,40 +186,48 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
       );
       return data;
     } catch (error, stackTrace) {
-      // Errors thrown by the error callbacks must not hide the mutation error.
-      await _client._guardAsyncCallback(
-        () => cacheConfig.onError?.call(error, variables, _state.context, this),
-      );
-      await _client._guardAsyncCallback(
-        () => _options.onError?.call(
-          error,
-          variables,
-          _state.context,
-          _client,
-        ),
-      );
-      await _client._guardAsyncCallback(
-        () => cacheConfig.onSettled?.call(
-          null,
-          error,
-          _state.variables,
-          _state.context,
-          this,
-        ),
-      );
-      await _client._guardAsyncCallback(
-        () => _options.onSettled?.call(
-          null,
-          error,
-          variables,
-          _state.context,
-          _client,
-        ),
-      );
+      // A run that clear() dropped still fails, so its observers and
+      // mutateAsync see the error, but none of its callbacks run.
+      if (!_dropped) {
+        // Errors thrown by the error callbacks must not hide the mutation
+        // error.
+        await _client._guardAsyncCallback(
+          () =>
+              cacheConfig.onError?.call(error, variables, _state.context, this),
+        );
+        await _client._guardAsyncCallback(
+          () => _options.onError?.call(
+            error,
+            variables,
+            _state.context,
+            _client,
+          ),
+        );
+        await _client._guardAsyncCallback(
+          () => cacheConfig.onSettled?.call(
+            null,
+            error,
+            _state.variables,
+            _state.context,
+            this,
+          ),
+        );
+        await _client._guardAsyncCallback(
+          () => _options.onSettled?.call(
+            null,
+            error,
+            variables,
+            _state.context,
+            _client,
+          ),
+        );
+      }
 
       _dispatch(
         _MutationErrorAction(error),
-        onCallSettled == null ? null : () => onCallSettled(null, error),
+        onCallSettled == null || _dropped
+            ? null
+            : () => onCallSettled(null, error),
       );
       Error.throwWithStackTrace(error, stackTrace);
     } finally {
