@@ -42,8 +42,11 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      # Validate every package before uploading any, so a package pub.dev
-      # would reject doesn't leave the others published without it.
+      # Validate every package before uploading any, so a package that fails
+      # validation doesn't leave the others published without it. A dry-run
+      # fails on pub's warnings too, not only on what pub.dev would reject,
+      # such as a checked-in file that `flutter pub get` rewrote. CI runs the
+      # same dry-runs on every pull request, so they should pass here.
       - run: dart pub publish --dry-run
         working-directory: packages/fuery_core
       - run: flutter pub publish --dry-run
