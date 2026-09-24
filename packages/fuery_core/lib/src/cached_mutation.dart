@@ -233,23 +233,31 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
       return; // Variables that can't be encoded aren't stored.
     }
     _storageKey = key;
+    // A restore while it runs must not run it again.
+    _client._loadedMutationKeys.add(key);
     _storeWrite = Future<void>.sync(() => storage.write(key, value))
         .then((_) {}, onError: (Object _) {});
   }
 
   /// Deletes the stored variables once the mutation has settled, after a
-  /// write that is still in flight.
+  /// write that is still in flight. A restore skips the entry until the
+  /// delete starts, and a restore reading then sees the delete and reads
+  /// again.
   void _deleteStored() {
     final key = _storageKey;
     if (key == null) return;
     _storageKey = null;
-    _client._loadedMutationKeys.remove(key);
     final write = _storeWrite;
     _storeWrite = null;
-    if (write == null) {
+    void forget() {
+      _client._loadedMutationKeys.remove(key);
       _client._deleteStored(key);
+    }
+
+    if (write == null) {
+      forget();
     } else {
-      write.whenComplete(() => _client._deleteStored(key));
+      write.whenComplete(forget);
     }
   }
 

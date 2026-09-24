@@ -75,6 +75,28 @@ MapEntry<String, String> storedEntry(
   );
 }
 
+/// Writes right away, but finishes the write only after a delay.
+class _SlowWriteStorage implements QueryStorage {
+  _SlowWriteStorage(this.inner);
+
+  final MemoryStorage inner;
+
+  @override
+  String? read(String key) => inner.read(key);
+
+  @override
+  Future<void> write(String key, String value) {
+    inner.write(key, value);
+    return Future.delayed(const Duration(milliseconds: 50));
+  }
+
+  @override
+  void delete(String key) => inner.delete(key);
+
+  @override
+  Map<String, String> readAll() => inner.readAll();
+}
+
 void main() {
   late MemoryStorage storage;
   late QueryClient client;
@@ -452,6 +474,54 @@ void main() {
       async.elapse(ms10);
       expect(mutator.calls, ['once']);
       expect(client.mutationCache.getAll(), hasLength(1));
+    });
+
+    fakeTest('restore does not run a mutation that is still running', (async) {
+      final mutator = FakeMutator();
+      final options = commentOptions(mutator);
+      options.observe(client: client).mutate('hello');
+      async.flushMicrotasks();
+
+      client.restore(mutations: [options]);
+      async.elapse(ms10);
+      expect(mutator.calls, ['hello']);
+      expect(client.mutationCache.getAll(), hasLength(1));
+      expect(storedMutations(), isEmpty);
+    });
+
+    fakeTest('restore does not run a mutation that paused offline', (async) {
+      onlineManager.setOnline(false);
+      final mutator = FakeMutator();
+      final options = commentOptions(mutator);
+      options.observe(client: client).mutate('offline');
+      async.flushMicrotasks();
+
+      client.restore(mutations: [options]);
+      async.flushMicrotasks();
+      onlineManager.setOnline(true);
+      async.elapse(ms10);
+      expect(mutator.calls, ['offline']);
+      expect(client.mutationCache.getAll(), hasLength(1));
+      expect(storedMutations(), isEmpty);
+    });
+
+    fakeTest('restore does not run a mutation whose delete waits for its write',
+        (async) {
+      final memory = MemoryStorage();
+      client.unmount();
+      client = QueryClient(storage: _SlowWriteStorage(memory))..mount();
+      final mutator = FakeMutator();
+      final options = commentOptions(mutator);
+      options.observe(client: client).mutate('once');
+      // Settled, while its write is still in flight.
+      async.elapse(ms10);
+      expect(client.mutationCache.getAll().single.state.isSuccess, isTrue);
+      expect(memory.entries, hasLength(1));
+
+      client.restore(mutations: [options]);
+      async.elapse(const Duration(milliseconds: 100));
+      expect(mutator.calls, ['once']);
+      expect(memory.entries, isEmpty);
     });
 
     fakeTest('restore reads an asynchronous storage', (async) {

@@ -68,8 +68,8 @@ class QueryClient {
   /// reading at the time drops what it read.
   int _deletionEpoch = 0;
 
-  /// Storage keys of stored mutations that [restore] has loaded, so a
-  /// second restore doesn't run them again.
+  /// Storage keys of the stored mutations this client is running, started
+  /// here or loaded by [restore], so a restore doesn't run them again.
   final Set<String> _loadedMutationKeys = {};
   final Map<String, (QueryKey, QueryDefaults)> _queryDefaults = {};
   final Map<String, (MutationKey, MutationDefaults)> _mutationDefaults = {};
