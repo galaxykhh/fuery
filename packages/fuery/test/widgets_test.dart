@@ -429,6 +429,35 @@ void main() {
       expect(heard, hasLength(1));
       await tearDownApp(tester);
     });
+
+    testWidgets('does not hear a replaced provider client, but its changes',
+        (tester) async {
+      final other = QueryClient()..setQueryData(['todos'], 'other');
+      client.setQueryData(['todos'], 'a');
+      final heard = <String?>[];
+      Widget screen(QueryClient provided) => FueryProvider(
+            client: provided,
+            child: QueryListener(
+              query: Query(
+                queryKey: ['todos'],
+                queryFn: Fetcher('fetched').call,
+                staleTime: infiniteDuration,
+              ),
+              listener: (context, state) => heard.add(state.data),
+              child: const SizedBox(),
+            ),
+          );
+      await tester.pumpWidget(screen(client));
+      await tester.pumpWidget(screen(other));
+      await tester.pump();
+      expect(heard, isEmpty);
+
+      other.setQueryData(['todos'], 'other!');
+      await tester.pump();
+      expect(heard, ['other!']);
+      await tearDownApp(tester);
+      other.clear();
+    });
   });
 
   group('QueryConsumer', () {

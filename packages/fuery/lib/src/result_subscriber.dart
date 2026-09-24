@@ -177,6 +177,7 @@ mixin _SlotHost<S, R, W extends StatefulWidget> on State<W> {
       final created = _slot = _createSlot(_source, client);
       debugWarnOtherClient(_debugName, _source, client);
       _onAttached(created.result);
+      _onCreated(created);
       // Results arrive in a microtask, never during build or initState.
       _unsubscribe = created.subscribe(
         notifyManager.batchCalls((R result) {
@@ -226,6 +227,9 @@ mixin _SlotHost<S, R, W extends StatefulWidget> on State<W> {
   /// The slot started rendering from another observer, with [result].
   void _onAttached(R result);
 
+  /// The slot was created, before the widget subscribes to it.
+  void _onCreated(ObserverSlot<S, R> slot) {}
+
   /// The same observer has [result] after an update, before this build.
   void _onUpdated(R result);
 
@@ -236,7 +240,8 @@ mixin _SlotHost<S, R, W extends StatefulWidget> on State<W> {
 /// Renders a source through an [ObserverSlot] and builds, listens, or both.
 ///
 /// [buildWhen] compares against the result that was last built, and
-/// [listenWhen] against the result that was last received.
+/// [listenWhen] against the result that was last received. The listener
+/// hears changes through [ObserverSlot.listen].
 class ResultSubscriber<S, R> extends StatefulWidget {
   const ResultSubscriber({
     super.key,
@@ -272,7 +277,7 @@ class ResultSubscriber<S, R> extends StatefulWidget {
 class _ResultSubscriberState<S, R> extends State<ResultSubscriber<S, R>>
     with _SlotHost<S, R, ResultSubscriber<S, R>> {
   late R _built;
-  late R _previous;
+  void Function()? _stopListening;
 
   @override
   S get _source => widget.source;
@@ -293,9 +298,20 @@ class _ResultSubscriberState<S, R> extends State<ResultSubscriber<S, R>>
   }
 
   @override
-  void _onAttached(R result) {
-    _built = result;
-    _previous = result;
+  void _onAttached(R result) => _built = result;
+
+  /// Listens before the widget subscribes to rebuild, so the listener hears
+  /// each change before the rebuild that shows it.
+  @override
+  void _onCreated(ObserverSlot<S, R> slot) {
+    if (widget.listener == null) return;
+    _stopListening = slot.listen((previous, current) {
+      final listener = widget.listener;
+      if (listener != null &&
+          (widget.listenWhen?.call(previous, current) ?? true)) {
+        listener(context, current);
+      }
+    });
   }
 
   @override
@@ -307,17 +323,13 @@ class _ResultSubscriberState<S, R> extends State<ResultSubscriber<S, R>>
 
   @override
   void _onResult(R result) {
-    final previous = _previous;
-    if (result == previous) return;
-    _previous = result;
-
-    final listener = widget.listener;
-    if (listener != null &&
-        (widget.listenWhen?.call(previous, result) ?? true)) {
-      listener(context, result);
-    }
-
     if (_shouldBuild(result)) setState(() => _built = result);
+  }
+
+  @override
+  void dispose() {
+    _stopListening?.call();
+    super.dispose();
   }
 
   bool _shouldBuild(R result) {

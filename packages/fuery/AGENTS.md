@@ -16,6 +16,7 @@ These are covered by tests; keep them:
 - `buildWhen(previous, current)` compares against the last built result.
 - `listenWhen(previous, current)` compares against the previously received result.
 - Listeners are not called for the result that already existed when they mounted.
+- Listeners hear changes through the core's `slot.listen`, registered when the slot is created and before the widget subscribes to rebuild, so the listener runs before the rebuild that shows the change. A listener that throws is reported to the client's `onUncaughtError` and doesn't stop the rebuild. A listener doesn't hear the slot moving to another observer, as when the provided client is replaced.
 - Selectors rebuild only when the selected value changes. The value goes through `replaceEqualDeep` and is compared with `identical`, and it is selected again when the parent rebuilds.
 - The first frame uses the observer's optimistic result, so a query that is about to fetch shows loading instead of an empty frame.
 - After the source or the client changes, the builder takes `slot.result` before it builds, so that frame already shows the new key. Listeners still hear the change when it arrives, never during build.
