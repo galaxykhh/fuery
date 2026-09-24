@@ -1,0 +1,78 @@
+# Data-driven fixes: `dart fix --apply` replaces the deprecated names below
+# with their current ones. This one file covers fuery_core and the packages
+# that re-export it (fuery, fuery_hooks): the analyzer reads it from a
+# transitive dependency too, and ignores URIs that don't resolve.
+#
+# Type aliases use the `class` kind, which also rewrites constructor calls;
+# the `typedef` kind leaves them unchanged. Every transform has a golden case
+# in each package's `test_fixes/`.
+version: 1
+transforms:
+  - title: "Rename to 'FueryFocusManager'"
+    date: 2026-09-25
+    element:
+      uris: ['fuery_core.dart', 'package:fuery/fuery.dart']
+      class: 'FocusManager'
+    changes:
+      - kind: 'rename'
+        newName: 'FueryFocusManager'
+
+  - title: "Rename to 'Query'"
+    date: 2026-09-24
+    element:
+      uris:
+        - 'fuery_core.dart'
+        - 'package:fuery/fuery.dart'
+        - 'package:fuery_hooks/fuery_hooks.dart'
+      class: 'QueryOptions'
+    changes:
+      - kind: 'rename'
+        newName: 'Query'
+
+  - title: "Rename to 'InfiniteQuery'"
+    date: 2026-09-24
+    element:
+      uris:
+        - 'fuery_core.dart'
+        - 'package:fuery/fuery.dart'
+        - 'package:fuery_hooks/fuery_hooks.dart'
+      class: 'InfiniteQueryOptions'
+    changes:
+      - kind: 'rename'
+        newName: 'InfiniteQuery'
+
+  - title: "Rename to 'Mutation'"
+    date: 2026-09-24
+    element:
+      uris:
+        - 'fuery_core.dart'
+        - 'package:fuery/fuery.dart'
+        - 'package:fuery_hooks/fuery_hooks.dart'
+      class: 'MutationOptions'
+    changes:
+      - kind: 'rename'
+        newName: 'Mutation'
+
+  - title: "Rename to 'AnyMutation'"
+    date: 2026-09-24
+    element:
+      uris:
+        - 'fuery_core.dart'
+        - 'package:fuery/fuery.dart'
+        - 'package:fuery_hooks/fuery_hooks.dart'
+      class: 'AnyMutationOptions'
+    changes:
+      - kind: 'rename'
+        newName: 'AnyMutation'
+
+  - title: "Use the 'InfiniteQuery' constructor"
+    date: 2026-09-24
+    element:
+      uris:
+        - 'fuery_core.dart'
+        - 'package:fuery/fuery.dart'
+        - 'package:fuery_hooks/fuery_hooks.dart'
+      function: 'infiniteQueryOptions'
+    changes:
+      - kind: 'rename'
+        newName: 'InfiniteQuery'

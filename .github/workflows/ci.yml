@@ -58,6 +58,12 @@ jobs:
       - if: matrix.version == ''
         run: dart format --output=none --set-exit-if-changed packages
       - run: flutter analyze packages
+      # `dart fix` rewrites deprecated names with fuery_core's lib/fix_data.yaml.
+      # Each package's test_fixes/ holds a golden case for its barrel.
+      - run: |
+          for p in fuery_core fuery fuery_hooks; do
+            (cd packages/$p/test_fixes && dart fix --compare-to-golden) || exit 1
+          done
       # On the latest version the core tests also write coverage/lcov.info.
       - if: matrix.version != ''
         run: dart test

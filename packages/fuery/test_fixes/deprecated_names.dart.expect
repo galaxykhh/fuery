@@ -1,0 +1,70 @@
+// `dart fix --compare-to-golden`, run in this directory, checks that the
+// transforms in fuery_core's lib/fix_data.yaml turn this file into
+// deprecated_names.dart.expect.
+import 'package:fuery/fuery.dart';
+
+// FocusManager
+final FueryFocusManager focus = FueryFocusManager();
+
+class AppFocus extends FueryFocusManager {}
+
+bool isFocus(Object value) => value is FueryFocusManager;
+
+// QueryOptions
+final Query<String> todos =
+    Query(queryKey: ['todos'], queryFn: (_) async => 'todos');
+
+const Query<int> count =
+    Query<int>(queryKey: ['count'], queryFn: _count);
+
+Future<int> _count(QueryFunctionContext context) async => 1;
+
+class TodoQuery extends Query<String> {
+  TodoQuery(int id)
+      : super(queryKey: ['todos', id], queryFn: (_) async => 'todo');
+}
+
+bool isQuery(Object value) => value is Query<String>;
+
+// InfiniteQueryOptions and infiniteQueryOptions
+final InfiniteQuery<int, int> pages = InfiniteQuery(
+  queryKey: ['pages'],
+  queryFn: (context) async => context.pageParam,
+  initialPageParam: 1,
+  getNextPageParam: (data) => null,
+);
+
+final InfiniteQuery<int, int> morePages = InfiniteQuery(
+  queryKey: ['more'],
+  queryFn: (context) async => context.pageParam,
+  initialPageParam: 1,
+  getNextPageParam: (data) => null,
+);
+
+class PagesQuery extends InfiniteQuery<int, int> {
+  PagesQuery()
+      : super(
+          queryKey: ['pages'],
+          queryFn: (context) async => context.pageParam,
+          initialPageParam: 1,
+          getNextPageParam: (data) => null,
+        );
+}
+
+bool isPages(Object value) => value is InfiniteQuery<int, int>;
+
+// MutationOptions and AnyMutationOptions
+final Mutation<int, int, Object?> add =
+    Mutation(mutationFn: (int x) async => x + 1);
+
+class AddMutation extends Mutation<int, int, Object?> {
+  AddMutation() : super(mutationFn: (int x) async => x + 1);
+}
+
+bool isMutation(Object value) => value is Mutation<int, int, Object?>;
+
+final AnyMutation any = add;
+
+final List<AnyMutation> mutations = [add, AddMutation()];
+
+bool isAnyMutation(Object value) => value is AnyMutation;
