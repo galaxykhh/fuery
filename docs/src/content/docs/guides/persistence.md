@@ -170,6 +170,7 @@ await Fuery.client.restore(mutations: [addCommentMutation()]);
 - `restore` is the only way stored mutations come back. Each stored run is started again with its stored variables: right away while online, or when the network is back. Runs that share a scope go one at a time, oldest first.
 - `restore` starts each stored run once. A run the client is still running, or has paused offline, isn't started again, so calling `restore` more than once doesn't repeat a request.
 - A restored run skips `onMutate`, and its callbacks receive `null` as `context`. An optimistic update belongs to the run that made it; the restored run only repeats the request and its `onSuccess`.
+- A restored run shows in the [MutationState widgets](../mutations/#showing-every-run-of-a-mutation) and `useMutationState`, found by the same `mutationKey`, so `MutationStateBuilder(mutation: addCommentMutation(), ...)` lists the comments still on their way after a restart.
 - A stored run is deleted once the mutation succeeds or fails. `clear()` deletes them all.
 - An entry whose mutation wasn't passed to `restore` is kept, so a later `restore` can run it. One stored by another `version` of its `MutationPersist`, or one that can't be read, is deleted.
 - A mutation without variables persists with `MutationPersist.noVariables`: `NoVariablesMutation(mutationKey: ['sync'], mutationFn: () => api.sync(), persist: MutationPersist.noVariables)`.

@@ -104,18 +104,21 @@ Having nothing to return isn't a failure either. Query data can't be null, so a 
 
 ## Organizing mutations
 
-Put mutations next to their queries, defined the same way:
+Put mutations next to their queries, defined the same way. Give each one a `mutationKey` built from the key of the data it changes, next to the query keys:
 
 ```dart
 // lib/data/todo_mutations.dart
 final addTodo = Mutation(
+  mutationKey: [...todosKey, 'add'],
   mutationFn: (String title) => api.addTodo(title),
   onSuccess: (todo, title, context, client) =>
       client.invalidateQueries(queryKey: todosKey),
 );
 ```
 
-What they share differs from queries, though. Two widgets that use the same query key share one cache entry, but every widget or observer that runs a mutation keeps its own pending and error state. The definition therefore shares the mutation function and the cache updates, while every screen keeps its own state. The callbacks receive the client that runs the mutation, so the cache work reaches the right client in tests and under a `FueryProvider`.
+The client keeps every run of a mutation in its cache, from the moment it starts until `gcTime` (default: 5 minutes) after it settles, whichever widget, hook, or cubit started it. The key is how a screen finds those runs: `MutationStateBuilder(mutation: addTodo)` shows them anywhere in the app. See [Showing every run of a mutation](../mutations/#showing-every-run-of-a-mutation).
+
+What a screen shares differs from queries, though. Two widgets that use the same query key share one cache entry, but every widget that runs a mutation reports the state of its own runs. The definition shares the mutation function and the cache updates. The callbacks receive the client that runs the mutation, so the cache work reaches the right client in tests and under a `FueryProvider`.
 
 Keep the cache work, such as invalidating and rolling back, in the definition. Anything that belongs to one screen goes to the call site instead:
 
@@ -134,9 +137,7 @@ MutationBuilder(
 )
 ```
 
-A `MutationStateListener` does the same for a snackbar or a dialog after any run of the mutation, from any screen, with the screen's `BuildContext`. It finds the runs by the definition's `mutationKey`. See [Telling the user a mutation failed](../mutations/#telling-the-user-a-mutation-failed).
-
-A `MutationListener` hears only the observer it gets, so it needs the observer the button runs: create one with `addTodo.observe()` in a `State` field and pass it to both. Call its `reset()` in `dispose` so callbacks like the one above don't run after the screen closes. Under a `FueryProvider` with a client of its own, write `late final adding = addTodo.observe(client: context.queryClient);`.
+A `MutationStateListener` does the same for a snackbar or a dialog after any run of the mutation, from any screen, with the screen's `BuildContext`. See [Telling the user a mutation failed](../mutations/#telling-the-user-a-mutation-failed).
 
 ## In the example app
 

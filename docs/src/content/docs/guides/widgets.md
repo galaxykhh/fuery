@@ -27,9 +27,9 @@ QueryBuilder(
 - The observer uses the client of the nearest `FueryProvider`, or `Fuery.client` without one.
 - The result carries the actions: `state.refetch()`, `state.fetchNextPage()` and `state.fetchPreviousPage()` for infinite queries, and `state.mutate(...)`, `state.mutateAsync(...)`, and `state.reset()` for mutations.
 
-A widget can also take an observer you created with `observe()`, to share one handle between widgets. The widget then uses it as it is.
+A `MutationBuilder` shows the runs it starts. To show or hear a mutation's runs anywhere else, give the definition a `mutationKey` and use the MutationState widgets, which find every run by that key. See [Showing every run of a mutation](../mutations/#showing-every-run-of-a-mutation).
 
-A `MutationBuilder` shows the runs it starts. To show a mutation's runs anywhere else, give the definition a `mutationKey` and use the MutationState widgets, which find every run by that key. See [Showing every run of a mutation](../mutations/#showing-every-run-of-a-mutation). A `MutationListener`, or a `MutationSelector` whose builder doesn't run the mutation, hears only the observer it gets, so it needs the observer the button runs, not the definition. See [Organizing mutations](../organizing-queries/#organizing-mutations).
+Every widget also takes an observer from `observe()`. Most screens don't need one: see [Passing an observer](#passing-an-observer).
 
 ## When builders and listeners run
 
@@ -67,13 +67,14 @@ QuerySelector(
 - The selector runs again when the parent rebuilds, so it can use values from the parent.
 - Use `buildWhen` when the builder needs the whole result, and a selector when it needs one value derived from it.
 
-The same works for a mutation. This one shows the state of the observer that the save button runs:
+The same works for the runs of a mutation. This one counts the saves in flight, wherever they started:
 
 ```dart
-MutationSelector(
-  mutation: saving, // saveTodo.observe(), kept in a State field
-  selector: (state) => state.isPending,
-  builder: (context, pending) => Text(pending ? 'Saving…' : 'Saved'),
+MutationStateSelector(
+  mutation: saveTodo,
+  selector: (runs) => runs.where((run) => run.isPending).length,
+  builder: (context, saving) =>
+      Text(saving > 0 ? 'Saving $saving…' : 'All changes saved'),
 )
 ```
 
@@ -91,18 +92,21 @@ QueryListener(
 )
 ```
 
-A mutation listener hears the runs of the observer it gets, so give it the observer the form runs:
+For a mutation, a `MutationStateListener` hears every run, from any screen, and gets the new state of each run that changed:
 
 ```dart
-MutationListener(
-  mutation: adding, // addTodo.observe(), kept in a State field
-  listenWhen: (previous, current) => current.isSuccess,
-  listener: (context, state) => Navigator.pop(context),
-  child: AddTodoForm(adding: adding),
+MutationStateListener(
+  mutation: saveTodo,
+  listenWhen: (previous, current) => current.isError,
+  listener: (context, run) => ScaffoldMessenger.of(context)
+      .showSnackBar(SnackBar(content: Text('Could not save: ${run.error}'))),
+  child: const TodoScreen(),
 )
 ```
 
-Given a definition, a `MutationListener` watches an observer of its own that nothing runs, and in debug builds it prints a warning.
+To close a screen after its own call succeeds, pass `MutateOptions(onSuccess: ...)` to that `mutate` call. See [Callbacks](../mutations/#callbacks).
+
+A `MutationListener` hears only the runs of the observer it gets. Given a definition, it watches an observer of its own that nothing runs, and in debug builds it prints a warning. A `MutationConsumer` given a definition hears the runs its own builder starts.
 
 ## Pull to refresh
 
@@ -222,6 +226,10 @@ MutationStateSelector(
 ## Where to create queries
 
 Define queries anywhere, and pass them to widgets; see [Using a query](../queries/#using-a-query). Call `observe()` only outside `build`, in a `State` field, a bloc, or another long-lived object: each call is a new observer.
+
+## Passing an observer
+
+Every widget also takes an observer from `observe()`, and uses it as it is: its options, and the client it was created with. Widgets given the same definition already share the cached data and the request, so a screen seldom needs one. Pass an observer when a cubit and a widget must share one handle, or when several widgets must see the runs of one mutation observer and nothing else. [Sharing one observer](../mutations/#sharing-one-observer) shows the `State` field, the client to create it with, and the `reset()` in `dispose`.
 
 ## Do queries need disposing?
 

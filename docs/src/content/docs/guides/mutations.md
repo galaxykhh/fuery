@@ -3,7 +3,7 @@ title: Mutations
 description: Create, update, and delete server data in Flutter, with optimistic updates and rollback.
 ---
 
-A mutation changes server data and reports what happened while it runs. This page covers running one, reacting to the result, and updating the cache before the server answers.
+A mutation changes server data and reports what happened while it runs. This page covers running one, showing its runs anywhere in the app, reacting to the result, and updating the cache before the server answers.
 
 ```dart
 final addTodo = Mutation(
@@ -33,28 +33,7 @@ MutationBuilder(
 
 `state.mutate` puts errors in the state and passes them to the callbacks. `await state.mutateAsync('Buy milk')` returns the data, and throws on error. `state.reset()` returns the state to idle.
 
-When the button and the state are in different places, or outside widgets, create one observer with `addTodo.observe()`, a `MutationObserver`, and call `mutate` on it. Keep it in a `State` field or a cubit, not in `build`, and pass it to the widgets that show its state:
-
-```dart
-class _AddTodoScreenState extends State<AddTodoScreen> {
-  final adding = addTodo.observe();
-
-  @override
-  void dispose() {
-    adding.reset();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AddTodoForm(onSubmit: adding.mutate);
-  }
-}
-```
-
-`reset()` in `dispose` drops the callbacks of the latest `mutate` call, which belong to this screen. The sections below pass `adding` to the widgets that show its state.
-
-`observe()` uses `Fuery.client` unless you pass another. Under a `FueryProvider` with a client of its own, write `late final adding = addTodo.observe(client: context.queryClient);`, so the observer uses the client the widgets use.
+The builder shows the runs it starts. To show the mutation's state anywhere else, such as a progress bar on another screen, use the [MutationState widgets](#showing-every-run-of-a-mutation), which find its runs by `mutationKey`. To run it from a cubit, or from several widgets that must see only each other's runs, see [Sharing one observer](#sharing-one-observer).
 
 ## MutationState fields
 
@@ -99,7 +78,7 @@ state.mutate(
 
 - A later `mutate` call on the same observer replaces them, so only the latest call's callbacks run.
 - `reset()` drops them, and so does unmounting the widget that got the mutation.
-- An observer from `observe()` runs them whether or not a widget listens to it. Check `context.mounted` before using a `BuildContext` in them.
+- A [shared observer](#sharing-one-observer) runs them whether or not a widget listens to it. Check `context.mounted` before using a `BuildContext` in them.
 
 ## Optimistic updates
 
@@ -129,18 +108,36 @@ final deleteTodo = Mutation(
 
 ## Mutations without variables
 
-`NoVariablesMutation` describes a mutation that takes nothing. Its observer is a `NoVariablesMutationObserver<TData, TContext>`, whose `mutate()` takes no argument, so a button can take its tear-off:
+`NoVariablesMutation` describes a mutation that takes nothing. Its callbacks drop the variables argument: `onMutate(client)`, `onSuccess(data, context, client)`, `onError(error, context, client)`, and `onSettled(data, error, context, client)`.
 
 ```dart
-final logout = NoVariablesMutation(
+final logoutMutation = NoVariablesMutation(
   mutationFn: () => api.logout(),
-  onSuccess: (data, context, client) => client.clear(),
-).observe();
-
-TextButton(onPressed: logout.mutate, child: const Text('Log out'))
+);
 ```
 
-Its callbacks drop the variables argument as well: `onMutate(client)`, `onSuccess(data, context, client)`, `onError(error, context, client)`, and `onSettled(data, error, context, client)`. From a `MutationBuilder` or `useMutation`, where the result is typed like any mutation's, call `mutate(null)`.
+A result is typed like any mutation's, with `void` variables, so a `MutationBuilder` runs it with `state.mutate(null)`. The callbacks of one call keep the variables argument, which is `null`: `MutateOptions(onSuccess: (data, _, context, client) {...})`.
+
+```dart
+MutationBuilder(
+  mutation: logoutMutation,
+  builder: (context, state) => TextButton(
+    onPressed: state.isPending
+        ? null
+        : () => state.mutate(
+              null,
+              MutateOptions(
+                onSuccess: (data, _, __, client) {
+                  Navigator.of(context).pushReplacementNamed('/login');
+                },
+              ),
+            ),
+    child: const Text('Log out'),
+  ),
+)
+```
+
+`useMutation(logoutMutation)` returns the same result, so a `HookWidget` calls `mutate(null)` too. Outside widgets, its observer, a `NoVariablesMutationObserver`, runs it with `mutate()`; see [Sharing one observer](#sharing-one-observer).
 
 Empty the cache once the app has left the screens that were using it. [Clearing everything at logout](../query-client/#clearing-everything-at-logout) explains why the order matters.
 
@@ -160,29 +157,27 @@ A mutation that waits for its turn in the scope reports `isPaused`, and so does 
 
 ## Showing mutation state
 
-A mutation's state belongs to the observer that runs it. A widget that only shows the state gets that observer, such as `adding` from [Running a mutation](#running-a-mutation). Given the definition, it would watch an observer of its own that nothing runs.
+The builder that runs a mutation shows the state of its runs. Switch on `status` when it draws every branch:
 
 ```dart
 MutationBuilder(
-  mutation: adding,
-  builder: (context, state) =>
-      state.isPending ? const LinearProgressIndicator() : const SizedBox(),
-)
-```
-
-Switch on `status` when a widget draws every branch:
-
-```dart
-MutationBuilder(
-  mutation: adding,
+  mutation: addTodo,
   builder: (context, state) => switch (state.status) {
-    MutationStatus.idle => const Text('Nothing added yet'),
+    MutationStatus.idle => FilledButton(
+        onPressed: () => state.mutate('Buy milk'),
+        child: const Text('Add'),
+      ),
     MutationStatus.pending => const CircularProgressIndicator(),
     MutationStatus.success => const Text('Added'),
-    MutationStatus.error => Text('Could not add: ${state.error}'),
+    MutationStatus.error => TextButton(
+        onPressed: () => state.mutate('Buy milk'),
+        child: Text('Could not add: ${state.error}. Try again'),
+      ),
   },
 )
 ```
+
+A widget that only shows the state, away from the button, uses the MutationState widgets below.
 
 ## Showing every run of a mutation
 
@@ -249,21 +244,42 @@ MutationStateListener(
 - It isn't called for the states runs already had when it mounted, or for a run that the cache removes.
 - It hears restored runs and runs from other screens too, so mount it once, where the message belongs.
 
-A `MutationListener` hears only the runs of the observer it gets. A listener can't run the mutation, so pass it the observer that does:
+Use `MutateOptions(onError: ...)` instead when only one call site shows the failure, and `mutateAsync` inside a `try`/`catch` when the caller handles it.
+
+A `MutationListener` hears only the runs of the observer it gets. Given a definition, it hears nothing, because nothing runs its observer, and in debug builds it prints a warning. See [A MutationListener never runs](../../troubleshooting/#a-mutationlistener-never-runs).
+
+## Sharing one observer
+
+Every widget and hook that gets the definition keeps an observer of its own, and the MutationState widgets show all their runs. Share one observer only when code outside widgets runs the mutation, or when a screen must react to its own runs and nothing else. `addTodo.observe()` returns a `MutationObserver`, and every widget given it uses it as it is:
 
 ```dart
-MutationListener(
-  mutation: adding,
-  listenWhen: (previous, current) => current.isError,
-  listener: (context, state) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: Text('Could not add: ${state.error}'))),
-  child: AddTodoForm(onSubmit: adding.mutate),
-)
+class _AddTodoScreenState extends State<AddTodoScreen> {
+  late final adding = addTodo.observe(client: context.queryClient);
+
+  @override
+  void dispose() {
+    adding.reset();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MutationListener(
+      mutation: adding,
+      listenWhen: (previous, current) => current.isSuccess,
+      listener: (context, state) => Navigator.pop(context),
+      child: AddTodoForm(onSubmit: adding.mutate),
+    );
+  }
+}
 ```
 
-Given a definition, a `MutationListener` hears nothing, and in debug builds it prints a warning. See [A MutationListener never runs](../../troubleshooting/#a-mutationlistener-never-runs).
-
-Use `MutateOptions(onError: ...)` instead when only one call site shows the failure, and `mutateAsync` inside a `try`/`catch` when the caller handles it.
+- Create it once, in a `State` field or a cubit. `observe()` in `build` returns a new, idle observer on every rebuild.
+- `observe()` uses `Fuery.client` unless you pass `client:`. Under a `FueryProvider` with a client of its own, pass `context.queryClient`, as above, so the observer uses the client the widgets use.
+- Call `reset()` in `dispose`. It drops the callbacks of the latest `mutate` call, which belong to this screen. A widget given the definition does this when it unmounts.
+- A `MutationListener`, a `MutationSelector`, and a `MutationBuilder` given the observer hear every run it starts, wherever it is called.
+- The observer of a `NoVariablesMutation` runs it with `mutate()`, so a button can take its tear-off: `onPressed: logout.mutate`.
+- A cubit or a bloc keeps its observer the same way, and calls `mutateAsync` from its methods. See [Mutations from a bloc](../bloc/#mutations-from-a-bloc).
 
 ## In the example app
 

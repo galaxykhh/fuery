@@ -66,7 +66,7 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
 
 ## Mutations from a bloc
 
-Create the observer once in the bloc, with `final _addTodo = addTodo.observe();`. `mutateAsync` returns the data or throws, which fits event handlers:
+A bloc that runs a mutation keeps one observer for it, created once with `final _addTodo = addTodo.observe();`. `mutateAsync` returns the data or throws, which fits event handlers:
 
 ```dart
 on<TodoAdded>((event, emit) async {
@@ -82,7 +82,29 @@ on<TodoAdded>((event, emit) async {
 
 A cubit and a `QueryBuilder` that use the same key share one cache entry. A change made on one screen, like marking notifications read, shows up in the cubit and in every widget. The [example app](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) has a notifications screen built with Fuery widgets and a badge counted by a cubit, reading the same query.
 
-The runs a bloc starts with its own observer show in `MutationStateBuilder(mutation: addTodo)` on any screen when `addTodo` has a `mutationKey`, so the bloc doesn't have to expose its observer. See [Showing every run of a mutation](../mutations/#showing-every-run-of-a-mutation). A cubit that follows those runs itself keeps a `MutationStateSlot(addTodo, client)`, reads its `result`, and hears each run's changes with `subscribeToRuns`.
+The runs a bloc starts with its own observer show in `MutationStateBuilder(mutation: addTodo)` on any screen when `addTodo` has a `mutationKey`, so the bloc doesn't have to expose its observer. See [Showing every run of a mutation](../mutations/#showing-every-run-of-a-mutation).
+
+A cubit that reacts to every run of a mutation, wherever it started, keeps a `MutationStateSlot`. `subscribeToRuns` calls its listener for each later change of each run, and `result` lists the runs of this moment:
+
+```dart
+class TodoCubit extends Cubit<TodoState> {
+  TodoCubit(QueryClient client)
+      : _adding = MutationStateSlot(addTodo, client),
+        super(const TodoState()) {
+    _adding.subscribeToRuns((previous, current) {
+      if (current.isError) emit(state.copyWith(error: current.error));
+    });
+  }
+
+  final MutationStateSlot<Todo, String, Object?> _adding;
+
+  @override
+  Future<void> close() {
+    _adding.dispose();
+    return super.close();
+  }
+}
+```
 
 ## App lifecycle
 

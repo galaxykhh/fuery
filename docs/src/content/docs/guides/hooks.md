@@ -83,7 +83,7 @@ ElevatedButton(
 )
 ```
 
-A `NoVariablesMutation` runs with `mutate(null)`, as from a `MutationBuilder`:
+A `NoVariablesMutation` runs with `mutate(null)`, as from a `MutationBuilder`. See [Mutations without variables](../mutations/#mutations-without-variables) for the callbacks of one call:
 
 ```dart
 final logout = useMutation(logoutMutation);
@@ -106,7 +106,7 @@ addTodo.mutate(
 );
 ```
 
-When the widget goes away, the request still finishes. For a definition, the callbacks passed to its `mutate` calls are dropped. A shared observer is left alone and still runs them, so check `context.mounted` in them, or call the observer's `reset()` in the `dispose` of the screen that created it.
+When the widget goes away, the request still finishes. For a definition, the callbacks passed to its `mutate` calls are dropped. A [shared observer](../mutations/#sharing-one-observer) is left alone and still runs them, so check `context.mounted` in them, or call the observer's `reset()` in the `dispose` of the screen that created it.
 
 ## Reacting to changes
 
@@ -250,6 +250,8 @@ if (fetching.data ?? false) return const LinearProgressIndicator();
 ```
 
 Each `watch` call returns a new stream, and each listener gets the current value first. `useStream` subscribes to every new stream it gets, so a stream created on every build rebuilds the widget on every frame. List the client in the keys of `useMemoized`, and anything from `build` that the selector reads, so the stream follows them. See [Watching the cache](../query-client/#watching-the-cache).
+
+A mutation needs no stream: [`useMutationState`](#showing-every-run-of-a-mutation) returns its runs, and `useMutationState(const MutationFilters())` returns the runs of every mutation.
 
 ## Testing
 

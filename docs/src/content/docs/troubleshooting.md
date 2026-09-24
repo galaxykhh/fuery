@@ -172,7 +172,7 @@ With [hooks](../guides/hooks/), write `useQuery(todosQuery)`, not `useQuery(todo
 
 A mutation observer created in `build`, as in `MutationBuilder(mutation: saveTodo.observe())`, swaps in an idle observer on every rebuild. The button then loses the pending or error state of the mutation it started.
 
-When you need the observer, call `observe()` once in a `State` field or a cubit, and pass that down.
+When you need the observer, call `observe()` once in a `State` field or a cubit, and pass that down. See [Sharing one observer](../guides/mutations/#sharing-one-observer).
 
 In debug builds, a Fuery widget or hook, including the list forms, that gets a new observer for the same key and client on a rebuild prints a warning to the console, once per key, with a link here. A new observer for a replaced provider client is expected, so it doesn't print one.
 
@@ -211,29 +211,13 @@ MutationStateListener(
 
 For the callbacks of one call, such as closing the form that saved, pass `MutateOptions` to `mutate`.
 
-To hear only the runs of one observer, create it once, and pass it both to the widget that runs it and to the one that listens:
+To hear only the runs of one observer, create it once, in a `State` field, and pass it both to the widget that runs it and to the `MutationListener`:
 
 ```dart
-class _AddTodoScreenState extends State<AddTodoScreen> {
-  final adding = addTodo.observe();
-
-  @override
-  void dispose() {
-    adding.reset();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return MutationListener(
-      mutation: adding,
-      listenWhen: (previous, current) => current.isSuccess,
-      listener: (context, state) => Navigator.pop(context),
-      child: AddTodoForm(onSubmit: adding.mutate),
-    );
-  }
-}
+late final adding = addTodo.observe(client: context.queryClient);
 ```
+
+[Sharing one observer](../guides/mutations/#sharing-one-observer) shows the whole screen, with the `reset()` it needs in `dispose`.
 
 A builder, consumer, or selector that runs the mutation itself, with `state.mutate`, can take the definition. In debug builds, a `MutationListener` given a definition prints a warning to the console, once, with a link here.
 
@@ -247,6 +231,12 @@ The MutationState widgets and `useMutationState` find runs by the definition's `
 - **Another definition with other types uses the key.** Its runs are left out, and reported once to [`onUncaughtError`](../guides/query-client/#catching-errors-that-callbacks-throw). Give each definition a key of its own.
 - **The runs are on another client.** An observer created with `observe()` without `client:` runs on `Fuery.client`, not on the client of a `FueryProvider`. See [A screen reads another client's cache](#a-screen-reads-another-clients-cache).
 - **The runs are gone.** A settled run leaves the cache `gcTime` (default: 5 minutes) after it settles, and `client.clear()` removes every run.
+
+## An error thrown in a listener doesn't reach the zone
+
+An error thrown by a listener goes to the client's `onUncaughtError` when the client has one, and only without it to the current zone, where Flutter passes it to `PlatformDispatcher.onError`. That covers the `listener` of a listener widget, a consumer, or a hook, and a function passed to a slot's `listen` or `subscribeToRuns`. The rebuild still happens, and the other listeners still run.
+
+Report it from `onUncaughtError`, as the other errors that callbacks throw. See [Catching errors that callbacks throw](../guides/query-client/#catching-errors-that-callbacks-throw).
 
 ## The devtools button covers part of the app
 
