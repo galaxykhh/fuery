@@ -35,6 +35,7 @@ A mutation's state belongs to the observer that runs it. A `MutationListener`, o
 - `buildWhen(previous, current)` compares with the last built result.
 - `listenWhen(previous, current)` compares with the previous result.
 - Listeners aren't called for the result the query already had when they mounted.
+- A consumer's listener runs before the rebuild that shows the change. A listener that throws doesn't stop the rebuild: its error goes to [`onUncaughtError`](../query-client/#catching-errors-that-callbacks-throw).
 
 ## Rebuilding only what changed
 
@@ -252,6 +253,7 @@ QueryResult<TData> useMyQuery<TData extends Object>(QuerySource<TData> query) {
 - `result` is current as soon as `update` returns, so the frame that changed the key shows it.
 - `subscribe` delivers every later change and stays subscribed when the slot's `observer` changes. `dispose` drops it, and the observer if the slot created it.
 - `subscribe` calls its listener synchronously, sometimes while another widget is building: a widget that mounts can start a fetch. Wrap the listener in `notifyManager.batchCalls`, so changes arrive in a microtask, and ignore the ones that arrive after dispose, as the widgets and `fuery_hooks` do.
+- `listen((previous, current) {...})` is for side effects, such as navigation. It runs in a microtask after each later change, never for the `result` it starts from, with `previous` as the last result it delivered. It starts over from the new `result`, without a call, when `update` moves the slot to another observer, and reports a listener that throws to `onUncaughtError`. It returns a function that stops it. The listener widgets and the `listener` of `fuery_hooks` use it.
 
 `InfiniteQuerySource` and `MutationSource` are the sources of the other two slots. `QueriesSlot` takes a list of `QuerySource`s and gives a list of results, for a hook like `useQueries`. `FueryProvider.of(context, listen: true)` rebuilds the caller when the provided client is replaced.
 

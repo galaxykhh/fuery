@@ -208,6 +208,8 @@ class _AddTodoScreenState extends State<AddTodoScreen> {
 
 A builder, consumer, or selector that runs the mutation itself, with `state.mutate`, can take the definition. In debug builds, a `MutationListener` given a definition prints a warning to the console, once, with a link here.
 
+In a `HookWidget`, pass `listener:` to the `useMutation` whose result runs the mutation. See [Reacting to changes](../guides/hooks/#reacting-to-changes).
+
 ## The devtools button covers part of the app
 
 `FueryDevtools` puts its button halfway down the right edge, over any content there. Move it with `buttonAlignment`:

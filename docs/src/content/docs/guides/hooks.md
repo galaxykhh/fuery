@@ -110,25 +110,49 @@ When the widget goes away, the request still finishes. For a definition, the cal
 
 ## Reacting to changes
 
-For navigation, snackbars, and other one-off effects of a query, wrap what the widget builds in a `QueryListener` with the same query. `fuery_hooks` re-exports it. The listener runs after a change, never during a build, and not for the result the widget mounts with:
+Pass `listener` to the hook for navigation, snackbars, and other one-off effects. It runs after a change, never during a build, and not for the result the widget mounts with:
 
 ```dart
-final todos = useQuery(todosQuery);
-
-return QueryListener(
-  query: todosQuery,
+final todos = useQuery(
+  todosQuery,
   listenWhen: (previous, current) =>
       !previous.isRefetchError && current.isRefetchError,
   listener: (context, result) => ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(content: Text('Could not refresh: ${result.error}')),
   ),
-  child: TodoList(todos.data ?? []),
 );
 ```
 
-An `InfiniteQueryListener` does the same for an infinite query. Don't show a snackbar or navigate from `useEffect` or `useValueChanged` keyed on the result: `flutter_hooks` runs them during the build, where those calls fail.
+`listener` and `listenWhen` work as on a [`QueryListener`](../widgets/#reacting-to-changes). `listenWhen` compares the previous result received with the new one, and `context` is the widget's own. `useInfiniteQuery` and `useMutation` take them too.
 
-For a mutation, pass `MutateOptions` to `mutate`, as above. A `MutationListener` given the same definition has an observer of its own, so it doesn't hear the calls of `useMutation`. See [Reacting to changes](../widgets/#reacting-to-changes) for the listeners.
+A mutation's listener hears the runs started with the result its hook returns:
+
+```dart
+final addTodo = useMutation(
+  addTodoMutation,
+  listenWhen: (previous, current) => current.isSuccess,
+  listener: (context, result) => Navigator.pop(context),
+);
+
+FilledButton(
+  onPressed: addTodo.isPending ? null : () => addTodo.mutate(title.text),
+  child: const Text('Add'),
+)
+```
+
+Run the mutation from that result, or pass the result to the child that runs it. Another `useMutation(addTodoMutation)` has an observer of its own, and this listener doesn't hear its runs.
+
+| Effect | Where it goes |
+|---|---|
+| Cache work, such as invalidating `['todos']` after any run | The callbacks of the `Mutation` |
+| The screen's reaction to every run, such as closing the screen | `listener` |
+| An effect of one call that needs that call's variables | `MutateOptions` passed to `mutate` |
+
+The widget still rebuilds when the result changes, with a listener or without. To react without rebuilding a widget, wrap its subtree in a `QueryListener` or `InfiniteQueryListener`, which `fuery_hooks` re-exports.
+
+The listener isn't called for the result the widget mounts with. When that result already decides what to show, such as a signed-out user, decide it in `build` from the result the hook returns.
+
+Don't show a snackbar or navigate from `useEffect` or `useValueChanged` keyed on the result: `flutter_hooks` runs them during the build, where those calls fail.
 
 ## Loading more pages
 
@@ -156,6 +180,18 @@ final loaded = posts.where((post) => post.hasData).length;
 ```
 
 Each query keeps its observer while its key stays in the list, even when the list is reordered. Changes that arrive together rebuild once. Pass the definitions, not `.observe()`: new observers on every build fetch again, and in debug builds the hook prints a warning.
+
+## The hook for each widget
+
+| Widget | Hook |
+|---|---|
+| `QueryBuilder` | `useQuery(query)` |
+| `QueryListener`, `QueryConsumer` | `useQuery(query, listener: ...)` |
+| `InfiniteQueryBuilder` | `useInfiniteQuery(query)` |
+| `InfiniteQueryListener`, `InfiniteQueryConsumer` | `useInfiniteQuery(query, listener: ...)` |
+| `MutationBuilder` | `useMutation(mutation)` |
+| `MutationListener`, `MutationConsumer` | `useMutation(mutation, listener: ...)` |
+| `QueriesBuilder` | `useQueries(queries)` |
 
 ## The client
 
