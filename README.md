@@ -3,6 +3,7 @@
 [![pub package](https://img.shields.io/pub/v/fuery.svg)](https://pub.dev/packages/fuery)
 [![pub points](https://img.shields.io/pub/points/fuery)](https://pub.dev/packages/fuery/score)
 [![CI](https://github.com/galaxykhh/fuery/actions/workflows/ci.yml/badge.svg)](https://github.com/galaxykhh/fuery/actions/workflows/ci.yml)
+[![coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/galaxykhh/fuery/actions/workflows/ci.yml)
 
 Fetch, cache, and keep server data fresh in Flutter.
 
@@ -18,14 +19,14 @@ QueryBuilder(
 )
 ```
 
-There are no type arguments to write: `todos` is a `Query<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`, and `data` in the builder is a `List<Todo>`.
+Nothing here names a type: `todos` is a `Query<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`, and `data` in the builder is a `List<Todo>`.
 
 - **Built the Flutter way.** Queries are defined outside `build`, and widgets render them: builders for UI and listeners for side effects, in the shape of `StreamBuilder`.
 - **Nothing beyond Dart and Flutter.** `fuery` depends on Flutter and `fuery_core`, and `fuery_core` only on the Dart team's `clock`, `collection`, and `meta`. Prefer hooks, a style many know from the web? [`fuery_hooks`](packages/fuery_hooks) renders the same queries with `useQuery`, in a package of its own, so only apps that choose `flutter_hooks` depend on it.
 - **One idea to learn.** A query is a definition: pass it to a widget, fetch it with the client, or read its cached data, all with the same object.
 - **Drops into the app you have.** Start with one screen: a query needs no `BuildContext` and no setup, and it works in a `StatelessWidget`.
 - **Runs where your code runs.** The core is pure Dart, so widgets, cubits, services, CLIs, and servers use the same queries.
-- **No type arguments, no code generation.**
+- **Types come from your functions, with no code generation.** Queries, mutations, widgets, results, and callbacks infer them. Only reads and writes by key alone name the type, as in `getQueryData<List<Todo>>(['todos'])`.
 - **Devtools in the app**, on a device.
 
 Fuery caches server data, deduplicates requests, retries failures, paginates, and refetches stale data in the background. Builder, listener, and consumer widgets turn queries into UI and side effects, and `observe()` gives blocs, cubits, and services the same data as a `Stream`.

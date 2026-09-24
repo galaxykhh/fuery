@@ -41,28 +41,33 @@ QueryBuilder(
 )
 ```
 
+## Why Fuery
+
 <CardGrid>
+	<Card title="Built the Flutter way" icon="puzzle">
+		Queries are defined outside `build`, and widgets render them: builders for
+		UI, listeners for side effects, like `StreamBuilder`. A screen that shows a
+		query stays a `StatelessWidget`. Start with one screen; there is nothing to
+		replace. Prefer hooks?
+		<a href="guides/hooks/">fuery_hooks</a> renders the same queries with
+		`useQuery`, in a package of its own.
+	</Card>
+	<Card title="Nothing beyond Dart and Flutter" icon="code-branch">
+		A pure Dart core that depends only on the Dart team's `clock`, `collection`,
+		and `meta`, so widgets, cubits, blocs, services, CLIs, and servers use the
+		same query object. No code generation.
+	</Card>
 	<Card title="Cached and fresh" icon="database">
 		Every widget that uses a key shares one cache entry and one request. Stale
 		data stays on screen while it refetches in the background, and a refetch
 		that returns the same items keeps them identical, so list rows don't
 		rebuild.
 	</Card>
-	<Card title="Built the Flutter way" icon="puzzle">
-		Queries are defined outside `build`, and widgets render them: builders for
-		UI, listeners for side effects, like `StreamBuilder`. Start with one screen;
-		there is nothing to replace. Prefer hooks?
-		<a href="guides/hooks/">fuery_hooks</a> renders the same queries with
-		`useQuery`, in a package of its own.
-	</Card>
-	<Card title="Nothing beyond Dart and Flutter" icon="code-branch">
-		A pure Dart core that depends only on the Dart team's `clock`, `collection`,
-		and `meta`, so widgets, cubits, services, CLIs, and servers use the same
-		query object.
-	</Card>
-	<Card title="No type arguments" icon="approve-check">
-		Types are inferred from your query and mutation functions, all the way to
-		widgets, results, and callbacks. No code generation either.
+	<Card title="Types from your functions" icon="approve-check">
+		Queries, mutations, and infinite queries infer their types from their
+		functions, all the way to widgets, results, and callbacks. Only reads and
+		writes by key alone name the type, as in
+		`getQueryData<List<Todo>>(['todos'])`.
 	</Card>
 	<Card title="Built for real networks" icon="rocket">
 		Retries with backoff, refetches when the app resumes, pauses while offline,
