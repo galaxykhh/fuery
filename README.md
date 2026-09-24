@@ -26,7 +26,7 @@ Nothing here names a type: `todos` is a `Query<List<Todo>>` because `api.getTodo
 - **One idea to learn.** A query is a definition: pass it to a widget, fetch it with the client, or read its cached data, all with the same object.
 - **Drops into the app you have.** Start with one screen: a query needs no `BuildContext` and no setup, and it works in a `StatelessWidget`.
 - **Runs where your code runs.** The core is pure Dart, so widgets, cubits, services, CLIs, and servers use the same queries.
-- **Types come from your functions, with no code generation.** Queries, mutations, widgets, results, and callbacks infer them. Only reads and writes by key alone name the type, as in `getQueryData<List<Todo>>(['todos'])`.
+- **Types come from your functions, with no code generation.** Queries, mutations, widgets, results, and callbacks infer them. Two cases name the type: a read or write by key alone, as in `getQueryData<List<Todo>>(['todos'])`, and an [infinite query whose first page param is `null`](https://galaxykhh.github.io/fuery/guides/infinite-queries/#cursor-based-pages).
 - **Devtools in the app**, on a device.
 
 Fuery caches server data, deduplicates requests, retries failures, paginates, and refetches stale data in the background. Builder, listener, and consumer widgets turn queries into UI and side effects, and `observe()` gives blocs, cubits, and services the same data as a `Stream`.

@@ -54,7 +54,7 @@ class TodoListScreen extends StatelessWidget {
 
 The query fetches when `QueryBuilder` mounts. `QueryResult(:final data?)` matches only when there is data, so a list that fails to refresh stays on screen, and the error shows only when there is no data yet.
 
-`todosQuery` is a `Query<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`, and `data` is a `List<Todo>`. Mutations, infinite queries, widgets, results, and callbacks infer their types the same way. Only reads and writes by key alone name the type, because a key doesn't carry one: `client.getQueryData<List<Todo>>(['todos'])`.
+`todosQuery` is a `Query<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`, and `data` is a `List<Todo>`. Mutations, infinite queries, widgets, results, and callbacks infer their types the same way. Two cases name the type. A read or write by key alone does, because a key doesn't carry one: `client.getQueryData<List<Todo>>(['todos'])`. So does an infinite query whose first page param is `null`: see [Cursor-based pages](https://galaxykhh.github.io/fuery/guides/infinite-queries/#cursor-based-pages).
 
 ## Widgets
 

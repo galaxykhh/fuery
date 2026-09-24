@@ -65,9 +65,11 @@ QueryBuilder(
 	</Card>
 	<Card title="Types from your functions" icon="approve-check">
 		Queries, mutations, and infinite queries infer their types from their
-		functions, all the way to widgets, results, and callbacks. Only reads and
-		writes by key alone name the type, as in
-		`getQueryData<List<Todo>>(['todos'])`.
+		functions, all the way to widgets, results, and callbacks. Two cases name
+		the type: a read or write by key alone, as in
+		`getQueryData<List<Todo>>(['todos'])`, and an
+		<a href="guides/infinite-queries/#cursor-based-pages">infinite query whose
+		first page param is `null`</a>.
 	</Card>
 	<Card title="Built for real networks" icon="rocket">
 		Retries with backoff, refetches when the app resumes, pauses while offline,
