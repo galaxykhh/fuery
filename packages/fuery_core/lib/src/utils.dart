@@ -47,23 +47,28 @@ int timeUntilStale(int updatedAt, Duration? staleTime) {
 ///
 /// Supported values are `null`, [bool], [num], [String], [Enum], [DateTime],
 /// [Iterable], [Map], and objects that implement `toJson()`.
-///
-/// The hash is the same in every build, obfuscated and minified ones
-/// included, so persisted data is found after an app update. An enum, as a
-/// value or a map key, hashes as `'enum:name'`, without its type, whose name
-/// those builds change: enums of different types with the same name in the
-/// same place are the same key. Other map keys hash by `toString()`. When
-/// two keys of one map become the same, one of them is kept, whatever the
-/// map's order.
-String hashKey(List<Object?> key) => jsonEncode(_canonicalize(key));
+String hashKey(List<Object?> key) => jsonEncode(_canonicalize(key, false));
 
-/// [key] in the JSON form [hashKey] encodes, for storing a key and reading
-/// it back as the same key.
-Object? canonicalKey(List<Object?> key) => _canonicalize(key);
+/// Like [hashKey], but the same in every build, obfuscated and minified ones
+/// included, for storing data under the key.
+///
+/// It differs only for enums, as values or as map keys: those builds rename
+/// types, so an enum becomes `'enum:name'` without its type. A key without
+/// enums gets the same hash as [hashKey].
+String storageHash(List<Object?> key) => jsonEncode(_canonicalize(key, true));
+
+/// [key] in the JSON form [storageHash] encodes, for storing a key and
+/// reading it back as the same key.
+Object? storageKeyForm(List<Object?> key) => _canonicalize(key, true);
 
 /// Returns true when [b] is a prefix (for lists) or subset (for maps) of [a].
 bool partialMatchKey(List<Object?> a, List<Object?> b) {
-  return _partialMatch(_canonicalize(a), _canonicalize(b));
+  return _partialMatch(_canonicalize(a, false), _canonicalize(b, false));
+}
+
+/// Like [partialMatchKey], for a key read back from [storageHash].
+bool partialMatchStoredKey(List<Object?> stored, List<Object?> key) {
+  return _partialMatch(_canonicalize(stored, true), _canonicalize(key, true));
 }
 
 bool _partialMatch(Object? a, Object? b) {
@@ -87,32 +92,28 @@ bool _partialMatch(Object? a, Object? b) {
   return false;
 }
 
-Object? _canonicalize(Object? value) {
+/// [value] as JSON. With [stable], enums leave out their type, whose name
+/// obfuscated and minified builds change.
+Object? _canonicalize(Object? value, bool stable) {
   if (value == null || value is bool || value is num || value is String) {
     return value;
   }
-  if (value is Enum) return _enumKey(value);
+  if (value is Enum) return _enumForm(value, stable);
   if (value is DateTime) return value.toIso8601String();
-  if (value is Iterable) return [for (final item in value) _canonicalize(item)];
+  if (value is Iterable) {
+    return [for (final item in value) _canonicalize(item, stable)];
+  }
   if (value is Map) {
-    final byKey = <String, Object?>{};
-    for (final MapEntry(:key, value: item) in value.entries) {
-      final mapKey = key is Enum ? _enumKey(key) : key.toString();
-      final canonical = _canonicalize(item);
-      // Two keys that become the same: keep the same one in any order.
-      if (byKey.containsKey(mapKey) &&
-          jsonEncode(canonical).compareTo(jsonEncode(byKey[mapKey])) <= 0) {
-        continue;
-      }
-      byKey[mapKey] = canonical;
-    }
-    final keys = byKey.keys.toList()..sort();
-    return {for (final k in keys) k: byKey[k]};
+    String keyOf(Object? key) =>
+        key is Enum ? _enumForm(key, stable) : key.toString();
+    final keys = value.keys.map(keyOf).toList()..sort();
+    final byString = {for (final e in value.entries) keyOf(e.key): e.value};
+    return {for (final k in keys) k: _canonicalize(byString[k], stable)};
   }
 
   try {
     // ignore: avoid_dynamic_calls
-    return _canonicalize((value as dynamic).toJson());
+    return _canonicalize((value as dynamic).toJson(), stable);
   } on NoSuchMethodError {
     throw ArgumentError.value(
       value,
@@ -123,9 +124,9 @@ Object? _canonicalize(Object? value) {
   }
 }
 
-/// An enum without its type, whose name obfuscated and minified builds
-/// change.
-String _enumKey(Enum value) => 'enum:${value.name}';
+String _enumForm(Enum value, bool stable) {
+  return stable ? 'enum:${value.name}' : '${value.runtimeType}.${value.name}';
+}
 
 /// Reuses parts of [prevData] that are equal to [data], so listeners can skip
 /// work for data that did not change.

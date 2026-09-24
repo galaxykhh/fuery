@@ -71,6 +71,7 @@ final todosQuery = Query(
 - **Restoring:** the first time the query is used, its stored data is restored with the time it was fetched, so `staleTime` decides whether it refetches. Fresh data isn't fetched again.
 - **Storing:** data is stored whenever it changes and no fetch is running, including changes made with `setData`. `client.setData(todosQuery, todos)` stores even before anything uses the query, because the query it creates gets the `persist` from the definition. A [streamed query](../streaming/) is stored once its stream is done.
 - **Offline:** restoring doesn't need the network.
+- **Keys with enums:** an enum is stored as its name, without its type, which obfuscated and minified builds rename, so the data is restored after an app update. Two persisted queries whose keys differ only in the type of a same-named enum, such as `Filter.done` and `Status.done`, share one stored entry.
 
 ## Persisting infinite queries
 

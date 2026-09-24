@@ -170,6 +170,21 @@ void main() {
       expect(storedMutations(), isEmpty);
     });
 
+    fakeTest('a key JSON cannot hold is reported', (async) {
+      final errors = <Object>[];
+      runZonedGuarded(() {
+        Mutation(
+          mutationKey: ['rate', double.nan],
+          mutationFn: FakeMutator().call,
+          persist: persist,
+        ).observe(client: client).mutate('a');
+        async.elapse(ms10);
+      }, (error, _) => errors.add(error));
+
+      expect(errors.single, isA<JsonUnsupportedObjectError>());
+      expect(storedMutations(), isEmpty);
+    });
+
     fakeTest('deletes the entry when the mutation fails', (async) {
       final mutator = FakeMutator()..error = StateError('no');
       final addComment = Mutation(
@@ -362,8 +377,12 @@ void main() {
         mutationFn: FakeMutator().call,
       );
 
-      client.restore(mutations: [broken, commentOptions(mutator)]);
-      async.elapse(ms10);
+      final errors = <Object>[];
+      runZonedGuarded(() {
+        client.restore(mutations: [broken, commentOptions(mutator)]);
+        async.elapse(ms10);
+      }, (error, _) => errors.add(error));
+      expect(errors.single, isA<ArgumentError>());
       expect(mutator.calls, ['from last time']);
     });
 

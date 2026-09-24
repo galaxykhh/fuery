@@ -6,6 +6,8 @@ import 'package:test/test.dart';
 import 'helpers.dart';
 import 'storages.dart';
 
+enum Sort { newest }
+
 void main() {
   late MemoryStorage memory;
   late QueryClient client;
@@ -140,6 +142,43 @@ void main() {
     async.flushMicrotasks();
 
     expect(stored(memory, ['todos']), ['offline']);
+  });
+
+  group('keys with enums', () {
+    fakeTest('are stored without the enum type, and restored', (async) {
+      todos(FakeFetcher(() => ['a']), queryKey: ['todos', Sort.newest])
+          .subscribe((_) {});
+      async.elapse(ms10);
+      expect(memory.entries.keys, ['fuery:["todos","enum:newest"]']);
+
+      final restarted = createClient();
+      final observer = todos(
+        FakeFetcher(() => ['fetched']),
+        queryKey: ['todos', Sort.newest],
+        staleTime: const Duration(minutes: 1),
+        on: restarted,
+      );
+      expect(observer.result.data, ['a']);
+    });
+
+    fakeTest('are deleted with entries stored in the earlier form', (async) {
+      memory.entries.addAll({
+        'fuery:["todos","Sort.newest"]': entry(['old']),
+        'fuery:["todos","enum:newest"]': entry(['new']),
+      });
+
+      client.removeQueries(queryKey: ['todos', Sort.newest], exact: true);
+      async.flushMicrotasks();
+      expect(memory.entries, isEmpty);
+
+      memory.entries.addAll({
+        'fuery:["todos","Sort.newest",1]': entry(['old']),
+        'fuery:["todos","enum:newest",1]': entry(['new']),
+      });
+      client.removeQueries(queryKey: ['todos', Sort.newest]);
+      async.flushMicrotasks();
+      expect(memory.entries, isEmpty);
+    });
   });
 
   group('restoring', () {

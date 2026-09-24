@@ -157,20 +157,23 @@ class QueryClient {
     // Something was deleted while reading; queries read on their own instead.
     if (epoch != _deletionEpoch) return;
     final preloaded = <String, Map<String, Object?>>{};
+    final loaded = {
+      for (final query in queryCache.getAll()) query._storageHash
+    };
     for (final MapEntry(:key, :value) in entries.entries) {
       if (!key.startsWith(persistKeyPrefix) ||
           key.startsWith(_mutationKeyPrefix)) {
         continue;
       }
-      final queryHash = key.substring(persistKeyPrefix.length);
+      final storedHash = key.substring(persistKeyPrefix.length);
       final entry = _decodeEntry(value);
       // A loaded query may be writing newer data, and decides for itself.
-      if (queryCache.get(queryHash) == null &&
+      if (!loaded.contains(storedHash) &&
           (entry == null || _isExpired(entry))) {
         // It would never be restored, so it isn't kept either.
         _deleteStored(key);
       } else if (entry != null) {
-        preloaded[queryHash] = entry;
+        preloaded[storedHash] = entry;
       }
     }
     _preloaded = preloaded;
@@ -208,22 +211,22 @@ class QueryClient {
       return byTime != 0 ? byTime : a.$2.compareTo(b.$2);
     });
 
-    // Each definition's key, hashed once. One that can't be hashed matches
-    // no entry, and leaves the entries of the others alone.
+    // Each definition's key, hashed once. One that can't be hashed is
+    // reported, matches no entry, and leaves the entries of the others alone.
     final byKey = <String, AnyMutation>{};
     for (final options in mutations) {
       final mutationKey = options.mutationKey;
       if (mutationKey == null) continue;
       try {
-        byKey.putIfAbsent(hashKey(mutationKey), () => options);
-      } catch (_) {
-        continue;
+        byKey.putIfAbsent(storageHash(mutationKey), () => options);
+      } catch (error, stackTrace) {
+        Zone.current.handleUncaughtError(error, stackTrace);
       }
     }
 
     for (final (submittedAt, key, entry) in stored) {
       try {
-        final options = byKey[hashKey(entry['k']! as List<Object?>)];
+        final options = byKey[storageHash(entry['k']! as List<Object?>)];
         // An entry nothing was passed for is kept: the app may restore it
         // later, with the options it belongs to.
         if (options == null) continue;
@@ -241,8 +244,8 @@ class QueryClient {
     }
   }
 
-  Map<String, Object?>? _takePreloaded(String queryHash) =>
-      _preloaded?.remove(queryHash);
+  Map<String, Object?>? _takePreloaded(String storedHash) =>
+      _preloaded?.remove(storedHash);
 
   void _deleteStored(String storageKey) {
     final storage = this.storage;
@@ -286,7 +289,7 @@ class QueryClient {
     if (storage == null) return;
 
     for (final query in queries) {
-      _preloaded?.remove(query.queryHash);
+      _preloaded?.remove(query._storageHash);
       _deleteStored(query._storageKey);
     }
 
@@ -298,17 +301,26 @@ class QueryClient {
 
     // Queries loaded now were handled above, and may get new data before an
     // asynchronous storage lists its entries.
-    final loaded = {for (final query in queryCache.getAll()) query.queryHash};
+    final loaded = {
+      for (final query in queryCache.getAll()) query._storageHash
+    };
 
-    bool matches(String queryHash) {
-      if (loaded.contains(queryHash)) return false;
+    // Entries stored before 1.4.1 are under hashKey, with enums' type names;
+    // match those too, so a key's old entries are deleted with it.
+    bool matches(String storedHash) {
+      if (loaded.contains(storedHash)) return false;
       final queryKey = filters.queryKey;
       if (queryKey == null) return true;
-      if (filters.exact) return queryHash == hashKey(queryKey);
-      return partialMatchKey(jsonDecode(queryHash) as List<Object?>, queryKey);
+      if (filters.exact) {
+        return storedHash == storageHash(queryKey) ||
+            storedHash == hashKey(queryKey);
+      }
+      final stored = jsonDecode(storedHash) as List<Object?>;
+      return partialMatchStoredKey(stored, queryKey) ||
+          partialMatchKey(stored, queryKey);
     }
 
-    _preloaded?.removeWhere((queryHash, _) => matches(queryHash));
+    _preloaded?.removeWhere((storedHash, _) => matches(storedHash));
     _trackDeletion(() {
       // Reads synchronously when the storage does, so a query created right
       // after this call can't see the deleted entries.

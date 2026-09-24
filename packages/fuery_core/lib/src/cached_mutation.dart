@@ -210,8 +210,10 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
     if (storage == null || persist == null || mutationKey == null) return;
     final Object? storedKey;
     try {
-      // The JSON form of the key, so enums and dates in it can be stored.
-      storedKey = canonicalKey(mutationKey);
+      // The key's stored form, so enums and dates in it can be stored, and
+      // encoded once here, so a key JSON can't hold is reported too.
+      storedKey = storageKeyForm(mutationKey);
+      jsonEncode(storedKey);
     } catch (error, stackTrace) {
       // A key that can't be hashed can't be restored either. Report it
       // rather than lose the run without a word; the run itself goes on.

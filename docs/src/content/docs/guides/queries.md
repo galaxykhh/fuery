@@ -19,11 +19,7 @@ A key identifies cached data. Keys are lists compared by value, so `['todos', 1]
 
 A key can contain `null`, `bool`, `num`, `String`, enums, `DateTime`, lists, maps, and objects with a `toJson()` method.
 
-Keys are compared by their JSON form, which is the same in every build, obfuscated and minified ones included:
-
-- A `DateTime` becomes its ISO 8601 string, and an object its `toJson()`.
-- An enum becomes `'enum:name'`. Its type isn't part of the key, because those builds rename types, so `Filter.done` and `Status.done` in the same place are the same key.
-- Map keys become strings, so `{1: 'a'}` and `{'1': 'a'}` are the same key. Use `int` for numbers in keys: `1` and `1.0` are different keys on mobile and the same key on the web.
+Keys are compared by their JSON form. A `DateTime` becomes its ISO 8601 string, an enum becomes `Type.name`, an object becomes its `toJson()`, and map keys become strings, so `{1: 'a'}` and `{'1': 'a'}` are the same key. Use `int` for numbers in keys: `1` and `1.0` are different keys on mobile and the same key on the web.
 
 Order the parts from general to specific: `['todos']`, `['todos', 1]`, `['todos', 1, 'comments']`. Invalidating `['todos']` then refreshes everything under it.
 

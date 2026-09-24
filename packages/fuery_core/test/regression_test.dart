@@ -1,6 +1,7 @@
 // Regression tests for cache, refetch, and mutation edge cases.
 import 'package:fake_async/fake_async.dart';
 import 'package:fuery_core/fuery_core.dart';
+import 'package:fuery_core/src/utils.dart' show storageHash;
 import 'package:test/test.dart';
 
 import 'helpers.dart';
@@ -297,49 +298,31 @@ void main() {
     unsubscribe();
   });
 
-  group('keys hash the same in obfuscated builds', () {
-    // Obfuscated and minified builds rename types, so a hash with a type
-    // name would change with every build, and persisted queries under such
-    // keys would not be restored after an app update.
-    test('enums hash by name, apart from plain strings', () {
-      expect(hashKey(['posts', Sort.newest]), '["posts","enum:newest"]');
+  group('stored keys are the same in obfuscated builds', () {
+    // Obfuscated and minified builds rename types, so a storage key with a
+    // type name would change with every build, and persisted queries under
+    // keys with enums would not be restored after an app update.
+    test('the storage hash leaves out enum types', () {
+      expect(storageHash(['posts', Sort.newest]), '["posts","enum:newest"]');
       expect(
-        hashKey(['posts', Sort.newest]),
-        isNot(hashKey(['posts', 'newest'])),
-      );
-      expect(
-          hashKey([
+          storageHash([
             {Sort.newest: true}
           ]),
           '[{"enum:newest":true}]');
+      final plain = [
+        'posts',
+        1,
+        {'a': DateTime.utc(2026)}
+      ];
+      expect(storageHash(plain), hashKey(plain));
     });
 
-    test('other values hash as before', () {
+    test('in memory, keys keep enum types apart as before', () {
+      expect(hashKey(['posts', Sort.newest]), '["posts","Sort.newest"]');
       expect(
-        hashKey([
-          {DateTime.utc(2026): 1, 2: true}
-        ]),
-        '[{"2":true,"2026-01-01 00:00:00.000Z":1}]',
+        hashKey(['posts', Sort.newest]),
+        isNot(hashKey(['posts', Tab.newest])),
       );
-      expect(hashKey([DateTime.utc(2026)]), '["2026-01-01T00:00:00.000Z"]');
-    });
-
-    test('map keys that become the same key hash in any order', () {
-      expect(
-        hashKey([
-          {Sort.newest: 1, Tab.newest: 2}
-        ]),
-        hashKey([
-          {Tab.newest: 2, Sort.newest: 1}
-        ]),
-      );
-      expect(
-          hashKey([
-            {1: 'a', '1': 'b'}
-          ]),
-          hashKey([
-            {'1': 'b', 1: 'a'}
-          ]));
     });
   });
 

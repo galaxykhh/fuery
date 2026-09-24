@@ -1,5 +1,5 @@
 ## 1.4.1
-- Fix: an enum in a query key, as a value or a map key, hashes as `'enum:name'`. The hash included the enum's type name, which obfuscated and minified builds rename, so a query persisted under such a key wasn't restored after an app update. Queries persisted under keys with enums by an earlier version are fetched again once.
+- Fix: persisted data is stored under a key that is the same in every build. The stored key included the type name of an enum in the query key, which obfuscated and minified builds rename, so such a query wasn't restored after an app update. Keys in memory are unchanged. Data stored under keys with enums by an earlier version is fetched again once, and is deleted with its key.
 - Fix: a persisted mutation whose key holds an enum or a `DateTime` is stored. A key that can't be stored is reported instead of skipped without a word, and it no longer makes `restore` drop other mutations' runs.
 
 ## 1.4.0
