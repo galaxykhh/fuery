@@ -252,6 +252,42 @@ void main() {
     await tearDownApp(tester);
   });
 
+  testWidgets('keeps the list scrolled when a query is selected or removed',
+      (tester) async {
+    for (var i = 0; i < 60; i++) {
+      client.setQueryData(['q', i], i);
+    }
+    await pumpApp(tester);
+    await tester.pump(Duration.zero);
+
+    await tester.drag(find.byType(ListTile).first, const Offset(0, -800));
+    await tester.pumpAndSettle();
+    final scrollable = find
+        .ancestor(
+          of: find.byType(ListTile).first,
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    double offset() =>
+        tester.state<ScrollableState>(scrollable).position.pixels;
+    final scrolled = offset();
+    expect(scrolled, greaterThan(0));
+
+    final tile = find.byType(ListTile).at(2);
+    final key = (tester.widget<ListTile>(tile).title! as Text).data!;
+    await tester.tap(tile);
+    await tester.pump();
+    expect(find.text('Remove'), findsOneWidget);
+    expect(offset(), scrolled);
+
+    await tester.tap(find.text('Remove'));
+    await tester.pump();
+    expect(find.text('Remove'), findsNothing);
+    expect(find.text(key), findsNothing);
+    expect(offset(), scrolled);
+    await tearDownApp(tester);
+  });
+
   testWidgets('stacks the list and details on narrow screens', (tester) async {
     tester.view.physicalSize = const Size(1200, 4800);
     tester.view.devicePixelRatio = 3;

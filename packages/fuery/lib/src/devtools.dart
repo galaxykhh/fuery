@@ -322,29 +322,32 @@ class _PanelBodyState extends State<_PanelBody> {
           ),
         ),
         Expanded(
-          child: selected == null
-              ? list
-              : LayoutBuilder(
-                  builder: (context, constraints) {
-                    final detail = _QueryDetail(
-                      client: client,
-                      query: selected,
-                      onRemoved: () => setState(() => _selected = null),
-                    );
-                    final wide = constraints.maxWidth >= 600;
-                    return Flex(
-                      direction: wide ? Axis.horizontal : Axis.vertical,
-                      children: [
-                        Expanded(child: list),
-                        if (wide)
-                          const VerticalDivider(width: 1)
-                        else
-                          const Divider(height: 1),
-                        Expanded(child: detail),
-                      ],
-                    );
-                  },
-                ),
+          // The list stays the first child whether or not a query is
+          // selected, so it keeps its scroll position.
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth >= 600;
+              return Flex(
+                direction: wide ? Axis.horizontal : Axis.vertical,
+                children: [
+                  Expanded(child: list),
+                  if (selected != null) ...[
+                    if (wide)
+                      const VerticalDivider(width: 1)
+                    else
+                      const Divider(height: 1),
+                    Expanded(
+                      child: _QueryDetail(
+                        client: client,
+                        query: selected,
+                        onRemoved: () => setState(() => _selected = null),
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
         ),
       ],
     );
