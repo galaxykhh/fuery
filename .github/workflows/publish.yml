@@ -1,9 +1,11 @@
 name: Publish
 
-# Push a tag like v0.3.0 to publish both packages and create a GitHub release
+# Push a tag like v0.3.0 to publish the packages and create a GitHub release
 # from their CHANGELOG entries. Their versions must match the tag, and each
 # package on pub.dev must allow automated publishing from this repository with
-# the tag pattern v{{version}}.
+# the tag pattern v{{version}}. pub.dev allows that only for a package that
+# exists, so a new package's first version is published by hand after the
+# tag, and gets a step here once it's on pub.dev.
 on:
   push:
     tags:

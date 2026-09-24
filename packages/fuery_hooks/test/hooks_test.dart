@@ -51,9 +51,11 @@ void main() {
       '${post.data ?? 'loading'}${post.isPlaceholderData ? ' (old)' : ''}';
 
   group('useQuery', () {
-    Widget postScreen(int id) => HookBuilder(
-          builder: (context) => Text(describe(useQuery(post(id)))),
-        );
+    Widget postScreen(int id) => HookBuilder(builder: (context) {
+          // The declared type fails to compile if inference widens it.
+          final QueryResult<String> result = useQuery(post(id));
+          return Text(describe(result));
+        });
 
     testWidgets('keeps one observer for a definition built in build',
         (tester) async {
@@ -177,7 +179,7 @@ void main() {
     await tester.pumpWidget(
       app(
         HookBuilder(builder: (_) {
-          final feed = useInfiniteQuery(pages);
+          final InfiniteQueryResult<String, int> feed = useInfiniteQuery(pages);
           return TextButton(
             onPressed: feed.hasNextPage ? feed.fetchNextPage : null,
             child: Text(feed.pages.join(', ')),
@@ -207,7 +209,8 @@ void main() {
       await tester.pumpWidget(
         app(
           HookBuilder(builder: (_) {
-            final add = useMutation(addTodo);
+            final MutationResult<String, String, Object?> add =
+                useMutation(addTodo);
             return TextButton(
               onPressed: () => add.mutate('Buy milk'),
               child: Text(add.status.name),
@@ -260,7 +263,8 @@ void main() {
   testWidgets('useQueries gives the results in order, and follows the list',
       (tester) async {
     Widget posts(List<int> ids) => HookBuilder(builder: (_) {
-          final results = useQueries([for (final id in ids) post(id)]);
+          final List<QueryResult<String>> results =
+              useQueries([for (final id in ids) post(id)]);
           return Text(results.map(describe).join(', '));
         });
     await tester.pumpWidget(app(posts([1, 2])));

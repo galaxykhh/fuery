@@ -138,6 +138,15 @@ class _SlotHookState<S, R> extends HookState<R, _SlotHook<S, R>> {
   void Function()? _unsubscribe;
   R? _built;
 
+  /// What the slot was last updated with, so a rebuild with the same ones,
+  /// such as one a result caused, doesn't set the options again.
+  Object? _source;
+  QueryClient? _client;
+
+  /// A hot reload can dispose the hook while its widget stays, after a
+  /// result was already on its way.
+  bool _disposed = false;
+
   @override
   void initHook() {
     super.initHook();
@@ -161,12 +170,15 @@ class _SlotHookState<S, R> extends HookState<R, _SlotHook<S, R>> {
       // Results arrive in a microtask, never during a build.
       _unsubscribe = slot.subscribe(
         notifyManager.batchCalls((R result) {
-          if (context.mounted && result != _built) setState(() {});
+          if (!_disposed && result != _built) setState(() {});
         }),
       );
-    } else {
+    } else if (!identical(hook.source, _source) ||
+        !identical(client, _client)) {
       slot.update(hook.source, client);
     }
+    _source = hook.source;
+    _client = client;
     // Current as soon as update returns, so a new key shows in this frame.
     final result = slot.result;
     _built = result;
@@ -175,6 +187,7 @@ class _SlotHookState<S, R> extends HookState<R, _SlotHook<S, R>> {
 
   @override
   void dispose() {
+    _disposed = true;
     _unsubscribe?.call();
     _slot?.dispose();
     super.dispose();
@@ -200,7 +213,8 @@ void _debugWarnRecreated<S, R>(_SlotHook<S, R> hook, S previous) {
       '[fuery] ${hook.name} received a new observer for the key $keyHash on '
       'a rebuild. A new observer subscribes and refetches again each time. '
       'Pass the definition instead, such as ${hook.name}(todosQuery), and '
-      'the hook keeps one observer for it.',
+      'the hook keeps one observer for it. See https://galaxykhh.github.io/'
+      'fuery/troubleshooting/#a-query-fetches-on-every-rebuild',
     );
     return true;
   }());

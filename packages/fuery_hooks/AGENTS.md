@@ -12,10 +12,11 @@ Hooks over `fuery`, for apps built with `flutter_hooks`. Fuery's own style is th
 
 These match the widgets and are covered by tests; keep them:
 
-- Every build calls `slot.update` with the latest source and client and returns `slot.result`, so a new key shows in the same frame.
+- A build with a new source or client calls `slot.update`, and every build returns `slot.result`, so a new key shows in the same frame. A rebuild with the same source and client, such as one a result caused, skips the update.
+- A result that arrives after the hook was disposed, as a hot reload can do while the widget stays, is ignored.
 - Results arrive through `notifyManager.batchCalls`, never during a build, and rebuild only when the result changed.
 - A definition built in `build` keeps one observer. A shared observer is used as it is and left alone on dispose. A replaced provider client moves the hook to it.
-- A new observer for the same key on a rebuild prints one debug warning per key, never an error.
+- A new observer for the same key on a rebuild prints one debug warning per key, never an error. The warning is this package's own, worded for hooks; `fuery` keeps its widget warning private.
 
 ## Tests
 
