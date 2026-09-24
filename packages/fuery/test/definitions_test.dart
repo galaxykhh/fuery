@@ -105,6 +105,80 @@ void main() {
     await tearDownApp(tester);
   });
 
+  testWidgets('a new client and a new key in one frame fetch on the new client',
+      (tester) async {
+    final other = newClient();
+    final fetches = <(QueryClient, int)>[];
+    Widget app(QueryClient on, int id) => FueryProvider(
+          client: on,
+          child: MaterialApp(
+            home: QueryBuilder(
+              query: Query(
+                queryKey: ['me', id],
+                queryFn: (context) async {
+                  fetches.add((context.client, id));
+                  await Future<void>.delayed(ms10);
+                  return 'user $id';
+                },
+              ),
+              builder: (context, state) => Text(state.data ?? 'loading'),
+            ),
+          ),
+        );
+
+    await tester.pumpWidget(app(client, 1));
+    await tester.pump(ms10);
+    expect(find.text('user 1'), findsOneWidget);
+
+    // Logging in as another user swaps the client and the key together.
+    await tester.pumpWidget(app(other, 2));
+    expect(find.text('loading'), findsOneWidget);
+    await tester.pump(ms10);
+    expect(find.text('user 2'), findsOneWidget);
+    expect(fetches, [(client, 1), (other, 2)]);
+    expect(client.getQueryData<String>(['me', 2]), isNull);
+    expect(other.getQueryData<String>(['me', 2]), 'user 2');
+
+    await tester.pumpWidget(const SizedBox());
+    other.clear();
+    await tearDownApp(tester);
+  });
+
+  testWidgets('a widget that keeps its instance follows a new client',
+      (tester) async {
+    final other = newClient();
+    client.setQueryData(['post', 1], 'from the first client');
+    other.setQueryData(['post', 1], 'from the second client');
+    final current = ValueNotifier(client);
+    // The same instance on every build: only the provided client changes.
+    final builder = QueryBuilder(
+      query: Query(
+        queryKey: ['post', 1],
+        queryFn: (_) async => 'fetched',
+        staleTime: const Duration(minutes: 1),
+      ),
+      builder: (context, state) => Text(state.data ?? 'loading'),
+    );
+
+    await tester.pumpWidget(ValueListenableBuilder(
+      valueListenable: current,
+      builder: (context, on, child) => FueryProvider(
+        client: on,
+        child: MaterialApp(home: child),
+      ),
+      child: builder,
+    ));
+    expect(find.text('from the first client'), findsOneWidget);
+
+    current.value = other;
+    await tester.pump();
+    expect(find.text('from the second client'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+    other.clear();
+    await tearDownApp(tester);
+  });
+
   testWidgets('definitions never trigger the rebuild warning', (tester) async {
     final printed = <String?>[];
     final print = debugPrint;

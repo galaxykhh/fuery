@@ -87,7 +87,6 @@ mixin _SlotHost<S, R, W extends StatefulWidget> on State<W> {
         }),
       );
     } else if (!identical(client, _client)) {
-      _client = client;
       _update();
     }
   }
@@ -101,10 +100,16 @@ mixin _SlotHost<S, R, W extends StatefulWidget> on State<W> {
 
   /// Points the slot at the current source and client, and takes its result
   /// right away, so this frame already shows it.
+  ///
+  /// Reads the provided client here: Flutter calls `didUpdateWidget` before
+  /// `didChangeDependencies`, so a new key and a new client that arrive in
+  /// one frame must both reach the slot at once, or the new key would load
+  /// on the old client first.
   void _update() {
     final slot = this.slot;
     final observer = slot.observer;
-    slot.update(_source, _client!);
+    final client = _client = FueryProvider.of(context, listen: true);
+    slot.update(_source, client);
     final result = slot.result;
     if (identical(observer, slot.observer)) {
       _onUpdated(result);
