@@ -84,6 +84,8 @@ client.updateData(
 );
 ```
 
+A write made while `fetchNextPage()` or `fetchPreviousPage()` loads a page is kept. The new page is added to the pages as they are when it arrives, unless the write changed which pages are loaded. A refetch of every page replaces the pages with what it loaded, so an optimistic update still [cancels refetches first](../mutations/#optimistic-updates).
+
 ## Cursor-based pages
 
 APIs that return a cursor for the next page work the same way. If the first request has no cursor, give `null` its type so Dart can infer the param type:

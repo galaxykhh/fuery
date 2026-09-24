@@ -709,6 +709,72 @@ void main() {
         expect(uncaught, isEmpty);
       });
     });
+
+    group('a write while a page loads', () {
+      // A page used to be added to the pages cached when the fetch started,
+      // so an update made while it loaded, such as a like, was lost.
+      const second = Duration(seconds: 1);
+      final feed = InfiniteQuery(
+        queryKey: ['feed'],
+        queryFn: (context) async {
+          await Future<void>.delayed(second);
+          return 'page ${context.pageParam}';
+        },
+        initialPageParam: 0,
+        getNextPageParam: (data) => data.lastPageParam + 1,
+        getPreviousPageParam: (data) => data.firstPageParam - 1,
+      );
+
+      InfiniteQueryObserver<String, int> load(FakeAsync async) {
+        final observer = feed.observe(client: client);
+        observer.subscribe((_) {});
+        async.elapse(second);
+        return observer;
+      }
+
+      void like() {
+        client.updateData(
+          feed,
+          (data) => data?.mapPages((page) => '$page, liked'),
+        );
+      }
+
+      fakeTest('is kept by fetchNextPage', (async) {
+        final observer = load(async);
+        observer.fetchNextPage();
+        async.elapse(second ~/ 2);
+        like();
+        async.elapse(second);
+
+        expect(observer.result.pages, ['page 0, liked', 'page 1']);
+        expect(observer.result.data!.pageParams, [0, 1]);
+      });
+
+      fakeTest('is kept by fetchPreviousPage', (async) {
+        final observer = load(async);
+        observer.fetchPreviousPage();
+        async.elapse(second ~/ 2);
+        like();
+        async.elapse(second);
+
+        expect(observer.result.pages, ['page -1', 'page 0, liked']);
+        expect(observer.result.data!.pageParams, [-1, 0]);
+      });
+
+      fakeTest('that changes the loaded pages is replaced', (async) {
+        final observer = load(async);
+        observer.fetchNextPage();
+        async.elapse(second ~/ 2);
+        client.setData(
+          feed,
+          const InfiniteData(pages: ['other'], pageParams: [5]),
+        );
+        async.elapse(second);
+
+        expect(observer.result.pages, ['page 0', 'page 1']);
+        expect(observer.result.data!.pageParams, [0, 1]);
+      });
+    });
   });
 
   group('mutations', () {

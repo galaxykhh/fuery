@@ -121,13 +121,14 @@ class _InfiniteQueryBehavior<TPage, TParam>
       }
 
       Future<InfiniteData<TPage, TParam>> fetchPage(
-        InfiniteData<TPage, TParam> data,
+        InfiniteData<TPage, TParam> loaded,
         TParam? param, {
         bool previous = false,
+        bool directional = false,
       }) async {
         if (cancelled) throw context.signal.reason ?? const CancelledError();
 
-        if (param == null && data.pages.isNotEmpty) return data;
+        if (param == null && loaded.pages.isNotEmpty) return loaded;
 
         final pageParam = param as TParam;
         final page = await queryFn(InfiniteQueryFunctionContext<TParam>._(
@@ -137,6 +138,18 @@ class _InfiniteQueryBehavior<TPage, TParam>
           signal: signal,
           pageParam: pageParam,
         ));
+
+        var data = loaded;
+        if (directional) {
+          // Keep writes made while the page loaded, such as an item updated
+          // with mapPages, as long as they left the same pages loaded.
+          final current = query.state.data;
+          if (current != null &&
+              InfiniteData._equality
+                  .equals(current.pageParams, loaded.pageParams)) {
+            data = current;
+          }
+        }
 
         return previous
             ? InfiniteData(
@@ -158,7 +171,12 @@ class _InfiniteQueryBehavior<TPage, TParam>
         final param = previous
             ? _previousParam(oldData, query._client)
             : _nextParam(oldData, query._client);
-        return fetchPage(oldData, param, previous: previous);
+        return fetchPage(
+          oldData,
+          param,
+          previous: previous,
+          directional: true,
+        );
       }
 
       final remainingPages = oldPages.isEmpty ? pages ?? 1 : oldPages.length;
