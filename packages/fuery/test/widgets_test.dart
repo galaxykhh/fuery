@@ -19,6 +19,82 @@ class Fetcher {
   }
 }
 
+/// Creates its observers with the provided client, again when that client is
+/// replaced, and again on the same client when [rebuild] changes.
+class _ObserversOfClient extends StatefulWidget {
+  const _ObserversOfClient({
+    required this.rebuild,
+    required this.query,
+    required this.queries,
+    required this.mutation,
+  });
+
+  final ValueNotifier<int> rebuild;
+  final QueryObserver<String> Function(QueryClient client) query;
+  final List<QueryObserver<String>> Function(QueryClient client) queries;
+  final MutationObserver<String, String, Object?> Function(QueryClient client)
+      mutation;
+
+  @override
+  State<_ObserversOfClient> createState() => _ObserversOfClientState();
+}
+
+class _ObserversOfClientState extends State<_ObserversOfClient> {
+  QueryClient? _client;
+  late QueryObserver<String> _query;
+  late List<QueryObserver<String>> _queries;
+  late MutationObserver<String, String, Object?> _mutation;
+
+  void _create(QueryClient client) {
+    _client = client;
+    _query = widget.query(client);
+    _queries = widget.queries(client);
+    _mutation = widget.mutation(client);
+  }
+
+  void _createAgain() => setState(() => _create(_client!));
+
+  @override
+  void initState() {
+    super.initState();
+    widget.rebuild.addListener(_createAgain);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final client = FueryProvider.of(context, listen: true);
+    if (!identical(client, _client)) _create(client);
+  }
+
+  @override
+  void dispose() {
+    widget.rebuild.removeListener(_createAgain);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        QueryBuilder(
+          query: _query,
+          builder: (context, state) => const SizedBox(),
+        ),
+        QueriesBuilder(
+          queries: _queries,
+          builder: (context, results) => const SizedBox(),
+        ),
+        MutationListener(
+          mutation: _mutation,
+          listener: (context, state) {},
+          child: const SizedBox(),
+        ),
+      ],
+    );
+  }
+}
+
 void main() {
   late QueryClient client;
 
@@ -964,6 +1040,124 @@ void main() {
         );
         expect(messages[1], startsWith('[fuery] MutationBuilder received'));
         expect(messages[2], startsWith('[fuery] QueriesBuilder received'));
+        await tester.pumpWidget(const SizedBox());
+        other.clear();
+        await tearDownApp(tester);
+      });
+    });
+
+    testWidgets(
+        'warns once per widget and key about observers of another client '
+        'created in build', (tester) async {
+      await withWarnings((messages) async {
+        final other = QueryClient();
+        final rebuild = ValueNotifier(0);
+        await pumpApp(
+          tester,
+          ValueListenableBuilder(
+            valueListenable: rebuild,
+            // The mistake: observers of another client, created in build.
+            builder: (context, _, __) => Column(
+              children: [
+                QueryBuilder(
+                  query: fresh('post', 1).observe(client: other),
+                  builder: (context, state) => const SizedBox(),
+                ),
+                QueriesBuilder(
+                  queries: [
+                    for (final id in [1, 2])
+                      fresh('user', id).observe(client: other),
+                  ],
+                  builder: (context, results) => const SizedBox(),
+                ),
+                MutationBuilder(
+                  mutation: Mutation(
+                    mutationKey: ['save'],
+                    mutationFn: (String title) async => title,
+                  ).observe(client: other),
+                  builder: (context, state) => const SizedBox(),
+                ),
+                MutationBuilder(
+                  mutation: addTodo().observe(client: other),
+                  builder: (context, state) => const SizedBox(),
+                ),
+              ],
+            ),
+          ),
+        );
+        for (var i = 0; i < 3; i++) {
+          rebuild.value++;
+          await tester.pump();
+        }
+
+        final otherClient = [
+          for (final message in messages)
+            if (message.contains('an observer of another QueryClient')) message,
+        ];
+        expect(
+          otherClient,
+          [
+            startsWith('[fuery] QueryBuilder received'),
+            startsWith('[fuery] QueriesBuilder received'),
+            startsWith('[fuery] QueriesBuilder received'),
+            startsWith('[fuery] MutationBuilder received'),
+            startsWith('[fuery] MutationBuilder received'),
+          ],
+          reason: 'once per widget and key, or per widget without a key',
+        );
+        await tester.pumpWidget(const SizedBox());
+        other.clear();
+        await tearDownApp(tester);
+      });
+    });
+
+    testWidgets(
+        'new observers of a replaced client are silent, and warn when '
+        'created in build', (tester) async {
+      await withWarnings((messages) async {
+        final other = QueryClient();
+        final current = ValueNotifier(client);
+        final rebuild = ValueNotifier(0);
+        await tester.pumpWidget(
+          ValueListenableBuilder(
+            valueListenable: current,
+            builder: (context, on, child) =>
+                FueryProvider(client: on, child: child!),
+            child: Directionality(
+              textDirection: TextDirection.ltr,
+              child: _ObserversOfClient(
+                rebuild: rebuild,
+                query: (client) => fresh('me', 1).observe(client: client),
+                queries: (client) => [
+                  for (final id in [1, 2])
+                    fresh('user', id).observe(client: client),
+                ],
+                mutation: (client) => Mutation(
+                  mutationKey: ['save'],
+                  mutationFn: (String title) async => title,
+                ).observe(client: client),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        // Observers created again for the new client, as they should be.
+        current.value = other;
+        await tester.pump();
+        expect(messages, isEmpty);
+
+        // The same observers, created again on the same client.
+        rebuild.value++;
+        await tester.pump();
+        expect(messages, [
+          contains('QueryBuilder received a new observer for the key '
+              '["me",1]'),
+          contains('QueriesBuilder received a new observer for the key '
+              '["user",1]'),
+          contains('MutationListener received a new observer for the key '
+              '["save"]'),
+        ]);
         await tester.pumpWidget(const SizedBox());
         other.clear();
         await tearDownApp(tester);

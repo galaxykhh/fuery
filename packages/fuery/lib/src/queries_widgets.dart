@@ -84,21 +84,24 @@ class QueriesSelector<TData extends Object, T> extends StatelessWidget {
 }
 
 /// The key of an observer in [current] that replaced a different observer
-/// for the same key in [previous]. Definitions, reordering, and observers
-/// passed again are silent.
+/// for the same key and client in [previous]. Definitions, reordering,
+/// observers passed again, and new observers of another client, as after
+/// the provided client was replaced, are silent.
 String? _debugKey<TData extends Object>(
   List<QuerySource<TData>> previous,
   List<QuerySource<TData>> current,
 ) {
   final before = Set<Object>.identity()..addAll(previous);
+  // QueryClient compares by identity, so the records do too.
   final keys = {
     for (final query in previous)
-      if (query is QueryObserver<TData>) hashKey(query.options.queryKey),
+      if (query is QueryObserver<TData>)
+        (query.client, hashKey(query.options.queryKey)),
   };
   for (final query in current) {
     if (query is! QueryObserver<TData> || before.contains(query)) continue;
     final key = hashKey(query.options.queryKey);
-    if (keys.contains(key)) return key;
+    if (keys.contains((query.client, key))) return key;
   }
   return null;
 }
