@@ -12,6 +12,12 @@ sealed class InfiniteQuerySource<TPage, TParam>
 /// A mutation as an adapter takes it: a [Mutation] or a [MutationObserver].
 sealed class MutationSource<TData, TVariables, TContext> {}
 
+/// What a [MutationStateSlot] finds runs by: a [Mutation] definition, for
+/// every run with its `mutationKey`, typed like the definition, or
+/// [MutationFilters], for the runs of any mutation that match them, typed
+/// `Object?`.
+sealed class MutationStateSource<TData, TVariables, TContext> {}
+
 /// Holds the observer that an adapter, such as a widget or a hook, renders
 /// from, for a source that can change on every render.
 ///
@@ -30,7 +36,8 @@ sealed class MutationSource<TData, TVariables, TContext> {}
 /// while another component renders, for example when one that mounts starts
 /// a fetch. Wrap them in `notifyManager.batchCalls` when the framework can't
 /// update during a render, so changes arrive in a microtask, and ignore the
-/// ones that arrive after the slot is disposed.
+/// ones that arrive after the slot is disposed. A [MutationStateSlot] is the
+/// exception: it always calls them in a microtask.
 ///
 /// [listen] is for side effects, such as navigation or a snackbar. Its
 /// listeners run in a microtask, never during a render, with the result
@@ -48,7 +55,8 @@ sealed class MutationSource<TData, TVariables, TContext> {}
 sealed class ObserverSlot<TSource, TResult> extends Subscribable<TResult> {
   /// The observer the slot renders from now. [update] replaces it when the
   /// source becomes another observer, the definition's client changes, or a
-  /// definition replaces an observer.
+  /// definition replaces an observer. For a [MutationStateSlot], it is the
+  /// client's [MutationCache], replaced only by another client.
   Object get observer;
 
   /// The result to render now.
@@ -520,12 +528,313 @@ final class QueriesSlot<TData extends Object>
       }
     });
   }
+}
 
-  static bool _sameItems(List<Object> a, List<Object> b) {
-    if (a.length != b.length) return false;
-    for (var i = 0; i < a.length; i++) {
-      if (!identical(a[i], b[i])) return false;
+/// Whether [a] and [b] hold the same objects in the same order.
+bool _sameItems(List<Object?> a, List<Object?> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (!identical(a[i], b[i])) return false;
+  }
+  return true;
+}
+
+typedef _AnyState = MutationState<Object?, Object?, Object?>;
+
+/// The state of every run in a cache when it was read, by run.
+typedef _Snapshot = Map<AnyCachedMutation, _AnyState>;
+
+typedef _RunListener<TData, TVariables, TContext> = void Function(
+  MutationState<TData, TVariables, TContext> previous,
+  MutationState<TData, TVariables, TContext> current,
+);
+
+/// An [ObserverSlot] over the mutation cache: the state of every run a
+/// source finds, wherever it was started, such as a `MutationBuilder`, a
+/// hook, a cubit's observer, or `restore(mutations:)`.
+///
+/// A [Mutation] finds the runs with its `mutationKey`, exactly, typed like
+/// the definition; a definition without a key fails an assert. A run of
+/// other types under the key is left out and reported once to the client's
+/// `onUncaughtError`, so give each definition a key of its own.
+/// [MutationFilters] find the runs of any mutation that match them, as
+/// [MutationCache.findAll] does, typed `Object?`.
+///
+/// The slot only reads. It never runs, keeps, or resets a mutation, and it
+/// applies none of a definition's options, so a definition built again on
+/// every render costs nothing. Only the runs of the slot's client count.
+///
+/// [result] lists the matching runs oldest first. It is the same list while
+/// no matching run was added, removed, or changed. A run stays until the
+/// cache removes it: `gcTime` after it settles with no observer, or on
+/// `clear()`.
+///
+/// Unlike the other slots, the slot calls [subscribe] listeners in a
+/// microtask, once per batch, and only when the list changed.
+/// [subscribeToRuns] reports each change of each run instead, for side
+/// effects such as a snackbar when any run fails.
+///
+/// ```dart
+/// final slot = MutationStateSlot(addTodo, client);
+/// final unsubscribe = slot.subscribe(render);
+/// final stop = slot.subscribeToRuns((previous, current) {
+///   if (current.isError) showError(current.error);
+/// });
+/// slot.update(addTodo, client); // on every render
+/// render(slot.result);
+/// ```
+final class MutationStateSlot<TData, TVariables, TContext> extends ObserverSlot<
+    MutationStateSource<TData, TVariables, TContext>,
+    List<MutationState<TData, TVariables, TContext>>> {
+  MutationStateSlot(
+    MutationStateSource<TData, TVariables, TContext> source,
+    QueryClient client,
+  )   : _client = client,
+        _source = source {
+    _matches = _matcherOf(source);
+  }
+
+  QueryClient _client;
+  MutationStateSource<TData, TVariables, TContext> _source;
+  late bool Function(AnyCachedMutation run) _matches;
+  List<MutationState<TData, TVariables, TContext>> _result = const [];
+
+  /// The list [subscribe] listeners got last.
+  List<MutationState<TData, TVariables, TContext>>? _pushed;
+  void Function()? _stopCache;
+  bool _scheduled = false;
+
+  /// Each [subscribeToRuns] listener, with the state of every run in the
+  /// cache when it last heard of it.
+  final Map<_RunListener<TData, TVariables, TContext>, _Snapshot>
+      _runListeners = {};
+
+  /// The cache the slot reads, `client.mutationCache` of its client. It is
+  /// another object only after [update] got another client.
+  @override
+  MutationCache get observer => _client.mutationCache;
+
+  /// The state of every matching run, oldest first. The same list while no
+  /// matching run was added, removed, or changed. Current as soon as
+  /// [update] returns.
+  @override
+  List<MutationState<TData, TVariables, TContext>> get result {
+    final states = <MutationState<TData, TVariables, TContext>>[];
+    for (final run in observer.getAll()) {
+      if (!_matches(run)) continue;
+      final state = _typed(run, run.state);
+      if (state != null) states.add(state);
     }
-    return true;
+    return _combine(states);
+  }
+
+  @override
+  QueryClient get _reportTo => _client;
+
+  @override
+  void update(
+    MutationStateSource<TData, TVariables, TContext> source,
+    QueryClient client,
+  ) {
+    final sameClient = identical(client, _client);
+    if (identical(source, _source) && sameClient) return;
+    _source = source;
+    _matches = _matcherOf(source);
+    if (!sameClient) {
+      final listening = _stopCache != null;
+      _stopListening();
+      _client = client;
+      if (listening) _startListening();
+      _generation++;
+      _rebaseListenings();
+      if (_runListeners.isNotEmpty) {
+        // Nothing the new cache's runs did before now is a change.
+        final snapshot = _snapshot();
+        _runListeners.updateAll((_, __) => snapshot);
+      }
+    }
+    // Pushes the new list, if it is one.
+    if (_stopCache != null) _schedule();
+  }
+
+  /// Calls [listener] for each later change of a matching run, with the
+  /// state that run had before (idle for a run that started later) and its
+  /// new state. Returns a function that removes it.
+  ///
+  /// Never called for a state a run already had when [listener] was added,
+  /// for a run that doesn't match, or for a run that the cache removed.
+  /// Called in a microtask, never during a render, with each run's latest
+  /// state of a batch; a state equal to the one before is not a change. A
+  /// new source reports only later changes of its runs, and a run that
+  /// starts to match a filter reports the state it really had before. A new
+  /// client starts over from its cache's runs. A listener that throws is
+  /// reported to the client's `onUncaughtError`, or without it to the zone.
+  void Function() subscribeToRuns(
+    void Function(
+      MutationState<TData, TVariables, TContext> previous,
+      MutationState<TData, TVariables, TContext> current,
+    ) listener,
+  ) {
+    _runListeners.putIfAbsent(listener, _snapshot);
+    _startListening();
+    return () {
+      if (_runListeners.remove(listener) != null) _stopIfUnused();
+    };
+  }
+
+  /// Removes every listener of both kinds and stops reading the cache.
+  @override
+  void dispose() {
+    clearListeners();
+    _dropListenings();
+    _runListeners.clear();
+    _stopListening();
+  }
+
+  @override
+  void onSubscribe() {
+    if (listeners.length == 1) _pushed = _result;
+    _startListening();
+  }
+
+  @override
+  void onUnsubscribe() => _stopIfUnused();
+
+  bool Function(AnyCachedMutation run) _matcherOf(
+    MutationStateSource<TData, TVariables, TContext> source,
+  ) {
+    switch (source) {
+      case Mutation(:final mutationKey):
+        assert(
+          mutationKey != null,
+          'MutationStateSlot got a Mutation without a mutationKey. Its runs '
+          'are found by their key, so give the definition one, such as '
+          "mutationKey: ['todos', 'add'].",
+        );
+        // coverage:ignore-start
+        // Only a release build gets here, as the assert above always runs in
+        // tests: a definition without a key shows no runs.
+        if (mutationKey == null) return (run) => false;
+        // coverage:ignore-end
+        return MutationFilters(mutationKey: mutationKey, exact: true)
+            ._matcher();
+      case final MutationFilters filters:
+        return filters._matcher();
+    }
+  }
+
+  /// [state] of [run] as this slot's type, or null for a run of other types
+  /// under the key, which is reported once.
+  MutationState<TData, TVariables, TContext>? _typed(
+    AnyCachedMutation run,
+    _AnyState state,
+  ) {
+    if (state is MutationState<TData, TVariables, TContext>) return state;
+    final key = run.options.mutationKey;
+    final type = 'MutationStateSlot<$TData, $TVariables, $TContext>';
+    _client._reportOnce(
+      'mutation state $key ${state.runtimeType} $type',
+      StateError(
+        'A run with the mutationKey $key has a ${state.runtimeType}, so a '
+        '$type for that key leaves it out. Give each definition with other '
+        'types a mutationKey of its own.',
+      ),
+      StackTrace.current,
+    );
+    return null;
+  }
+
+  /// Keeps the previous list while every state is the same object.
+  List<MutationState<TData, TVariables, TContext>> _combine(
+    List<MutationState<TData, TVariables, TContext>> next,
+  ) {
+    if (!_sameItems(next, _result)) _result = List.unmodifiable(next);
+    return _result;
+  }
+
+  _Snapshot _snapshot() =>
+      {for (final run in observer.getAll()) run: run.state};
+
+  void _startListening() {
+    _stopCache ??= observer._subscribe(_schedule);
+  }
+
+  void _stopListening() {
+    _stopCache?.call();
+    _stopCache = null;
+  }
+
+  void _stopIfUnused() {
+    if (!hasListeners && _runListeners.isEmpty) _stopListening();
+  }
+
+  /// Reads the cache once, after the changes of this batch.
+  void _schedule() {
+    if (_scheduled) return;
+    _scheduled = true;
+    notifyManager.schedule(_flush);
+  }
+
+  void _flush() {
+    _scheduled = false;
+    if (_stopCache == null) return;
+    final runs = observer.getAll();
+    final states = [for (final run in runs) run.state];
+    final heard = _runListeners.entries.toList();
+    final List<MutationState<TData, TVariables, TContext>?> matching;
+    try {
+      matching = [
+        for (var i = 0; i < runs.length; i++)
+          _matches(runs[i]) ? _typed(runs[i], states[i]) : null,
+      ];
+    } catch (error, stackTrace) {
+      // A predicate that throws. What the runs did until now is still seen.
+      _client._reportError(error, stackTrace);
+      _advance(heard, runs, states);
+      return;
+    }
+
+    for (final MapEntry(key: listener, value: seen) in heard) {
+      for (var i = 0; i < runs.length; i++) {
+        final current = matching[i];
+        if (current == null) continue;
+        final previous = switch (seen[runs[i]]) {
+          final MutationState<TData, TVariables, TContext> state => state,
+          // A run that started after the listener last heard.
+          _ => MutationState<TData, TVariables, TContext>(),
+        };
+        if (previous == current) continue;
+        // Another listener can remove this one.
+        if (!_runListeners.containsKey(listener)) break;
+        _client._guardCallback(() => listener(previous, current));
+      }
+    }
+    _advance(heard, runs, states);
+
+    if (!hasListeners) return;
+    final result = _combine([...matching.nonNulls]);
+    if (identical(result, _pushed)) return;
+    _pushed = result;
+    for (final listener in listeners) {
+      _client._guardCallback(() => listener(result));
+    }
+  }
+
+  /// Moves the listeners that heard [runs] in [states] on to them. A
+  /// listener added since keeps the snapshot it was added with.
+  void _advance(
+    List<MapEntry<_RunListener<TData, TVariables, TContext>, _Snapshot>> heard,
+    List<AnyCachedMutation> runs,
+    List<_AnyState> states,
+  ) {
+    if (heard.isEmpty) return;
+    final _Snapshot seen = {
+      for (var i = 0; i < runs.length; i++) runs[i]: states[i],
+    };
+    for (final MapEntry(key: listener, value: before) in heard) {
+      if (identical(_runListeners[listener], before)) {
+        _runListeners[listener] = seen;
+      }
+    }
   }
 }

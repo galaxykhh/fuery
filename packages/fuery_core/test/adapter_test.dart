@@ -281,6 +281,103 @@ void main() {
     });
   });
 
+  group('MutationStateSlot', () {
+    Mutation<String, String, Object?> addTodo(String list) => Mutation(
+          mutationKey: ['todos', list, 'add'],
+          mutationFn: (title) async {
+            await Future<void>.delayed(ms10);
+            if (title.startsWith('fail')) throw StateError(title);
+            return title;
+          },
+        );
+
+    fakeTest('renders the runs a separate observer starts, and hears each',
+        (async) {
+      final other = QueryClient();
+      // A button elsewhere, with an observer of its own.
+      final button = addTodo('home').observe(client: client);
+      button.mutate('milk');
+
+      // Renders on every frame, with a definition built again each time, and
+      // listens to each run for side effects.
+      var list = 'home';
+      var on = client;
+      final slot = MutationStateSlot(addTodo(list), on);
+      final rendered = <List<String?>>[];
+      void render() {
+        slot.update(addTodo(list), on);
+        rendered.add([for (final run in slot.result) run.variables]);
+      }
+
+      final unsubscribe = slot.subscribe((_) => render());
+      final failures = <String?>[];
+      final stop = slot.subscribeToRuns((previous, current) {
+        if (current.isError) failures.add(current.variables);
+      });
+      render();
+      expect(rendered, [
+        ['milk'],
+      ]);
+
+      button.mutate('fail eggs');
+      async.elapse(ms10);
+      expect(rendered.last, ['milk', 'fail eggs']);
+      expect(slot.result.map((run) => run.status),
+          [MutationStatus.success, MutationStatus.error]);
+      expect(failures, ['fail eggs']);
+
+      // A new key and a new client show in the same frame, and their runs
+      // that already failed are not reported.
+      addTodo('work').observe(client: client).mutate('fail report');
+      async.elapse(ms10);
+      list = 'work';
+      render();
+      expect(rendered.last, ['fail report']);
+      addTodo('work').observe(client: other).mutate('fail plan');
+      async.elapse(ms10);
+      on = other;
+      render();
+      expect(rendered.last, ['fail plan']);
+      expect(identical(slot.observer, other.mutationCache), isTrue);
+      async.flushMicrotasks();
+      expect(failures, ['fail eggs']);
+
+      unsubscribe();
+      stop();
+      slot.dispose();
+      other.clear();
+    });
+
+    fakeTest('listen hears new lists, but not a move to another client',
+        (async) {
+      final other = QueryClient();
+      final slot = MutationStateSlot(
+        const MutationFilters(mutationKey: ['todos']),
+        client,
+      );
+      final heard = <String>[];
+      slot.listen((previous, current) {
+        heard.add('${previous.length} > ${current.length}');
+      });
+
+      addTodo('home').observe(client: client).mutate('milk');
+      async.flushMicrotasks();
+      expect(heard, ['0 > 1']);
+
+      addTodo('home').observe(client: other).mutate('eggs');
+      addTodo('home').observe(client: client).mutate('bread');
+      slot.update(const MutationFilters(mutationKey: ['todos']), other);
+      async.flushMicrotasks();
+      expect(heard, ['0 > 1']);
+      addTodo('home').observe(client: other).mutate('tea');
+      async.flushMicrotasks();
+      expect(heard, ['0 > 1', '1 > 2']);
+      slot.dispose();
+      async.elapse(ms10);
+      other.clear();
+    });
+  });
+
   group('listen', () {
     // Fresh for good, so subscribing fetches nothing when data is cached.
     Query<String> fresh(int id) => Query(

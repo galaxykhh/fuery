@@ -234,7 +234,9 @@ class MutationDefaults {
 /// );
 /// ```
 class Mutation<TData, TVariables, TContext extends Object?>
-    implements MutationSource<TData, TVariables, TContext> {
+    implements
+        MutationSource<TData, TVariables, TContext>,
+        MutationStateSource<TData, TVariables, TContext> {
   const Mutation({
     required this.mutationFn,
     this.mutationKey,

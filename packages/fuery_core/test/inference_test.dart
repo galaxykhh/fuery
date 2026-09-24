@@ -393,11 +393,54 @@ void main() {
       'todos: null a',
       'add: pending success c',
     ]);
+    // A definition gives its own types, NoVariablesMutation gives void, and
+    // filters give Object?.
+    final addStateSlot = MutationStateSlot(
+      Mutation(
+        mutationKey: const ['todos', 'add'],
+        mutationFn: (String title) async => Todo(title),
+      ),
+      client,
+    );
+    final clearSlot = MutationStateSlot(
+      NoVariablesMutation(
+        mutationKey: const ['todos', 'clear'],
+        mutationFn: () async => 0,
+      ),
+      client,
+    );
+    final filtersSlot = MutationStateSlot(
+      const MutationFilters(mutationKey: ['todos']),
+      client,
+    );
+    final MutationStateSlot<Todo, String, Object?> typedAddState = addStateSlot;
+    final MutationStateSlot<int, void, Object?> typedClear = clearSlot;
+    final MutationStateSlot<Object?, Object?, Object?> typedFilters =
+        filtersSlot;
+    addStateSlot.subscribeToRuns((previous, current) {
+      final MutationState<Todo, String, Object?> typedPrevious = previous;
+      final MutationState<Todo, String, Object?> typedCurrent = current;
+      heard.add('run: ${typedPrevious.status.name} '
+          '${typedCurrent.status.name} ${typedCurrent.data?.title}');
+    });
+    Mutation(
+      mutationKey: const ['todos', 'add'],
+      mutationFn: (String title) async => Todo(title),
+    ).observe(client: client).mutate('d');
+    async.flushMicrotasks();
+    expect(heard.last, 'run: pending success d');
+    expect(typedAddState.result.single.data!.title, 'd');
+    expect(typedClear.result, isEmpty);
+    expect(typedFilters.result, hasLength(1));
+
     for (final slot in <ObserverSlot<Object?, Object?>>[
       todosSlot,
       observedSlot,
       pagesSlot,
       addSlot,
+      addStateSlot,
+      clearSlot,
+      filtersSlot,
     ]) {
       slot.dispose();
     }

@@ -8,9 +8,11 @@ typedef AnyMutation = Mutation<Object?, Object?, Object?>;
 @Deprecated('Use AnyMutation.')
 typedef AnyMutationOptions = AnyMutation;
 
-/// Selects mutations, for example in [QueryClient.isMutating].
+/// Selects mutations, for example in [QueryClient.isMutating], or the runs
+/// a [MutationStateSlot] shows.
 @immutable
-class MutationFilters {
+class MutationFilters
+    implements MutationStateSource<Object?, Object?, Object?> {
   const MutationFilters({
     this.mutationKey,
     this.exact = false,
