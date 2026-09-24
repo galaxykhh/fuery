@@ -859,10 +859,11 @@ void main() {
 
         InfiniteQueryResult<List<int>, int>? fetched;
         Object? rejected;
-        observer.fetchNextPage().then(
-              (result) => fetched = result,
-              onError: (Object error) => rejected = error,
-            );
+        observer.fetchNextPage().then<void>((result) {
+          fetched = result;
+        }, onError: (Object error) {
+          rejected = error;
+        });
         async.flushMicrotasks();
 
         expect(rejected, isNull);
@@ -954,13 +955,15 @@ void main() {
         Object? rejected;
         client
             .infiniteQuery(InfiniteQuery(
-              queryKey: ['feed'],
-              queryFn: (context) async => [context.pageParam],
-              initialPageParam: 0,
-              getNextPageParam: (_) => throw StateError('next'),
-              pages: 2,
-            ))
-            .then<void>((_) {}, onError: (Object error) => rejected = error);
+          queryKey: ['feed'],
+          queryFn: (context) async => [context.pageParam],
+          initialPageParam: 0,
+          getNextPageParam: (_) => throw StateError('next'),
+          pages: 2,
+        ))
+            .then<void>((_) {}, onError: (Object error) {
+          rejected = error;
+        });
         async.flushMicrotasks();
 
         expect((rejected! as StateError).message, 'next');
