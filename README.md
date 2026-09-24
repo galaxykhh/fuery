@@ -3,6 +3,7 @@
 [![pub package](https://img.shields.io/pub/v/fuery.svg)](https://pub.dev/packages/fuery)
 [![pub points](https://img.shields.io/pub/points/fuery)](https://pub.dev/packages/fuery/score)
 [![CI](https://github.com/galaxykhh/fuery/actions/workflows/ci.yml/badge.svg)](https://github.com/galaxykhh/fuery/actions/workflows/ci.yml)
+[![coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/galaxykhh/fuery/actions/workflows/ci.yml)
 
 Fetch, cache, and keep server data fresh in Flutter.
 

@@ -1,5 +1,9 @@
 <img src="https://raw.githubusercontent.com/galaxykhh/fuery/main/assets/brand/banner.png" alt="Fuery: server state for Flutter" width="100%">
 
+[![pub package](https://img.shields.io/pub/v/fuery_hooks.svg)](https://pub.dev/packages/fuery_hooks)
+[![CI](https://github.com/galaxykhh/fuery/actions/workflows/ci.yml/badge.svg)](https://github.com/galaxykhh/fuery/actions/workflows/ci.yml)
+[![coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/galaxykhh/fuery/actions/workflows/ci.yml)
+
 Hooks for [Fuery](https://pub.dev/packages/fuery): render cached server data from inside `build`, in a [`flutter_hooks`](https://pub.dev/packages/flutter_hooks) `HookWidget`.
 
 Fuery is built the Flutter way. Queries are defined outside `build`, and widgets render them: builders for UI and listeners for side effects, in the shape of `StreamBuilder`. And `fuery` depends on nothing beyond Dart and Flutter.
