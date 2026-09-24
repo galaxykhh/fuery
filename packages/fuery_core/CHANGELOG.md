@@ -1,6 +1,6 @@
 ## 1.4.1
-- Fix: persisted data is stored under a key that is the same in every build. The stored key included the type name of an enum in the query key, which obfuscated and minified builds rename, so such a query wasn't restored after an app update. Keys in memory are unchanged. Data stored under keys with enums by an earlier version is fetched again once, and is deleted with its key.
-- Fix: a persisted mutation whose key holds an enum or a `DateTime` is stored. A key that can't be stored is reported instead of skipped without a word, and it no longer makes `restore` drop other mutations' runs.
+- Fix: persisted data is stored under a key that is the same in every build. The stored key included the type name of an enum in the query key, which obfuscated and minified builds rename, so such a query wasn't restored after an app update. Keys in memory are unchanged. Queries an earlier version stored under keys with enums are fetched again once, and `restore()` deletes their old entries once they expire.
+- Fix: a persisted mutation whose key holds an enum or a `DateTime` is stored. A key that can't be stored is reported once instead of skipped without a word, and it no longer makes `restore` drop other mutations' runs. `restore` reports two mutations whose keys differ only in enum types and restores neither.
 
 ## 1.4.0
 - Add `QueriesSlot`, which renders a list of queries of one data type, keeps each query's observer while its key stays in the list, and gives their results in order, for adapters such as a `useQueries` hook.

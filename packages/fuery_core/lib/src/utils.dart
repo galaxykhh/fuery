@@ -55,7 +55,7 @@ String hashKey(List<Object?> key) => jsonEncode(_canonicalize(key, false));
 /// It differs only for enums, as values or as map keys: those builds rename
 /// types, so an enum becomes `'enum:name'` without its type. A key without
 /// enums gets the same hash as [hashKey].
-String storageHash(List<Object?> key) => jsonEncode(_canonicalize(key, true));
+String storageHash(List<Object?> key) => jsonEncode(storageKeyForm(key));
 
 /// [key] in the JSON form [storageHash] encodes, for storing a key and
 /// reading it back as the same key.
@@ -66,9 +66,14 @@ bool partialMatchKey(List<Object?> a, List<Object?> b) {
   return _partialMatch(_canonicalize(a, false), _canonicalize(b, false));
 }
 
-/// Like [partialMatchKey], for a key read back from [storageHash].
-bool partialMatchStoredKey(List<Object?> stored, List<Object?> key) {
-  return _partialMatch(_canonicalize(stored, true), _canonicalize(key, true));
+/// Returns a test for whether [key] is a prefix (for lists) or subset (for
+/// maps) of a key read back from storage, stored in the form of
+/// [storageHash] or of [hashKey], as keys were before 1.4.1. [key] is
+/// converted once, for testing many stored keys.
+bool Function(List<Object?> stored) storedKeyMatcher(List<Object?> key) {
+  final forms = [_canonicalize(key, true), _canonicalize(key, false)];
+  // A key read back is JSON already.
+  return (stored) => forms.any((form) => _partialMatch(stored, form));
 }
 
 bool _partialMatch(Object? a, Object? b) {
@@ -98,14 +103,17 @@ Object? _canonicalize(Object? value, bool stable) {
   if (value == null || value is bool || value is num || value is String) {
     return value;
   }
-  if (value is Enum) return _enumForm(value, stable);
+  if (value is Enum) {
+    return stable ? 'enum:${value.name}' : '${value.runtimeType}.${value.name}';
+  }
   if (value is DateTime) return value.toIso8601String();
   if (value is Iterable) {
     return [for (final item in value) _canonicalize(item, stable)];
   }
   if (value is Map) {
+    // In memory, an enum map key is its toString(), as it always was.
     String keyOf(Object? key) =>
-        key is Enum ? _enumForm(key, stable) : key.toString();
+        stable && key is Enum ? 'enum:${key.name}' : key.toString();
     final keys = value.keys.map(keyOf).toList()..sort();
     final byString = {for (final e in value.entries) keyOf(e.key): e.value};
     return {for (final k in keys) k: _canonicalize(byString[k], stable)};
@@ -122,10 +130,6 @@ Object? _canonicalize(Object? value, bool stable) {
           'Iterable, Map, or objects with a toJson() method',
     );
   }
-}
-
-String _enumForm(Enum value, bool stable) {
-  return stable ? 'enum:${value.name}' : '${value.runtimeType}.${value.name}';
 }
 
 /// Reuses parts of [prevData] that are equal to [data], so listeners can skip

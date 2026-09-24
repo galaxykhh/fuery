@@ -217,7 +217,7 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
     } catch (error, stackTrace) {
       // A key that can't be hashed can't be restored either. Report it
       // rather than lose the run without a word; the run itself goes on.
-      Zone.current.handleUncaughtError(error, stackTrace);
+      _reportUnstorableKey(mutationKey, error, stackTrace);
       return;
     }
     final key = '$_mutationKeyPrefix${_state.submittedAt}:$mutationId';
@@ -306,6 +306,16 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
 
   @override
   String toString() => 'CachedMutation($mutationId, ${_state.status.name})';
+}
+
+/// Mutation keys reported as ones that can't be stored, by their toString(),
+/// so each is reported once rather than on every run.
+final Set<String> _unstorableKeys = {};
+
+void _reportUnstorableKey(QueryKey key, Object error, StackTrace stackTrace) {
+  if (_unstorableKeys.add(key.toString())) {
+    Zone.current.handleUncaughtError(error, stackTrace);
+  }
 }
 
 Future<void> _guard(FutureOr<void> Function() callback) async {

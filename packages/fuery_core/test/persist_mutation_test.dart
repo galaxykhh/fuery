@@ -9,6 +9,8 @@ import 'storages.dart';
 
 enum Visibility { public }
 
+enum Audience { public }
+
 /// A mutation function that records its calls and resolves after [delay].
 class FakeMutator {
   FakeMutator({this.delay = ms10});
@@ -152,21 +154,23 @@ void main() {
       restarted.clear();
     });
 
-    fakeTest('a key that cannot be stored is reported, and the run goes on',
+    fakeTest('a key that cannot be stored is reported once, and runs go on',
         (async) {
       final errors = <Object>[];
       final mutator = FakeMutator();
       runZonedGuarded(() {
         Mutation(
-          mutationKey: [Object()], // no toJson
+          mutationKey: [Object(), 'store'], // no toJson
           mutationFn: mutator.call,
           persist: persist,
-        ).observe(client: client).mutate('a');
+        ).observe(client: client)
+          ..mutate('a')
+          ..mutate('b');
         async.elapse(ms10);
       }, (error, _) => errors.add(error));
 
       expect(errors.single, isA<ArgumentError>());
-      expect(mutator.calls, ['a']);
+      expect(mutator.calls, ['a', 'b']);
       expect(storedMutations(), isEmpty);
     });
 
@@ -373,7 +377,7 @@ void main() {
       storage.entries[entry.key] = entry.value;
       final mutator = FakeMutator();
       final broken = Mutation(
-        mutationKey: [Object()],
+        mutationKey: [Object(), 'restore'],
         mutationFn: FakeMutator().call,
       );
 
@@ -384,6 +388,36 @@ void main() {
       }, (error, _) => errors.add(error));
       expect(errors.single, isA<ArgumentError>());
       expect(mutator.calls, ['from last time']);
+    });
+
+    fakeTest('keys that differ only in enum types restore neither', (async) {
+      // Stored keys leave out enum types, which obfuscated builds rename,
+      // so a stored run could belong to either definition.
+      Mutation<String, String, void> share(List<Object?> key) => Mutation(
+            mutationKey: key,
+            mutationFn: FakeMutator().call,
+            persist: persist,
+          );
+      onlineManager.setOnline(false);
+      share(const ['share', Visibility.public])
+          .observe(client: client)
+          .mutate('later');
+      async.flushMicrotasks();
+
+      final restarted = QueryClient(storage: storage);
+      final errors = <Object>[];
+      runZonedGuarded(() {
+        restarted.restore(mutations: [
+          share(const ['share', Visibility.public]),
+          share(const ['share', Audience.public]),
+          share(const ['share', Visibility.public]),
+        ]);
+        async.flushMicrotasks();
+      }, (error, _) => errors.add(error));
+      expect(errors.single, isA<StateError>());
+      expect(restarted.mutationCache.getAll(), isEmpty);
+      expect(storedMutations(), hasLength(1));
+      restarted.clear();
     });
 
     fakeTest('entries whose options were not passed are kept for later',

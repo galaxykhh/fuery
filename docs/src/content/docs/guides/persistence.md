@@ -71,7 +71,7 @@ final todosQuery = Query(
 - **Restoring:** the first time the query is used, its stored data is restored with the time it was fetched, so `staleTime` decides whether it refetches. Fresh data isn't fetched again.
 - **Storing:** data is stored whenever it changes and no fetch is running, including changes made with `setData`. `client.setData(todosQuery, todos)` stores even before anything uses the query, because the query it creates gets the `persist` from the definition. A [streamed query](../streaming/) is stored once its stream is done.
 - **Offline:** restoring doesn't need the network.
-- **Keys with enums:** an enum is stored as its name, without its type, which obfuscated and minified builds rename, so the data is restored after an app update. Two persisted queries whose keys differ only in the type of a same-named enum, such as `Filter.done` and `Status.done`, share one stored entry.
+- **Keys with enums:** an enum is stored as its name, without its type, which obfuscated and minified builds rename, so the data is restored after an app update. Two persisted queries whose keys differ only in the type of a same-named enum, such as `['todos', Filter.done]` and `['todos', Status.done]`, share one stored entry and overwrite each other's data. Add a string that tells them apart: `['todos', 'filter', Filter.done]`.
 
 ## Persisting infinite queries
 
@@ -166,6 +166,7 @@ await Fuery.client.restore(mutations: [addCommentMutation()]);
 ```
 
 - A persisted mutation needs a `mutationKey`. That is how `restore` matches a stored run to its definition. `mutations` is a list of `AnyMutation`, which every `Mutation` is, so options with different types go in one list.
+- The `mutationKey` is stored the way query keys are, so it can hold enums and `DateTime`s. A key that can't be stored, such as one holding an object without `toJson()`, is reported once as an uncaught error, and the mutation runs without being stored. `restore` reports two mutations whose keys differ only in enum types and restores neither.
 - `restore` is the only way stored mutations come back. Each stored run is started again with its stored variables: right away while online, or when the network is back. Runs that share a scope go one at a time, oldest first.
 - A restored run skips `onMutate`, and its callbacks receive `null` as `context`. An optimistic update belongs to the run that made it; the restored run only repeats the request and its `onSuccess`.
 - A stored run is deleted once the mutation succeeds or fails. `clear()` deletes them all.

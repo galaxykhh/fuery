@@ -211,16 +211,37 @@ class QueryClient {
       return byTime != 0 ? byTime : a.$2.compareTo(b.$2);
     });
 
-    // Each definition's key, hashed once. One that can't be hashed is
-    // reported, matches no entry, and leaves the entries of the others alone.
-    final byKey = <String, AnyMutation>{};
+    // Each definition by its stored key, hashed once. One that can't be
+    // hashed is reported, matches no entry, and leaves the entries of the
+    // others alone.
+    final byKey = <String, AnyMutation?>{};
+    final keysInMemory = <String, String>{};
     for (final options in mutations) {
       final mutationKey = options.mutationKey;
       if (mutationKey == null) continue;
       try {
-        byKey.putIfAbsent(storageHash(mutationKey), () => options);
+        final stored = storageHash(mutationKey);
+        final inMemory = hashKey(mutationKey);
+        final first = keysInMemory.putIfAbsent(stored, () => inMemory);
+        if (first == inMemory) {
+          byKey.putIfAbsent(stored, () => options);
+          continue;
+        }
+        // Stored keys leave out enum types, so a stored run of either key
+        // could belong to the other. Neither is restored, and the runs stay.
+        if (byKey[stored] != null) {
+          Zone.current.handleUncaughtError(
+            StateError(
+              'The mutation keys $first and $inMemory differ only in enum '
+              'types, which stored keys leave out, so neither is restored. '
+              'Add a string to one of them that tells them apart.',
+            ),
+            StackTrace.current,
+          );
+        }
+        byKey[stored] = null;
       } catch (error, stackTrace) {
-        Zone.current.handleUncaughtError(error, stackTrace);
+        _reportUnstorableKey(mutationKey, error, stackTrace);
       }
     }
 
@@ -306,19 +327,21 @@ class QueryClient {
     };
 
     // Entries stored before 1.4.1 are under hashKey, with enums' type names;
-    // match those too, so a key's old entries are deleted with it.
-    bool matches(String storedHash) {
-      if (loaded.contains(storedHash)) return false;
-      final queryKey = filters.queryKey;
-      if (queryKey == null) return true;
-      if (filters.exact) {
-        return storedHash == storageHash(queryKey) ||
-            storedHash == hashKey(queryKey);
-      }
-      final stored = jsonDecode(storedHash) as List<Object?>;
-      return partialMatchStoredKey(stored, queryKey) ||
-          partialMatchKey(stored, queryKey);
+    // match those too, so a key's old entries are deleted with it in builds
+    // that keep type names.
+    final queryKey = filters.queryKey;
+    final bool Function(String storedHash) matchesKey;
+    if (queryKey == null) {
+      matchesKey = (_) => true;
+    } else if (filters.exact) {
+      matchesKey = {storageHash(queryKey), hashKey(queryKey)}.contains;
+    } else {
+      final matcher = storedKeyMatcher(queryKey);
+      matchesKey =
+          (storedHash) => matcher(jsonDecode(storedHash) as List<Object?>);
     }
+    bool matches(String storedHash) =>
+        !loaded.contains(storedHash) && matchesKey(storedHash);
 
     _preloaded?.removeWhere((storedHash, _) => matches(storedHash));
     _trackDeletion(() {

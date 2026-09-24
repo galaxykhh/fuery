@@ -23,6 +23,13 @@ enum Sort { newest }
 
 enum Tab { newest }
 
+enum Label {
+  a;
+
+  @override
+  String toString() => 'label $name';
+}
+
 void main() {
   late QueryClient client;
 
@@ -323,6 +330,12 @@ void main() {
         hashKey(['posts', Sort.newest]),
         isNot(hashKey(['posts', Tab.newest])),
       );
+      // A map key is its toString, as it was.
+      expect(
+          hashKey([
+            {Label.a: 1}
+          ]),
+          '[{"label a":1}]');
     });
   });
 
