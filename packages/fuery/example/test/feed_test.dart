@@ -111,6 +111,28 @@ void main() {
     await tearDownApp(tester);
   });
 
+  testWidgets(
+      'a like that fails is reported when another like started after it',
+      (tester) async {
+    await pumpApp(tester);
+    await loadFeed(tester);
+    Finder likeButton(String post, IconData icon) => find.descendant(
+          of: find.ancestor(of: find.text(post), matching: find.byType(Card)),
+          matching: find.byIcon(icon),
+        );
+
+    // The flaky post's like is still on its way when the top post's starts.
+    await tester.tap(likeButton(flakyPost, Icons.favorite_border));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(likeButton(topPost, Icons.favorite));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump();
+    expect(find.text('Could not like the post'), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 300));
+    await tearDownApp(tester);
+  });
+
   testWidgets('hovering a post prefetches it, so it opens without loading',
       (tester) async {
     await pumpApp(tester);
