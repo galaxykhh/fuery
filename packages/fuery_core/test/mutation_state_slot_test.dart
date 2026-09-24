@@ -544,6 +544,35 @@ void main() {
       slot.dispose();
     });
 
+    fakeTest('a listener that another one adds hears only later changes',
+        (async) {
+      final slot = MutationStateSlot(addTodo(), client);
+      final heard = <String>[];
+      var added = false;
+      slot.subscribeToRuns((previous, current) {
+        heard.add('first ${current.variables} ${current.status.name}');
+        if (added) return;
+        added = true;
+        // A run that starts before the new listener is added.
+        run(addTodo(), 'b', client);
+        slot.subscribeToRuns((previous, current) {
+          heard.add('second ${current.variables} ${current.status.name}');
+        });
+      });
+
+      run(addTodo(), 'a', client);
+      async.flushMicrotasks();
+      expect(heard, ['first a pending', 'first b pending']);
+      async.elapse(ms10);
+      expect(heard.skip(2), [
+        'first a success',
+        'second a success',
+        'first b success',
+        'second b success',
+      ]);
+      slot.dispose();
+    });
+
     fakeTest('a predicate that throws is reported, and delivers nothing',
         (async) {
       var broken = false;
