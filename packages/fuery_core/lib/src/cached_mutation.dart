@@ -208,12 +208,24 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
     final persist = _options.persist;
     final mutationKey = _options.mutationKey;
     if (storage == null || persist == null || mutationKey == null) return;
+    final Object? storedKey;
+    try {
+      // The key's stored form, so enums and dates in it can be stored, and
+      // encoded once here, so a key JSON can't hold is reported too.
+      storedKey = storageKeyForm(mutationKey);
+      jsonEncode(storedKey);
+    } catch (error, stackTrace) {
+      // A key that can't be hashed can't be restored either. Report it
+      // rather than lose the run without a word; the run itself goes on.
+      _reportUnstorableKey(mutationKey, error, stackTrace);
+      return;
+    }
     final key = '$_mutationKeyPrefix${_state.submittedAt}:$mutationId';
     final String value;
     try {
       value = jsonEncode({
         'v': persist.version,
-        'k': mutationKey,
+        'k': storedKey,
         't': _state.submittedAt,
         'd': persist._encode(_state.variables as TVariables),
       });
@@ -294,6 +306,16 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
 
   @override
   String toString() => 'CachedMutation($mutationId, ${_state.status.name})';
+}
+
+/// Mutation keys reported as ones that can't be stored, by their toString(),
+/// so each is reported once rather than on every run.
+final Set<String> _unstorableKeys = {};
+
+void _reportUnstorableKey(QueryKey key, Object error, StackTrace stackTrace) {
+  if (_unstorableKeys.add(key.toString())) {
+    Zone.current.handleUncaughtError(error, stackTrace);
+  }
 }
 
 Future<void> _guard(FutureOr<void> Function() callback) async {

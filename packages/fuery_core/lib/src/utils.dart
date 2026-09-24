@@ -47,11 +47,33 @@ int timeUntilStale(int updatedAt, Duration? staleTime) {
 ///
 /// Supported values are `null`, [bool], [num], [String], [Enum], [DateTime],
 /// [Iterable], [Map], and objects that implement `toJson()`.
-String hashKey(List<Object?> key) => jsonEncode(_canonicalize(key));
+String hashKey(List<Object?> key) => jsonEncode(_canonicalize(key, false));
+
+/// Like [hashKey], but the same in every build, obfuscated and minified ones
+/// included, for storing data under the key.
+///
+/// It differs only for enums, as values or as map keys: those builds rename
+/// types, so an enum becomes `'enum:name'` without its type. A key without
+/// enums gets the same hash as [hashKey].
+String storageHash(List<Object?> key) => jsonEncode(storageKeyForm(key));
+
+/// [key] in the JSON form [storageHash] encodes, for storing a key and
+/// reading it back as the same key.
+Object? storageKeyForm(List<Object?> key) => _canonicalize(key, true);
 
 /// Returns true when [b] is a prefix (for lists) or subset (for maps) of [a].
 bool partialMatchKey(List<Object?> a, List<Object?> b) {
-  return _partialMatch(_canonicalize(a), _canonicalize(b));
+  return _partialMatch(_canonicalize(a, false), _canonicalize(b, false));
+}
+
+/// Returns a test for whether [key] is a prefix (for lists) or subset (for
+/// maps) of a key read back from storage, stored in the form of
+/// [storageHash] or of [hashKey], as keys were before 1.4.1. [key] is
+/// converted once, for testing many stored keys.
+bool Function(List<Object?> stored) storedKeyMatcher(List<Object?> key) {
+  final forms = [_canonicalize(key, true), _canonicalize(key, false)];
+  // A key read back is JSON already.
+  return (stored) => forms.any((form) => _partialMatch(stored, form));
 }
 
 bool _partialMatch(Object? a, Object? b) {
@@ -75,22 +97,31 @@ bool _partialMatch(Object? a, Object? b) {
   return false;
 }
 
-Object? _canonicalize(Object? value) {
+/// [value] as JSON. With [stable], enums leave out their type, whose name
+/// obfuscated and minified builds change.
+Object? _canonicalize(Object? value, bool stable) {
   if (value == null || value is bool || value is num || value is String) {
     return value;
   }
-  if (value is Enum) return '${value.runtimeType}.${value.name}';
+  if (value is Enum) {
+    return stable ? 'enum:${value.name}' : '${value.runtimeType}.${value.name}';
+  }
   if (value is DateTime) return value.toIso8601String();
-  if (value is Iterable) return [for (final item in value) _canonicalize(item)];
+  if (value is Iterable) {
+    return [for (final item in value) _canonicalize(item, stable)];
+  }
   if (value is Map) {
-    final keys = value.keys.map((k) => k.toString()).toList()..sort();
-    final byString = {for (final e in value.entries) e.key.toString(): e.value};
-    return {for (final k in keys) k: _canonicalize(byString[k])};
+    // In memory, an enum map key is its toString(), as it always was.
+    String keyOf(Object? key) =>
+        stable && key is Enum ? 'enum:${key.name}' : key.toString();
+    final keys = value.keys.map(keyOf).toList()..sort();
+    final byString = {for (final e in value.entries) keyOf(e.key): e.value};
+    return {for (final k in keys) k: _canonicalize(byString[k], stable)};
   }
 
   try {
     // ignore: avoid_dynamic_calls
-    return _canonicalize((value as dynamic).toJson());
+    return _canonicalize((value as dynamic).toJson(), stable);
   } on NoSuchMethodError {
     throw ArgumentError.value(
       value,

@@ -1,6 +1,7 @@
 // Regression tests for cache, refetch, and mutation edge cases.
 import 'package:fake_async/fake_async.dart';
 import 'package:fuery_core/fuery_core.dart';
+import 'package:fuery_core/src/utils.dart' show storageHash;
 import 'package:test/test.dart';
 
 import 'helpers.dart';
@@ -16,6 +17,17 @@ class Item {
 
   @override
   int get hashCode => Object.hash(id, name);
+}
+
+enum Sort { newest }
+
+enum Tab { newest }
+
+enum Label {
+  a;
+
+  @override
+  String toString() => 'label $name';
 }
 
 void main() {
@@ -291,6 +303,40 @@ void main() {
     expect(todos.result.isFetchedAfterMount, isFalse);
     expect(fetcher.calls, 2);
     unsubscribe();
+  });
+
+  group('stored keys are the same in obfuscated builds', () {
+    // Obfuscated and minified builds rename types, so a storage key with a
+    // type name would change with every build, and persisted queries under
+    // keys with enums would not be restored after an app update.
+    test('the storage hash leaves out enum types', () {
+      expect(storageHash(['posts', Sort.newest]), '["posts","enum:newest"]');
+      expect(
+          storageHash([
+            {Sort.newest: true}
+          ]),
+          '[{"enum:newest":true}]');
+      final plain = [
+        'posts',
+        1,
+        {'a': DateTime.utc(2026)}
+      ];
+      expect(storageHash(plain), hashKey(plain));
+    });
+
+    test('in memory, keys keep enum types apart as before', () {
+      expect(hashKey(['posts', Sort.newest]), '["posts","Sort.newest"]');
+      expect(
+        hashKey(['posts', Sort.newest]),
+        isNot(hashKey(['posts', Tab.newest])),
+      );
+      // A map key is its toString, as it was.
+      expect(
+          hashKey([
+            {Label.a: 1}
+          ]),
+          '[{"label a":1}]');
+    });
   });
 
   group('infinite queries', () {

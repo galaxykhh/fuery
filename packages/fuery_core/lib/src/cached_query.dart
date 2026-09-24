@@ -434,7 +434,10 @@ class CachedQuery<TData extends Object> extends _Removable {
     }
   }
 
-  String get _storageKey => '$persistKeyPrefix$queryHash';
+  /// The hash data is stored under, the same in every build.
+  late final String _storageHash = storageHash(queryKey);
+
+  String get _storageKey => '$persistKeyPrefix$_storageHash';
 
   /// Restores persisted data the first time the query has a [QueryPersist]
   /// and no data. Synchronous storage restores right away; otherwise [_fetch]
@@ -449,7 +452,7 @@ class CachedQuery<TData extends Object> extends _Removable {
     }
     _restoreAttempted = true;
 
-    final preloaded = _client._takePreloaded(queryHash);
+    final preloaded = _client._takePreloaded(_storageHash);
     if (preloaded != null) return _applyEntry(preloaded);
 
     final deletions = _client._deletionsDone();
@@ -478,7 +481,7 @@ class CachedQuery<TData extends Object> extends _Removable {
   void _restoreFromPreload() {
     // Take the entry either way: a query that already has data must not
     // restore this snapshot after it's garbage collected.
-    final preloaded = _client._takePreloaded(queryHash);
+    final preloaded = _client._takePreloaded(_storageHash);
     if (preloaded != null) _applyEntry(preloaded);
   }
 
@@ -551,7 +554,7 @@ class CachedQuery<TData extends Object> extends _Removable {
       return; // Data that can't be encoded isn't stored.
     }
     // A snapshot read by restore() is older than this data now.
-    _client._takePreloaded(queryHash);
+    _client._takePreloaded(_storageHash);
     // Write after deletions in flight, so they can't remove the new data.
     final deletions = _client._deletionsDone();
     if (deletions == null) {
