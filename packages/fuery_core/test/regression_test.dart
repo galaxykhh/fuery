@@ -282,6 +282,113 @@ void main() {
       expect(async.pendingTimers, isEmpty);
       expect(error, isA<StateError>());
     });
+
+    fakeTest('clear() drops a mutation paused offline', (async) {
+      onlineManager.setOnline(false);
+      final mutation =
+          Mutation(mutationFn: (int x) async => x).observe(client: client);
+      final unsubscribe = mutation.subscribe((_) {});
+      Object? error;
+      Object? callbackError;
+      final options =
+          MutateOptions<int, int, Object?>(onError: (e, _, __, ___) {
+        callbackError = e;
+      });
+      mutation.mutateAsync(1, options).then((_) {}, onError: (Object e) {
+        error = e;
+      });
+      async.flushMicrotasks();
+      expect(mutation.result.isPaused, isTrue);
+
+      client.clear();
+      async.flushMicrotasks();
+      expect(error, isA<CancelledError>());
+      expect(callbackError, isA<CancelledError>());
+      expect(mutation.result.isPaused, isFalse);
+      expect(mutation.result.isError, isTrue);
+      expect(async.pendingTimers, isEmpty);
+      unsubscribe();
+    });
+
+    fakeTest('clear() drops a mutation waiting for its scope', (async) {
+      final post = Mutation(
+        mutationFn: (int x) async {
+          await Future<void>.delayed(const Duration(seconds: 1));
+          return x;
+        },
+        scope: const MutationScope('s'),
+      );
+      final first = post.observe(client: client);
+      final second = post.observe(client: client);
+      int? data;
+      Object? error;
+      first.mutateAsync(1).then((value) {
+        data = value;
+      });
+      second.mutateAsync(2).then((_) {}, onError: (Object e) {
+        error = e;
+      });
+      async.flushMicrotasks();
+      expect(second.result.isPaused, isTrue);
+
+      client.clear();
+      async.flushMicrotasks();
+      expect(error, isA<CancelledError>());
+      expect(data, isNull);
+
+      // The run that is sending finishes.
+      async.elapse(const Duration(seconds: 1));
+      expect(data, 1);
+      expect(async.pendingTimers, isEmpty);
+    });
+
+    fakeTest('clear() drops a mutation whose retry paused offline', (async) {
+      final mutation = Mutation(
+        mutationFn: (int x) async => throw StateError('boom'),
+        retry: const RetryPolicy.count(3),
+        retryDelay: (_, __) => ms10,
+      ).observe(client: client);
+      Object? error;
+      mutation.mutateAsync(1).then((_) {}, onError: (Object e) {
+        error = e;
+      });
+      async.flushMicrotasks();
+      onlineManager.setOnline(false);
+      async.elapse(ms10);
+      expect(mutation.result.isPaused, isTrue);
+
+      client.clear();
+      async.flushMicrotasks();
+      expect(error, isA<CancelledError>());
+      expect(async.pendingTimers, isEmpty);
+    });
+
+    fakeTest('clear() during onMutate drops a run that would pause', (async) {
+      final mutation = Mutation(
+        mutationFn: (int x) async => x,
+        onMutate: (_, __) async {
+          await Future<void>.delayed(ms10);
+          return 'context';
+        },
+      ).observe(client: client);
+      final paused = <bool>[];
+      final unsubscribe =
+          mutation.subscribe((result) => paused.add(result.isPaused));
+      Object? error;
+      mutation.mutateAsync(1).then((_) {}, onError: (Object e) {
+        error = e;
+      });
+      async.flushMicrotasks();
+      onlineManager.setOnline(false);
+
+      client.clear();
+      async.elapse(ms10);
+      expect(error, isA<CancelledError>());
+      expect(mutation.result.isError, isTrue);
+      expect(paused, everyElement(isFalse));
+      expect(async.pendingTimers, isEmpty);
+      unsubscribe();
+    });
   });
 
   fakeTest('resetQueries refetches an active static query', (async) {
@@ -752,6 +859,60 @@ void main() {
       expect(client.mutationCache.getAll(), isEmpty);
     });
 
+    fakeTest('a running mutation keeps the scope it was queued in', (async) {
+      Mutation<int, int, Object?> post(String scope) => Mutation(
+            mutationKey: const ['post'],
+            mutationFn: (int x) async {
+              await Future<void>.delayed(ms10);
+              return x;
+            },
+            scope: MutationScope(scope),
+          );
+      final first = post('a').observe(client: client);
+      final second = post('a').observe(client: client);
+      first.mutate(1);
+      second.mutate(2);
+      async.flushMicrotasks();
+      expect(second.result.isPaused, isTrue);
+
+      // A widget rebuilds with another scope while the first run is sending.
+      first.setOptions(post('b'));
+      async.elapse(const Duration(milliseconds: 30));
+      expect(first.result.isSuccess, isTrue);
+      expect(second.result.isSuccess, isTrue);
+
+      // The next run in the scope isn't held up by either of them.
+      final third = post('a').observe(client: client);
+      third.mutate(3);
+      async.flushMicrotasks();
+      expect(third.result.isPaused, isFalse);
+      async.elapse(ms10);
+      expect(third.result.isSuccess, isTrue);
+    });
+
+    fakeTest('submittedAt stays the same when onMutate returns a context',
+        (async) {
+      final save = Mutation(
+        mutationFn: (int x) async => x,
+        onMutate: (_, __) async {
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+          return 'context';
+        },
+      ).observe(client: client);
+      final submitted = <int>[];
+      final unsubscribe = save.subscribe((result) {
+        if (result.isPending) submitted.add(result.submittedAt);
+      });
+      save.mutate(1);
+      async.elapse(const Duration(milliseconds: 30));
+
+      expect(save.result.context, 'context');
+      expect(submitted, hasLength(greaterThan(1)));
+      expect(submitted.toSet(), hasLength(1));
+      expect(save.result.submittedAt, submitted.first);
+      unsubscribe();
+    });
+
     fakeTest('a scoped mutation is not paused while it runs', (async) {
       Future<String> run(String value) async {
         await Future<void>.delayed(ms10);
@@ -775,6 +936,92 @@ void main() {
       async.elapse(const Duration(milliseconds: 25));
       expect(second.result.isPending, isTrue);
       expect(second.result.isPaused, isFalse);
+    });
+  });
+
+  group('reconnecting with paused mutations', () {
+    Mutation<int, int, Object?> slowPost() => Mutation(
+          mutationFn: (int x) async {
+            await Future<void>.delayed(const Duration(seconds: 3));
+            return x;
+          },
+          scope: const MutationScope('posts'),
+        );
+
+    fakeTest('a paused first load does not wait for the mutations', (async) {
+      onlineManager.setOnline(false);
+      for (var i = 0; i < 3; i++) {
+        slowPost().observe(client: client).mutate(i);
+      }
+      final fetcher = FakeFetcher(() => 'me');
+      final profile = Query(queryKey: ['profile'], queryFn: fetcher.call)
+          .observe(client: client);
+      final unsubscribe = profile.subscribe((_) {});
+      async.flushMicrotasks();
+      expect(profile.result.fetchStatus, FetchStatus.paused);
+
+      onlineManager.setOnline(true);
+      async.elapse(ms10);
+      expect(profile.result.data, 'me');
+      expect(client.isMutating(), 3);
+
+      // Once the mutations are done, the reconnect refetches as usual.
+      async.elapse(const Duration(seconds: 9));
+      expect(client.isMutating(), 0);
+      expect(fetcher.calls, 2);
+      unsubscribe();
+    });
+
+    fakeTest('a refetch of a query with data waits for the mutations', (async) {
+      client.setQueryData(['a'], 'old');
+      onlineManager.setOnline(false);
+      final fetcher = FakeFetcher(() => 'new');
+      final a =
+          Query(queryKey: ['a'], queryFn: fetcher.call).observe(client: client);
+      final unsubscribe = a.subscribe((_) {});
+      slowPost().observe(client: client).mutate(1);
+      async.flushMicrotasks();
+      expect(a.result.fetchStatus, FetchStatus.paused);
+
+      onlineManager.setOnline(true);
+      async.elapse(ms10);
+      expect(fetcher.calls, 0);
+      expect(a.result.data, 'old');
+
+      async.elapse(const Duration(seconds: 3));
+      expect(fetcher.calls, 1);
+      async.elapse(ms10);
+      expect(a.result.data, 'new');
+      unsubscribe();
+    });
+
+    fakeTest('a paused first load resumes on focus', (async) {
+      var attempts = 0;
+      final profile = Query(
+        queryKey: ['profile'],
+        queryFn: (_) async {
+          if (++attempts == 1) throw StateError('down');
+          return 'me';
+        },
+        retryDelay: (_, __) => ms10,
+      ).observe(client: client);
+      final unsubscribe = profile.subscribe((_) {});
+      async.flushMicrotasks();
+      // Its retry pauses while the app is in the background, and the second
+      // post waits for the first.
+      focusManager.setFocused(false);
+      for (var i = 0; i < 2; i++) {
+        slowPost().observe(client: client).mutate(i);
+      }
+      async.elapse(ms10);
+      expect(profile.result.fetchStatus, FetchStatus.paused);
+
+      focusManager.setFocused(true);
+      async.flushMicrotasks();
+      expect(profile.result.data, 'me');
+      expect(client.isMutating(), 2);
+      async.elapse(const Duration(seconds: 6));
+      unsubscribe();
     });
   });
 

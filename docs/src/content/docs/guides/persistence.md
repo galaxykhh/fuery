@@ -168,6 +168,7 @@ await Fuery.client.restore(mutations: [addCommentMutation()]);
 - A persisted mutation needs a `mutationKey`. That is how `restore` matches a stored run to its definition. `mutations` is a list of `AnyMutation`, which every `Mutation` is, so options with different types go in one list.
 - The `mutationKey` is stored the way query keys are, so it can hold enums and `DateTime`s. A key that can't be stored, such as one holding an object without `toJson()`, is reported once as an uncaught error, and the mutation runs without being stored. `restore` reports two mutations whose keys differ only in enum types and restores neither.
 - `restore` is the only way stored mutations come back. Each stored run is started again with its stored variables: right away while online, or when the network is back. Runs that share a scope go one at a time, oldest first.
+- `restore` starts each stored run once. A run the client is still running, or has paused offline, isn't started again, so calling `restore` more than once doesn't repeat a request.
 - A restored run skips `onMutate`, and its callbacks receive `null` as `context`. An optimistic update belongs to the run that made it; the restored run only repeats the request and its `onSuccess`.
 - A stored run is deleted once the mutation succeeds or fails. `clear()` deletes them all.
 - An entry whose mutation wasn't passed to `restore` is kept, so a later `restore` can run it. One stored by another `version` of its `MutationPersist`, or one that can't be read, is deleted.
@@ -179,6 +180,7 @@ A request that had reached the server before the app closed runs again after the
 
 - Reads and writes wait for a deletion that is still running, so a query that was removed is never restored from data that was about to be deleted, and never writes over its own deletion.
 - A restore that is still running when the query is reset or removed doesn't bring the old data back.
+- When something is deleted while `restore()` reads, it reads again once the deletion is done, so it neither restores deleted data nor skips the stored mutations.
 - A query decides whether to fetch on mount after an asynchronous restore finishes, so `refetchOnMount` and `staleTime` apply to restored data the same way they apply to cached data.
 - Storage methods may be synchronous or asynchronous, and their errors never reach the query. A query with a broken storage loads as if nothing was stored.
 

@@ -179,6 +179,17 @@ class QueryCache {
     });
   }
 
+  /// Resumes paused fetches of queries without data. Refetches of queries
+  /// with data wait for paused mutations instead, so they don't overwrite
+  /// optimistic updates.
+  void _resumePausedLoads() {
+    notifyManager.batch(() {
+      for (final query in getAll()) {
+        if (query.state.data == null) query._retryer?.resume();
+      }
+    });
+  }
+
   void _onFocus() {
     notifyManager.batch(() {
       for (final query in getAll()) {

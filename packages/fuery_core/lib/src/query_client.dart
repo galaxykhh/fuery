@@ -65,11 +65,11 @@ class QueryClient {
   final Set<Future<void>> _deletions = {};
 
   /// Changes whenever persisted data is deleted, so a [restore] that was
-  /// reading at the time drops what it read.
+  /// reading at the time reads again.
   int _deletionEpoch = 0;
 
-  /// Storage keys of stored mutations that [restore] has loaded, so a
-  /// second restore doesn't run them again.
+  /// Storage keys of the stored mutations this client is running, started
+  /// here or loaded by [restore], so a restore doesn't run them again.
   final Set<String> _loadedMutationKeys = {};
   final Map<String, (QueryKey, QueryDefaults)> _queryDefaults = {};
   final Map<String, (MutationKey, MutationDefaults)> _mutationDefaults = {};
@@ -84,12 +84,14 @@ class QueryClient {
 
     _unsubscribeFocus = focusManager.subscribe((focused) async {
       if (focused) {
+        queryCache._resumePausedLoads();
         await resumePausedMutations();
         queryCache._onFocus();
       }
     });
     _unsubscribeOnline = onlineManager.subscribe((online) async {
       if (online) {
+        queryCache._resumePausedLoads();
         await resumePausedMutations();
         queryCache._onOnline();
       }
@@ -161,16 +163,10 @@ class QueryClient {
   }) async {
     final storage = this.storage;
     if (storage == null) return;
-    await _deletionsDone();
-    final epoch = _deletionEpoch;
-    final Map<String, String> entries;
-    try {
-      entries = await storage.readAll();
-    } catch (_) {
-      return; // A failing storage is treated as empty.
-    }
-    // Something was deleted while reading; queries read on their own instead.
-    if (epoch != _deletionEpoch) return;
+    // Without a snapshot, queries read on their own, and stored mutations
+    // stay for the next restore.
+    final entries = await _readAllStored(storage);
+    if (entries == null) return;
     final preloaded = <String, Map<String, Object?>>{};
     final loaded = {
       for (final query in queryCache.getAll()) query._storageHash
@@ -198,6 +194,25 @@ class QueryClient {
       }
       _restoreMutations(entries, mutations);
     });
+  }
+
+  /// Reads every stored entry, or returns null when the storage fails or
+  /// something is deleted during every read.
+  Future<Map<String, String>?> _readAllStored(QueryStorage storage) async {
+    // A deletion during the read may have removed entries it returned, so
+    // read again once deletions are done.
+    for (var attempt = 0; attempt < 3; attempt++) {
+      await _deletionsDone();
+      final epoch = _deletionEpoch;
+      final Map<String, String> entries;
+      try {
+        entries = await storage.readAll();
+      } catch (_) {
+        return null; // A failing storage is treated as empty.
+      }
+      if (epoch == _deletionEpoch) return entries;
+    }
+    return null;
   }
 
   /// Starts the stored mutations in [entries] that have options in
