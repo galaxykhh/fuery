@@ -78,11 +78,11 @@ TextButton(
 )
 ```
 
-For a side effect of one call, pass `MutateOptions` to `mutate`. The request itself still finishes when the widget goes away, and the callbacks of its calls are dropped then.
+For a side effect of one call, pass `MutateOptions` to `mutate`. The request itself still finishes when the widget goes away. For a definition, the callbacks of its calls are dropped then. A shared observer is left alone and still runs them, so check `context.mounted` in them.
 
 ## Reacting to changes
 
-Pass `listener` to the hook for navigation, snackbars, and other one-off effects. It runs after a change, never during a build, and not for the result the widget mounts with. `listenWhen` compares the previous result with the new one, as on `QueryListener`. The listener of `useMutationState` hears every run of the mutation, from any widget, one run at a time:
+Pass `listener` to the hook for navigation, snackbars, and other one-off effects. It runs after a change, never during a build, and not for the result the widget mounts with. `listenWhen` compares the previous result with the new one, as on `QueryListener`. The listener of `useMutationState` hears every run of the mutation, found by the definition's `mutationKey`, from any widget, one run at a time:
 
 ```dart
 useMutationState(
@@ -94,7 +94,7 @@ useMutationState(
 );
 ```
 
-The listener of `useMutation` hears only the runs started with the result its hook returns. See [Reacting to changes](https://galaxykhh.github.io/fuery/guides/hooks/#reacting-to-changes) for which effect goes where.
+For a definition, the listener of `useMutation` hears only the runs started with the result its hook returns. For a shared observer, it hears every run. See [Reacting to changes](https://galaxykhh.github.io/fuery/guides/hooks/#reacting-to-changes) for which effect goes where.
 
 ## Rules
 

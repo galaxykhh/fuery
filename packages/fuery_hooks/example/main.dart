@@ -10,6 +10,7 @@ final todosQuery = Query(
 );
 
 final addTodoMutation = Mutation(
+  mutationKey: const ['todos', 'add'],
   mutationFn: api.addTodo,
   onSuccess: (_, __, ___, client) =>
       client.invalidateQueries(queryKey: ['todos']),

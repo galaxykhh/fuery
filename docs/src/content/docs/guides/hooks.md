@@ -125,7 +125,7 @@ final todos = useQuery(
 
 `listener` and `listenWhen` work as on a [`QueryListener`](../widgets/#reacting-to-changes). `listenWhen` compares the previous result received with the new one, and `context` is the widget's own. `useInfiniteQuery` and `useMutation` take them too.
 
-A mutation's listener hears the runs started with the result its hook returns:
+Given a definition, a mutation's listener hears the runs started with the result its hook returns:
 
 ```dart
 final addTodo = useMutation(
@@ -140,7 +140,7 @@ FilledButton(
 )
 ```
 
-Run the mutation from that result, or pass the result to the child that runs it. Another `useMutation(addTodoMutation)` has an observer of its own, and this listener doesn't hear its runs. To hear every run, from any widget, pass the listener to [`useMutationState`](#showing-every-run-of-a-mutation) instead.
+Run the mutation from that result, or pass the result to the child that runs it. Another `useMutation(addTodoMutation)` has an observer of its own, and this listener doesn't hear its runs. To hear every run, from any widget, pass the listener to [`useMutationState`](#showing-every-run-of-a-mutation) instead. Given a [shared observer](../mutations/#sharing-one-observer), the listener hears every run of that observer.
 
 | Effect | Where it goes |
 |---|---|
