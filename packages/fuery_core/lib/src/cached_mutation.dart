@@ -58,8 +58,15 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
   @override
   void _destroy() {
     super._destroy();
-    // A removed mutation doesn't wait to retry; the current attempt finishes.
-    _retryer?.stopRetrying();
+    if (_state.isPaused) {
+      // Nothing resumes a removed mutation, and a paused one has no attempt
+      // in flight, so it fails now.
+      _retryer?.cancel();
+    } else {
+      // A removed mutation doesn't wait to retry; the current attempt
+      // finishes.
+      _retryer?.stopRetrying();
+    }
   }
 
   @override
@@ -96,7 +103,11 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
       onFail: (failureCount, error) {
         _dispatch(_MutationFailedAction(failureCount, error));
       },
-      onPause: () => _dispatch(const _MutationPauseAction()),
+      onPause: () {
+        // A mutation removed during onMutate would never be resumed.
+        if (_removed) return _retryer?.cancel();
+        _dispatch(const _MutationPauseAction());
+      },
       onContinue: () => _dispatch(const _MutationContinueAction()),
       retry: _options.retry ?? const RetryPolicy.never(),
       retryDelay: _options.retryDelay,

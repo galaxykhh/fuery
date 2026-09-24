@@ -221,6 +221,113 @@ void main() {
       expect(async.pendingTimers, isEmpty);
       expect(error, isA<StateError>());
     });
+
+    fakeTest('clear() drops a mutation paused offline', (async) {
+      onlineManager.setOnline(false);
+      final mutation =
+          Mutation(mutationFn: (int x) async => x).observe(client: client);
+      final unsubscribe = mutation.subscribe((_) {});
+      Object? error;
+      Object? callbackError;
+      final options =
+          MutateOptions<int, int, Object?>(onError: (e, _, __, ___) {
+        callbackError = e;
+      });
+      mutation.mutateAsync(1, options).then((_) {}, onError: (Object e) {
+        error = e;
+      });
+      async.flushMicrotasks();
+      expect(mutation.result.isPaused, isTrue);
+
+      client.clear();
+      async.flushMicrotasks();
+      expect(error, isA<CancelledError>());
+      expect(callbackError, isA<CancelledError>());
+      expect(mutation.result.isPaused, isFalse);
+      expect(mutation.result.isError, isTrue);
+      expect(async.pendingTimers, isEmpty);
+      unsubscribe();
+    });
+
+    fakeTest('clear() drops a mutation waiting for its scope', (async) {
+      final post = Mutation(
+        mutationFn: (int x) async {
+          await Future<void>.delayed(const Duration(seconds: 1));
+          return x;
+        },
+        scope: const MutationScope('s'),
+      );
+      final first = post.observe(client: client);
+      final second = post.observe(client: client);
+      int? data;
+      Object? error;
+      first.mutateAsync(1).then((value) {
+        data = value;
+      });
+      second.mutateAsync(2).then((_) {}, onError: (Object e) {
+        error = e;
+      });
+      async.flushMicrotasks();
+      expect(second.result.isPaused, isTrue);
+
+      client.clear();
+      async.flushMicrotasks();
+      expect(error, isA<CancelledError>());
+      expect(data, isNull);
+
+      // The run that is sending finishes.
+      async.elapse(const Duration(seconds: 1));
+      expect(data, 1);
+      expect(async.pendingTimers, isEmpty);
+    });
+
+    fakeTest('clear() drops a mutation whose retry paused offline', (async) {
+      final mutation = Mutation(
+        mutationFn: (int x) async => throw StateError('boom'),
+        retry: const RetryPolicy.count(3),
+        retryDelay: (_, __) => ms10,
+      ).observe(client: client);
+      Object? error;
+      mutation.mutateAsync(1).then((_) {}, onError: (Object e) {
+        error = e;
+      });
+      async.flushMicrotasks();
+      onlineManager.setOnline(false);
+      async.elapse(ms10);
+      expect(mutation.result.isPaused, isTrue);
+
+      client.clear();
+      async.flushMicrotasks();
+      expect(error, isA<CancelledError>());
+      expect(async.pendingTimers, isEmpty);
+    });
+
+    fakeTest('clear() during onMutate drops a run that would pause', (async) {
+      final mutation = Mutation(
+        mutationFn: (int x) async => x,
+        onMutate: (_, __) async {
+          await Future<void>.delayed(ms10);
+          return 'context';
+        },
+      ).observe(client: client);
+      final paused = <bool>[];
+      final unsubscribe =
+          mutation.subscribe((result) => paused.add(result.isPaused));
+      Object? error;
+      mutation.mutateAsync(1).then((_) {}, onError: (Object e) {
+        error = e;
+      });
+      async.flushMicrotasks();
+      onlineManager.setOnline(false);
+
+      client.clear();
+      async.elapse(ms10);
+      expect(error, isA<CancelledError>());
+      expect(mutation.result.isError, isTrue);
+      expect(paused, everyElement(isFalse));
+      expect(async.pendingTimers, isEmpty);
+      unsubscribe();
+    });
   });
 
   fakeTest('resetQueries refetches an active static query', (async) {
