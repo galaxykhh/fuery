@@ -389,8 +389,10 @@ Fuery.client.setQueryDefaults(
 **FueryProvider.** To give a subtree its own client, for example in widget tests, wrap it in `FueryProvider`. Widgets below it that get a query or a mutation use that client:
 
 ```dart
-FueryProvider(client: QueryClient(), child: const App());
+runApp(FueryProvider(client: QueryClient(), child: const App()));
 ```
+
+Create the client once, in `main`, in a `State` field, or in a test's `setUp`. A `QueryClient` created in `build` is a new, empty cache on every rebuild, including every hot reload, so the widgets below go back to loading and fetch again. [Giving a subtree its own client](https://galaxykhh.github.io/fuery/guides/query-client/#giving-a-subtree-its-own-client) keeps one in a `State` field.
 
 `context.queryClient` returns it, or `Fuery.client` when there is no provider. An observer from `observe()` keeps the client it is given: `todosQuery.observe(client: context.queryClient)`.
 

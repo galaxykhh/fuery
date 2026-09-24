@@ -357,13 +357,22 @@ So queries can be top-level values, and a test that gives each widget test a fre
 
 ## Giving a subtree its own client
 
-To run part of the app on another client, for example in a widget test, wrap it in `FueryProvider`:
+To run part of the app on another client, for example in a widget test, wrap it in `FueryProvider`. Keep the client in a `State` field, so the subtree keeps one client while it is mounted:
 
 ```dart
-FueryProvider(client: QueryClient(), child: const App());
+class _SettingsPageState extends State<SettingsPage> {
+  final client = QueryClient();
+
+  @override
+  Widget build(BuildContext context) {
+    return FueryProvider(client: client, child: const SettingsView());
+  }
+}
 ```
 
-Widgets below it use that client. `context.queryClient` returns it, and falls back to `Fuery.client` when there is no provider. Pass it to `observe` for an observer of your own:
+Create the client once, in `main`, in a `State` field, or in a test's `setUp`. A `QueryClient` created in `build` is a new, empty cache on every rebuild, including every hot reload: the provider replaces its client, and the widgets below go back to loading and fetch again. `FueryProvider` mounts the client and unmounts it when it goes away, so the `State` needs no `dispose`.
+
+Widgets below the provider use its client. `context.queryClient` returns it, and falls back to `Fuery.client` when there is no provider. Pass it to `observe` for an observer of your own:
 
 ```dart
 late final todos = todosQuery.observe(client: context.queryClient);
