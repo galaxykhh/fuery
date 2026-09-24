@@ -62,6 +62,7 @@ class _FueryDevtoolsState extends State<FueryDevtools> {
   @override
   Widget build(BuildContext context) {
     final safeArea = MediaQuery.maybePaddingOf(context) ?? EdgeInsets.zero;
+    final keyboard = MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0;
 
     // The child keeps its place in the tree, so turning the devtools on or
     // off doesn't reset the app.
@@ -72,14 +73,24 @@ class _FueryDevtoolsState extends State<FueryDevtools> {
         if (widget.enabled)
           Positioned.fill(
             child: _open
-                ? Align(
-                    alignment: Alignment.bottomCenter,
-                    child: FractionallySizedBox(
-                      widthFactor: 1,
-                      heightFactor: 0.55,
-                      child: FueryDevtoolsPanel(
-                        client: widget.client,
-                        onClose: () => setState(() => _open = false),
+                // The panel stays above the keyboard. It takes 55% of the
+                // screen, and shrinks only when that doesn't fit above it.
+                ? LayoutBuilder(
+                    builder: (context, constraints) => Padding(
+                      padding: EdgeInsets.only(
+                        top: safeArea.top,
+                        bottom: keyboard,
+                      ),
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: constraints.maxHeight * 0.55,
+                          child: FueryDevtoolsPanel(
+                            client: widget.client,
+                            onClose: () => setState(() => _open = false),
+                          ),
+                        ),
                       ),
                     ),
                   )

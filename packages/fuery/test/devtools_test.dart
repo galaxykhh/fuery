@@ -252,6 +252,28 @@ void main() {
     await tearDownApp(tester);
   });
 
+  for (final (name, size, keyboard) in [
+    ('portrait', const Size(390, 844), 336.0),
+    ('landscape', const Size(844, 390), 200.0),
+  ]) {
+    testWidgets('stays above the keyboard in $name', (tester) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      tester.view.viewInsets = FakeViewPadding(bottom: keyboard);
+      addTearDown(tester.view.reset);
+      await pumpApp(tester);
+
+      final top = size.height - keyboard;
+      expect(tester.takeException(), isNull);
+      expect(tester.getRect(find.byType(FueryDevtoolsPanel)).bottom, top);
+      expect(
+        tester.getRect(find.byType(TextField)).bottom,
+        lessThanOrEqualTo(top),
+      );
+      await tearDownApp(tester);
+    });
+  }
+
   testWidgets('keeps the list scrolled when a query is selected or removed',
       (tester) async {
     for (var i = 0; i < 60; i++) {
