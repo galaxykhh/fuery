@@ -26,15 +26,22 @@ sealed class MutationSource<TData, TVariables, TContext> {}
 /// returns. [subscribe] receives every later change, and stays subscribed
 /// when [update] switches to another observer.
 ///
-/// Listeners run synchronously, sometimes while another component renders,
-/// for example when one that mounts starts a fetch. Wrap them in
-/// `notifyManager.batchCalls` when the framework can't update during a
-/// render, so changes arrive in a microtask, and ignore the ones that
-/// arrive after the slot is disposed.
+/// [subscribe] is for rendering. Its listeners run synchronously, sometimes
+/// while another component renders, for example when one that mounts starts
+/// a fetch. Wrap them in `notifyManager.batchCalls` when the framework can't
+/// update during a render, so changes arrive in a microtask, and ignore the
+/// ones that arrive after the slot is disposed.
+///
+/// [listen] is for side effects, such as navigation or a snackbar. Its
+/// listeners run in a microtask, never during a render, with the result
+/// before the change.
 ///
 /// ```dart
 /// final slot = QuerySlot(todosQuery, client);
 /// final unsubscribe = slot.subscribe(notifyManager.batchCalls(render));
+/// final stop = slot.listen((previous, current) {
+///   if (!previous.isError && current.isError) showError(current.error);
+/// });
 /// slot.update(todosQuery, client); // on every render
 /// render(slot.result);
 /// ```
@@ -53,6 +60,76 @@ sealed class ObserverSlot<TSource, TResult> extends Subscribable<TResult> {
   /// Removes every listener, and destroys the observer if the slot created
   /// it.
   void dispose();
+
+  /// Calls [listener] after each later change of [result], with the result
+  /// it delivered before, for side effects such as navigation or a snackbar.
+  /// Returns a function that stops it.
+  ///
+  /// Never called for [result] as it is now. Called in a microtask, or at the
+  /// end of the outer `notifyManager.batch`, never during a render. A result
+  /// equal to the previous one is not a change. When [update] moves the slot
+  /// to another observer, it starts over from that observer's result, and
+  /// changes the old one had queued are dropped. Listening subscribes like
+  /// [subscribe], so a query fetches if it needs to. A listener that throws
+  /// is reported to the client's `onUncaughtError`, or without it to the
+  /// zone.
+  void Function() listen(
+    void Function(TResult previous, TResult current) listener,
+  ) {
+    final listening = _Listening<TResult>(result);
+    _listenings.add(listening);
+    final unsubscribe = subscribe((current) {
+      final generation = _generation;
+      notifyManager.schedule(() {
+        if (!listening.active || generation != _generation) return;
+        final previous = listening.previous;
+        if (current == previous) return;
+        listening.previous = current;
+        _reportTo._guardCallback(() => listener(previous, current));
+      });
+    });
+    return () {
+      listening.active = false;
+      _listenings.remove(listening);
+      unsubscribe();
+    };
+  }
+
+  /// Every [listen] that hasn't stopped.
+  final List<_Listening<TResult>> _listenings = [];
+
+  /// Counts the moves to another observer, so that changes the old one
+  /// queued are dropped.
+  int _generation = 0;
+
+  /// The client that listener errors are reported to.
+  QueryClient get _reportTo;
+
+  /// Starts every [listen] over from [result], after a move to another
+  /// observer.
+  void _rebaseListenings() {
+    if (_listenings.isEmpty) return;
+    final current = result;
+    for (final listening in _listenings) {
+      listening.previous = current;
+    }
+  }
+
+  void _dropListenings() {
+    for (final listening in _listenings) {
+      listening.active = false;
+    }
+    _listenings.clear();
+  }
+}
+
+/// One [ObserverSlot.listen]: the result it delivered last, and whether it
+/// still listens.
+final class _Listening<TResult> {
+  _Listening(this.previous);
+
+  TResult previous;
+  bool active = true;
 }
 
 abstract class _Slot<TSource, TObserver extends Object, TResult>
@@ -72,7 +149,11 @@ abstract class _Slot<TSource, TObserver extends Object, TResult>
   TObserver get observer => _observer;
 
   @override
+  QueryClient get _reportTo => _client;
+
+  @override
   void update(TSource source, QueryClient client) {
+    final previous = _observer;
     final shared = _sharedObserver(source);
     if (shared != null) {
       if (!identical(shared, _observer)) _switchTo(shared, owned: false);
@@ -82,11 +163,13 @@ abstract class _Slot<TSource, TObserver extends Object, TResult>
       _setOptions(_observer, source);
     }
     _client = client;
+    if (!identical(previous, _observer)) _rebaseListenings();
   }
 
   @override
   void dispose() {
     clearListeners();
+    _dropListenings();
     _stopListening();
     if (_owned) _destroy(_observer);
   }
@@ -107,6 +190,8 @@ abstract class _Slot<TSource, TObserver extends Object, TResult>
     if (_owned) _destroy(_observer);
     _observer = next;
     _owned = owned;
+    // Before starting, so what the new observer reports then is kept.
+    _generation++;
     if (listening) _startListening();
   }
 
@@ -293,12 +378,17 @@ final class MutationSlot<TData, TVariables, TContext> extends _Slot<
 /// when the list is reordered; a key that leaves the list lets its observer
 /// go. A query whose key changes therefore starts over, and its
 /// `placeholderData` gets no previous data: one item's data never stands in
-/// for another's. Changes that arrive together reach listeners once.
+/// for another's. Changes that arrive together reach listeners once. The
+/// result is a new list only when one of its results changed, so [listen]
+/// compares lists by identity.
 final class QueriesSlot<TData extends Object>
     extends ObserverSlot<List<QuerySource<TData>>, List<QueryResult<TData>>> {
   QueriesSlot(List<QuerySource<TData>> queries, QueryClient client) {
     update(queries, client);
   }
+
+  /// The client of the latest [update].
+  late QueryClient _client;
 
   /// The slot of every query, with the key it is reused by.
   List<(Object, QuerySlot<TData>)> _entries = const [];
@@ -321,6 +411,9 @@ final class QueriesSlot<TData extends Object>
     return _combine([for (final (_, slot) in _entries) slot.result]);
   }
 
+  @override
+  QueryClient get _reportTo => _client;
+
   /// Keeps the previous list while every result is the same object. Results
   /// equal by value can belong to other queries, so `==` isn't enough.
   List<QueryResult<TData>> _combine(List<QueryResult<TData>> next) {
@@ -330,6 +423,7 @@ final class QueriesSlot<TData extends Object>
 
   @override
   void update(List<QuerySource<TData>> source, QueryClient client) {
+    _client = client;
     final reusable = <Object, List<QuerySlot<TData>>>{};
     for (final (key, slot) in _entries) {
       (reusable[key] ??= []).add(slot);
@@ -362,12 +456,15 @@ final class QueriesSlot<TData extends Object>
     final observers = [for (final (_, slot) in entries) slot.observer];
     if (!_sameItems(observers, _observers)) {
       _observers = List.unmodifiable(observers);
+      _generation++;
+      _rebaseListenings();
     }
   }
 
   @override
   void dispose() {
     clearListeners();
+    _dropListenings();
     for (final unsubscribe in _unsubscribes.values) {
       unsubscribe();
     }

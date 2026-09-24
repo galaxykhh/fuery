@@ -371,6 +371,28 @@ void main() {
     expect(typedObserved.result.isPending, isTrue);
     expect(typedPages.result.pages, isEmpty);
     expect(typedAdd.result.data!.title, 'b');
+
+    // The listeners of listen get the slot's result type.
+    final heard = <String>[];
+    todosSlot.listen((previous, current) {
+      final QueryResult<List<Todo>> typedPrevious = previous;
+      final QueryResult<List<Todo>> typedCurrent = current;
+      heard.add('todos: ${typedPrevious.data?.length} '
+          '${typedCurrent.data?.single.title}');
+    });
+    addSlot.listen((previous, current) {
+      final MutationResult<Todo, String, Object?> typedPrevious = previous;
+      final MutationResult<Todo, String, Object?> typedCurrent = current;
+      heard.add('add: ${typedPrevious.status.name} '
+          '${typedCurrent.status.name} ${typedCurrent.data?.title}');
+    });
+    typedAdd.result.mutate('c');
+    async.flushMicrotasks();
+    expect(heard, [
+      'add: success pending null',
+      'todos: null a',
+      'add: pending success c',
+    ]);
     for (final slot in <ObserverSlot<Object?, Object?>>[
       todosSlot,
       observedSlot,

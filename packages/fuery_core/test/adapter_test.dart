@@ -281,6 +281,278 @@ void main() {
     });
   });
 
+  group('listen', () {
+    // Fresh for good, so subscribing fetches nothing when data is cached.
+    Query<String> fresh(int id) => Query(
+          queryKey: ['post', id],
+          queryFn: (_) async {
+            await Future<void>.delayed(ms10);
+            return 'post $id';
+          },
+          staleTime: infiniteDuration,
+        );
+
+    /// Listens to [slot] and records each change as the data before and
+    /// after it.
+    List<(String?, String?)> dataHeard(QuerySlot<String> slot) {
+      final heard = <(String?, String?)>[];
+      slot.listen((previous, current) {
+        heard.add((previous.data, current.data));
+      });
+      return heard;
+    }
+
+    fakeTest('hears later changes, never the result it starts from', (async) {
+      final fetcher = FakeFetcher(() => 'post 1');
+      final slot = QuerySlot(
+        Query(queryKey: ['post', 1], queryFn: fetcher.call),
+        client,
+      );
+      final start = slot.result;
+      final heard = <(QueryResult<String>, QueryResult<String>)>[];
+      final stop = slot.listen((previous, current) {
+        heard.add((previous, current));
+      });
+
+      // Listening subscribes, so the query fetches. The start of the fetch
+      // is the result it started from, so it isn't a change.
+      expect(fetcher.calls, 1);
+      expect(start.isFetching, isTrue);
+      async.flushMicrotasks();
+      expect(heard, isEmpty);
+
+      async.elapse(ms10);
+      expect(heard, hasLength(1));
+      expect(heard.single.$1, start);
+      expect(heard.single.$2.data, 'post 1');
+
+      // Never synchronous, and previous is the last result delivered.
+      client.setQueryData(['post', 1], 'edited');
+      expect(heard, hasLength(1));
+      async.flushMicrotasks();
+      expect(
+        [
+          for (final (previous, current) in heard) (previous.data, current.data)
+        ],
+        [(null, 'post 1'), ('post 1', 'edited')],
+      );
+
+      // The last stop unsubscribes the observer.
+      stop();
+      expect(slot.observer.hasListeners, isFalse);
+      slot.dispose();
+    });
+
+    fakeTest('delivers at the end of the outer batch', (async) {
+      client.setQueryData(['post', 1], 'post 1');
+      final slot = QuerySlot(fresh(1), client);
+      final heard = dataHeard(slot);
+
+      notifyManager.batch(() {
+        client.setQueryData(['post', 1], 'edited');
+        async.flushMicrotasks();
+        expect(heard, isEmpty);
+      });
+      async.flushMicrotasks();
+      expect(heard, [('post 1', 'edited')]);
+      slot.dispose();
+    });
+
+    fakeTest('hears a new key of a definition with the same observer', (async) {
+      client.setQueryData(['post', 1], 'post 1');
+      client.setQueryData(['post', 2], 'post 2');
+      final slot = QuerySlot(fresh(1), client);
+      final heard = dataHeard(slot);
+      final observer = slot.observer;
+
+      slot.update(fresh(2), client);
+      expect(identical(slot.observer, observer), isTrue);
+      expect(slot.result.data, 'post 2');
+      expect(heard, isEmpty);
+      async.flushMicrotasks();
+      expect(heard, [('post 1', 'post 2')]);
+      slot.dispose();
+    });
+
+    fakeTest('does not hear a move to another observer', (async) {
+      final other = QueryClient();
+      for (final id in [1, 2, 3]) {
+        client.setQueryData(['post', id], 'post $id');
+      }
+      other.setQueryData(['post', 3], 'other post 3');
+      final slot = QuerySlot(fresh(1).observe(client: client), client);
+      final heard = dataHeard(slot);
+
+      // To another shared observer.
+      slot.update(fresh(2).observe(client: client), client);
+      async.flushMicrotasks();
+      expect(heard, isEmpty);
+      client.setQueryData(['post', 2], 'post 2!');
+      async.flushMicrotasks();
+      expect(heard, [('post 2', 'post 2!')]);
+
+      // From an observer to a definition.
+      slot.update(fresh(3), client);
+      async.flushMicrotasks();
+      expect(heard, hasLength(1));
+      client.setQueryData(['post', 3], 'post 3!');
+      async.flushMicrotasks();
+      expect(heard.last, ('post 3', 'post 3!'));
+
+      // To another client.
+      slot.update(fresh(3), other);
+      async.flushMicrotasks();
+      expect(heard, hasLength(2));
+      other.setQueryData(['post', 3], 'other post 3!');
+      async.flushMicrotasks();
+      expect(heard.last, ('other post 3', 'other post 3!'));
+      slot.dispose();
+      other.clear();
+    });
+
+    fakeTest('drops what the observer it left had queued', (async) {
+      client.setQueryData(['post', 1], 'post 1');
+      client.setQueryData(['post', 2], 'post 2');
+      final slot = QuerySlot(fresh(1), client);
+      final heard = dataHeard(slot);
+
+      client.setQueryData(['post', 1], 'post 1!');
+      slot.update(fresh(2).observe(client: client), client);
+      async.flushMicrotasks();
+      expect(heard, isEmpty);
+      slot.dispose();
+    });
+
+    fakeTest('stops, also for a change already queued', (async) {
+      client.setQueryData(['post', 1], 'post 1');
+      final slot = QuerySlot(fresh(1), client);
+      final heard = <String?>[];
+      final stop = slot.listen((previous, current) {
+        heard.add('stopped ${current.data}');
+      });
+      slot.listen((previous, current) => heard.add(current.data));
+
+      client.setQueryData(['post', 1], 'edited');
+      stop();
+      stop();
+      async.flushMicrotasks();
+      expect(heard, ['edited']);
+      expect(slot.observer.hasListeners, isTrue);
+
+      // Disposing drops the queued changes of every listener.
+      client.setQueryData(['post', 1], 'edited again');
+      slot.dispose();
+      async.flushMicrotasks();
+      expect(heard, ['edited']);
+    });
+
+    fakeTest('reports a listener that throws to the client', (async) {
+      final errors = <Object>[];
+      final reporting = QueryClient(
+        onUncaughtError: (error, _) => errors.add(error),
+      )..setQueryData(['post', 1], 'post 1');
+      final slot = QuerySlot(fresh(1), reporting);
+      slot.listen((previous, current) => throw StateError('sync'));
+      slot.listen((previous, current) async {
+        await Future<void>.delayed(Duration.zero);
+        throw StateError('async');
+      });
+      final heard = dataHeard(slot);
+
+      reporting.setQueryData(['post', 1], 'edited');
+      async.elapse(Duration.zero);
+      expect(
+        errors.map((error) => '$error'),
+        ['Bad state: sync', 'Bad state: async'],
+      );
+      expect(heard, [('post 1', 'edited')]);
+      slot.dispose();
+      reporting.clear();
+    });
+
+    fakeTest('MutationSlot hears the runs of its result', (async) {
+      Mutation<int, int, void> add(String key) => Mutation(
+            mutationKey: [key],
+            mutationFn: (x) async => x + 1,
+          );
+      final slot = MutationSlot(add('a'), client);
+      final heard = <(MutationStatus, MutationStatus)>[];
+      slot.listen((previous, current) {
+        heard.add((previous.status, current.status));
+      });
+
+      slot.result.mutate(1);
+      async.flushMicrotasks();
+      expect(heard, [
+        (MutationStatus.idle, MutationStatus.pending),
+        (MutationStatus.pending, MutationStatus.success),
+      ]);
+
+      // A new mutationKey resets the observer to idle.
+      slot.update(add('b'), client);
+      async.flushMicrotasks();
+      expect(heard.last, (MutationStatus.success, MutationStatus.idle));
+      slot.dispose();
+    });
+
+    fakeTest('InfiniteQuerySlot hears new pages', (async) {
+      final slot = InfiniteQuerySlot(
+        InfiniteQuery(
+          queryKey: ['pages'],
+          queryFn: (context) async => 'page ${context.pageParam}',
+          initialPageParam: 1,
+          getNextPageParam: (data) => data.lastPageParam + 1,
+        ),
+        client,
+      );
+      final heard = <int>[];
+      slot.listen((previous, current) {
+        if (previous.pages.length != current.pages.length) {
+          heard.add(current.pages.length);
+        }
+      });
+      async.flushMicrotasks();
+
+      slot.result.fetchNextPage();
+      async.flushMicrotasks();
+      expect(heard, [1, 2]);
+      slot.dispose();
+    });
+
+    fakeTest('QueriesSlot hears new lists, but not a new observer in it',
+        (async) {
+      final errors = <Object>[];
+      final reporting = QueryClient(
+        onUncaughtError: (error, _) => errors.add(error),
+      )..setQueryData(['post', 1], 'post 1');
+      final slot = QueriesSlot([fresh(1)], reporting);
+      String describe(List<QueryResult<String>> results) =>
+          results.map((result) => result.data).join(', ');
+      final heard = <String>[];
+      slot.listen((previous, current) {
+        heard.add('${describe(previous)} > ${describe(current)}');
+      });
+      slot.listen((previous, current) => throw StateError('listener'));
+
+      reporting.setQueryData(['post', 1], 'post 1!');
+      async.flushMicrotasks();
+      expect(heard, ['post 1 > post 1!']);
+      expect(errors, [isA<StateError>()]);
+
+      // A change pushed before a query is added is dropped, and so is the
+      // move to the new list of observers.
+      reporting.setQueryData(['post', 1], 'post 1!!');
+      scheduleMicrotask(() => slot.update([fresh(1), fresh(2)], reporting));
+      async.flushMicrotasks();
+      expect(heard, hasLength(1));
+
+      async.elapse(ms10);
+      expect(heard.last, 'post 1!!, null > post 1!!, post 2');
+      slot.dispose();
+      reporting.clear();
+    });
+  });
+
   test('observers expose the client they use, to check a shared one', () {
     final other = QueryClient();
     final query = post(1).observe(client: other);
