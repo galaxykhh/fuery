@@ -4,4 +4,4 @@ library;
 
 export 'package:fuery/fuery.dart';
 
-export 'src/hooks.dart';
+export 'src/hooks.dart' hide debugResetHookWarnings;

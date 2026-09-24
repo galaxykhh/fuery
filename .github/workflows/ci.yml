@@ -44,9 +44,11 @@ jobs:
         working-directory: packages/fuery
       - run: flutter test
         working-directory: packages/fuery/example
-      # Both packages stay at 100% line coverage.
+      - run: flutter test --coverage
+        working-directory: packages/fuery_hooks
+      # Every package stays at 100% line coverage.
       - if: matrix.version == ''
-        run: python3 tool/check_coverage.py packages/fuery_core packages/fuery
+        run: python3 tool/check_coverage.py packages/fuery_core packages/fuery packages/fuery_hooks
       # The report lists which of the public API the docs mention. Regenerate
       # it with `python3 docs/tool/api_coverage.py` when the API changes.
       - if: matrix.version == ''

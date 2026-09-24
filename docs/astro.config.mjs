@@ -48,6 +48,7 @@ export default defineConfig({
 					items: [
 						'guides/queries',
 						'guides/widgets',
+						'guides/hooks',
 						'guides/mutations',
 						'guides/infinite-queries',
 						'guides/streaming',
@@ -65,6 +66,7 @@ export default defineConfig({
 						'reference/query-options',
 						{ label: 'fuery API', link: 'https://pub.dev/documentation/fuery/latest/' },
 						{ label: 'fuery_core API', link: 'https://pub.dev/documentation/fuery_core/latest/' },
+						{ label: 'fuery_hooks API', link: 'https://pub.dev/documentation/fuery_hooks/latest/' },
 						{ label: 'Example app', link: 'https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example' },
 					],
 				},

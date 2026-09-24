@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fuery_hooks/fuery_hooks.dart';
+import 'package:fuery_hooks/src/hooks.dart' show debugResetHookWarnings;
 
 const ms10 = Duration(milliseconds: 10);
 

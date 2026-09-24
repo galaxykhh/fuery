@@ -217,9 +217,9 @@ The cached data isn't the observer's to release. It stays for `gcTime` (default:
 
 `QueryObserver.destroy()` does by hand what the last unsubscribe does: it drops every listener, cancels the timers, and detaches the observer from its query. Nothing in the widget tree needs it. Reach for it when a long-lived object holds an observer whose listeners it can't reach and has to stop it now.
 
-## Building your own widgets or hooks
+## Building your own widgets or adapters
 
-The widgets above are built on the public API of `fuery_core`, so a widget of your own, a hook, or an integration with another state library can do the same. Keep one slot per rendered query: `QuerySlot`, `InfiniteQuerySlot`, or `MutationSlot`, all `ObserverSlot`s. With [`flutter_hooks`](https://pub.dev/packages/flutter_hooks), a query hook is:
+For hooks, use [`fuery_hooks`](../hooks/). The widgets above and those hooks are built on the public API of `fuery_core`, so a widget of your own or an integration with another state library can do the same. Keep one slot per rendered query: `QuerySlot`, `InfiniteQuerySlot`, or `MutationSlot`, all `ObserverSlot`s. The whole contract fits in a hook written with `flutter_hooks` alone:
 
 ```dart
 QueryResult<TData> useQuery<TData extends Object>(QuerySource<TData> query) {

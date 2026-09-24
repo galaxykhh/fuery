@@ -61,7 +61,10 @@ jobs:
             echo "## fuery_core"
             section packages/fuery_core/CHANGELOG.md
             echo
-            echo "**pub.dev:** [fuery $version](https://pub.dev/packages/fuery/versions/$version) · [fuery_core $version](https://pub.dev/packages/fuery_core/versions/$version)"
+            echo "## fuery_hooks"
+            section packages/fuery_hooks/CHANGELOG.md
+            echo
+            echo "**pub.dev:** [fuery $version](https://pub.dev/packages/fuery/versions/$version) · [fuery_core $version](https://pub.dev/packages/fuery_core/versions/$version) · [fuery_hooks $version](https://pub.dev/packages/fuery_hooks/versions/$version)"
             echo "**Docs:** https://galaxykhh.github.io/fuery/"
             if [ -n "$previous" ]; then
               echo

@@ -48,13 +48,17 @@ QueryBuilder(
 		that returns the same items keeps them identical, so list rows don't
 		rebuild.
 	</Card>
-	<Card title="Drops into your app" icon="puzzle">
-		Start with one screen. Creating a query needs no `BuildContext`, and there
-		is nothing to replace.
+	<Card title="Built the Flutter way" icon="puzzle">
+		Queries are defined outside `build`, and widgets render them: builders for
+		UI, listeners for side effects, like `StreamBuilder`. Start with one screen;
+		there is nothing to replace. Prefer hooks?
+		<a href="guides/hooks/">fuery_hooks</a> renders the same queries with
+		`useQuery`, in a package of its own.
 	</Card>
-	<Card title="Runs where your code runs" icon="code-branch">
-		A pure Dart core, so widgets, cubits, services, CLIs, and servers use the
-		same query object.
+	<Card title="Nothing beyond Dart and Flutter" icon="code-branch">
+		A pure Dart core that depends only on the Dart team's `clock`, `collection`,
+		and `meta`, so widgets, cubits, services, CLIs, and servers use the same
+		query object.
 	</Card>
 	<Card title="No type arguments" icon="approve-check">
 		Types are inferred from your query and mutation functions, all the way to
@@ -72,7 +76,7 @@ QueryBuilder(
 </CardGrid>
 
 <p style="margin-top: 3rem;">
-	<strong>Tested.</strong> Both packages have 100% line coverage, enforced in CI on the
+	<strong>Tested.</strong> Every package has 100% line coverage, enforced in CI on the
 	oldest supported Flutter and the latest. The core's tests run under fake time, and a
 	regression suite keeps fixed edge cases fixed. Every timer is cancelled on its destroy
 	path and time comes from <code>package:clock</code>, so your own <code>fake_async</code>
