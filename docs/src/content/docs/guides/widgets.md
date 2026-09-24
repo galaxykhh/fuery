@@ -228,13 +228,17 @@ The cached data isn't the observer's to release. It stays for `gcTime` (default:
 For hooks, use [`fuery_hooks`](../hooks/). The widgets above and those hooks are built on the public API of `fuery_core`, so a widget of your own or an integration with another state library can do the same. Keep one slot per rendered query: `QuerySlot`, `InfiniteQuerySlot`, or `MutationSlot`, all `ObserverSlot`s. The whole contract fits in a hook written with `flutter_hooks` alone:
 
 ```dart
-QueryResult<TData> useQuery<TData extends Object>(QuerySource<TData> query) {
+QueryResult<TData> useMyQuery<TData extends Object>(QuerySource<TData> query) {
   final client = FueryProvider.of(useContext(), listen: true);
   final slot = useMemoized(() => QuerySlot(query, client));
   final changes = useState(0);
   useEffect(() {
-    final unsubscribe = slot.subscribe((_) => changes.value++);
+    var active = true;
+    final unsubscribe = slot.subscribe(notifyManager.batchCalls((_) {
+      if (active) changes.value++;
+    }));
     return () {
+      active = false;
       unsubscribe();
       slot.dispose();
     };
@@ -247,6 +251,7 @@ QueryResult<TData> useQuery<TData extends Object>(QuerySource<TData> query) {
 - `update(source, client)` takes a `QuerySource`: a definition, whose observer the slot owns and updates, or an observer, which it uses as it is. A new client gets a new observer.
 - `result` is current as soon as `update` returns, so the frame that changed the key shows it.
 - `subscribe` delivers every later change and stays subscribed when the slot's `observer` changes. `dispose` drops it, and the observer if the slot created it.
+- `subscribe` calls its listener synchronously, sometimes while another widget is building: a widget that mounts can start a fetch. Wrap the listener in `notifyManager.batchCalls`, so changes arrive in a microtask, and ignore the ones that arrive after dispose, as the widgets and `fuery_hooks` do.
 
 `InfiniteQuerySource` and `MutationSource` are the sources of the other two slots. `QueriesSlot` takes a list of `QuerySource`s and gives a list of results, for a hook like `useQueries`. `FueryProvider.of(context, listen: true)` rebuilds the caller when the provided client is replaced.
 

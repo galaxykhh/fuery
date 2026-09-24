@@ -378,7 +378,7 @@ Widgets below the provider use its client. `context.queryClient` returns it, and
 late final todos = todosQuery.observe(client: context.queryClient);
 ```
 
-An adapter for another way of building widgets, such as hooks, reads the client with `FueryProvider.of(context, listen: true)`, which rebuilds when the provider's client is replaced.
+An adapter of your own, such as one for another state library, reads the client with `FueryProvider.of(context, listen: true)`, which rebuilds when the provider's client is replaced.
 
 ## In the example app
 
