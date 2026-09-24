@@ -308,8 +308,8 @@ void main() {
   });
 
   group('cache callbacks', () {
-    // A callback that throws is the app's bug, not the fetch's: the query
-    // keeps the fetch's outcome, and the other callbacks still run.
+    // A query cache callback that throws is the app's bug, not the fetch's:
+    // the query keeps the fetch's outcome, and the other callbacks run.
     fakeTest('a throwing onSuccess leaves the fetch successful', (async) {
       final settled = <Object?>[];
       final client = QueryClient(
@@ -325,7 +325,11 @@ void main() {
       runZonedGuarded(() {
         client
             .query(Query(queryKey: ['a'], queryFn: FakeFetcher(() => 'a').call))
-            .then((data) => fetched = data, onError: (Object e) => fetched = e);
+            .then<void>((data) {
+          fetched = data;
+        }, onError: (Object error) {
+          fetched = error;
+        });
         async.elapse(ms10);
       }, (error, _) => errors.add(error));
 

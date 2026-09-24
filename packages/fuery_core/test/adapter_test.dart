@@ -417,7 +417,7 @@ void main() {
           );
       runZonedGuarded(() {
         final pages = pagesQuery().observe(client: client);
-        pages.subscribe((_) {});
+        final unsubscribe = pages.subscribe((_) {});
         async.flushMicrotasks();
         pages.fetchNextPage();
         async.flushMicrotasks();
@@ -428,6 +428,7 @@ void main() {
         expect(pages.result.pages, [1]);
         expect(pages.result.hasNextPage, isFalse);
         expect(pages.result.hasPreviousPage, isFalse);
+        unsubscribe();
       }, (error, _) => errors.add(error));
 
       // Reported once per function and key, however often the result or

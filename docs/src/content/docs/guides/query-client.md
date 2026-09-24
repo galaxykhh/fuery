@@ -315,11 +315,11 @@ Fuery.client = QueryClient(
 );
 ```
 
-The query or mutation goes on as if the callback hadn't thrown. Fuery reports a mistake once per client, not every time the code runs. An error that `onUncaughtError` throws goes to the current zone.
+The query or mutation goes on as if the callback hadn't thrown. Fuery reports a mistake once per client, not every time the code runs. When `onUncaughtError` throws, its error and the one it received go to the current zone.
 
 Without `onUncaughtError`, these errors go to the current zone, and Flutter passes them to `PlatformDispatcher.onError`. A crash reporter that records everything there as fatal counts them as crashes, although the app keeps running. With `onUncaughtError`, you decide how to record them.
 
-An error thrown by `onMutate`, or by `onSuccess` or `onSettled` after a success, fails the mutation instead, and reaches its `onError`.
+The callbacks of a `Mutation` and a `MutationCacheConfig` are part of the mutation: an error thrown by `onMutate`, or by `onSuccess` or `onSettled` after a success, fails the mutation and reaches its `onError`.
 
 ## Resuming mutations that paused offline
 

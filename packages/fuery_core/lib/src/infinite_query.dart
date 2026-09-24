@@ -526,15 +526,17 @@ class _PageParamCheck<TPage, TParam> {
   final Object? Function(InfiniteData<TPage, TParam> data) _getParam;
   final QueryKey _queryKey;
 
+  /// Hashed once, since results are built again with the same mistake.
+  late final String _queryHash = hashKey(_queryKey);
+
   TParam? call(InfiniteData<TPage, TParam> data, QueryClient client) {
     final param = _getParam(data);
     if (param is TParam?) return param;
-    final queryHash = hashKey(_queryKey);
     client._reportOnce(
-      '$_name $queryHash',
+      '$_name $_queryHash',
       StateError(
         '$_name returned ${param.runtimeType}, but the page params of the '
-        'query $queryHash are $TParam.',
+        'query $_queryHash are $TParam.',
       ),
       StackTrace.current,
     );

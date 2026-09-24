@@ -645,6 +645,8 @@ void main() {
         ).observe(client: client).mutate(
               'a',
               MutateOptions(
+                onError: (_, __, ___, ____) async =>
+                    throw StateError('async mutate onError'),
                 onSettled: (_, __, ___, ____, _____) =>
                     throw StateError('mutate onSettled'),
               ),
@@ -655,9 +657,31 @@ void main() {
       expect(reported, [
         'Bad state: onError',
         'Bad state: mutate onSettled',
+        'Bad state: async mutate onError',
         'Bad state: cache onSuccess',
       ]);
       expect(zone, isEmpty);
+    });
+
+    fakeTest('receives what an async cache callback throws', (async) {
+      final asyncCallbacks = QueryClient(
+        queryCache: QueryCache(
+          config: QueryCacheConfig(
+            onSettled: (_, __, ___) async => throw StateError('async'),
+          ),
+        ),
+        onUncaughtError: (error, _) => reported.add('$error'),
+      );
+      runZonedGuarded(() {
+        asyncCallbacks.query(
+          Query(queryKey: ['a'], queryFn: FakeFetcher(() => 'a').call),
+        );
+        async.elapse(ms10);
+      }, (error, _) => zone.add(error));
+
+      expect(reported, ['Bad state: async']);
+      expect(zone, isEmpty);
+      asyncCallbacks.clear();
     });
 
     fakeTest('receives mistakes Fuery finds, once per client', (async) {
@@ -696,9 +720,16 @@ void main() {
       expect(errors, hasLength(1));
       expect(zone, isEmpty);
       other.clear();
+
+      // clear() forgets what was reported, like everything else.
+      client.clear();
+      pagesQuery().observe(client: client).subscribe((_) {});
+      async.flushMicrotasks();
+      expect(reported, hasLength(3));
     });
 
-    fakeTest('an error it throws goes to the zone', (async) {
+    fakeTest('an error it throws goes to the zone, after the one it got',
+        (async) {
       final failing = QueryClient(
         queryCache: QueryCache(
           config: QueryCacheConfig(
@@ -714,7 +745,10 @@ void main() {
         async.elapse(ms10);
       }, (error, _) => zone.add(error));
 
-      expect(zone.map((e) => '$e'), ['Bad state: reporting']);
+      expect(zone.map((e) => '$e'), [
+        'Bad state: onSuccess',
+        'Bad state: reporting',
+      ]);
       failing.clear();
     });
   });

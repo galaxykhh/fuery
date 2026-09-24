@@ -281,7 +281,7 @@ class QueryClient {
   }
 
   /// Reports [error] to [onUncaughtError], or without it to the current
-  /// zone. An error thrown by [onUncaughtError] goes to the zone too.
+  /// zone. When [onUncaughtError] throws, both errors go to the zone.
   void _reportError(Object error, StackTrace stackTrace) {
     final onUncaughtError = this.onUncaughtError;
     if (onUncaughtError == null) {
@@ -289,8 +289,9 @@ class QueryClient {
     }
     try {
       onUncaughtError(error, stackTrace);
-    } catch (error, stackTrace) {
+    } catch (reportError, reportStackTrace) {
       Zone.current.handleUncaughtError(error, stackTrace);
+      Zone.current.handleUncaughtError(reportError, reportStackTrace);
     }
   }
 
@@ -300,10 +301,16 @@ class QueryClient {
     if (_reported.add(key)) _reportError(error, stackTrace);
   }
 
-  /// Runs a callback of the app, reporting what it throws.
+  /// Runs a callback of the app without waiting for it, reporting what it
+  /// throws, also from the future of an `async` callback.
   void _guardCallback(void Function() callback) {
     try {
-      callback();
+      // An async function passed where a void one is expected still
+      // returns its future.
+      final result = callback() as Object?;
+      if (result is Future<Object?>) {
+        result.then<void>((_) {}, onError: _reportError).ignore();
+      }
     } catch (error, stackTrace) {
       _reportError(error, stackTrace);
     }
@@ -919,6 +926,7 @@ class QueryClient {
       queryCache._clear();
       mutationCache._clear();
       _loadedMutationKeys.clear();
+      _reported.clear();
       _forgetStored(const QueryFilters(), const [], mutations: true);
       _moveObservers(queries);
     });
