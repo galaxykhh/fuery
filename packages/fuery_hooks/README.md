@@ -56,23 +56,6 @@ flutter pub add fuery_hooks flutter_hooks
 
 Each rebuilds the widget when its result changes, and needs no type arguments: `todos` above is a `QueryResult<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`. `useQuery`, `useInfiniteQuery`, `useMutation`, and `useMutationState` also take `listener` and `listenWhen`, for side effects.
 
-## One query that needs another
-
-Hooks return the result of this moment; they don't wait. A query that needs a value from another one turns itself off until the value exists:
-
-```dart
-Query<List<Post>> postsQuery(int? userId) => Query(
-      queryKey: ['posts', userId],
-      queryFn: (_) => api.getPosts(userId!),
-      enabled: userId != null,
-    );
-
-final user = useQuery(userQuery);
-final posts = useQuery(postsQuery(user.data?.id));
-```
-
-The first build has no user, so `posts` is pending and fetches nothing. When the user arrives, the widget rebuilds, `posts` gets the key `['posts', 7]`, and it fetches in that same build.
-
 ## Changing data
 
 ```dart
@@ -95,21 +78,11 @@ TextButton(
 )
 ```
 
-For a side effect of one call, such as a snackbar, pass `MutateOptions` to `mutate`. The request itself still finishes when the widget goes away. For a definition, the callbacks of its calls are dropped then. A shared observer is left alone and still runs them, so check `context.mounted` in them.
+For a side effect of one call, pass `MutateOptions` to `mutate`. The request itself still finishes when the widget goes away, and the callbacks of its calls are dropped then.
 
 ## Reacting to changes
 
-Pass `listener` to the hook for navigation, snackbars, and other one-off effects. It runs after a change, never during a build, and not for the result the widget mounts with:
-
-```dart
-final addTodo = useMutation(
-  addTodoMutation,
-  listenWhen: (previous, current) => current.isSuccess,
-  listener: (context, result) => Navigator.pop(context),
-);
-```
-
-`listenWhen` compares the previous result with the new one, as on `QueryListener`. A mutation's listener hears the runs started with the result its hook returns. The listener of `useMutationState` hears every run of the mutation, from any widget, one run at a time:
+Pass `listener` to the hook for navigation, snackbars, and other one-off effects. It runs after a change, never during a build, and not for the result the widget mounts with. `listenWhen` compares the previous result with the new one, as on `QueryListener`. The listener of `useMutationState` hears every run of the mutation, from any widget, one run at a time:
 
 ```dart
 useMutationState(
@@ -120,6 +93,8 @@ useMutationState(
   ),
 );
 ```
+
+The listener of `useMutation` hears only the runs started with the result its hook returns. See [Reacting to changes](https://galaxykhh.github.io/fuery/guides/hooks/#reacting-to-changes) for which effect goes where.
 
 ## Rules
 
