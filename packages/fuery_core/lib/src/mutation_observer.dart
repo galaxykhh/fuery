@@ -17,6 +17,9 @@ class MutationObserver<TData, TVariables, TContext>
   late MutationResult<TData, TVariables, TContext> _currentResult;
   CachedMutation<TData, TVariables, TContext>? _currentMutation;
 
+  /// The client this observer runs mutations on, fixed for its whole life.
+  QueryClient get client => _client;
+
   Mutation<TData, TVariables, TContext> get options => _options!;
 
   /// The state of the latest mutation, or idle if none ran yet, with the

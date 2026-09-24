@@ -352,26 +352,36 @@ Clear once the screens that use queries are gone. An observer still subscribed w
 A `Query` holds no client. The client is chosen where the query is used:
 
 - A widget that gets a query or a mutation uses the client of the nearest `FueryProvider`, or `Fuery.client` without one. It follows a provider whose client is replaced.
-- `observe()` uses the client you pass as `client:`, or `Fuery.client` at that moment, and keeps it for the observer's whole life.
+- `observe()` uses the client you pass as `client:`, or `Fuery.client` at that moment, and keeps it for the observer's whole life. The observer's `client` returns it.
+- A widget that gets an observer uses it with the observer's client. In debug builds, it prints a warning when that isn't its own client. See [A screen reads another client's cache](../../troubleshooting/#a-screen-reads-another-clients-cache).
 - Query functions, `placeholderData`, and mutation callbacks receive the client that runs them.
 
 So queries can be top-level values, and a test that gives each widget test a fresh client through `Fuery.client` or a `FueryProvider` needs nothing else. Configure the client before creating observers: a storage or defaults set afterwards don't reach an observer that already exists.
 
 ## Giving a subtree its own client
 
-To run part of the app on another client, for example in a widget test, wrap it in `FueryProvider`:
+To run part of the app on another client, for example in a widget test, wrap it in `FueryProvider`. Keep the client in a `State` field, so the subtree keeps one client while it is mounted:
 
 ```dart
-FueryProvider(client: QueryClient(), child: const App());
+class _SettingsPageState extends State<SettingsPage> {
+  final client = QueryClient();
+
+  @override
+  Widget build(BuildContext context) {
+    return FueryProvider(client: client, child: const SettingsView());
+  }
+}
 ```
 
-Widgets below it use that client. `context.queryClient` returns it, and falls back to `Fuery.client` when there is no provider. Pass it to `observe` for an observer of your own:
+Create the client once, in `main`, in a `State` field, or in a test's `setUp`. A `QueryClient` created in `build` is a new, empty cache on every rebuild, including every hot reload: the provider replaces its client, and the widgets below go back to loading and fetch again. `FueryProvider` mounts the client and unmounts it when it goes away, so the `State` needs no `dispose`.
+
+Widgets below the provider use its client. `context.queryClient` returns it, and falls back to `Fuery.client` when there is no provider. Pass it to `observe` for an observer of your own:
 
 ```dart
 late final todos = todosQuery.observe(client: context.queryClient);
 ```
 
-An adapter for another way of building widgets, such as hooks, reads the client with `FueryProvider.of(context, listen: true)`, which rebuilds when the provider's client is replaced.
+An adapter of your own, such as one for another state library, reads the client with `FueryProvider.of(context, listen: true)`, which rebuilds when the provider's client is replaced.
 
 ## In the example app
 

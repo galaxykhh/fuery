@@ -172,7 +172,9 @@ void main() {
         rebuild.value++;
         await tester.pump();
         expect(messages, hasLength(1));
+        expect(messages.single, startsWith('[fuery] QueryBuilder received'));
         expect(messages.single, contains('["todos"]'));
+        expect(messages.single, contains('refetches'));
         expect(messages.single, contains('troubleshooting'));
 
         rebuild.value++;
@@ -211,8 +213,9 @@ void main() {
                   builder: (context, state) => const Text('pages'),
                 ),
                 MutationBuilder(
+                  // The key of the infinite query: each kind warns once.
                   mutation: Mutation(
-                    mutationKey: ['save'],
+                    mutationKey: ['pages'],
                     mutationFn: (int value) async => value,
                   ).observe(client: client),
                   builder: (context, state) => const Text('keyed'),
@@ -232,8 +235,13 @@ void main() {
         await tester.pump();
         // The mutation without a key can't be told apart, so it is silent.
         expect(messages, hasLength(2));
+        expect(messages[0], contains('InfiniteQueryBuilder received'));
         expect(messages[0], contains('["pages"]'));
-        expect(messages[1], contains('["save"]'));
+        expect(messages[0], contains('refetches'));
+        expect(messages[1], contains('MutationBuilder received'));
+        expect(messages[1], contains('["pages"]'));
+        expect(messages[1], contains('starts idle'));
+        expect(messages[1], isNot(contains('refetches')));
         await tester.pump(ms10); // fetches the extra observers started
         await tester.pumpWidget(const SizedBox());
         client.clear();
@@ -693,6 +701,309 @@ void main() {
       expect(find.text('2 pages'), findsOneWidget);
       expect(find.text('idle'), findsOneWidget);
       await tearDownApp(tester);
+    });
+  });
+
+  group('Debug warnings', () {
+    /// Runs [body] with every debugPrint collected, and restores debugPrint
+    /// before the test ends, as flutter_test requires.
+    Future<void> withWarnings(
+      Future<void> Function(List<String> messages) body,
+    ) async {
+      final messages = <String>[];
+      final print = debugPrint;
+      debugPrint = (message, {wrapWidth}) => messages.add(message ?? '');
+      debugResetRecreatedWarnings();
+      try {
+        await body(messages);
+      } finally {
+        debugPrint = print;
+      }
+    }
+
+    Query<String> fresh(String name, int id) => Query(
+          queryKey: [name, id],
+          queryFn: (_) async => '$name $id',
+          staleTime: infiniteDuration,
+        );
+
+    testWidgets('lists of queries warn about observers created in build',
+        (tester) async {
+      await withWarnings((messages) async {
+        final rebuild = ValueNotifier(0);
+        await pumpApp(
+          tester,
+          ValueListenableBuilder(
+            valueListenable: rebuild,
+            builder: (context, _, __) => Column(
+              children: [
+                QueriesBuilder(
+                  queries: [
+                    for (final id in [1, 2])
+                      fresh('post', id).observe(client: client),
+                  ],
+                  builder: (context, results) => Text('${results.length}'),
+                ),
+                QueriesSelector(
+                  queries: [
+                    for (final id in [1, 2])
+                      fresh('user', id).observe(client: client),
+                  ],
+                  selector: (results) => results.length,
+                  builder: (context, count) => Text('$count'),
+                ),
+              ],
+            ),
+          ),
+        );
+        await tester.pump();
+        for (var i = 0; i < 2; i++) {
+          rebuild.value++;
+          await tester.pump();
+        }
+
+        expect(messages, hasLength(2), reason: 'once per widget and key');
+        expect(
+          messages[0],
+          contains('QueriesBuilder received a new observer for the key '
+              '["post",1]'),
+        );
+        expect(messages[0], contains('refetches'));
+        expect(
+          messages[0],
+          contains(
+            'QueriesBuilder(queries: [for (final id in ids) todoQuery(id)])',
+          ),
+        );
+        expect(
+          messages[1],
+          contains('QueriesSelector received a new observer for the key '
+              '["user",1]'),
+        );
+        await tearDownApp(tester);
+      });
+    });
+
+    testWidgets('lists of shared observers or definitions are silent',
+        (tester) async {
+      await withWarnings((messages) async {
+        final rebuild = ValueNotifier(0);
+        final shared = [
+          for (final id in [1, 2]) fresh('post', id).observe(client: client),
+        ];
+        // Two observers of one key, passed again on every build.
+        final twins = [
+          fresh('twin', 1).observe(client: client),
+          fresh('twin', 1).observe(client: client),
+        ];
+        await pumpApp(
+          tester,
+          ValueListenableBuilder(
+            valueListenable: rebuild,
+            builder: (context, count, _) => Column(
+              children: [
+                QueriesBuilder(
+                  // A new list each build, reordered every other one.
+                  queries: count.isEven ? [...shared] : [...shared.reversed],
+                  builder: (context, results) => Text('${results.length}'),
+                ),
+                QueriesBuilder(
+                  queries: [...twins],
+                  builder: (context, results) => Text('${results.length}'),
+                ),
+                QueriesSelector(
+                  queries: [
+                    for (final id in [1, 2]) fresh('user', id)
+                  ],
+                  selector: (results) => results.length,
+                  builder: (context, count) => Text('$count'),
+                ),
+              ],
+            ),
+          ),
+        );
+        await tester.pump();
+        for (var i = 0; i < 3; i++) {
+          rebuild.value++;
+          await tester.pump();
+        }
+
+        expect(messages, isEmpty);
+        await tearDownApp(tester);
+      });
+    });
+
+    Mutation<String, String, Object?> addTodo() => Mutation(
+          mutationFn: (String title) async => title,
+        );
+
+    testWidgets('a MutationListener warns once when it gets a definition',
+        (tester) async {
+      await withWarnings((messages) async {
+        final rebuild = ValueNotifier(0);
+        await pumpApp(
+          tester,
+          ValueListenableBuilder(
+            valueListenable: rebuild,
+            builder: (context, _, __) => MutationListener(
+              mutation: addTodo(),
+              listener: (context, state) {},
+              child: const SizedBox(),
+            ),
+          ),
+        );
+        rebuild.value++;
+        await tester.pump();
+
+        expect(messages, hasLength(1));
+        expect(
+          messages.single,
+          startsWith('[fuery] MutationListener got a Mutation definition'),
+        );
+        expect(messages.single, contains('#a-mutationlistener-never-runs'));
+        await tearDownApp(tester);
+      });
+    });
+
+    testWidgets(
+        'a shared observer, or a definition for a widget that can run it, '
+        'is silent', (tester) async {
+      await withWarnings((messages) async {
+        final adding = addTodo().observe(client: client);
+        final heard = <String>[];
+        await pumpApp(
+          tester,
+          Column(
+            children: [
+              // One observer: the button runs it, and the listener hears it.
+              MutationListener(
+                mutation: adding,
+                listenWhen: (previous, current) => current.isSuccess,
+                listener: (context, state) => heard.add(state.data!),
+                child: MutationBuilder(
+                  mutation: adding,
+                  builder: (context, state) => TextButton(
+                    onPressed: () => state.mutate('milk'),
+                    child: const Text('add'),
+                  ),
+                ),
+              ),
+              MutationBuilder(
+                mutation: addTodo(),
+                builder: (context, state) => const SizedBox(),
+              ),
+              MutationConsumer(
+                mutation: addTodo(),
+                listener: (context, state) {},
+                builder: (context, state) => const SizedBox(),
+              ),
+              MutationSelector(
+                mutation: addTodo(),
+                selector: (state) => state.isPending,
+                builder: (context, pending) => const SizedBox(),
+              ),
+            ],
+          ),
+        );
+        await tester.tap(find.text('add'));
+        await tester.pump();
+
+        expect(heard, ['milk']);
+        expect(messages, isEmpty);
+        await tearDownApp(tester);
+      });
+    });
+
+    testWidgets('warns once about each observer of another client',
+        (tester) async {
+      await withWarnings((messages) async {
+        final other = QueryClient();
+        final rebuild = ValueNotifier(0);
+        final foreignQuery = fresh('post', 1).observe(client: other);
+        final foreignMutation = addTodo().observe(client: other);
+        final foreignInList = fresh('user', 3).observe(client: other);
+        final own = fresh('post', 2).observe(client: client);
+        await pumpApp(
+          tester,
+          ValueListenableBuilder(
+            valueListenable: rebuild,
+            builder: (context, _, __) => Column(
+              children: [
+                QueryBuilder(
+                  query: foreignQuery,
+                  builder: (context, state) => const SizedBox(),
+                ),
+                MutationBuilder(
+                  mutation: foreignMutation,
+                  builder: (context, state) => const SizedBox(),
+                ),
+                QueriesBuilder(
+                  queries: [fresh('user', 1), own, foreignInList],
+                  builder: (context, results) => const SizedBox(),
+                ),
+                QueryBuilder(
+                  query: own,
+                  builder: (context, state) => const SizedBox(),
+                ),
+              ],
+            ),
+          ),
+        );
+        rebuild.value++;
+        await tester.pump();
+
+        expect(messages, hasLength(3), reason: 'once per foreign observer');
+        expect(
+          messages[0],
+          startsWith('[fuery] QueryBuilder received an observer of another '
+              'QueryClient'),
+        );
+        expect(
+          messages[0],
+          contains('#a-screen-reads-another-clients-cache'),
+        );
+        expect(messages[1], startsWith('[fuery] MutationBuilder received'));
+        expect(messages[2], startsWith('[fuery] QueriesBuilder received'));
+        await tester.pumpWidget(const SizedBox());
+        other.clear();
+        await tearDownApp(tester);
+      });
+    });
+
+    testWidgets('warns when the provided client changes under an observer',
+        (tester) async {
+      await withWarnings((messages) async {
+        final other = QueryClient();
+        final current = ValueNotifier(client);
+        final shared = fresh('post', 1).observe(client: client);
+        await tester.pumpWidget(
+          ValueListenableBuilder(
+            valueListenable: current,
+            builder: (context, on, child) =>
+                FueryProvider(client: on, child: child!),
+            child: Directionality(
+              textDirection: TextDirection.ltr,
+              child: QueryBuilder(
+                query: shared,
+                builder: (context, state) => Text(state.data ?? 'loading'),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        expect(messages, isEmpty);
+
+        current.value = other;
+        await tester.pump();
+        expect(messages, hasLength(1));
+        expect(
+          messages.single,
+          contains('QueryBuilder received an observer of another QueryClient'),
+        );
+        await tester.pumpWidget(const SizedBox());
+        other.clear();
+        await tearDownApp(tester);
+      });
     });
   });
 

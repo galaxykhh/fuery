@@ -212,7 +212,7 @@ MutationBuilder(
 
 Every callback receives the client that runs the mutation. Returning the `invalidateQueries` future from `onSuccess` keeps the mutation pending until the list has refetched. `state.mutateAsync(title)` returns the data, and throws on error.
 
-When the button and the pending state are in different places, create one observer with `addTodo.observe()` in a `State` field, pass it to both, and call its `reset()` in `dispose`.
+When the button and the pending state are in different places, create one observer with `addTodo.observe()` in a `State` field, pass it to both, and call its `reset()` in `dispose`. Under a `FueryProvider` with a client of its own, write `late final adding = addTodo.observe(client: context.queryClient);`.
 
 **Optimistic updates.** Cancel refetches of the data first, then update the cache in `onMutate` and return what you need to roll back. The returned value is passed to the other callbacks as `context`:
 
@@ -389,8 +389,10 @@ Fuery.client.setQueryDefaults(
 **FueryProvider.** To give a subtree its own client, for example in widget tests, wrap it in `FueryProvider`. Widgets below it that get a query or a mutation use that client:
 
 ```dart
-FueryProvider(client: QueryClient(), child: const App());
+runApp(FueryProvider(client: QueryClient(), child: const App()));
 ```
+
+Create the client once, in `main`, in a `State` field, or in a test's `setUp`. A `QueryClient` created in `build` is a new, empty cache on every rebuild, including every hot reload, so the widgets below go back to loading and fetch again. [Giving a subtree its own client](https://galaxykhh.github.io/fuery/guides/query-client/#giving-a-subtree-its-own-client) keeps one in a `State` field.
 
 `context.queryClient` returns it, or `Fuery.client` when there is no provider. An observer from `observe()` keeps the client it is given: `todosQuery.observe(client: context.queryClient)`.
 

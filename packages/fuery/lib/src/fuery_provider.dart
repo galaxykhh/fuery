@@ -12,15 +12,23 @@ import 'fuery_binding.dart';
 /// default.
 ///
 /// ```dart
-/// FueryProvider(
-///   client: QueryClient(
-///     defaultOptions: const DefaultOptions(
-///       queries: QueryDefaults(staleTime: Duration(seconds: 30)),
+/// runApp(
+///   FueryProvider(
+///     client: QueryClient(
+///       defaultOptions: const DefaultOptions(
+///         queries: QueryDefaults(staleTime: Duration(seconds: 30)),
+///       ),
 ///     ),
+///     child: const App(),
 ///   ),
-///   child: const App(),
-/// )
+/// );
 /// ```
+///
+/// Create the client once, in `main`, in a `State` field, or in a test's
+/// `setUp`, and pass it in. A [QueryClient] created in `build` is a new,
+/// empty cache on every rebuild, including every hot reload: the provider
+/// replaces its client, and the widgets below go back to loading and fetch
+/// again.
 class FueryProvider extends StatefulWidget {
   const FueryProvider({super.key, required this.client, required this.child});
 

@@ -28,6 +28,8 @@ QueryBuilder(
 
 A widget can also take an observer you created with `observe()`, to share one handle between widgets. The widget then uses it as it is.
 
+A mutation's state belongs to the observer that runs it. A `MutationListener`, or a `MutationSelector` whose builder doesn't run the mutation, therefore needs the observer the button runs, not the definition. See [Organizing mutations](../organizing-queries/#organizing-mutations).
+
 ## When builders and listeners run
 
 - `buildWhen(previous, current)` compares with the last built result.
@@ -63,13 +65,13 @@ QuerySelector(
 - The selector runs again when the parent rebuilds, so it can use values from the parent.
 - Use `buildWhen` when the builder needs the whole result, and a selector when it needs one value derived from it.
 
-The same works for a mutation:
+The same works for a mutation. This one shows the state of the observer that the save button runs:
 
 ```dart
 MutationSelector(
-  mutation: saveTodo,
+  mutation: saving, // saveTodo.observe(), kept in a State field
   selector: (state) => state.isPending,
-  builder: (context, saving) => Text(saving ? 'Saving…' : 'Saved'),
+  builder: (context, pending) => Text(pending ? 'Saving…' : 'Saved'),
 )
 ```
 
@@ -87,14 +89,18 @@ QueryListener(
 )
 ```
 
+A mutation listener hears the runs of the observer it gets, so give it the observer the form runs:
+
 ```dart
 MutationListener(
-  mutation: addTodo,
+  mutation: adding, // addTodo.observe(), kept in a State field
   listenWhen: (previous, current) => current.isSuccess,
   listener: (context, state) => Navigator.pop(context),
-  child: const AddTodoForm(),
+  child: AddTodoForm(adding: adding),
 )
 ```
+
+Given a definition, a `MutationListener` watches an observer of its own that nothing runs, and in debug builds it prints a warning.
 
 ## Pull to refresh
 
@@ -222,13 +228,17 @@ The cached data isn't the observer's to release. It stays for `gcTime` (default:
 For hooks, use [`fuery_hooks`](../hooks/). The widgets above and those hooks are built on the public API of `fuery_core`, so a widget of your own or an integration with another state library can do the same. Keep one slot per rendered query: `QuerySlot`, `InfiniteQuerySlot`, or `MutationSlot`, all `ObserverSlot`s. The whole contract fits in a hook written with `flutter_hooks` alone:
 
 ```dart
-QueryResult<TData> useQuery<TData extends Object>(QuerySource<TData> query) {
+QueryResult<TData> useMyQuery<TData extends Object>(QuerySource<TData> query) {
   final client = FueryProvider.of(useContext(), listen: true);
   final slot = useMemoized(() => QuerySlot(query, client));
   final changes = useState(0);
   useEffect(() {
-    final unsubscribe = slot.subscribe((_) => changes.value++);
+    var active = true;
+    final unsubscribe = slot.subscribe(notifyManager.batchCalls((_) {
+      if (active) changes.value++;
+    }));
     return () {
+      active = false;
       unsubscribe();
       slot.dispose();
     };
@@ -241,6 +251,7 @@ QueryResult<TData> useQuery<TData extends Object>(QuerySource<TData> query) {
 - `update(source, client)` takes a `QuerySource`: a definition, whose observer the slot owns and updates, or an observer, which it uses as it is. A new client gets a new observer.
 - `result` is current as soon as `update` returns, so the frame that changed the key shows it.
 - `subscribe` delivers every later change and stays subscribed when the slot's `observer` changes. `dispose` drops it, and the observer if the slot created it.
+- `subscribe` calls its listener synchronously, sometimes while another widget is building: a widget that mounts can start a fetch. Wrap the listener in `notifyManager.batchCalls`, so changes arrive in a microtask, and ignore the ones that arrive after dispose, as the widgets and `fuery_hooks` do.
 
 `InfiniteQuerySource` and `MutationSource` are the sources of the other two slots. `QueriesSlot` takes a list of `QuerySource`s and gives a list of results, for a hook like `useQueries`. `FueryProvider.of(context, listen: true)` rebuilds the caller when the provided client is replaced.
 

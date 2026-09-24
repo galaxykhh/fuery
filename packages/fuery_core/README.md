@@ -131,7 +131,7 @@ final todos = Query(
 Fuery.client.watch((client) => client.isFetching()).listen(print);
 ```
 
-To build an adapter for another framework, such as hooks, keep a `QuerySlot` (or `InfiniteQuerySlot`, `MutationSlot`, or `QueriesSlot` for a list of queries) per rendered query: call `update(query, client)` on every render and read `result`. The Flutter widgets in `fuery` are built this way.
+To build an adapter for another framework, such as another state library, keep a `QuerySlot` (or `InfiniteQuerySlot`, `MutationSlot`, or `QueriesSlot` for a list of queries) per rendered query: call `update(query, client)` on every render and read `result`. Listeners run synchronously, sometimes during another component's render, so wrap them in `notifyManager.batchCalls` when your framework can't update during a render. The Flutter widgets in `fuery` are built this way.
 
 A mounted client refetches when `focusManager` or `onlineManager` report that the app is focused or back online. Assigning `Fuery.client` mounts the new client; a client you pass to `observe(client:)` yourself, for example in a test, needs `client.mount()`. Pure Dart has no focus or connectivity events, so set them yourself with `setEventListener`, or call `setFocused` and `setOnline`.
 

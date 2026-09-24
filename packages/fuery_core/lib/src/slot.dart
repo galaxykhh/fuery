@@ -26,9 +26,15 @@ sealed class MutationSource<TData, TVariables, TContext> {}
 /// returns. [subscribe] receives every later change, and stays subscribed
 /// when [update] switches to another observer.
 ///
+/// Listeners run synchronously, sometimes while another component renders,
+/// for example when one that mounts starts a fetch. Wrap them in
+/// `notifyManager.batchCalls` when the framework can't update during a
+/// render, so changes arrive in a microtask, and ignore the ones that
+/// arrive after the slot is disposed.
+///
 /// ```dart
 /// final slot = QuerySlot(todosQuery, client);
-/// final unsubscribe = slot.subscribe((result) => render(result));
+/// final unsubscribe = slot.subscribe(notifyManager.batchCalls(render));
 /// slot.update(todosQuery, client); // on every render
 /// render(slot.result);
 /// ```
