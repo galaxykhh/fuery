@@ -52,9 +52,11 @@ void main() {
 
   group('useQuery', () {
     Widget postScreen(int id) => HookBuilder(builder: (context) {
-          // The declared type fails to compile if inference widens it.
-          final QueryResult<String> result = useQuery(post(id));
-          return Text(describe(result));
+          // Inferred without a context type, then checked: this stops
+          // compiling if the hook infers a wider type.
+          final result = useQuery(post(id));
+          final QueryResult<String> typed = result;
+          return Text(describe(typed));
         });
 
     testWidgets('keeps one observer for a definition built in build',
@@ -288,7 +290,8 @@ void main() {
     await tester.pumpWidget(
       app(
         HookBuilder(builder: (_) {
-          final InfiniteQueryResult<String, int> feed = useInfiniteQuery(pages);
+          final result = useInfiniteQuery(pages);
+          final InfiniteQueryResult<String, int> feed = result;
           return TextButton(
             onPressed: feed.hasNextPage ? feed.fetchNextPage : null,
             child: Text(feed.pages.join(', ')),
@@ -318,8 +321,8 @@ void main() {
       await tester.pumpWidget(
         app(
           HookBuilder(builder: (_) {
-            final MutationResult<String, String, Object?> add =
-                useMutation(addTodo);
+            final result = useMutation(addTodo);
+            final MutationResult<String, String, Object?> add = result;
             return TextButton(
               onPressed: () => add.mutate('Buy milk'),
               child: Text(add.status.name),
@@ -347,7 +350,8 @@ void main() {
       await tester.pumpWidget(
         app(
           HookBuilder(builder: (_) {
-            final run = useMutation(sync);
+            final result = useMutation(sync);
+            final MutationResult<void, void, Object?> run = result;
             return TextButton(
               onPressed: () => run.mutate(
                 null,
@@ -372,8 +376,8 @@ void main() {
   testWidgets('useQueries gives the results in order, and follows the list',
       (tester) async {
     Widget posts(List<int> ids) => HookBuilder(builder: (_) {
-          final List<QueryResult<String>> results =
-              useQueries([for (final id in ids) post(id)]);
+          final inferred = useQueries([for (final id in ids) post(id)]);
+          final List<QueryResult<String>> results = inferred;
           return Text(results.map(describe).join(', '));
         });
     await tester.pumpWidget(app(posts([1, 2])));
@@ -387,6 +391,42 @@ void main() {
     await tester.pump(ms10);
     expect(fetched, [1, 2]);
     await tearDownApp(tester);
+  });
+
+  testWidgets('hooks infer their types from observers and mixed lists',
+      (tester) async {
+    final shared = post(2).observe(client: client);
+    final pages = InfiniteQuery(
+      queryKey: ['pages'],
+      queryFn: (context) async => 'page ${context.pageParam}',
+      initialPageParam: 1,
+      getNextPageParam: (data) => null,
+    ).observe(client: client);
+    final rename = Mutation(
+      mutationFn: (String name) async => name.length,
+      onMutate: (_, client) => ['renaming'],
+    );
+    await tester.pumpWidget(
+      app(HookBuilder(builder: (_) {
+        // Each is inferred without a context type, then checked.
+        final posts = useQueries([post(1), shared]);
+        final List<QueryResult<String>> typedPosts = posts;
+        final feed = useInfiniteQuery(pages);
+        final InfiniteQueryResult<String, int> typedFeed = feed;
+        final renaming = useMutation(rename);
+        final MutationResult<int, String, List<String>> typedRenaming =
+            renaming;
+        return Text(
+          '${typedPosts.length} ${typedFeed.pages.length} '
+          '${typedRenaming.status.name}',
+        );
+      })),
+    );
+    await tester.pump(ms10);
+    expect(find.text('2 1 idle'), findsOneWidget);
+    await tearDownApp(tester);
+    shared.destroy();
+    pages.destroy();
   });
 
   testWidgets('useQueryClient gives the provided client, and follows it',
