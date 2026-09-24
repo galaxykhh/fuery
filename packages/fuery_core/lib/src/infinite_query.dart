@@ -242,7 +242,7 @@ class _InfiniteQueryBehavior<TPage, TParam>
   }
 }
 
-/// Options for an infinite query.
+/// Describes an infinite query.
 class InfiniteQuery<TPage, TParam> extends Query<InfiniteData<TPage, TParam>>
     implements InfiniteQuerySource<TPage, TParam> {
   /// Describes an infinite query. The page and param types are inferred from

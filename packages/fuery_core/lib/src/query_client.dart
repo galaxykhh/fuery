@@ -625,7 +625,7 @@ class QueryClient {
   /// data type comes from [options].
   ///
   /// ```dart
-  /// final Post? post = client.getData(postOptions(id));
+  /// final Post? post = client.getData(postQuery(id));
   /// ```
   TData? getData<TData extends Object>(Query<TData> options) {
     return getQueryData<TData>(options.queryKey);
@@ -648,7 +648,7 @@ class QueryClient {
   /// unchanged.
   ///
   /// ```dart
-  /// client.updateData(postOptions(id), (post) => post?.copyWith(liked: true));
+  /// client.updateData(postQuery(id), (post) => post?.copyWith(liked: true));
   /// ```
   TData? updateData<TData extends Object>(
     Query<TData> options,
@@ -664,10 +664,10 @@ class QueryClient {
   /// the fetch fails. Does not retry unless `retry` is set.
   ///
   /// ```dart
-  /// final todos = await client.query(todosOptions);
+  /// final todos = await client.query(todosQuery);
   ///
   /// // Prefetch: ignore the result and errors.
-  /// client.query(todosOptions).ignore();
+  /// client.query(todosQuery).ignore();
   ///
   /// // Use cached data whenever there is some.
   /// final cached = await client.query(Query(
