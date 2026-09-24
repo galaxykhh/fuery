@@ -47,7 +47,11 @@ int timeUntilStale(int updatedAt, Duration? staleTime) {
 ///
 /// Supported values are `null`, [bool], [num], [String], [Enum], [DateTime],
 /// [Iterable], [Map], and objects that implement `toJson()`.
-String hashKey(List<Object?> key) => jsonEncode(_canonicalize(key, false));
+String hashKey(List<Object?> key) => jsonEncode(keyForm(key));
+
+/// [key] in the JSON form [hashKey] encodes, for comparing it with
+/// [partialMatchForms] without converting it again for every comparison.
+Object? keyForm(List<Object?> key) => _canonicalize(key, false);
 
 /// Like [hashKey], but the same in every build, obfuscated and minified ones
 /// included, for storing data under the key.
@@ -63,8 +67,11 @@ Object? storageKeyForm(List<Object?> key) => _canonicalize(key, true);
 
 /// Returns true when [b] is a prefix (for lists) or subset (for maps) of [a].
 bool partialMatchKey(List<Object?> a, List<Object?> b) {
-  return _partialMatch(_canonicalize(a, false), _canonicalize(b, false));
+  return partialMatchForms(keyForm(a), keyForm(b));
 }
+
+/// [partialMatchKey] for keys already converted with [keyForm].
+bool partialMatchForms(Object? a, Object? b) => _partialMatch(a, b);
 
 /// Returns a test for whether [key] is a prefix (for lists) or subset (for
 /// maps) of a key read back from storage, stored in the form of
@@ -163,6 +170,19 @@ Object? replaceEqualDeep(Object? a, Object? b, [int depth = 0]) {
     }
     final allEqual = a.length == b.length && equalItems == a.length;
     return allEqual && a.runtimeType == b.runtimeType ? a : copy;
+  }
+
+  if (a is Map && b is Map) {
+    // Compared key by key: DeepCollectionEquality would hash each nested
+    // map's whole subtree again at every level.
+    if (a.length != b.length || a.runtimeType != b.runtimeType) return b;
+    for (final entry in b.entries) {
+      final previous = a[entry.key];
+      if (previous == null && !a.containsKey(entry.key)) return b;
+      final shared = replaceEqualDeep(previous, entry.value, depth + 1);
+      if (!identical(shared, previous)) return b;
+    }
+    return a;
   }
 
   final equal = a.runtimeType == b.runtimeType &&

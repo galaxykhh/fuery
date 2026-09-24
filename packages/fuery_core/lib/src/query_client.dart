@@ -73,8 +73,11 @@ class QueryClient {
   /// Storage keys of the stored mutations this client is running, started
   /// here or loaded by [restore], so a restore doesn't run them again.
   final Set<String> _loadedMutationKeys = {};
-  final Map<String, (QueryKey, QueryDefaults)> _queryDefaults = {};
-  final Map<String, (MutationKey, MutationDefaults)> _mutationDefaults = {};
+
+  /// Defaults by key hash, with the key in the form [partialMatchForms]
+  /// takes.
+  final Map<String, (Object?, QueryDefaults)> _queryDefaults = {};
+  final Map<String, (Object?, MutationDefaults)> _mutationDefaults = {};
   int _mountCount = 0;
   void Function()? _unsubscribeFocus;
   void Function()? _unsubscribeOnline;
@@ -831,7 +834,7 @@ class QueryClient {
       };
 
       return _refetch(
-        filters._copyWith(type: refetchFilter),
+        filters._withType(refetchFilter),
         cancelRefetch: cancelRefetch,
         throwOnError: throwOnError,
       );
@@ -899,26 +902,30 @@ class QueryClient {
 
   /// Sets defaults for every query whose key starts with [queryKey].
   void setQueryDefaults(QueryKey queryKey, QueryDefaults defaults) {
-    _queryDefaults[hashKey(queryKey)] = (queryKey, defaults);
+    _queryDefaults[hashKey(queryKey)] = (keyForm(queryKey), defaults);
   }
 
   QueryDefaults getQueryDefaults(QueryKey queryKey) {
     var result = const QueryDefaults();
-    for (final (key, defaults) in _queryDefaults.values) {
-      if (partialMatchKey(queryKey, key)) result = result.merge(defaults);
+    if (_queryDefaults.isEmpty) return result;
+    final form = keyForm(queryKey);
+    for (final (prefix, defaults) in _queryDefaults.values) {
+      if (partialMatchForms(form, prefix)) result = result.merge(defaults);
     }
     return result;
   }
 
   /// Sets defaults for every mutation whose key starts with [mutationKey].
   void setMutationDefaults(MutationKey mutationKey, MutationDefaults defaults) {
-    _mutationDefaults[hashKey(mutationKey)] = (mutationKey, defaults);
+    _mutationDefaults[hashKey(mutationKey)] = (keyForm(mutationKey), defaults);
   }
 
   MutationDefaults getMutationDefaults(MutationKey mutationKey) {
     var result = const MutationDefaults();
-    for (final (key, defaults) in _mutationDefaults.values) {
-      if (partialMatchKey(mutationKey, key)) result = result.merge(defaults);
+    if (_mutationDefaults.isEmpty) return result;
+    final form = keyForm(mutationKey);
+    for (final (prefix, defaults) in _mutationDefaults.values) {
+      if (partialMatchForms(form, prefix)) result = result.merge(defaults);
     }
     return result;
   }

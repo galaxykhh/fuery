@@ -599,6 +599,30 @@ void main() {
         cache.findAll(const MutationFilters(status: MutationStatus.pending)),
         isEmpty,
       );
+
+      final removing = cache
+          .findAll(
+            const MutationFilters(mutationKey: ['todos', 'remove']),
+          )
+          .single;
+      expect(
+        const MutationFilters(mutationKey: ['todos']).matches(removing),
+        isTrue,
+      );
+      expect(
+        const MutationFilters(mutationKey: ['todos'], exact: true)
+            .matches(removing),
+        isFalse,
+      );
+      expect(
+        const MutationFilters(mutationKey: ['todos', 'remove'], exact: true)
+            .matches(removing),
+        isTrue,
+      );
+      expect(
+        const MutationFilters(status: MutationStatus.pending).matches(removing),
+        isFalse,
+      );
     });
 
     fakeTest('scoped mutations leave the scope when removed', (async) {
