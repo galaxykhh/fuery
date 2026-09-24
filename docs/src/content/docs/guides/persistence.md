@@ -180,7 +180,7 @@ A request that had reached the server before the app closed runs again after the
 
 - Reads and writes wait for a deletion that is still running, so a query that was removed is never restored from data that was about to be deleted, and never writes over its own deletion.
 - A restore that is still running when the query is reset or removed doesn't bring the old data back.
-- When something is deleted while `restore()` reads, it reads again once the deletion is done, so it neither restores deleted data nor skips the stored mutations.
+- When something is deleted while `restore()` reads, it reads again once the deletion is done, up to three times, so it never restores deleted data. If a deletion overlaps all three reads, that call restores nothing: queries restore when they're first used, and the stored mutations stay stored for the next `restore()`.
 - A query decides whether to fetch on mount after an asynchronous restore finishes, so `refetchOnMount` and `staleTime` apply to restored data the same way they apply to cached data.
 - Storage methods may be synchronous or asynchronous, and their errors never reach the query. A query with a broken storage loads as if nothing was stored.
 
