@@ -1,10 +1,14 @@
 <img src="https://raw.githubusercontent.com/galaxykhh/fuery/main/assets/brand/banner.png" alt="Fuery: server state for Flutter" width="100%">
 
+[![pub package](https://img.shields.io/pub/v/fuery_core.svg)](https://pub.dev/packages/fuery_core)
+[![CI](https://github.com/galaxykhh/fuery/actions/workflows/ci.yml/badge.svg)](https://github.com/galaxykhh/fuery/actions/workflows/ci.yml)
+[![coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/galaxykhh/fuery/actions/workflows/ci.yml)
+
 # Fuery Core
 
-Server state caching for Dart: queries, infinite queries, and mutations. Types are inferred from your query and mutation functions, so you don't write type arguments.
+Server state caching for Dart: queries, infinite queries, and mutations, with request deduplication, stale-while-revalidate caching, retries, and pagination.
 
-This is the pure Dart core. **For Flutter apps, use [`fuery`](https://pub.dev/packages/fuery)**, which re-exports this package and adds widgets. Use `fuery_core` directly for Dart servers, CLIs, or packages that shouldn't depend on Flutter.
+This is the pure Dart core. **For Flutter apps, use [`fuery`](https://pub.dev/packages/fuery)**, which re-exports this package and adds widgets. Use `fuery_core` directly for Dart servers, CLIs, or packages that shouldn't depend on Flutter. It depends only on the Dart team's `clock`, `collection`, and `meta`, and needs no code generation.
 
 **[Read the documentation →](https://galaxykhh.github.io/fuery/)**
 
@@ -37,31 +41,9 @@ await todos.refetch();
 await subscription.cancel(); // stops observing; the cache is freed after gcTime
 ```
 
-The stream sends the current `QueryResult` first, then every change. You can also read `todos.result` at any time, or use `subscribe(listener)`, which returns an unsubscribe function.
+The stream sends the current `QueryResult` first, then every change. `todos.result` reads the latest one at any time, and `subscribe(listener)` returns an unsubscribe function.
 
-To poll until something finishes, combine `refetchInterval` with `refetchWhile`:
-
-```dart
-final job = Query(
-  queryKey: ['jobs', id],
-  queryFn: (_) => api.getJob(id),
-  refetchInterval: const Duration(seconds: 2),
-  refetchWhile: (state) => state.data?.isDone != true,
-);
-```
-
-`streamedQuery` folds a `Stream` that ends into the query data, and the query succeeds with the first chunk:
-
-```dart
-final answer = Query(
-  queryKey: ['answer', question],
-  queryFn: streamedQuery(
-    stream: (context) => api.ask(question),
-    initialValue: '',
-    combine: (text, token) => text + token,
-  ),
-);
-```
+`todosQuery` is a `Query<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`. Mutations, infinite queries, results, and callbacks infer their types the same way. Only reads and writes by key alone name the type, because a key doesn't carry one: `Fuery.client.getQueryData<List<Todo>>(['todos'])`.
 
 ## Mutations
 
@@ -74,21 +56,6 @@ final addTodo = Mutation(
 
 final todo = await addTodo.mutateAsync('Buy milk'); // throws on error
 addTodo.mutate('Buy milk'); // reports errors in addTodo.result instead
-```
-
-## Infinite queries
-
-```dart
-final posts = InfiniteQuery(
-  queryKey: ['posts'],
-  queryFn: (context) => api.getPosts(page: context.pageParam),
-  initialPageParam: 1,
-  getNextPageParam: (data) =>
-      data.lastPage.hasMore ? data.lastPageParam + 1 : null,
-).observe();
-
-posts.stream.listen((result) => print(result.pages));
-await posts.fetchNextPage();
 ```
 
 ## QueryClient
@@ -107,39 +74,26 @@ Fuery.client.updateData(todosQuery, (todos) => [...?todos, todo]);
 Fuery.client.invalidateQueries(queryKey: ['todos']);
 ```
 
-To keep data across restarts, give the client a `QueryStorage` and add `persist` to a query. A mutation takes `persist: MutationPersist(...)` and a `mutationKey` the same way, and `client.restore(mutations: [...])` runs the ones that were still waiting when the process ended:
-
-```dart
-Fuery.client = QueryClient(storage: myStorage); // your QueryStorage, see the persistence guide
-
-final todos = Query(
-  queryKey: ['todos'],
-  queryFn: (_) => api.getTodos(),
-  persist: QueryPersist(
-    toJson: (todos) => [for (final todo in todos) todo.toJson()],
-    fromJson: (json) => [
-      for (final item in json! as List)
-        Todo.fromJson(item as Map<String, Object?>),
-    ],
-  ),
-);
-```
-
-`Fuery.client.watch` turns any value computed from the client into a `Stream`, without fetching anything:
-
-```dart
-Fuery.client.watch((client) => client.isFetching()).listen(print);
-```
-
-To build an adapter for another framework, such as another state library, keep a `QuerySlot` (or `InfiniteQuerySlot`, `MutationSlot`, or `QueriesSlot` for a list of queries) per rendered query: call `update(query, client)` on every render and read `result`. Listeners run synchronously, sometimes during another component's render, so wrap them in `notifyManager.batchCalls` when your framework can't update during a render. The Flutter widgets in `fuery` are built this way.
+## Running without Flutter
 
 A mounted client refetches when `focusManager` or `onlineManager` report that the app is focused or back online. Assigning `Fuery.client` mounts the new client; a client you pass to `observe(client:)` yourself, for example in a test, needs `client.mount()`. Pure Dart has no focus or connectivity events, so set them yourself with `setEventListener`, or call `setFocused` and `setOnline`.
 
 Cached queries keep garbage collection timers running, which keeps a Dart process alive. When a CLI is done, cancel its subscriptions, then call `Fuery.client.clear()`.
 
-## Documentation
+## Building an adapter for another framework
 
-The [`fuery` README](https://pub.dev/packages/fuery) covers the options, optimistic updates, cancellation, and defaults, and the [documentation](https://galaxykhh.github.io/fuery/) has a guide for each topic.
+An adapter, for example for another state library, keeps one `QuerySlot` (or `InfiniteQuerySlot`, `MutationSlot`, or `QueriesSlot` for a list of queries) per rendered query: call `update(query, client)` on every render and read `result`. Listeners run synchronously, sometimes during another component's render, so wrap them in `notifyManager.batchCalls` when your framework can't update during a render. The Flutter widgets in `fuery` are built this way. See [Building your own widgets or adapters](https://galaxykhh.github.io/fuery/guides/widgets/#building-your-own-widgets-or-adapters).
+
+## Learn more
+
+- [Queries](https://galaxykhh.github.io/fuery/guides/queries/): keys, stale time, results, polling, and cancelling a request.
+- [Mutations](https://galaxykhh.github.io/fuery/guides/mutations/): changing server data, optimistic updates, and rollback.
+- [Infinite queries](https://galaxykhh.github.io/fuery/guides/infinite-queries/): paginated lists, cursors, and previous pages.
+- [Streamed queries](https://galaxykhh.github.io/fuery/guides/streaming/): a `Stream` folded into the cache as it arrives.
+- [Persistence](https://galaxykhh.github.io/fuery/guides/persistence/): queries and mutations kept across restarts.
+- [QueryClient](https://galaxykhh.github.io/fuery/guides/query-client/): reading, writing, invalidating, and watching the cache, and defaults.
+- [Testing](https://galaxykhh.github.io/fuery/guides/testing/#testing-without-a-widget-tree): queries tested without a widget tree, with fake time.
+- [Query options](https://galaxykhh.github.io/fuery/reference/query-options/): every option, with its default.
 
 ## Acknowledgements
 
