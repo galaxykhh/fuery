@@ -40,7 +40,7 @@ From that one definition:
 - **One request at a time.** Screens that ask while a fetch runs share that request.
 - **Fresh, then stale.** Data is fresh for `staleTime` (default: zero, so stale as soon as it arrives).
 - **Old data stays on screen.** Screens keep showing it while Fuery refetches in the background.
-- **Refetches on its own.** Fuery refetches stale data when a screen starts using it, the app returns to the foreground, or the network reconnects.
+- **Refetches on its own.** Fuery refetches stale data when a screen starts using it and when the app returns to the foreground. With a connectivity source, it also refetches when the network reconnects ([Refetching automatically](../guides/lifecycle/#when-the-network-reconnects)).
 - **Refetches after writes.** Invalidating `['todos']` after a mutation refetches the list on screen.
 - **Loading and errors come with the data.** The result carries `status`, `error`, and flags such as `isRefetching`, so a screen reads them instead of tracking them.
 - **Unused data leaves memory.** Fuery removes data that no screen uses after `gcTime`, the garbage collection time (default: 5 minutes). Persisted data stays on the device.
@@ -55,7 +55,7 @@ The cache is a plain Dart object, not part of the widget tree. The same query wo
 - a cubit listens to the `stream` of `todosQuery.observe()`,
 - a script awaits `client.query(todosQuery)`.
 
-Fuery doesn't replace the state management you already use. [Bloc and cubits](../guides/bloc/) shows queries inside cubits and blocs.
+Fuery doesn't replace the state management you already use. [Using with bloc](../guides/bloc/) shows queries inside cubits and blocs.
 
 ## Next steps
 

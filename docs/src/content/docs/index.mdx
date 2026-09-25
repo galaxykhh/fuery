@@ -47,8 +47,8 @@ QueryBuilder(
 	<Card title="Built the Flutter way" icon="puzzle">
 		A screen that shows a query stays a `StatelessWidget`. You define queries
 		outside `build`, and widgets render them the way `StreamBuilder` renders a
-		stream: builders for UI, listeners for side effects. Adopt it one screen at
-		a time, with nothing to replace. For hooks,
+		stream: builders for UI, listeners for side effects. Adopt Fuery one screen
+		at a time, with nothing to replace. For hooks,
 		<a href="guides/hooks/">fuery_hooks</a> renders the same queries with
 		`useQuery`, in a package of its own.
 	</Card>
@@ -61,8 +61,8 @@ QueryBuilder(
 	<Card title="Cached and fresh" icon="database">
 		Every widget that uses a key shares one cache entry and one request. Stale
 		data stays on screen while Fuery refetches it in the background. A refetch
-		that returns the same items keeps the same objects, so list rows don't
-		rebuild.
+		that returns equal items, by `==`, keeps the previous objects, so those
+		list rows don't rebuild.
 	</Card>
 	<Card title="Types from your functions" icon="approve-check">
 		Queries, mutations, and infinite queries take their types from their
@@ -73,10 +73,14 @@ QueryBuilder(
 		first page param is `null`</a>.
 	</Card>
 	<Card title="Built for real networks" icon="rocket">
-		Failed fetches retry 3 times with backoff. Queries refetch when the app
-		resumes and pause while the device is offline. Fuery cancels requests
-		nobody needs anymore, without reporting them as errors. A query can poll
-		until a condition holds, or fold a stream into the cache.
+		Queries on screen retry a failed fetch 3 times with backoff and refetch
+		when the app resumes. With a
+		<a href="guides/lifecycle/#when-the-network-reconnects">connectivity
+		source</a>, they pause while the device is offline and refetch when it
+		reconnects. Fuery cancels a query function that reads `context.signal`
+		once nothing uses it, and doesn't report the cancellation as an error.
+		A query can poll until a condition holds, or fold a stream into the
+		cache.
 	</Card>
 	<Card title="Persisted and inspectable" icon="magnifier">
 		Queries you persist survive app restarts, with any key-value storage. The
