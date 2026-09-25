@@ -3,7 +3,7 @@ title: Devtools
 description: Inspect the Flutter query cache while the app runs, on a device or in the browser.
 ---
 
-`FueryDevtools` shows every query and mutation of a client while the app runs: their status, their data, and buttons to refetch or clear them. It adds a button over your app that opens the panel.
+`FueryDevtools` shows what a client's cache holds while the app runs. For each query, it shows the status and the data, with buttons to refetch, invalidate, reset, or remove the query. For each mutation run, it shows the status, variables, and error. It adds a button over your app that opens the panel.
 
 ## Adding the devtools
 
@@ -30,8 +30,8 @@ The Queries tab lists every query in the cache, one row per key, with its status
 | `paused` | A fetch is waiting for the network, or for the app to return to the foreground to retry |
 | `inactive` | No observer uses it. Fuery removes it after `gcTime` |
 | `disabled` | Every observer has `enabled: false`, so it doesn't fetch on its own |
-| `stale` | In use, and refetches on the next trigger |
-| `fresh` | In use, and younger than its `staleTime` |
+| `stale` | In use, and Fuery refetches it the next time a widget starts using it, the app returns to the foreground, or the network reconnects |
+| `fresh` | In use, its data was updated within its `staleTime`, and it hasn't been invalidated |
 
 Select a query to see its status, observers, last update, failure count, error, and data. Data shows as JSON, through `toJson()` where an object has one and `toString()` otherwise.
 
@@ -40,8 +40,8 @@ The buttons act on the selected query:
 | Button | What it does |
 |---|---|
 | Refetch | Fetches it again, like [`refetchQueries`](../../reference/query-client/#operations-on-matching-queries), which skips a disabled query, a static query with data, and a query that only `setQueryData` wrote |
-| Invalidate | Marks it stale. Fuery refetches it if it's in use |
-| Reset | Returns it to its initial state and deletes its [persisted data](../persistence/). Fuery refetches it if it's in use |
+| Invalidate | Marks it stale. If an enabled observer uses it, Fuery refetches it as Refetch does |
+| Reset | Returns it to its initial state and deletes its [persisted data](../persistence/). If an enabled observer uses it, Fuery refetches it as Refetch does |
 | Remove | Removes it from the cache and deletes its persisted data. A widget still using it loads it again |
 
 ## The Mutations tab
