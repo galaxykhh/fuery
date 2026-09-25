@@ -136,8 +136,8 @@ class RowsView extends HookWidget {
 
   final List<int> ids;
 
-  /// Whether the list of definitions is kept while [ids] is the same list,
-  /// instead of built on every build.
+  /// Whether the list of definitions is kept while [ids] holds the same ids,
+  /// as the hooks guide shows, instead of built on every build.
   final bool memoized;
   final void Function(List<QueryResult<String>> results) onBuild;
 
@@ -145,7 +145,7 @@ class RowsView extends HookWidget {
   Widget build(BuildContext context) {
     List<Query<String>> queries() => [for (final id in ids) rowQuery(id)];
     final results = useQueries(
-      memoized ? useMemoized(queries, [ids]) : queries(),
+      memoized ? useMemoized(queries, ids) : queries(),
     );
     onBuild(results);
     return Text('${results.length} rows');
