@@ -14,6 +14,10 @@ class MutationObserver<TData, TVariables, TContext>
 
   final QueryClient _client;
   Mutation<TData, TVariables, TContext>? _options;
+
+  /// [hashKey] of the key of [options], once [_sameKeyHash] hashed it, so
+  /// the next [setOptions] doesn't hash it again.
+  String? _keyHash;
   late MutationResult<TData, TVariables, TContext> _currentResult;
   CachedMutation<TData, TVariables, TContext>? _currentMutation;
 
@@ -51,20 +55,34 @@ class MutationObserver<TData, TVariables, TContext>
   void setOptions(Mutation<TData, TVariables, TContext> options) {
     final prevOptions = _options;
     _options = _client._defaultMutationOptions(options);
+    final prevKey = prevOptions?.mutationKey;
+    final nextKey = this.options.mutationKey;
+    final sameKeyHash = prevOptions != null && _sameKeyHash(prevKey, nextKey);
 
-    if (!this.options._sameConfig(prevOptions)) {
+    if (!this.options._sameConfig(prevOptions, sameKeyHash: sameKeyHash)) {
       _client.mutationCache._notify();
     }
 
-    final prevKey = prevOptions?.mutationKey;
-    final nextKey = this.options.mutationKey;
-    if (prevKey != null &&
-        nextKey != null &&
-        hashKey(prevKey) != hashKey(nextKey)) {
+    if (prevKey != null && nextKey != null && !sameKeyHash) {
       reset();
     } else if (_currentMutation?.state.status == MutationStatus.pending) {
       _currentMutation?._setOptions(this.options);
     }
+  }
+
+  /// Whether [prevKey] and [nextKey] have the same [hashKey]. Hashes one key
+  /// at most: [_keyHash] keeps the hash of the key before, and a key that
+  /// [sameKey] finds the same isn't hashed.
+  bool _sameKeyHash(MutationKey? prevKey, MutationKey? nextKey) {
+    if (prevKey != null && nextKey != null && sameKey(prevKey, nextKey)) {
+      // The same list can have changed in place since it was hashed.
+      if (identical(prevKey, nextKey)) _keyHash = null;
+      return true;
+    }
+    final nextHash = nextKey == null ? null : hashKey(nextKey);
+    final prevHash = prevKey == null ? null : _keyHash ?? hashKey(prevKey);
+    _keyHash = nextHash;
+    return nextHash == prevHash;
   }
 
   @override

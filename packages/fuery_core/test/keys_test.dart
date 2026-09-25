@@ -270,13 +270,19 @@ void main() {
 
     fakeTest('keeps its run when the key is changed in place', (async) {
       final key = <Object?>['todos', 1];
-      final observer = save(key).observe(client: client);
+      final observer = save(['other']).observe(client: client);
+      // A new key is hashed.
+      observer.setOptions(save(key));
       observer.mutate('a');
       async.elapse(ms10);
 
       key[1] = 2;
       observer.setOptions(save(key));
       expect(observer.result.data, 'a');
+
+      // The list holds another key now than when it was hashed.
+      observer.setOptions(save(['todos', 1]));
+      expect(observer.result.isIdle, isTrue);
     });
 
     fakeTest('throws for a key it cannot hash once options change', (async) {

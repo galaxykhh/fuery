@@ -318,13 +318,17 @@ class Mutation<TData, TVariables, TContext extends Object?>
   }
 
   /// Whether [other] configures the mutation the same way, as far as
-  /// anything watching the cache can tell. Functions and codecs are compared
-  /// only by whether they are set, like [Query]; the observer uses the
-  /// latest ones either way.
-  bool _sameConfig(Mutation<TData, TVariables, TContext>? other) {
+  /// anything watching the cache can tell. [sameKeyHash] tells whether the
+  /// keys have the same hash, which the observer knows. Functions and codecs
+  /// are compared only by whether they are set, like [Query]; the observer
+  /// uses the latest ones either way.
+  bool _sameConfig(
+    Mutation<TData, TVariables, TContext>? other, {
+    required bool sameKeyHash,
+  }) {
     bool sameSet(Object? a, Object? b) => (a == null) == (b == null);
     return other != null &&
-        _keyHash(mutationKey) == _keyHash(other.mutationKey) &&
+        sameKeyHash &&
         gcTime == other.gcTime &&
         networkMode == other.networkMode &&
         const DeepCollectionEquality().equals(meta, other.meta) &&
@@ -338,9 +342,6 @@ class Mutation<TData, TVariables, TContext extends Object?>
         sameSet(onSettled, other.onSettled) &&
         sameSet(persist, other.persist);
   }
-
-  static String? _keyHash(MutationKey? key) =>
-      key == null ? null : hashKey(key);
 
   Mutation<TData, TVariables, TContext> _withDefaults(
     MutationDefaults defaults,
