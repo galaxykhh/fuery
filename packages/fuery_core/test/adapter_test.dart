@@ -710,6 +710,40 @@ void main() {
     Fuery.client.clear();
   });
 
+  test('results carry the observer that reported them, left out of ==', () {
+    final query = post(1).observe(client: client);
+    final infinite = InfiniteQuery(
+      queryKey: ['pages'],
+      queryFn: (context) async => 'page ${context.pageParam}',
+      initialPageParam: 1,
+      getNextPageParam: (data) => null,
+    ).observe(client: client);
+    final mutation = Mutation(mutationFn: (int x) async => x).observe(
+      client: client,
+    );
+
+    // An adapter given only a result, such as a hook given what another
+    // hook returned, reaches the observer to listen to it. Each is typed
+    // like its observer.
+    final QueryObserver<String>? fromQuery =
+        query.getOptimisticResult().observer;
+    final InfiniteQueryObserver<String, int>? fromInfinite =
+        infinite.getOptimisticResult().observer;
+    final MutationObserver<int, int, Object?> fromMutation =
+        mutation.result.observer;
+    expect(identical(fromQuery, query), isTrue);
+    expect(identical(fromInfinite, infinite), isTrue);
+    expect(identical(fromMutation, mutation), isTrue);
+
+    // Results of two observers in the same state are equal.
+    final another = post(1).observe(client: client);
+    expect(another.getOptimisticResult(), query.getOptimisticResult());
+    final idle = Mutation(mutationFn: (int x) async => x).observe(
+      client: client,
+    );
+    expect(idle.result, mutation.result);
+  });
+
   group('results act on their query', () {
     fakeTest('QueryResult.refetch', (async) {
       final fetcher = FakeFetcher(() => 'todos');
@@ -785,6 +819,7 @@ void main() {
         isEnabled: true,
       );
       expect(result.refetch, throwsStateError);
+      expect(result.observer, isNull);
     });
   });
 

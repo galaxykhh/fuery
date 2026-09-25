@@ -364,6 +364,11 @@ class InfiniteQueryResult<TPage, TParam>
   /// All pages, or an empty list if there is no data yet.
   List<TPage> get pages => data?.pages ?? const [];
 
+  /// The [InfiniteQueryObserver] that reported this result.
+  @override
+  InfiniteQueryObserver<TPage, TParam>? get observer =>
+      _observer as InfiniteQueryObserver<TPage, TParam>?;
+
   InfiniteQueryObserver<TPage, TParam> get _infiniteReporter =>
       _reporter as InfiniteQueryObserver<TPage, TParam>;
 

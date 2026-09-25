@@ -173,6 +173,11 @@ class MutationResult<TData, TVariables, TContext>
 
   final MutationObserver<TData, TVariables, TContext> _observer;
 
+  /// The observer that reported this result. An adapter given only a
+  /// result, such as a hook given the result of another hook, can listen to
+  /// it. Left out of `==`.
+  MutationObserver<TData, TVariables, TContext> get observer => _observer;
+
   /// Runs the mutation without waiting for it, like
   /// [MutationObserver.mutate].
   void mutate(

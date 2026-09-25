@@ -58,6 +58,11 @@ class QueryResult<TData extends Object> {
 
   final QueryObserver<TData>? _observer;
 
+  /// The observer that reported this result, or null for a result built
+  /// with the constructor. An adapter given only a result, such as a hook
+  /// given the result of another hook, can listen to it. Left out of `==`.
+  QueryObserver<TData>? get observer => _observer;
+
   /// Whether there is data ([QueryStatus.success]), an error with no data
   /// ([QueryStatus.error]), or neither yet ([QueryStatus.pending]).
   final QueryStatus status;
