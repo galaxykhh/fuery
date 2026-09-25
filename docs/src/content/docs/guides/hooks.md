@@ -173,9 +173,9 @@ useOnMutationStateChange(
 
 When the result the widget mounts with already decides what to show, such as a signed-out user, decide it in `build` from the result the hook returns. No change hook is called for it.
 
-### Why not `useEffect`
+### Showing a snackbar or navigating from `useEffect`
 
-`flutter_hooks` runs a `useEffect` callback during the build: on the first build, then on every build whose keys changed, or on every build when it has no keys. A snackbar or a navigation fails there, because it changes the widget tree while the tree is building. The effect also runs for the value the widget mounts with. `useValueChanged` runs during the build too. The change hooks run after the build, and only for later changes.
+`flutter_hooks` runs a `useEffect` callback during the build: on the first build, then on every build whose keys changed, or on every build when it has no keys. A snackbar or a navigation fails there, because it changes the widget tree while the tree is building. In a debug build, `showSnackBar` reports `The showSnackBar() method cannot be called during build.`, and `Navigator.pop` reports `setState() or markNeedsBuild() called during build.` On the first build, or after its keys changed, an effect that calls `ScaffoldMessenger.of(context)` fails first, with `Cannot listen to inherited widgets inside HookState.initState.` The effect also runs for the value the widget mounts with. `useValueChanged` runs during the build too. The change hooks run after the build, and only for later changes.
 
 ## Showing every run of a mutation
 
