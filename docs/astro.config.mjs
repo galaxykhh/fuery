@@ -41,7 +41,7 @@ export default defineConfig({
 				{ label: 'Getting started', slug: 'getting-started' },
 				{
 					label: 'Concepts',
-					items: ['server-state', 'guides/organizing-queries'],
+					items: ['server-state', 'how-the-cache-works', 'guides/organizing-queries'],
 				},
 				{
 					label: 'Guides',
