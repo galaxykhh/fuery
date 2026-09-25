@@ -60,15 +60,15 @@ Fuery uses `null` for "no data yet", so a query function returns a non-nullable 
 
 ## Stale time and freshness
 
-Data is fresh for `staleTime` (default: zero) and stale after it. Fuery refetches stale data in the background, and keeps it on screen, when a widget starts using the query, the app returns to the foreground, the network reconnects, or you invalidate the query. [Query lifecycle](../../how-the-cache-works/#query-lifecycle) lists every stage.
+Data is fresh for `staleTime` (default: zero) and stale after it. Stale data stays on screen. Fuery refetches it in the background when a widget or stream starts using the query, the app returns to the foreground, the network reconnects, or you invalidate the query. [Query lifecycle](../../how-the-cache-works/#query-lifecycle) lists every stage.
 
 Set `staleTime` to how long the data can be shown without asking the server again:
 
-- `Duration(minutes: 1)` keeps the data fresh for a minute after each fetch, so those events don't refetch it within that minute.
+- `Duration(minutes: 1)` keeps the data fresh for a minute after each fetch. Within that minute, Fuery doesn't refetch it when a widget or stream starts using the query, the app returns to the foreground, or the network reconnects. Invalidating the query still refetches it.
 - `infiniteDuration` keeps the data fresh until you invalidate it.
 - `staticStaleTime` is for data that never changes. The data never goes stale and never refetches on its own, not even after you invalidate it.
 
-Each widget of a key can set its own `staleTime`, so a screen with a shorter one refetches when it opens.
+Two screens can show one key with different `staleTime` values, and each screen judges freshness by its own. With data fetched 30 seconds ago, a screen whose query sets `staleTime` to 10 seconds refetches when it opens. A screen whose query sets it to 1 minute shows the cached data without refetching.
 
 Data that no widget or stream uses stays in memory for `gcTime` (garbage collection time, default: 5 minutes). A screen opened again within that time shows the data at once.
 
@@ -88,7 +88,9 @@ Fuery.client = QueryClient(
 );
 ```
 
-`failureCount` is 0 for the first failure. `RetryPolicy.count(3)` is the default, and `RetryPolicy.never()` and `RetryPolicy.always()` are the other shorthands. A single query can set its own `retry`. `client.query` and mutations retry only when a `retry` is set, on the definition or in the defaults.
+In `RetryPolicy.when`, `failureCount` is 0 for the first failure, so `failureCount < 3` allows three retries. `QueryResult.failureCount` is the number of failed attempts instead, so it is 1 after the first failure.
+
+`RetryPolicy.count(3)` is the default, and `RetryPolicy.never()` and `RetryPolicy.always()` are the other shorthands. A single query can set its own `retry`. `client.query` and mutations retry only when a `retry` is set, on the definition or in the defaults.
 
 ## Changing what a query asks for
 
@@ -214,7 +216,7 @@ Fuery compares refetched data with the cached data, deeply, and keeps the cached
 - Equal data stays the same object.
 - In a list that changed, each item equal to the item at the same index stays the previous object. Items compare with `==`.
 
-Code that compares data, such as a `buildWhen` or a `QuerySelector`, then sees no change where nothing changed. This builder skips the rebuild when a refetch returns the same todos, although `List` compares by identity:
+Code that compares data with `==`, such as a `buildWhen`, then sees no change where nothing changed. This builder skips the rebuild when a refetch returns the same todos, although `List` compares by identity:
 
 ```dart
 QueryBuilder(
@@ -242,7 +244,7 @@ queryFn: (context) {
 
 Without the signal, the request finishes and Fuery caches its result for next time.
 
-`context.signal` is an `AbortSignal`. A query function that works in steps can check `signal.aborted` between them, call `signal.throwIfAborted()` to stop with an `AbortedException`, or race `signal.whenAborted` against its own work.
+`context.signal` is an `AbortSignal`. A query function that works in steps can check `signal.aborted` between them, call `signal.throwIfAborted()` to stop with the cancellation's `CancelledError`, or race `signal.whenAborted` against its own work.
 
 Fuery doesn't treat a cancellation as a failure:
 
@@ -252,7 +254,7 @@ Fuery doesn't treat a cancellation as a failure:
 
 Only a query function that ignores the abort and returns a value can put outdated data in the cache.
 
-A `CancelledError` that the query function throws itself is a failure like any other. A query function that awaits `context.client.query(userQuery)` throws one when `userQuery` is cancelled or removed while it loads: the query goes to error, and `QueryCacheConfig.onError` receives it.
+A `CancelledError` that the query function throws itself is a failure like any other. For example, a query function that awaits `context.client.query(userQuery)` throws one when `userQuery` is removed while it loads, or cancelled before it has data. Fuery retries the query whose function threw it, as its `retry` allows. When every attempt fails, that query goes to error, and `QueryCacheConfig.onError` receives the `CancelledError`.
 
 ## In the example app
 
