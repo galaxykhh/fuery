@@ -169,19 +169,16 @@ List<MutationState<TData, TVariables, TContext>>
 /// The hook listens to the observer that reported [result], which it never
 /// destroys, and adds no observer and no rebuild. When a later result comes
 /// from another observer, such as after the provided client was replaced,
-/// it moves to that one without a call.
+/// it moves to that one without a call. Given a result that no observer
+/// reported, such as one built with the [QueryResult] constructor, the hook
+/// calls nothing, so a view that takes a result can be rendered with one in
+/// tests.
 void useOnQueryChange<R extends QueryResult<Object>>(
   R result, {
   required ResultWidgetListener<R> listener,
   ResultCondition<R>? listenWhen,
 }) {
   final observer = result.observer;
-  assert(
-    observer != null,
-    'useOnQueryChange got a result that no observer reported, such as one '
-    'built with the QueryResult constructor. Pass the result that useQuery '
-    'or useInfiniteQuery returns.',
-  );
   final infinite = observer is InfiniteQueryObserver;
   use(
     _ChangeHook<QueryObserver<Object>,
@@ -503,13 +500,11 @@ class _ChangeHookState<S, T extends ObserverSlot<Object?, Object?>, L>
   void build(BuildContext context) {
     final source = hook.source;
     if (source == null) {
-      // coverage:ignore-start
-      // Only a release build gets here: useOnQueryChange asserts first, and
-      // tests run asserts.
+      // A result built with the QueryResult constructor: nothing reports
+      // its changes.
       _slot?.dispose();
       _slot = null;
       return;
-      // coverage:ignore-end
     }
     final client = hook.client ?? FueryProvider.of(context, listen: true);
     final slot = _slot;

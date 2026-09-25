@@ -1133,29 +1133,60 @@ void main() {
       await tearDownApp(tester);
     });
 
-    testWidgets('a result that no observer reported fails an assert',
+    testWidgets('calls nothing for a result that no observer reported',
         (tester) async {
+      // Made up, as a test of a view that takes a result would pass it.
       const handMade = QueryResult<String>(
-        status: QueryStatus.pending,
+        status: QueryStatus.success,
         fetchStatus: FetchStatus.idle,
-        data: null,
+        data: 'made up',
         dataUpdatedAt: 0,
         error: null,
         errorUpdatedAt: 0,
         errorUpdateCount: 0,
         failureCount: 0,
         failureReason: null,
-        isFetched: false,
-        isFetchedAfterMount: false,
+        isFetched: true,
+        isFetchedAfterMount: true,
         isPlaceholderData: false,
-        isStale: true,
+        isStale: false,
         isEnabled: true,
       );
-      await tester.pumpWidget(app(HookBuilder(builder: (_) {
-        useOnQueryChange(handMade, listener: (context, result) {});
-        return const SizedBox();
-      })));
-      expect(tester.takeException(), isA<AssertionError>());
+      client.setData(fresh(1), 'post 1');
+      final heard = <String>[];
+      // The view listens to the result it is given.
+      Widget view(QueryResult<String> shown) => HookBuilder(builder: (_) {
+            useOnQueryChange(
+              shown,
+              listener: (context, result) => heard.add(describe(result)),
+            );
+            return Text(describe(shown));
+          });
+      Widget screen({required bool madeUp}) => HookBuilder(builder: (_) {
+            final result = useQuery(fresh(1));
+            return view(madeUp ? handMade : result);
+          });
+      await tester.pumpWidget(app(screen(madeUp: true)));
+      client.setData(fresh(1), 'post 1!');
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(find.text('made up'), findsOneWidget);
+      expect(heard, isEmpty);
+
+      // A reported result starts listening, without a call for itself.
+      await tester.pumpWidget(app(screen(madeUp: false)));
+      await tester.pump();
+      expect(heard, isEmpty);
+      client.setData(fresh(1), 'post 1!!');
+      await tester.pump();
+      expect(heard, ['post 1!!']);
+
+      // A made-up one again stops it.
+      await tester.pumpWidget(app(screen(madeUp: true)));
+      client.setData(fresh(1), 'post 1!!!');
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(heard, ['post 1!!']);
       await tearDownApp(tester);
     });
   });
