@@ -4,14 +4,18 @@ import 'package:example/app/data/models.dart';
 import 'package:fuery/fuery.dart';
 
 /// Mutations live next to their queries, defined the same way. The cache
-/// work below is written once, and every widget or observer that runs a
-/// mutation keeps its own pending and error state. The callbacks receive the
-/// client that runs the mutation, so they work with any client.
+/// work below is written once. The callbacks receive the client that runs the
+/// mutation, so they work with any client.
+///
+/// A screen runs a mutation from its definition,
+/// `likePostMutation().mutate(id, context.queryClient)`, when the
+/// MutationState widgets show its runs, found by its `mutationKey`. A
+/// `MutationBuilder` runs it from its result when the widget shows the state
+/// of the runs it starts, such as a button that waits for its own call.
 ///
 /// Anything that belongs to a screen, such as a snackbar, goes to the screen
-/// instead. A `MutationStateListener` reacts to every run of a mutation, found
-/// by its `mutationKey`, and `MutateOptions` to one call:
-/// `state.mutate(variables, MutateOptions(...))`.
+/// instead. A `MutationStateListener` reacts to every run of a mutation, and
+/// `MutateOptions` to one call: `state.mutate(variables, MutateOptions(...))`.
 
 /// What the cache held before an optimistic like, to put back on failure.
 class LikeSnapshot {
