@@ -158,6 +158,32 @@ void main() {
       expect(storedMutations(), isEmpty);
     });
 
+    fakeTest('stores a run from the definition, which a restart restores',
+        (async) {
+      final mutator = FakeMutator();
+      commentOptions(mutator).mutate('now', client);
+      async.flushMicrotasks();
+      expect(storedMutations(), hasLength(1));
+      async.elapse(ms10);
+      expect(mutator.calls, ['now']);
+      expect(storedMutations(), isEmpty);
+
+      onlineManager.setOnline(false);
+      commentOptions(mutator).mutate('later', client);
+      async.flushMicrotasks();
+      expect(storedMutations(), hasLength(1));
+
+      // The app restarts.
+      final restarted = QueryClient(storage: storage);
+      addTearDown(restarted.clear);
+      final afterRestart = FakeMutator();
+      restarted.restore(mutations: [commentOptions(afterRestart)]);
+      onlineManager.setOnline(true);
+      async.elapse(ms10);
+      expect(afterRestart.calls, ['later']);
+      expect(storedMutations(), isEmpty);
+    });
+
     fakeTest('stores a mutation that paused offline', (async) {
       onlineManager.setOnline(false);
       final addComment = Mutation(

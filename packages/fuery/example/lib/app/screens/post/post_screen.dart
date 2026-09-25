@@ -46,10 +46,15 @@ class _PostScreenState extends State<PostScreen> {
     super.dispose();
   }
 
-  void _send(MutationResult<Comment, NewComment, void> addComment) {
+  // The list below the comments shows the comment on its way, so the
+  // definition runs it and no widget has to keep it.
+  void _send() {
     final body = _draft.text.trim();
     if (body.isEmpty) return;
-    addComment.mutate((postId: widget.id, body: body));
+    addCommentMutation().mutate(
+      (postId: widget.id, body: body),
+      context.queryClient,
+    );
     _draft.clear();
   }
 
@@ -139,27 +144,23 @@ class _PostScreenState extends State<PostScreen> {
             top: false,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 8, 8),
-              // Runs the mutation; the list above shows its runs.
-              child: MutationBuilder(
-                mutation: addCommentMutation(),
-                builder: (context, addComment) => Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _draft,
-                        decoration: const InputDecoration(
-                          hintText: 'Write a comment',
-                        ),
-                        onSubmitted: (_) => _send(addComment),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _draft,
+                      decoration: const InputDecoration(
+                        hintText: 'Write a comment',
                       ),
+                      onSubmitted: (_) => _send(),
                     ),
-                    IconButton(
-                      tooltip: 'Send',
-                      onPressed: () => _send(addComment),
-                      icon: const Icon(Icons.send),
-                    ),
-                  ],
-                ),
+                  ),
+                  IconButton(
+                    tooltip: 'Send',
+                    onPressed: _send,
+                    icon: const Icon(Icons.send),
+                  ),
+                ],
               ),
             ),
           ),
