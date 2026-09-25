@@ -6,7 +6,7 @@
 
 Hooks for [Fuery](https://pub.dev/packages/fuery): render cached server data from inside `build`, in a [`flutter_hooks`](https://pub.dev/packages/flutter_hooks) `HookWidget`.
 
-Fuery is built the Flutter way. Queries live outside `build`, and widgets render them: builders for UI and listeners for side effects, in the shape of `StreamBuilder`. And `fuery` depends on nothing beyond Dart and Flutter.
+Fuery is built the Flutter way. Queries keep their data outside `build`, and widgets render them: builders for UI and listeners for side effects, in the shape of `StreamBuilder`. And `fuery` depends on nothing beyond Dart and Flutter.
 
 `fuery_hooks` is for developers who prefer hooks. It is a package of its own because it depends on `flutter_hooks`, so only apps that choose hooks get that dependency. It renders the same queries with one call per query and no builders:
 
@@ -109,4 +109,4 @@ See [Reacting to changes](https://galaxykhh.github.io/fuery/guides/hooks/#reacti
 - **Memoize the stream of `client.watch`.** Write `useStream(useMemoized(() => client.watch(selector), [client]))`. A new stream on every build rebuilds the widget on every frame.
 - **Get the client with `useQueryClient()`.** It returns the client of the nearest `FueryProvider` above, or `Fuery.client` without one. The hooks use that client. A shared observer keeps the client it was created with.
 
-Everything else, from keys and freshness to persistence and devtools, works as in Fuery. See the [documentation](https://galaxykhh.github.io/fuery/).
+Everything else, from keys and freshness to persistence and devtools, is the same as with Fuery's widgets. See the [documentation](https://galaxykhh.github.io/fuery/).

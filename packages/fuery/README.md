@@ -6,13 +6,13 @@
 
 Fetch, cache, and keep server data fresh in Flutter.
 
-One request per key, cached data on screen while it refetches, retries, pagination, optimistic updates, and persistence.
+Screens that use the same key share one request, and cached data stays on screen while Fuery refetches it. Retries, pagination, optimistic updates, and persistence are built in.
 
 **[Read the documentation →](https://galaxykhh.github.io/fuery/)** · **[Try the demo →](https://galaxykhh.github.io/fuery/demo/)**
 
 ## Why Fuery
 
-- **Built the Flutter way.** A screen that shows a query stays a `StatelessWidget`. Queries live outside `build` and need no `BuildContext` or setup. Widgets render them in the shape of `StreamBuilder`: builders for UI, listeners for side effects.
+- **Built the Flutter way.** A screen that shows a query stays a `StatelessWidget`. Queries keep their data outside `build` and need no `BuildContext` or setup. Widgets render them in the shape of `StreamBuilder`: builders for UI, listeners for side effects.
 - **Nothing beyond Dart and Flutter.** `fuery` depends on Flutter and `fuery_core`, and `fuery_core` only on the Dart team's `clock`, `collection`, and `meta`. Fuery needs no code generation.
 - **One key, one cache entry, one request.** Every screen that uses the key `['todos']` shows the same data and shares one request for it.
 - **Stale data refreshes in the background.** The cached data stays on screen while Fuery refetches it, when another screen starts using it or the app returns to the foreground.
@@ -52,7 +52,7 @@ class TodoListScreen extends StatelessWidget {
 }
 ```
 
-The query fetches when `QueryBuilder` mounts. `QueryResult(:final data?)` matches only when there is data. A list that fails to refresh stays on screen, and the error shows only while there is no data.
+The query fetches when `QueryBuilder` mounts. `QueryResult(:final data?)` matches only when there is data, and it comes before the error case. So a list that fails to refresh stays on screen, and the error shows only while there is no data.
 
 `todosQuery` is a `Query<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`, so `data` is a `List<Todo>`. Mutations, infinite queries, widgets, results, and callbacks infer their types the same way. You name a type in two cases:
 
@@ -61,7 +61,7 @@ The query fetches when `QueryBuilder` mounts. `QueryResult(:final data?)` matche
 
 ## Widgets
 
-Choose a widget by the source it takes and what it does:
+Pick the row for what the widget watches and the column for what it does:
 
 | | Rebuild UI | Side effects | Both | Part of the state |
 |---|---|---|---|---|
@@ -107,7 +107,7 @@ MutationBuilder(
 
 Returning the `invalidateQueries` future from `onSuccess` keeps the mutation pending until the list has refetched.
 
-In other widgets, `MutationStateBuilder`, `MutationStateSelector`, and `MutationStateListener` show or hear every run of the mutation. They find the runs by `mutationKey`, wherever they started:
+In widgets that don't run the mutation, `MutationStateBuilder`, `MutationStateSelector`, and `MutationStateListener` show or hear every run of it. They find the runs by `mutationKey`, wherever each run started:
 
 ```dart
 MutationStateListener(
@@ -120,7 +120,7 @@ MutationStateListener(
 )
 ```
 
-## Using with bloc
+## Bloc and cubits
 
 Outside widgets, `observe()` returns an observer whose `stream` emits the current result first, then every change. Listening to the stream makes the query fetch. The cubit shares the cache entry with every widget that uses the key:
 

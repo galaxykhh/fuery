@@ -6,7 +6,7 @@
 
 # Fuery Core
 
-Server state caching for Dart: queries, infinite queries, and mutations, with one request per key, cached data while it refetches, retries, and pagination.
+Server state caching for Dart: queries, infinite queries, and mutations. Observers of one key share one request and keep the cached data while Fuery refetches it. Retries and pagination are built in.
 
 This is the pure Dart core. **For Flutter apps, use [`fuery`](https://pub.dev/packages/fuery)**, which re-exports this package and adds widgets. Use `fuery_core` directly in Dart servers, CLIs, and packages that shouldn't depend on Flutter. It depends only on the Dart team's `clock`, `collection`, and `meta`, and needs no code generation.
 
@@ -87,7 +87,7 @@ A Dart process stays alive while cached queries keep their garbage collection ti
 
 ## Building an adapter for another framework
 
-An adapter, for example for another state library, renders each query or mutation through a slot: a `QuerySlot`, `InfiniteQuerySlot`, `MutationSlot`, `QueriesSlot`, or `MutationStateSlot` keeps the observer of one rendered source up to date, and its `result` is what to render. The widgets in `fuery` and the hooks in `fuery_hooks` are built this way, with this package's public API alone. See [Building an adapter](https://galaxykhh.github.io/fuery/guides/adapters/) for the slot contract, batching, and side effects.
+An adapter, for example for another state library, keeps one slot per rendered source: a `QuerySlot`, `InfiniteQuerySlot`, `MutationSlot`, `QueriesSlot` for a list of queries, or `MutationStateSlot` for every run of a mutation. On every render, call the slot's `update(source, client)` and render its `result`. Call `subscribe` to render again after each change, and `dispose` when the component goes away. The widgets in `fuery` and the hooks in `fuery_hooks` are built this way, with this package's public API alone. See [Building an adapter](https://galaxykhh.github.io/fuery/guides/adapters/) for batching and side effects.
 
 ## Learn more
 
@@ -101,7 +101,7 @@ An adapter, for example for another state library, renders each query or mutatio
 - [Reading and updating the cache](https://galaxykhh.github.io/fuery/guides/query-client/): reading, writing, invalidating, and watching cached data.
 - [Testing](https://galaxykhh.github.io/fuery/guides/testing/#testing-without-a-widget-tree): queries tested without a widget tree, with fake time.
 
-Reference: [Query options](https://galaxykhh.github.io/fuery/reference/query-options/), [Query results](https://galaxykhh.github.io/fuery/reference/query-results/), and [QueryClient](https://galaxykhh.github.io/fuery/reference/query-client/).
+Reference: [Query options](https://galaxykhh.github.io/fuery/reference/query-options/), [Query results](https://galaxykhh.github.io/fuery/reference/query-results/), [Mutation options](https://galaxykhh.github.io/fuery/reference/mutation-options/), [Mutation results](https://galaxykhh.github.io/fuery/reference/mutation-results/), and [QueryClient](https://galaxykhh.github.io/fuery/reference/query-client/).
 
 ## Acknowledgements
 

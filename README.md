@@ -19,7 +19,7 @@ QueryBuilder(
 )
 ```
 
-- **Built the Flutter way.** A screen that shows a query stays a `StatelessWidget`, so you can start with one screen of the app you have. Queries live outside `build` and need no `BuildContext` or setup. Widgets render them in the shape of `StreamBuilder`: builders for UI, listeners for side effects.
+- **Built the Flutter way.** A screen that shows a query stays a `StatelessWidget`, so you can start with one screen of the app you have. Queries keep their data outside `build` and need no `BuildContext` or setup. Widgets render them in the shape of `StreamBuilder`: builders for UI, listeners for side effects.
 - **Nothing beyond Dart and Flutter.** `fuery` depends on Flutter and `fuery_core`, and `fuery_core` only on the Dart team's `clock`, `collection`, and `meta`. The core is pure Dart, so blocs, cubits, services, CLIs, and servers get the same queries as a `Stream` from `observe()`. Hooks live in [`fuery_hooks`](packages/fuery_hooks), a package of its own, so only apps that choose `flutter_hooks` depend on it.
 - **One idea to learn.** A query is a definition. You pass the same object to a widget, fetch it with the client, and read its cached data.
 - **Types come from your functions, with no code generation.** The snippet names no type: `todos` is a `Query<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`. Mutations, widgets, results, and callbacks infer their types the same way. You name a type in two cases: a read or write by key alone, as in `getQueryData<List<Todo>>(['todos'])`, and an [infinite query whose first page param is `null`](https://galaxykhh.github.io/fuery/guides/infinite-queries/#cursor-based-pages).
@@ -31,7 +31,7 @@ Fuery caches server data and sends one request per key, however many screens use
 
 ## Tested
 
-Every package has 100% line coverage, and CI fails when a line loses it. The core's 411 tests run under `fake_async`, which checks every retry delay, stale timer, and garbage collection against fake time. The widget tests run on the oldest supported Flutter, 3.27, and on the latest. A regression suite keeps fixed edge cases fixed, such as a cancelled fetch overwriting the one that replaced it, a restore racing a reset, or a removed query leaving a timer that keeps a test process alive.
+Every package has 100% line coverage, and CI fails when a line loses it. The core's 411 tests run under `fake_async`, so they check every retry delay, stale timer, and garbage collection against fake time. The widget tests run on the oldest supported Flutter, 3.27, and on the latest. A regression suite keeps fixed edge cases fixed, such as a cancelled fetch overwriting the one that replaced it, a restore racing a reset, or a removed query leaving a timer that keeps a test process alive.
 
 Your own tests can use `fake_async` and `testWidgets` without leaked timers. Fuery cancels each timer it starts when it destroys the query, mutation, or observer that owns the timer, and it reads time from `package:clock`. See [Testing](https://galaxykhh.github.io/fuery/guides/testing/).
 
