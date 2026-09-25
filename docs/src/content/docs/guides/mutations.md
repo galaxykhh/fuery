@@ -3,7 +3,9 @@ title: Mutations
 description: Create, update, and delete server data in Flutter, with optimistic updates and rollback.
 ---
 
-A mutation sends a change to the server, such as a new todo, and reports its progress to every screen that shows it:
+A mutation sends a change to the server, such as a new todo. Run it from a button, show its progress on any screen, tell the user when it fails, and update the cache before the server answers.
+
+This one adds a todo:
 
 ```dart
 final addTodo = Mutation(
@@ -15,7 +17,7 @@ final addTodo = Mutation(
 );
 ```
 
-Type the parameter of `mutationFn`, like `String title` above, and Fuery infers the other types. The `mutationKey` lets any widget find the mutation's runs. A run is one `mutate` call ([Mutation runs](../../how-the-cache-works/#mutation-runs)). [Mutation options](../../reference/mutation-options/) lists every option.
+Type the parameter of `mutationFn`, like `String title` above, and Dart infers the other types from it. The `mutationKey` lets any widget find the mutation's runs. A run is one `mutate` call ([Mutation runs](../../how-the-cache-works/#mutation-runs)). [Mutation options](../../reference/mutation-options/) lists every option.
 
 ## Running a mutation
 
@@ -35,16 +37,16 @@ MutationBuilder(
 - `await state.mutateAsync('Buy milk')` returns the data, and throws on error.
 - `state.reset()` returns the state to idle.
 
-[Mutation results](../../reference/mutation-results/#mutationstate-fields) lists every field of `state`.
+[Mutation results](../../reference/mutation-results/#mutationresult) lists every member and field of `state`.
 
-The builder shows only the runs it starts. To show the mutation anywhere else, such as a progress bar on another screen, use the [MutationState widgets](#showing-every-run-of-a-mutation). To run it from a cubit, or from several widgets that follow the same runs, see [Sharing one observer](#sharing-one-observer).
+The builder shows only the runs it starts. To show the mutation anywhere else, such as a progress bar on another screen, use the [MutationState widgets](#showing-every-run-of-a-mutation). To run it from a cubit, or from several widgets that must see only one screen's runs, see [Sharing one observer](#sharing-one-observer).
 
 ## Callbacks
 
 `onMutate` runs before `mutationFn`. `onSuccess`, `onError`, and `onSettled` run after it. [Callbacks](../../reference/mutation-options/#callbacks) lists their arguments and order.
 
 - The last argument, `client`, is the client running the mutation: the one a widget got from `FueryProvider`, or the one passed to `observe(client:)`. Use it instead of `Fuery.client`, so the callbacks reach the right cache in tests too.
-- A callback that returns a future keeps the mutation pending until the future completes. `addTodo` above returns the `invalidateQueries` future from `onSuccess`, so the button shows *Adding…* until the list has refetched.
+- When `onMutate`, `onSuccess`, `onError`, or `onSettled` returns a future, the run stays pending until the future completes. Fuery doesn't await the `MutateOptions` callbacks below. `addTodo` above returns the `invalidateQueries` future from `onSuccess`, so the button shows *Adding…* until the list has refetched.
 
 To react to one call only, pass `MutateOptions`. Its callbacks run after the mutation's own, once the call settles:
 
@@ -201,18 +203,24 @@ MutationStateBuilder(
 )
 ```
 
-Which runs they show:
+### Matching runs
 
-- A `Mutation` shows the runs whose `mutationKey` equals its own exactly, typed like the definition.
+- Given a `Mutation`, the widgets show the runs whose `mutationKey` equals its own exactly, typed like the definition.
 - Runs of another definition with the same key and types count too.
 - A run of other types under the key is left out and reported once to [`onUncaughtError`](../client-setup/#catching-errors-that-callbacks-throw). Give each definition a key of its own.
 - A definition without a `mutationKey` fails an assert in debug builds.
-- `MutationFilters` show the runs of any mutation that match them, as `client.mutationCache.findAll` does: by key prefix, `exact` key, `status`, or `predicate`. Their states are typed `Object?`.
+- Given `MutationFilters`, the widgets show the runs of any mutation that match them, as `client.mutationCache.findAll` finds them: by key prefix, `exact` key, `status`, or `predicate`. Their states are typed `Object?`.
 - Without a `status` filter, settled runs match too.
+
+### Run order and lifetime
+
 - Runs are listed oldest first, so `runs.lastOrNull` is the latest.
 - A run stays `gcTime` (default: 5 minutes) after it settles, so build an indicator from `isPending`, not from the number of runs.
 - A mounted `MutationBuilder` keeps its latest run for as long as it shows it.
 - `client.clear()` removes every run.
+
+### Client and cost
+
 - Only the runs of the widget's client count: the nearest `FueryProvider`'s, or `Fuery.client`.
 - The widgets only read. They never run a mutation and apply none of the definition's options, so a definition built in `build` costs nothing.
 
@@ -238,7 +246,7 @@ MutationStateListener(
 
 Pass `MutateOptions(onError: ...)` instead when only one call site shows the failure. Use `mutateAsync` in a `try`/`catch` when the caller handles it.
 
-A `MutationListener` hears only the runs of the observer it gets, so given a definition it hears nothing. See [A MutationListener never runs](../../troubleshooting/#a-mutationlistener-never-runs).
+A `MutationListener` hears only the runs of the observer it gets. Given a definition, it creates an observer of its own that nothing runs, so it hears nothing. In debug builds, it also prints a warning. See [A MutationListener never runs](../../troubleshooting/#a-mutationlistener-never-runs).
 
 ## Sharing one observer
 

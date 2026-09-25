@@ -6,7 +6,7 @@ description: Keep cached server data across app restarts in Flutter, with any ke
 Store query data and pending mutations on the device, and they survive an app restart:
 
 - A persisted query shows its last data right away, then refetches it in the background if it's stale.
-- A persisted mutation that was waiting for the network when the app closed runs after the next start.
+- A persisted mutation that was waiting for the network when the app closed runs again once the app calls `restore(mutations:)` at the next start.
 
 ## Connecting storage
 
@@ -70,7 +70,7 @@ final todosQuery = Query(
 );
 ```
 
-- **Converting:** `toJson` returns a value that `jsonEncode` accepts. `fromJson` receives what `jsonDecode` produced, so cast it there, once. `Todo.fromJson` above takes an `Object?`. With a generated `Todo.fromJson(Map<String, dynamic> json)`, write `Todo.fromJson(item as Map<String, dynamic>)`.
+- **Converting:** from `toJson`, return a value that `jsonEncode` accepts. If it can't be encoded, Fuery doesn't store the data and reports no error. `fromJson` receives what `jsonDecode` produced, so cast it there, once. `Todo.fromJson` above takes an `Object?`. With a generated `Todo.fromJson(Map<String, dynamic> json)`, write `Todo.fromJson(item as Map<String, dynamic>)`.
 - **Restoring:** the first time the query is used, Fuery restores its stored data with the time it was fetched. `staleTime` then decides whether the query refetches, so fresh data isn't fetched again. Restoring doesn't need the network.
 - **Storing:** Fuery stores the data whenever it changes and no fetch is running, including changes made with `setData`. `client.setData(todosQuery, todos)` stores even before anything uses the query, because the query it creates gets the definition's `persist`. Fuery stores a [streamed query](../streaming/) once its stream is done.
 - **Keys with enums:** Fuery stores an enum in a key by its name, without its type. Obfuscated and minified builds can rename types in an app update, and the name alone still matches. Two persisted queries whose keys differ only in the type of a same-named enum therefore share one stored entry: `['todos', Filter.done]` and `['todos', Status.done]` overwrite each other's data. Add a string that tells them apart: `['todos', 'filter', Filter.done]`.
@@ -177,7 +177,7 @@ A request that reached the server before the app closed runs again after the res
 - A key that can't be stored, such as one holding an object without `toJson()`, is reported once to `onUncaughtError`. The run goes on without being stored.
 - `restore` reports two definitions whose keys differ only in enum types, and restores neither.
 
-### Restarting stored runs
+### Restoring stored runs
 
 - `restore` is the only way stored runs come back. It starts each one with its stored variables: right away while online, or when the network is back.
 - Runs that share a scope run one at a time, oldest first.
@@ -195,7 +195,7 @@ A request that reached the server before the app closed runs again after the res
 
 - Fuery waits for a deletion in progress before it reads or writes, so a removed query never restores deleted data or writes over its own deletion.
 - A restore still running when the query is reset or removed doesn't bring the old data back.
-- When a deletion overlaps a `restore()` read, `restore()` reads again, up to 3 times, so it never restores deleted data. If all 3 reads overlap a deletion, that call restores nothing: queries restore when they're first used, and stored mutations wait for the next `restore()`.
+- When a deletion overlaps a `restore()` read, `restore()` reads again once the deletion is done, for at most 3 reads in all, so it never restores deleted data. If a deletion overlaps all 3 reads, that call restores nothing: queries restore when they're first used, and stored mutations wait for the next `restore()`.
 - A query decides whether to fetch on mount after an asynchronous restore finishes, so `refetchOnMount` and `staleTime` treat restored data like cached data.
 - Storage methods may be synchronous or asynchronous. Fuery ignores their errors: a query with a failing storage loads as if nothing was stored.
 

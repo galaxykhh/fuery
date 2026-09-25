@@ -10,7 +10,7 @@ Every option of `Mutation` and `NoVariablesMutation`, with its type and default,
 | Option | Type | Default | What it does |
 |---|---|---|---|
 | `mutationFn` | `Future<TData> Function(TVariables variables)` | required | Sends the change to the server. Its parameter type sets `TVariables`, and its return type sets `TData`. |
-| `mutationKey` | `List<Object?>` | none | Identifies the runs. The MutationState widgets, `useMutationState`, `MutationFilters`, `setMutationDefaults`, and `restore` find runs by it. |
+| `mutationKey` | `List<Object?>` | none | Identifies the runs. The MutationState widgets, `useMutationState`, `MutationFilters`, and `restore` find runs by it, and `setMutationDefaults` applies defaults to every mutation whose key starts with the key it gets. |
 | `gcTime` | `Duration` | 5 minutes | How long a run stays in the mutation cache after it settles and no observer follows it. `infiniteDuration` keeps it until `clear()`. |
 | `retry` | `RetryPolicy` | `RetryPolicy.never()` | How often to retry a failed attempt: `.count(n)`, `.always()`, or `.when((count, error) => ...)`. |
 | `retryDelay` | `Duration Function(int failureCount, Object error)` | 1s, 2s, 4s, … up to 30s | How long to wait before each retry. |
@@ -42,7 +42,7 @@ Every option of `Mutation` and `NoVariablesMutation`, with its type and default,
 - An error thrown by `onMutate`, or by `onSuccess` or `onSettled` after a success, fails the run and reaches `onError`.
 - An error thrown by `onError` or `onSettled` of a failed run goes to [`onUncaughtError`](../../guides/client-setup/#catching-errors-that-callbacks-throw).
 - A run restored by `restore(mutations:)` skips `onMutate`, and its callbacks receive `null` as `context`.
-- When `clear()` drops a paused run, none of its callbacks run.
+- When `clear()` drops a paused run, the run fails with a `CancelledError`. None of its callbacks after `onMutate` run, and neither do the `MutateOptions` callbacks of its call.
 
 ## NoVariablesMutation
 
