@@ -1,13 +1,13 @@
 ---
-title: Using with bloc
-description: Use cached server data inside cubits and blocs, without replacing your state management.
+title: Bloc and cubits
+description: Read cached queries and run mutations from cubits and blocs, sharing one cache with Fuery's widgets.
 ---
 
-Queries and mutations don't depend on widgets. Every observer exposes a `stream` that emits the current result first, then every change. The query fetches as soon as you listen to that stream, and stops updating when you cancel the subscription.
+Cubits and blocs use the same queries, mutations, and cache as Fuery's widgets, so you keep the state management you have. An observer's `stream` emits the current result, then every change. Listening subscribes the observer, which fetches as a mounted widget would. Cancelling the subscription unsubscribes it.
 
 ## Which builder to use
 
-Adding Fuery doesn't move your screens to a new builder. Pick per screen:
+Pick a builder per screen:
 
 | The screen | Build it with |
 |---|---|
@@ -15,13 +15,13 @@ Adding Fuery doesn't move your screens to a new builder. Pick per screen:
 | Mixes server data with app state: a selection, a filter, a form, several queries combined | A cubit that listens to the query, and `BlocBuilder` |
 | Already runs on events, in an app built with blocs | A bloc that listens to the query, and `BlocBuilder` |
 
-One screen can do both: `BlocBuilder` for the app state, `QueryBuilder` for the server data. Two screens that use the same key share one cache entry and one request either way, so the choice is about the screen, not about the data.
+One screen can do both: `BlocBuilder` for the app state, `QueryBuilder` for the server data. Two screens that use the same key share one cache entry and one request either way, so choose by the screen, not by the data.
 
-Keep the query out of a repository. It is already the caching layer, so a cubit that listens to it directly has one layer less to keep in sync.
+Listen to the query from the cubit, not through a repository. The query is already the caching layer.
 
 ## In a cubit
 
-Outside widgets, `observe()` turns a query into an observer with a `stream`. `todosQuery` is the query, as in [Organizing queries](../organizing-queries/).
+Outside widgets, `observe()` turns a query into an observer with a `stream`. `todosQuery` is the query, as in [Organizing queries](../organizing-queries/):
 
 ```dart
 class TodoCubit extends Cubit<TodoState> {
@@ -44,7 +44,7 @@ class TodoCubit extends Cubit<TodoState> {
 }
 ```
 
-Call `cancel()` in `close()` without awaiting it. See [Testing cubits and blocs](../testing/#testing-cubits-and-blocs) for why.
+Call `cancel()` in `close()` without awaiting it. Under `testWidgets` and `fakeAsync`, its future never completes. See [Testing cubits and blocs](../testing/#testing-cubits-and-blocs).
 
 ## In a bloc
 
@@ -66,7 +66,7 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
 
 ## Mutations from a bloc
 
-A bloc that runs a mutation keeps one observer for it, created once with `final _addTodo = addTodo.observe();`. `mutateAsync` returns the data or throws, which fits event handlers:
+A bloc that runs a mutation keeps one observer for it. Create it once, with `final _addTodo = addTodo.observe();`. `mutateAsync` returns the data or throws, which fits event handlers:
 
 ```dart
 on<TodoAdded>((event, emit) async {
@@ -80,11 +80,11 @@ on<TodoAdded>((event, emit) async {
 
 ## Sharing with widgets
 
-A cubit and a `QueryBuilder` that use the same key share one cache entry. A change made on one screen, like marking notifications read, shows up in the cubit and in every widget. The [example app](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) has a notifications screen built with Fuery widgets and a badge counted by a cubit, reading the same query.
+A cubit and a `QueryBuilder` that use the same key share one cache entry. A change made on one screen, such as marking notifications read, shows in the cubit and in every widget.
 
-The runs a bloc starts with its own observer show in `MutationStateBuilder(mutation: addTodo)` on any screen when `addTodo` has a `mutationKey`, so the bloc doesn't have to expose its observer. See [Showing every run of a mutation](../mutations/#showing-every-run-of-a-mutation).
+Give `addTodo` a `mutationKey`, and the runs a bloc starts show in `MutationStateBuilder(mutation: addTodo)` on any screen. The bloc doesn't have to expose its observer. See [Showing every run of a mutation](../mutations/#showing-every-run-of-a-mutation).
 
-A cubit that reacts to every run of a mutation, wherever it started, keeps a `MutationStateSlot`. `subscribeToRuns` calls its listener for each later change of each run, and `result` lists the runs of this moment:
+A cubit that reacts to every run of a mutation, wherever it started, keeps a `MutationStateSlot`. `subscribeToRuns` calls its listener for each later change of each run, and `result` lists the current runs. See [Every run of a mutation](../adapters/#every-run-of-a-mutation).
 
 ```dart
 class TodoCubit extends Cubit<TodoState> {
@@ -108,8 +108,8 @@ class TodoCubit extends Cubit<TodoState> {
 
 ## App lifecycle
 
-An app that uses queries only from blocs has to connect the app lifecycle itself, with one call at startup. See [Refetching and going offline](../lifecycle/#when-the-app-resumes).
+Fuery's widgets, hooks, and `FueryProvider` connect the app lifecycle, so stale queries refetch when the app resumes. An app that uses queries only from blocs, without a `FueryProvider`, calls `FueryBinding.ensureInitialized()` once in `main` instead. See [When the app resumes](../lifecycle/#when-the-app-resumes).
 
 ## In the example app
 
-The example has a query in a cubit in [the notifications cubit](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/notifications/notifications_cubit.dart), which counts unread notifications for a badge while the notifications screen shows the same query. Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) maps each screen to what it shows.
+The [notifications cubit](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/notifications/notifications_cubit.dart) counts unread notifications for a badge, while the notifications screen shows the same query with Fuery's widgets. The example's [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) maps each screen to what it shows.

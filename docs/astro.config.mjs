@@ -57,6 +57,7 @@ export default defineConfig({
 						'guides/client-setup',
 						'guides/lifecycle',
 						'guides/bloc',
+						'guides/adapters',
 						'guides/testing',
 						'guides/devtools',
 					],
