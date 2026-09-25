@@ -51,18 +51,18 @@ The rest are questions about those fields:
 | `QueryStatus.error` | The latest fetch failed. `data` keeps any earlier data. |
 | `QueryStatus.success` | The query has data, and the latest fetch didn't fail. |
 | `FetchStatus.fetching` | The query function is running. |
-| `FetchStatus.paused` | A fetch waits for the network, or a retry waits for the app to return to the foreground. |
+| `FetchStatus.paused` | A fetch waits for the network, or a retry waits for the network or for the app to return to the foreground. |
 | `FetchStatus.idle` | Nothing is fetching. |
 
 ## QueryResult actions
 
-`refetch()` runs the query again, for example from a pull-to-refresh or a retry button:
+`refetch()` runs the query again and returns a `Future<QueryResult<TData>>`. Call it from a pull-to-refresh or a retry button:
 
 ```dart
-Future<QueryResult<TData>> refetch({
-  bool cancelRefetch = true,
-  bool throwOnError = false,
-})
+RefreshIndicator(
+  onRefresh: () => state.refetch(),
+  child: TodoList(state.data ?? const []),
+)
 ```
 
 | Argument | Type | Default | What it does |
@@ -92,9 +92,12 @@ An `InfiniteQueryResult` has every [`QueryResult` field](#queryresult-fields), w
 
 `isRefetching` and `isRefetchError` cover a refetch of every page, so both stay `false` while a single page loads or fails.
 
-`fetchNextPage()` and `fetchPreviousPage()` take the same arguments as `refetch()`, and return the result after the page loads:
+## InfiniteQueryResult actions
 
-- A call does nothing when `hasNextPage`, or `hasPreviousPage`, is `false`.
+`fetchNextPage()` loads the page after the last loaded page, and `fetchPreviousPage()` the page before the first. Both take the same arguments as [`refetch()`](#queryresult-actions), and return the result after the page loads:
+
+- Once the query has data, a call does nothing when `hasNextPage`, or `hasPreviousPage`, is `false`.
+- Without data, a call loads the query from its first page, or joins the load already running.
 - A call while the same page loads joins that fetch.
 - With `cancelRefetch: true`, the default, a call first cancels any other fetch, such as a refetch of every page. With `false`, it joins that fetch and loads no page.
 

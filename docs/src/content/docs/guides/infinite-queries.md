@@ -51,11 +51,11 @@ The footer reads `isFetchingNextPage` rather than `isFetching`, so a background 
 
 A scroll listener can call `state.fetchNextPage()` as often as it likes:
 
-- The call does nothing when `hasNextPage` is false.
+- Once the query has data, the call does nothing when `hasNextPage` is false.
 - A call while the next page loads waits for that page instead of fetching it again.
 - The call cancels any other fetch that is running, such as a background refetch of every page. To let that fetch finish, disable the button while `isFetching` is true, as the footer does. `cancelRefetch: false` also lets it finish, but the call then loads no page.
 
-`fetchPreviousPage()` works the same way with `hasPreviousPage`.
+`fetchPreviousPage()` works the same way with `hasPreviousPage`. [InfiniteQueryResult actions](../../reference/query-results/#infinitequeryresult-actions) lists their arguments.
 
 ## Updating items in cached pages
 

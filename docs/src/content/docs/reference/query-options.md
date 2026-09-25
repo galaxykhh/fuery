@@ -62,7 +62,7 @@ Every option of `Query` and `InfiniteQuery`, with its type and default. `Infinit
 | `queryFn` | `Future<TPage> Function(InfiniteQueryFunctionContext<TParam>)` | required | Fetches one page: the one `context.pageParam` names. |
 | `initialPageParam` | `TParam` | required | The param of the first page. Fuery infers `TParam` from it. A first param of `null` needs a declared type: see [Cursor-based pages](../../guides/infinite-queries/#cursor-based-pages). |
 | `getNextPageParam` | `Object? Function(InfiniteData<TPage, TParam>)` | required | Returns the param of the page after `data.lastPage`, or `null` when there is none. It must return a `TParam`: see [Page param errors](#page-param-errors). |
-| `getPreviousPageParam` | `Object? Function(InfiniteData<TPage, TParam>)` | none | Returns the param of the page before `data.firstPage`, or `null`. Without it, `hasPreviousPage` is false and `fetchPreviousPage()` loads nothing. |
+| `getPreviousPageParam` | `Object? Function(InfiniteData<TPage, TParam>)` | none | Returns the param of the page before `data.firstPage`, or `null`. Without it, `hasPreviousPage` is always `false`, and once the query has data, `fetchPreviousPage()` loads nothing. |
 | `maxPages` | `int` | none | The most pages to keep. At the cap, loading a next page drops the first page, and loading a previous page drops the last one. |
 | `pages` | `int` | 1 | How many pages to load when nothing is cached, up to `maxPages`. With pages cached, a fetch of every page reloads those instead. |
 | `persist` | `InfiniteQueryPersist<TPage, TParam>` | none | Stores the pages on the device. See [Persisting infinite queries](../../guides/persistence/#persisting-infinite-queries). |
