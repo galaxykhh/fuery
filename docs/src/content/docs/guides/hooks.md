@@ -132,7 +132,7 @@ useOnQueryChange(
 
 The listener runs after the build, never during one, with the widget's own `context`. It isn't called for the result the hook starts with. `listenWhen` compares the previous result received with the new one, as on a [`QueryListener`](../widgets/#reacting-to-changes), and the latest build's `listener` and `listenWhen` are used. Given the result of `useInfiniteQuery`, the closures get an `InfiniteQueryResult`, with its pages. Given a result built with the `QueryResult` constructor, such as made-up data in a widget test, the hook calls nothing.
 
-A change hook adds no observer and no rebuild. The widget still rebuilds through the hook that reads. To react without rebuilding a widget, wrap its subtree in a `QueryListener` or `InfiniteQueryListener`, which `fuery_hooks` re-exports.
+A change hook adds no observer, and a change it hears never rebuilds the widget. The widget still rebuilds through the hook that reads. `useOnMutationStateChange` uses the provided client, so it rebuilds the widget when that client is replaced, to follow it. To react without rebuilding a widget, wrap its subtree in a `QueryListener` or `InfiniteQueryListener`, which `fuery_hooks` re-exports.
 
 `useOnMutationChange` hears the runs started with the result it gets:
 

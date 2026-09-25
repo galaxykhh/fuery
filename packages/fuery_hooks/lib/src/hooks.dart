@@ -263,8 +263,9 @@ void useOnMutationChange<TData, TVariables, TContext>(
 /// for the states runs had when the hook started, or after a new key or a
 /// replaced client until a run changes. Otherwise it works as
 /// [useOnQueryChange] does: after the build, with the widget's `context`,
-/// and with the latest build's [listener] and [listenWhen]. It never
-/// rebuilds the widget.
+/// and with the latest build's [listener] and [listenWhen]. A run never
+/// rebuilds the widget. Like [useQueryClient], the hook rebuilds it when the
+/// provided client is replaced, to follow that client.
 void useOnMutationStateChange<TData, TVariables, TContext>(
   MutationStateSource<TData, TVariables, TContext> mutation, {
   required ResultWidgetListener<MutationState<TData, TVariables, TContext>>

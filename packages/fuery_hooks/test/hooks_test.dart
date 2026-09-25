@@ -1622,7 +1622,7 @@ void main() {
             final runs = useMutationState(addTodo());
             return Text('without ${describeRuns(runs)}');
           }),
-          // It only listens, so it never rebuilds.
+          // It only listens, so a run never rebuilds it.
           HookBuilder(builder: (_) {
             listening++;
             useOnMutationStateChange(
@@ -1646,6 +1646,38 @@ void main() {
       expect(errors, [isA<StateError>(), isA<StateError>()]);
       await tester.pumpWidget(const SizedBox());
       reporting.clear();
+      await tearDownApp(tester);
+    });
+
+    testWidgets('rebuilds once when the provided client is replaced',
+        (tester) async {
+      final other = newClient();
+      var builds = 0;
+      final heard = <String?>[];
+      // The same widget on every pump, so only the provided client can
+      // rebuild it.
+      final screen = HookBuilder(builder: (_) {
+        builds++;
+        useOnMutationStateChange(
+          addTodo(),
+          listenWhen: (previous, current) => current.isSuccess,
+          listener: (context, run) => heard.add(run.variables),
+        );
+        return const SizedBox();
+      });
+      await tester.pumpWidget(app(screen));
+      run('milk');
+      await tester.pump(ms10);
+      expect(builds, 1);
+
+      await tester.pumpWidget(app(screen, with_: other));
+      expect(builds, 2);
+      run('eggs', on: other);
+      await tester.pump(ms10);
+      expect(builds, 2);
+      expect(heard, ['milk', 'eggs']);
+      await tester.pumpWidget(const SizedBox());
+      other.clear();
       await tearDownApp(tester);
     });
 
