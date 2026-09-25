@@ -3,6 +3,20 @@ import 'package:test/test.dart';
 
 import 'helpers.dart';
 
+/// An observer equal to every other of its class on the same query, as an
+/// app can define one: its `==` and `hashCode` change with its options.
+class SameQueryObserver extends QueryObserver<String> {
+  SameQueryObserver(super.client, super.options);
+
+  @override
+  bool operator ==(Object other) =>
+      other is SameQueryObserver &&
+      other.options.queryHash == options.queryHash;
+
+  @override
+  int get hashCode => options.queryHash.hashCode;
+}
+
 void main() {
   late QueryClient client;
 
@@ -677,6 +691,46 @@ void main() {
       expect(fetches, ['second']);
       expect(heard, ['second', 'first', 'second', 'first']);
       expect(query.observersCount, 2);
+    });
+
+    Query<String> keyed(String key) {
+      return Query(
+        queryKey: [key],
+        queryFn: FakeFetcher(() => key).call,
+        gcTime: const Duration(minutes: 1),
+      );
+    }
+
+    fakeTest('leaves a query for another key whatever == says', (async) {
+      final observer = SameQueryObserver(client, keyed('a'));
+      final unsubscribe = observer.subscribe((_) {});
+      async.elapse(ms10);
+      final first = observer.currentQuery;
+
+      observer.setOptions(keyed('b'));
+      expect(first.observersCount, 0);
+      async.elapse(ms10);
+      unsubscribe();
+      async.elapse(const Duration(minutes: 1));
+      expect(client.queryCache.getAll(), isEmpty);
+    });
+
+    fakeTest('keeps every observer, also those that are ==', (async) {
+      final first = SameQueryObserver(client, keyed('a'));
+      final second = SameQueryObserver(client, keyed('a'));
+      expect(first, second);
+      final heard = <String>[];
+      first.subscribe((_) => heard.add('first'));
+      final stopSecond = second.subscribe((_) => heard.add('second'));
+      final query = first.currentQuery;
+      expect(query.observersCount, 2);
+
+      async.elapse(ms10);
+      expect(heard, ['first', 'second', 'first', 'second']);
+      expect(second.result.data, 'a');
+
+      stopSecond();
+      expect(query.observers.single, same(first));
     });
   });
 

@@ -30,9 +30,11 @@ class CachedQuery<TData extends Object> extends _Removable {
   QueryState<TData>? _revertState;
   Retryer<TData>? _retryer;
 
-  /// In the order they subscribed: a set literal is a `LinkedHashSet`,
-  /// which adds and removes one in constant time.
-  final Set<QueryObserver<TData>> _observers = {};
+  /// In the order they subscribed: `Set.identity()` is a `LinkedHashSet`,
+  /// which adds and removes one in constant time. By identity, since an
+  /// observer's `==` and `hashCode` can be overridden to change with its
+  /// options.
+  final Set<QueryObserver<TData>> _observers = Set.identity();
 
   /// A copy of [_observers] to notify, kept until they change, so that a
   /// listener can unsubscribe while being notified and a dispatch doesn't
