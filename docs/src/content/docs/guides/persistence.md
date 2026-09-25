@@ -3,11 +3,14 @@ title: Persistence
 description: Keep cached server data across app restarts in Flutter, with any key-value storage.
 ---
 
-Queries can store their data on the device. When the app starts again, it shows the last data right away and refetches it in the background if it's stale. Mutations can store their variables while they run, so one that was waiting for the network when the app closed runs after the next start.
+Store query data and pending mutations on the device, and they survive an app restart:
+
+- A persisted query shows its last data right away, then refetches it in the background if it's stale.
+- A persisted mutation that was waiting for the network when the app closed runs after the next start.
 
 ## Connecting storage
 
-Fuery writes strings through a `QueryStorage`. Implement it against any key-value store. This one uses [`shared_preferences`](https://pub.dev/packages/shared_preferences):
+Fuery reads and writes strings through a `QueryStorage`. Implement it against any key-value store. This one uses [`shared_preferences`](https://pub.dev/packages/shared_preferences):
 
 ```dart
 class PreferencesStorage implements QueryStorage {
@@ -33,9 +36,9 @@ class PreferencesStorage implements QueryStorage {
 }
 ```
 
-Fuery stores each query under its hash, behind the `persistKeyPrefix` constant, so `readAll` can hand back the stored queries and leave the rest of the store alone.
+Every key Fuery writes starts with the `persistKeyPrefix` constant. Filter `readAll` by it, as above, so it returns Fuery's entries and nothing else from the store.
 
-Give it to the client:
+Give the storage to the client:
 
 ```dart
 Future<void> main() async {
@@ -48,11 +51,11 @@ Future<void> main() async {
 }
 ```
 
-`SharedPreferencesWithCache` reads synchronously, so Fuery restores persisted queries before their first frame. Storage methods can also return futures, for example for a database. See [restoring ahead of time](#restoring-ahead-of-time).
+`SharedPreferencesWithCache` reads synchronously, so Fuery restores a persisted query before its first frame. Storage methods may also return futures, for example for a database. See [Restoring ahead of time](#restoring-ahead-of-time).
 
 ## Persisting a query
 
-Add `persist` with a way to convert the data to JSON and back. Only queries with `persist` are stored:
+Add `persist` with functions that convert the data to JSON and back. Fuery stores only the queries that have `persist`:
 
 ```dart
 final todosQuery = Query(
@@ -67,11 +70,10 @@ final todosQuery = Query(
 );
 ```
 
-- **The codec:** `toJson` must return a value `jsonEncode` accepts. `fromJson` receives whatever `jsonDecode` produced, so cast that value inside `fromJson` instead of at every call site. `Todo.fromJson` above takes that value; with a generated `Todo.fromJson(Map<String, dynamic> json)`, write `Todo.fromJson(item as Map<String, dynamic>)`.
-- **Restoring:** the first time the query is used, its stored data is restored with the time it was fetched, so `staleTime` decides whether it refetches. Fresh data isn't fetched again.
-- **Storing:** data is stored whenever it changes and no fetch is running, including changes made with `setData`. `client.setData(todosQuery, todos)` stores even before anything uses the query, because the query it creates gets the `persist` from the definition. A [streamed query](../streaming/) is stored once its stream is done.
-- **Offline:** restoring doesn't need the network.
-- **Keys with enums:** an enum is stored as its name, without its type, which obfuscated and minified builds rename, so the data is restored after an app update. Two persisted queries whose keys differ only in the type of a same-named enum, such as `['todos', Filter.done]` and `['todos', Status.done]`, share one stored entry and overwrite each other's data. Add a string that tells them apart: `['todos', 'filter', Filter.done]`.
+- **Converting:** `toJson` returns a value that `jsonEncode` accepts. `fromJson` receives what `jsonDecode` produced, so cast it there, once. `Todo.fromJson` above takes an `Object?`. With a generated `Todo.fromJson(Map<String, dynamic> json)`, write `Todo.fromJson(item as Map<String, dynamic>)`.
+- **Restoring:** the first time the query is used, Fuery restores its stored data with the time it was fetched. `staleTime` then decides whether the query refetches, so fresh data isn't fetched again. Restoring doesn't need the network.
+- **Storing:** Fuery stores the data whenever it changes and no fetch is running, including changes made with `setData`. `client.setData(todosQuery, todos)` stores even before anything uses the query, because the query it creates gets the definition's `persist`. Fuery stores a [streamed query](../streaming/) once its stream is done.
+- **Keys with enums:** Fuery stores an enum in a key by its name, without its type. Obfuscated and minified builds can rename types in an app update, and the name alone still matches. Two persisted queries whose keys differ only in the type of a same-named enum therefore share one stored entry: `['todos', Filter.done]` and `['todos', Status.done]` overwrite each other's data. Add a string that tells them apart: `['todos', 'filter', Filter.done]`.
 
 ## Persisting infinite queries
 
@@ -91,19 +93,17 @@ final posts = InfiniteQuery(
 );
 ```
 
-Every loaded page is stored together, and written again after each page loads. Set `maxPages` to keep a long feed from growing into a large entry in the storage.
+Fuery stores every loaded page in one entry, and writes it again after each page loads. Set `maxPages` to keep a long feed from growing into a large entry.
 
-Page params are stored as they are, so they must be JSON values like numbers, strings, or `null`. Otherwise, add `paramToJson` and `paramFromJson`. Params reach those as `Object?`, so cast them: `paramToJson: (date) => (date! as DateTime).toIso8601String()`.
+Fuery stores page params as they are, so they must be JSON values, such as numbers, strings, or `null`. For other params, add `paramToJson` and `paramFromJson`. `paramToJson` receives each param as `Object?`, so cast it: `paramToJson: (date) => (date! as DateTime).toIso8601String()`.
 
 ## When stored data is discarded
 
-Fuery discards stored data, and the query fetches as if nothing was stored, when:
+Fuery discards stored data, and the query fetches as if nothing was stored, when the data:
 
-- it is older than the query's `maxAge`, or, when the query doesn't set one, the client's `persistMaxAge` (default: one day),
-- its `version` differs from the query's `version`. Increase `version` when the JSON format changes,
-- it can't be decoded.
-
-`restore()` also deletes stored queries that have expired, using the `maxAge` in effect when they were stored, so the data of a key the app no longer uses doesn't stay in the storage.
+- is older than the query's `maxAge`, or than the client's `persistMaxAge` (default: 1 day) when the query sets no `maxAge`.
+- has a `version` other than the query's. Increase `version` when the JSON format changes.
+- can't be decoded.
 
 ```dart
 persist: QueryPersist(
@@ -116,9 +116,11 @@ persist: QueryPersist(
 ),
 ```
 
+`restore()` also deletes the stored queries that have expired, by the `maxAge` in effect when Fuery stored them. The data of a key the app no longer uses doesn't stay in the storage.
+
 ## Restoring ahead of time
 
-With a storage that reads asynchronously, a query shows loading until its data has been read. To have the data on the first frame instead, read everything before the app starts:
+With a storage that reads asynchronously, a query shows its loading state until Fuery has read its data. To show the data on the first frame, read every stored entry before the app starts:
 
 ```dart
 await Fuery.client.restore();
@@ -127,17 +129,15 @@ runApp(const App());
 
 ## Deleting stored data
 
-| | Stored data |
+| Call | Stored data |
 |---|---|
-| `removeQueries`, `resetQueries` | Deleted for the matching queries. Filtering only by key also deletes stored queries that aren't loaded. |
-| `clear()` | All deleted. Call it when the user logs out. |
-| Garbage collection | Kept. Unused queries leave memory and are restored the next time they're used. |
-
-A failing storage behaves like an empty one; Fuery ignores its errors.
+| `removeQueries`, `resetQueries` | Deleted for the matching queries. A call that filters only by key also deletes the stored queries that aren't loaded. |
+| `clear()` | All deleted, queries and mutations. Call it when the user logs out. |
+| Garbage collection | Kept. A query that leaves memory is restored the next time it's used. |
 
 ## Persisting mutations
 
-A mutation with `persist` stores its variables from the moment it starts until it settles. A mutation that was paused offline, or still running, when the app was closed is therefore still there at the next start. `restore` runs it again with the mutation you pass, so the screen and `main` use the same definition:
+A mutation with `persist` stores the variables of each run from the moment it starts until it settles. A run that was paused offline, or still running, when the app closed is still stored at the next start. `restore(mutations:)` runs it again with the definition you pass, so the screen and `main` use the same definition:
 
 ```dart
 Mutation<Comment, NewComment, void> addCommentMutation() {
@@ -165,26 +165,43 @@ MutationBuilder(mutation: addCommentMutation(), builder: ...)
 await Fuery.client.restore(mutations: [addCommentMutation()]);
 ```
 
-- A persisted mutation needs a `mutationKey`. That is how `restore` matches a stored run to its definition. `mutations` is a list of `AnyMutation`, which every `Mutation` is, so options with different types go in one list.
-- The `mutationKey` is stored the way query keys are, so it can hold enums and `DateTime`s. A key that can't be stored, such as one holding an object without `toJson()`, is reported once as an uncaught error, and the mutation runs without being stored. `restore` reports two mutations whose keys differ only in enum types and restores neither.
-- `restore` is the only way stored mutations come back. Each stored run is started again with its stored variables: right away while online, or when the network is back. Runs that share a scope go one at a time, oldest first.
-- `restore` starts each stored run once. A run the client is still running, or has paused offline, isn't started again, so calling `restore` more than once doesn't repeat a request.
-- A restored run skips `onMutate`, and its callbacks receive `null` as `context`. An optimistic update belongs to the run that made it; the restored run only repeats the request and its `onSuccess`.
-- A restored run shows in the [MutationState widgets](../mutations/#showing-every-run-of-a-mutation) and `useMutationState`, found by the same `mutationKey`, so `MutationStateBuilder(mutation: addCommentMutation(), ...)` lists the comments still on their way after a restart.
-- A stored run is deleted once the mutation succeeds or fails. `clear()` deletes them all.
-- An entry whose mutation wasn't passed to `restore` is kept, so a later `restore` can run it. One stored by another `version` of its `MutationPersist`, or one that can't be read, is deleted.
-- A mutation without variables persists with `MutationPersist.noVariables`: `NoVariablesMutation(mutationKey: ['sync'], mutationFn: () => api.sync(), persist: MutationPersist.noVariables)`.
+[MutationPersist](../../reference/mutation-options/#mutationpersist) lists its parameters. A `NoVariablesMutation` persists with `MutationPersist.noVariables`: `NoVariablesMutation(mutationKey: ['sync'], mutationFn: () => api.sync(), persist: MutationPersist.noVariables)`.
 
-A request that had reached the server before the app closed runs again after the restart. Persist mutations whose request is safe to repeat, or make the server treat a repeat as the same write.
+A request that reached the server before the app closed runs again after the restart. Persist only the mutations whose request is safe to repeat, or make the server treat a repeat as the same write.
+
+### Matching stored runs
+
+- `restore` matches a stored run to its definition by `mutationKey`, so a persisted mutation needs one.
+- `mutations` is a list of `AnyMutation`. Every `Mutation` is one, so definitions with different types go in one list.
+- Fuery stores the `mutationKey` the way it stores query keys, so the key can hold enums and `DateTime`s.
+- A key that can't be stored, such as one holding an object without `toJson()`, is reported once to `onUncaughtError`. The run goes on without being stored.
+- `restore` reports two definitions whose keys differ only in enum types, and restores neither.
+
+### Restarting stored runs
+
+- `restore` is the only way stored runs come back. It starts each one with its stored variables: right away while online, or when the network is back.
+- Runs that share a scope run one at a time, oldest first.
+- `restore` starts each stored run once. It skips a run the client is already running or has paused, so calling it twice doesn't repeat a request.
+- A restored run skips `onMutate`, and its callbacks receive `null` as `context`. The optimistic update belongs to the run that made it. The restored run repeats only the request and the callbacks after it.
+- The [MutationState widgets](../mutations/#showing-every-run-of-a-mutation) and `useMutationState` show restored runs, found by the same `mutationKey`. `MutationStateBuilder(mutation: addCommentMutation(), ...)` lists the comments still on their way after a restart.
+
+### Deleting stored runs
+
+- Fuery deletes a stored run once it succeeds or fails. `clear()` deletes them all.
+- A stored run whose definition wasn't passed to `restore` stays, so a later `restore` can run it.
+- Fuery deletes a stored run that another `version` of its `MutationPersist` stored, or that it can't read.
 
 ## What Fuery guarantees
 
-- Reads and writes wait for a deletion that is still running, so a query that was removed is never restored from data that was about to be deleted, and never writes over its own deletion.
-- A restore that is still running when the query is reset or removed doesn't bring the old data back.
-- When something is deleted while `restore()` reads, it reads again once the deletion is done, up to three times, so it never restores deleted data. If a deletion overlaps all three reads, that call restores nothing: queries restore when they're first used, and the stored mutations stay stored for the next `restore()`.
-- A query decides whether to fetch on mount after an asynchronous restore finishes, so `refetchOnMount` and `staleTime` apply to restored data the same way they apply to cached data.
-- Storage methods may be synchronous or asynchronous, and their errors never reach the query. A query with a broken storage loads as if nothing was stored.
+- Fuery waits for a deletion in progress before it reads or writes, so a removed query never restores deleted data or writes over its own deletion.
+- A restore still running when the query is reset or removed doesn't bring the old data back.
+- When a deletion overlaps a `restore()` read, `restore()` reads again, up to 3 times, so it never restores deleted data. If all 3 reads overlap a deletion, that call restores nothing: queries restore when they're first used, and stored mutations wait for the next `restore()`.
+- A query decides whether to fetch on mount after an asynchronous restore finishes, so `refetchOnMount` and `staleTime` treat restored data like cached data.
+- Storage methods may be synchronous or asynchronous. Fuery ignores their errors: a query with a failing storage loads as if nothing was stored.
 
 ## In the example app
 
-The example has a storage adapter in [the preferences storage](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/data/preferences_storage.dart), and persists the feed's pages in [the feed queries](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/data/feed_queries.dart). Its [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) maps each screen to what it shows.
+- [The preferences storage](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/data/preferences_storage.dart) is a storage adapter.
+- [The feed queries](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/data/feed_queries.dart) persist the feed's pages.
+
+The example's [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) maps each screen to what it shows.
