@@ -9,8 +9,8 @@ In five steps, a screen shows a list from your API with loading and error states
 
 - Flutter 3.27 or newer, with Dart 3.6 or newer.
 - Two names the code expects from your app:
-  - `api.getTodos()`, a function that returns a `Future<List<Todo>>`.
-  - `TodoList`, a widget that shows a `List<Todo>`.
+  - `api`, a top-level variable, such as `var api = Api();`, whose `getTodos()` returns a `Future<List<Todo>>`. A test replaces it with a fake.
+  - `TodoList`, a widget that shows each todo's title in a `Text`.
 
 ## 1. Install Fuery
 
@@ -27,11 +27,15 @@ Fuery depends on nothing beyond Dart and Flutter. `fuery` adds only `fuery_core`
 A query needs a **key** that names the data and a **query function** that fetches it:
 
 ```dart
+import 'package:fuery/fuery.dart';
+
 final todosQuery = Query(
   queryKey: ['todos'],
   queryFn: (_) => api.getTodos(),
 );
 ```
+
+`package:fuery/fuery.dart` also exports `fuery_core`, so this one import covers every Fuery name on this page.
 
 Defining a query starts nothing. The fetch begins when a widget shows the query, so the definition can be a top-level value, as here, or be built in `build`.
 
@@ -75,19 +79,29 @@ Another screen that shows `todosQuery` displays the cached list on its first fra
 
 ## 5. Test it
 
-This test assumes a fake `api` whose `getTodos()` answers after 300 milliseconds with a todo titled "Buy milk":
+Write a `FakeApi` class that implements your `Api`. Its `getTodos()` waits 300 milliseconds, then returns one todo titled "Buy milk".
+
+Then add this test in a file under `test/`. It puts the fake in place of `api` and checks the loading state and the list. Also import the files that declare `api`, `FakeApi`, and `TodoListScreen`:
 
 ```dart
-testWidgets('shows todos', (tester) async {
-  await tester.pumpWidget(const MaterialApp(home: TodoListScreen()));
-  expect(find.byType(CircularProgressIndicator), findsOneWidget);
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:fuery/fuery.dart';
 
-  await tester.pump(const Duration(milliseconds: 300)); // the fake request
-  expect(find.text('Buy milk'), findsOneWidget);
+void main() {
+  testWidgets('shows todos', (tester) async {
+    api = FakeApi();
 
-  await tester.pumpWidget(const SizedBox());
-  Fuery.client.clear();
-});
+    await tester.pumpWidget(const MaterialApp(home: TodoListScreen()));
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 300)); // the fake request
+    expect(find.text('Buy milk'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+    Fuery.client.clear();
+  });
+}
 ```
 
 The last two lines unmount the screen and empty the cache, so no garbage collection timer outlives the test and fails it. Keep them in the test body, because `addTearDown` runs after `testWidgets` checks for timers.
@@ -110,5 +124,5 @@ The last two lines unmount the screen and empty the cache, so no garbage collect
 - [Queries](../guides/queries/): keys, freshness, and queries that depend on each other.
 - [Widgets](../guides/widgets/): builders, listeners, consumers, and selectors.
 - [Mutations](../guides/mutations/): changing server data, with optimistic updates.
-- [Bloc and cubits](../guides/bloc/): the same queries inside cubits and blocs.
+- [Using with bloc](../guides/bloc/): the same queries inside cubits and blocs.
 - [Devtools](../guides/devtools/): every query and mutation, inspected in the running app.
