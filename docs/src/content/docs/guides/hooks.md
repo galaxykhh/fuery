@@ -231,6 +231,14 @@ final loaded = posts.where((post) => post.hasData).length;
 
 Each query keeps its observer while its key stays in the list, even when the list is reordered. Changes that arrive together rebuild once. Pass the definitions, not `.observe()`: new observers on every build fetch again, and in debug builds the hook prints a warning.
 
+With hundreds of queries, build the list with `useMemoized`, keyed on the ids and on anything else from `build` that the definitions read, such as a value passed to `enabled:`. A rebuild with the same keys then passes the same list, and `useQueries` skips updating the queries, so a value missing from the keys keeps the one the list was built with:
+
+```dart
+final posts = useQueries(
+  useMemoized(() => [for (final id in ids) postQuery(id)], ids),
+);
+```
+
 ## The hook for each widget
 
 | Widget | Hook |

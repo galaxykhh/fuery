@@ -643,5 +643,41 @@ void main() {
       async.flushMicrotasks();
       expect(observer.result.data, 2);
     });
+
+    fakeTest('lets a run go when its observer takes another key', (async) {
+      Mutation<String, String, Object?> save(String key) {
+        return Mutation(
+          mutationKey: [key],
+          mutationFn: slowEcho,
+          gcTime: const Duration(minutes: 1),
+        );
+      }
+
+      // Its == and hashCode change with its key.
+      final observer = SameKeyMutationObserver(client, save('a'));
+      final unsubscribe = observer.subscribe((_) {});
+      observer.mutate('a');
+      async.elapse(ms10);
+
+      observer.setOptions(save('b'));
+      unsubscribe();
+      async.elapse(const Duration(minutes: 1));
+      expect(client.mutationCache.getAll(), isEmpty);
+    });
   });
+}
+
+/// A mutation observer equal to every other of its class with the same key.
+class SameKeyMutationObserver
+    extends MutationObserver<String, String, Object?> {
+  SameKeyMutationObserver(super.client, super.options);
+
+  String get _hash => hashKey(options.mutationKey!);
+
+  @override
+  bool operator ==(Object other) =>
+      other is SameKeyMutationObserver && other._hash == _hash;
+
+  @override
+  int get hashCode => _hash.hashCode;
 }

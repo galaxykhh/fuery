@@ -930,15 +930,17 @@ class QueryClient {
     return result;
   }
 
-  /// Fills unset values in [options] with client and per-key defaults.
+  /// Fills unset values in [options] with client and per-key defaults. A
+  /// caller that knows the hash of the key passes it as [knownHash].
   Query<TData> _defaultQueryOptions<TData extends Object>(
-    Query<TData> options,
-  ) {
+    Query<TData> options, [
+    String? knownHash,
+  ]) {
     if (options._defaulted) return options;
     final defaults = defaultOptions.queries.merge(
       getQueryDefaults(options.queryKey),
     );
-    return options._withDefaults(defaults);
+    return options._withDefaults(defaults, knownHash);
   }
 
   Mutation<TData, TVariables, TContext>

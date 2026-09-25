@@ -51,20 +51,32 @@ class MutationObserver<TData, TVariables, TContext>
   void setOptions(Mutation<TData, TVariables, TContext> options) {
     final prevOptions = _options;
     _options = _client._defaultMutationOptions(options);
+    final prevKey = prevOptions?.mutationKey;
+    final nextKey = this.options.mutationKey;
+    final sameKeyHash = prevOptions != null && _sameKeyHash(prevKey, nextKey);
 
-    if (!this.options._sameConfig(prevOptions)) {
+    if (!this.options._sameConfig(prevOptions, sameKeyHash: sameKeyHash)) {
       _client.mutationCache._notify();
     }
 
-    final prevKey = prevOptions?.mutationKey;
-    final nextKey = this.options.mutationKey;
-    if (prevKey != null &&
-        nextKey != null &&
-        hashKey(prevKey) != hashKey(nextKey)) {
+    if (prevKey != null && nextKey != null && !sameKeyHash) {
       reset();
     } else if (_currentMutation?.state.status == MutationStatus.pending) {
       _currentMutation?._setOptions(this.options);
     }
+  }
+
+  /// Whether [prevKey] and [nextKey], as they are now, have the same
+  /// [hashKey]. Keys that [sameKey] finds the same aren't hashed. Others are
+  /// both hashed, never taken from an earlier hash: either key, or a part of
+  /// it, can have changed in place since.
+  bool _sameKeyHash(MutationKey? prevKey, MutationKey? nextKey) {
+    if (prevKey != null && nextKey != null && sameKey(prevKey, nextKey)) {
+      return true;
+    }
+    final nextHash = nextKey == null ? null : hashKey(nextKey);
+    final prevHash = prevKey == null ? null : hashKey(prevKey);
+    return nextHash == prevHash;
   }
 
   @override

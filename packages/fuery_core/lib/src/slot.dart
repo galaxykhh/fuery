@@ -448,10 +448,18 @@ final class QueriesSlot<TData extends Object>
       (reusable[key] ??= []).add(slot);
     }
 
+    final previous = _entries;
     final entries = <(Object, QuerySlot<TData>)>[];
     for (final query in source) {
-      // Owned observers are reused by key, shared ones by identity.
-      final key = query is Query<TData> ? hashKey(query.queryKey) : query;
+      // Owned observers are reused by key, shared ones by identity. The
+      // observer that was at the same index knows the hash of a key built
+      // again with the same content.
+      final index = entries.length;
+      final before = index < previous.length ? previous[index].$2 : null;
+      final key = query is Query<TData>
+          ? before?.observer._hashIfSame(query.queryKey) ??
+              hashKey(query.queryKey)
+          : query;
       final slots = reusable[key];
       final QuerySlot<TData> slot;
       if (slots != null && slots.isNotEmpty) {

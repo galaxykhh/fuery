@@ -14,6 +14,14 @@ class QueryObserver<TData extends Object>
 
   final QueryClient _client;
   Query<TData>? _options;
+
+  /// A copy of the key that the hash of [options] was made from, for
+  /// [_hashIfSame], or null for a key that [sameKey] leaves to hashing. A
+  /// copy, so a key changed in place gets its new hash. Made once options
+  /// come a second time: an observer created for code outside widgets may
+  /// never get new ones. Null after options that came already defaulted,
+  /// whose hash this observer didn't make.
+  List<Object?>? _hashedKey;
   CachedQuery<TData>? _query;
   late QueryState<TData> _currentQueryInitialState;
   QueryResult<TData>? _currentResult;
@@ -120,15 +128,33 @@ class QueryObserver<TData extends Object>
     _query?._removeObserver(this);
   }
 
+  /// The hash of the key of [options] if [key] has the same one, told
+  /// without hashing [key], or null.
+  String? _hashIfSame(QueryKey key) {
+    final hashed = _hashedKey;
+    return hashed != null && sameKey(key, hashed) ? options.queryHash : null;
+  }
+
   /// Updates the options. Changing the key switches to another query.
   void setOptions(Query<TData> options) {
     final prevOptions = _options;
     final prevQuery = _query;
-    final defaulted = _client._defaultQueryOptions(options);
+    // A key built again with the same content keeps its hash. Options
+    // defaulted before, such as an observer's `options`, keep theirs.
+    final alreadyDefaulted = options._defaulted;
+    final knownHash = alreadyDefaulted ? null : _hashIfSame(options.queryKey);
+    final defaulted = _client._defaultQueryOptions(options, knownHash);
 
     // Throws before anything changes if the key holds another data type.
     _client.queryCache._build<TData>(_client, defaulted);
     _options = defaulted;
+    if (alreadyDefaulted) {
+      // Their hash is the one their key had when they were defaulted, which
+      // a key changed in place since no longer has: the next key is hashed.
+      _hashedKey = null;
+    } else if (knownHash == null && prevOptions != null) {
+      _hashedKey = keyCopy(defaulted.queryKey);
+    }
 
     _updateQuery();
     currentQuery._setOptions(this.options);

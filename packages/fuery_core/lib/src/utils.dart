@@ -65,6 +65,89 @@ String storageHash(List<Object?> key) => jsonEncode(storageKeyForm(key));
 /// reading it back as the same key.
 Object? storageKeyForm(List<Object?> key) => _canonicalize(key, true);
 
+/// Whether keys [a] and [b], or parts of keys, have the same [hashKey], told
+/// without hashing them, so a key built again with the same content can keep
+/// its hash.
+///
+/// Strict: true only for `null`, `bool`, `int`, `String`, enums, lists, and
+/// maps with `String` keys, alike in content, and for maps in order. False
+/// for anything else, such as a double, a `DateTime`, a set, an object with
+/// `toJson()`, or a map with other keys, even for the same hash: the caller
+/// hashes those.
+bool sameKey(Object? a, Object? b) {
+  if (a is String) return b is String && a == b;
+  if (a is int) {
+    // On the web, 1.0, -0.0, and infinity are ints too: 1.0 hashes as 1,
+    // but -0.0 hashes as -0.0, and infinity can't be hashed.
+    return b is int && a == b && a.isNegative == b.isNegative && a.isFinite;
+  }
+  if (a == null || a is bool || a is Enum) return identical(a, b);
+  if (a is List) {
+    if (b is! List || a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (!sameKey(a[i], b[i])) return false;
+    }
+    return true;
+  }
+  if (a is Map) {
+    if (b is! Map || a.length != b.length) return false;
+    // By the keys each map holds, in order: a map that finds keys its own
+    // way, such as without case, can't pass for another.
+    final others = b.entries.iterator;
+    for (final MapEntry(:key, :value) in a.entries) {
+      if (key is! String ||
+          !others.moveNext() ||
+          key != others.current.key ||
+          !sameKey(value, others.current.value)) {
+        return false;
+      }
+    }
+    return true;
+  }
+  return false;
+}
+
+/// A copy of [key] for [sameKey] to compare later keys with, or null when
+/// [key] holds a value that [sameKey] leaves to hashing. It keeps the key as
+/// it was, so a key changed in place no longer matches it.
+List<Object?>? keyCopy(List<Object?> key) {
+  final copy = _copyKey(key);
+  return identical(copy, _notCopied) ? null : copy! as List<Object?>;
+}
+
+/// What [_copyKey] returns for a value [sameKey] leaves to hashing.
+final Object _notCopied = Object();
+
+Object? _copyKey(Object? value) {
+  if (value == null ||
+      value is bool ||
+      value is int ||
+      value is String ||
+      value is Enum) {
+    return value;
+  }
+  if (value is List) {
+    final copy = List<Object?>.filled(value.length, null);
+    for (var i = 0; i < value.length; i++) {
+      final item = _copyKey(value[i]);
+      if (identical(item, _notCopied)) return _notCopied;
+      copy[i] = item;
+    }
+    return copy;
+  }
+  if (value is Map) {
+    final copy = <String, Object?>{};
+    for (final MapEntry(:key, value: item) in value.entries) {
+      if (key is! String) return _notCopied;
+      final itemCopy = _copyKey(item);
+      if (identical(itemCopy, _notCopied)) return _notCopied;
+      copy[key] = itemCopy;
+    }
+    return copy;
+  }
+  return _notCopied;
+}
+
 /// Returns true when [b] is a prefix (for lists) or subset (for maps) of [a].
 bool partialMatchKey(List<Object?> a, List<Object?> b) {
   return partialMatchForms(keyForm(a), keyForm(b));
