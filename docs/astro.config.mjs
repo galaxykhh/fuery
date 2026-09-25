@@ -55,6 +55,7 @@ export default defineConfig({
 						'guides/persistence',
 						'guides/lifecycle',
 						'guides/bloc',
+						'guides/adapters',
 						'guides/testing',
 						'guides/devtools',
 					],
