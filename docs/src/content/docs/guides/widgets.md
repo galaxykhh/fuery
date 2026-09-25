@@ -195,6 +195,7 @@ QueriesBuilder(
 - The results come in the order of the queries.
 - Build the list in `build`. Every query keeps its observer while its key stays in the list, even when the list is reordered, and a key that leaves the list lets its observer go.
 - Results that change together rebuild once.
+- A rebuild of the widget that builds `QueriesBuilder` updates every query in the list, even with the same ids. With hundreds of queries, keep state that changes often, such as a text field's, in another widget, so this one rebuilds only when the ids change.
 
 `QueriesSelector` builds from one value combined from the results, and rebuilds only when that value changes:
 
