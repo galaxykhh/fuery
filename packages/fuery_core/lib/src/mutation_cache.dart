@@ -28,8 +28,8 @@ class MutationFilters
   bool matches(AnyCachedMutation mutation) => _matcher()(mutation);
 
   /// A test for [matches] that converts [mutationKey] once, for testing many
-  /// mutations. A mutation's key can change while it runs, so its own key is
-  /// converted on every test.
+  /// mutations. Each mutation converts its own key once too, and again when
+  /// new options bring another key.
   bool Function(AnyCachedMutation mutation) _matcher() {
     final mutationKey = this.mutationKey;
     if (mutationKey == null) return _matchesState;
@@ -38,15 +38,15 @@ class MutationFilters
     if (exact) {
       late final hash = hashKey(mutationKey);
       return (mutation) {
-        final key = mutation.options.mutationKey;
-        return key != null && hashKey(key) == hash && _matchesState(mutation);
+        final key = mutation._keyHash;
+        return key != null && key == hash && _matchesState(mutation);
       };
     }
     late final form = keyForm(mutationKey);
     return (mutation) {
-      final key = mutation.options.mutationKey;
+      final key = mutation._keyForm;
       return key != null &&
-          partialMatchForms(keyForm(key), form) &&
+          partialMatchForms(key, form) &&
           _matchesState(mutation);
     };
   }

@@ -12,7 +12,8 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
     required Mutation<TData, TVariables, TContext> options,
   })  : _client = client,
         _mutationCache = mutationCache,
-        _scopeId = options.scope?.id {
+        _scopeId = options.scope?.id,
+        _options = options {
     _setOptions(options);
     _scheduleGc();
   }
@@ -42,9 +43,15 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
 
   /// In the order they subscribed, like [CachedQuery._observers].
   final Set<MutationObserver<TData, TVariables, TContext>> _observers = {};
-  late Mutation<TData, TVariables, TContext> _options;
+  Mutation<TData, TVariables, TContext> _options;
   var _state = MutationState<TData, TVariables, TContext>();
   Retryer<TData>? _retryer;
+
+  /// The key converted for filters on first use, like [CachedQuery._keyForm],
+  /// so the filters that test every run on every change don't convert it
+  /// again. [_setOptions] drops them when new options bring another key.
+  String? _hash;
+  Object? _form;
 
   Mutation<TData, TVariables, TContext> get options => _options;
 
@@ -52,7 +59,25 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
 
   Map<String, Object?>? get meta => _options.meta;
 
+  /// [hashKey] of the key, or null without one.
+  String? get _keyHash {
+    final key = _options.mutationKey;
+    return key == null ? null : _hash ??= hashKey(key);
+  }
+
+  /// [keyForm] of the key, or null without one.
+  Object? get _keyForm {
+    final key = _options.mutationKey;
+    return key == null ? null : _form ??= keyForm(key);
+  }
+
   void _setOptions(Mutation<TData, TVariables, TContext> options) {
+    // A pending run gets the new options of its observer, which can bring
+    // another key, such as one where there was none.
+    if (!identical(options.mutationKey, _options.mutationKey)) {
+      _hash = null;
+      _form = null;
+    }
     _options = options;
     _updateGcTime(_options.gcTime);
   }
