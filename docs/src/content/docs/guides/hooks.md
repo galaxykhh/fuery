@@ -152,6 +152,18 @@ When the widget goes away, the request still finishes.
 - For a definition, the hook drops the callbacks passed to its `mutate` calls.
 - A [shared observer](../mutations/#sharing-one-observer) is left alone and still runs them. Check `context.mounted` in them, or call the observer's `reset()` in the `dispose` of the screen that created it.
 
+## Showing every run of a mutation
+
+`useMutationState` returns the state of every run of a mutation, oldest first, wherever it started: a `useMutation` in another widget, a `MutationBuilder`, or a cubit's observer. It finds the runs by the definition's `mutationKey`, as [`MutationStateBuilder`](../mutations/#showing-every-run-of-a-mutation) does, and never runs the mutation:
+
+```dart
+final runs = useMutationState(addTodoMutation);
+
+if (runs.any((run) => run.isPending)) return const LinearProgressIndicator();
+```
+
+To react to each run instead, use [`useOnMutationStateChange`](#reacting-to-changes).
+
 ## Reacting to changes
 
 The hooks above only read. For navigation, snackbars, and other one-off effects, pass what they return to a change hook:
@@ -183,9 +195,9 @@ useOnQueryChange(
 
 The listener hears every change of the result, such as a fetch starting or ending, or data written with `setData`. To react to a transition, compare both results in `listenWhen`, as above. That shows one snackbar per failed refresh, not one for every later change while the error stays.
 
-Each widget's change hook runs its own listener. For an effect the whole app needs once, such as reporting every failed fetch, use [`QueryCacheConfig.onError`](../client-setup/#reporting-every-failure-in-one-place) instead.
+Two widgets that react to the same query each run their own listener, so an effect in a change hook runs once per widget. For an effect the whole app needs once, such as reporting every failed fetch, use [`QueryCacheConfig.onError`](../client-setup/#reporting-every-failure-in-one-place) instead.
 
-A change hook adds no observer and never rebuilds the widget; the reading hook does. To react to a query without rebuilding the widget, wrap the subtree in a `QueryListener` or `InfiniteQueryListener`, which `fuery_hooks` re-exports. `useOnMutationStateChange` reads the provided client, so it rebuilds the widget when that client is replaced.
+A change hook adds no observer and never rebuilds the widget. The one exception is `useOnMutationStateChange`. It reads the provided client, so it rebuilds the widget when that client is replaced. The reading hook, such as `useQuery`, rebuilds the widget when its result changes. To react to a query without rebuilding the widget, wrap the subtree in a `QueryListener` or `InfiniteQueryListener`, which `fuery_hooks` re-exports.
 
 `useOnMutationChange` hears the runs started with the result it gets:
 
@@ -247,18 +259,6 @@ Show snackbars and navigate from a change hook, which runs outside the build and
 - `showSnackBar` reports `The showSnackBar() method cannot be called during build.`
 - `Navigator.pop` reports `setState() or markNeedsBuild() called during build.`
 - On the first build, or after the keys changed, `ScaffoldMessenger.of(context)` fails first, with `Cannot listen to inherited widgets inside HookState.initState.`
-
-## Showing every run of a mutation
-
-`useMutationState` returns the state of every run of a mutation, oldest first, wherever it started: a `useMutation` in another widget, a `MutationBuilder`, or a cubit's observer. It finds the runs by the definition's `mutationKey`, as [`MutationStateBuilder`](../mutations/#showing-every-run-of-a-mutation) does, and never runs the mutation:
-
-```dart
-final runs = useMutationState(addTodoMutation);
-
-if (runs.any((run) => run.isPending)) return const LinearProgressIndicator();
-```
-
-To react to each run instead, use [`useOnMutationStateChange`](#reacting-to-changes).
 
 ## The hook for each widget
 
