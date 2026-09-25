@@ -14,10 +14,6 @@ class MutationObserver<TData, TVariables, TContext>
 
   final QueryClient _client;
   Mutation<TData, TVariables, TContext>? _options;
-
-  /// [hashKey] of the key of [options], once [_sameKeyHash] hashed it, so
-  /// the next [setOptions] doesn't hash it again.
-  String? _keyHash;
   late MutationResult<TData, TVariables, TContext> _currentResult;
   CachedMutation<TData, TVariables, TContext>? _currentMutation;
 
@@ -70,18 +66,16 @@ class MutationObserver<TData, TVariables, TContext>
     }
   }
 
-  /// Whether [prevKey] and [nextKey] have the same [hashKey]. Hashes one key
-  /// at most: [_keyHash] keeps the hash of the key before, and a key that
-  /// [sameKey] finds the same isn't hashed.
+  /// Whether [prevKey] and [nextKey], as they are now, have the same
+  /// [hashKey]. Keys that [sameKey] finds the same aren't hashed. Others are
+  /// both hashed, never taken from an earlier hash: either key, or a part of
+  /// it, can have changed in place since.
   bool _sameKeyHash(MutationKey? prevKey, MutationKey? nextKey) {
     if (prevKey != null && nextKey != null && sameKey(prevKey, nextKey)) {
-      // The same list can have changed in place since it was hashed.
-      if (identical(prevKey, nextKey)) _keyHash = null;
       return true;
     }
     final nextHash = nextKey == null ? null : hashKey(nextKey);
-    final prevHash = prevKey == null ? null : _keyHash ?? hashKey(prevKey);
-    _keyHash = nextHash;
+    final prevHash = prevKey == null ? null : hashKey(prevKey);
     return nextHash == prevHash;
   }
 

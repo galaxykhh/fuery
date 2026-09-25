@@ -13,6 +13,13 @@ class Page {
   Map<String, Object?> toJson() => {'number': number};
 }
 
+/// Search parameters that the app changes in place.
+class Params {
+  Params(this.page);
+  int page;
+  Map<String, Object?> toJson() => {'page': page};
+}
+
 /// Keys built again on every call, as a widget builds them, including keys
 /// of other types that hash the same, and keys that only look alike.
 final samples = <QueryKey Function()>[
@@ -272,7 +279,6 @@ void main() {
     fakeTest('keeps its run when the key is changed in place', (async) {
       final key = <Object?>['todos', 1];
       final observer = save(['other']).observe(client: client);
-      // A new key is hashed.
       observer.setOptions(save(key));
       observer.mutate('a');
       async.elapse(ms10);
@@ -281,7 +287,7 @@ void main() {
       observer.setOptions(save(key));
       expect(observer.result.data, 'a');
 
-      // The list holds another key now than when it was hashed.
+      // The list holds another key now than when it was first passed.
       observer.setOptions(save(['todos', 1]));
       expect(observer.result.isIdle, isTrue);
     });
@@ -294,17 +300,84 @@ void main() {
       final keyless = save(null).observe(client: client);
       expect(() => keyless.setOptions(save(unhashable)), throwsArgumentError);
       expect(() => keyless.setOptions(save(null)), throwsArgumentError);
+
+      // Also after it hashed a key before the one it can't hash.
+      final hashed = save(['other']).observe(client: client);
+      hashed.setOptions(save(['todos', 1]));
+      hashed.mutate('a');
+      async.elapse(ms10);
+      expect(
+        () => hashed.setOptions(save(['todos', Object()])),
+        throwsArgumentError,
+      );
+      expect(() => hashed.setOptions(save(['todos', 1])), throwsArgumentError);
+      expect(hashed.result.data, 'a');
+    });
+
+    fakeTest('resets when the key before was changed in place', (async) {
+      final key = <Object?>['todos', 1];
+      final observer = save(['other']).observe(client: client);
+      observer.setOptions(save(key));
+      observer.mutate('a');
+      async.elapse(ms10);
+
+      // The list holds another key now, though it wasn't passed again.
+      key[1] = 2;
+      observer.setOptions(save(['todos', 1]));
+      expect(observer.result.isIdle, isTrue);
+
+      // A part of the key changed in place after a key built again.
+      final filter = <String, Object?>{'page': 1};
+      observer.setOptions(save(['todos', filter]));
+      observer.setOptions(save(['posts', filter]));
+      observer.mutate('b');
+      async.elapse(ms10);
+      filter['page'] = 2;
+      observer.setOptions(save(['posts', filter]));
+      expect(observer.result.data, 'b');
+      observer.setOptions(save([
+        'posts',
+        {'page': 1},
+      ]));
+      expect(observer.result.isIdle, isTrue);
+    });
+
+    fakeTest('keeps its run when a key it hashes is changed in place', (async) {
+      final key = <Object?>['todos', 1.5];
+      final observer = save(['other']).observe(client: client);
+      observer.setOptions(save(key));
+      observer.mutate('a');
+      async.elapse(ms10);
+
+      key[1] = 2.5;
+      observer.setOptions(save(key));
+      expect(observer.result.data, 'a');
+
+      // A part of a key built again, while the run is pending.
+      final params = Params(1);
+      observer.setOptions(save(['search', params]));
+      observer.setOptions(save(['search', params]));
+      var succeeded = 0;
+      observer.mutate(
+        'b',
+        MutateOptions(onSuccess: (_, __, ___, ____) => succeeded++),
+      );
+      params.page = 2;
+      observer.setOptions(save(['search', params]));
+      async.elapse(ms10);
+      expect(observer.result.data, 'b');
+      expect(succeeded, 1);
     });
   });
 
   group('the filters', () {
-    fakeTest('follow the key a pending run gets from its observer', (async) {
-      int matching(QueryKey key, {bool exact = false}) {
-        return client.mutationCache
-            .findAll(MutationFilters(mutationKey: key, exact: exact))
-            .length;
-      }
+    int matching(QueryKey key, {bool exact = false}) {
+      return client.mutationCache
+          .findAll(MutationFilters(mutationKey: key, exact: exact))
+          .length;
+    }
 
+    fakeTest('follow the key a pending run gets from its observer', (async) {
       final slot = MutationStateSlot(save(['todos', 'b']), client);
       final observer = save(['todos', 'a']).observe(client: client);
       observer.mutate('a');
