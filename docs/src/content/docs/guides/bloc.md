@@ -108,7 +108,7 @@ class TodoCubit extends Cubit<TodoState> {
 
 ## App lifecycle
 
-Fuery's widgets and hooks connect the app lifecycle, so stale queries refetch when the app resumes. An app that uses queries only from blocs calls `FueryBinding.ensureInitialized()` once in `main` instead. See [When the app resumes](../lifecycle/#when-the-app-resumes).
+Fuery's widgets, hooks, and `FueryProvider` connect the app lifecycle, so stale queries refetch when the app resumes. An app that uses queries only from blocs, without a `FueryProvider`, calls `FueryBinding.ensureInitialized()` once in `main` instead. See [When the app resumes](../lifecycle/#when-the-app-resumes).
 
 ## In the example app
 
