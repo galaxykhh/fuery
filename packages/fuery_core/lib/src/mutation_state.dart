@@ -470,15 +470,22 @@ class NoVariablesMutation<TData, TContext extends Object?>
 
   /// Runs this mutation on [Fuery.client] with `mutate()`, or on another
   /// client with `mutate(null, client)`, like [Mutation.mutate].
+  ///
+  /// The variables can only be `null`, so `mutate(client)` does not compile.
+  /// A `void` parameter would take the client and drop it, and the run would
+  /// go to [Fuery.client].
   @override
-  void mutate([void variables, QueryClient? client]) {
+  void mutate([covariant Null variables, QueryClient? client]) {
     super.mutate(null, client);
   }
 
   /// Runs this mutation and returns its data, like [Mutation.mutateAsync]:
   /// `mutateAsync()`, or `mutateAsync(null, client)`.
   @override
-  Future<TData> mutateAsync([void variables, QueryClient? client]) {
+  Future<TData> mutateAsync([
+    covariant Null variables,
+    QueryClient? client,
+  ]) {
     return super.mutateAsync(null, client);
   }
 }

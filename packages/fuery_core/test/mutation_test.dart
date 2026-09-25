@@ -974,6 +974,29 @@ void main() {
         [MutationStatus.error, MutationStatus.error],
       );
     });
+
+    fakeTest('a NoVariablesMutation takes no client in place of the variables',
+        (async) {
+      final other = QueryClient();
+      useAsFueryClient(other);
+      final logout = NoVariablesMutation(mutationFn: () async => 'bye');
+
+      // `logout.mutate(client)` does not compile. Through the base type,
+      // whose variables are `void`, it throws rather than dropping the client
+      // and running on Fuery.client.
+      final Mutation<String, void, Object?> base = logout;
+      // ignore: void_checks
+      expect(() => base.mutate(client), throwsA(isA<TypeError>()));
+      // ignore: void_checks
+      expect(() => base.mutateAsync(client), throwsA(isA<TypeError>()));
+      async.flushMicrotasks();
+      expect(other.mutationCache.getAll(), isEmpty);
+      expect(client.mutationCache.getAll(), isEmpty);
+
+      base.mutate(null, client);
+      async.flushMicrotasks();
+      expect(client.mutationCache.getAll().single.state.data, 'bye');
+    });
   });
 }
 

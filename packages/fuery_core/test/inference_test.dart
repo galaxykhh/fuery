@@ -291,6 +291,9 @@ void main() {
     final refresh = NoVariablesMutation(mutationFn: () async => 42);
     refresh.mutate();
     refresh.mutate(null, client);
+    // As a button's `onPressed`.
+    final void Function() onPressed = refresh.mutate;
+    onPressed();
     final refreshed = refresh.mutateAsync();
     final refreshedOn = refresh.mutateAsync(null, client);
     async.flushMicrotasks();
