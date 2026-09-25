@@ -33,6 +33,11 @@ class CachedQuery<TData extends Object> extends _Removable {
   /// In the order they subscribed: a set literal is a `LinkedHashSet`,
   /// which adds and removes one in constant time.
   final Set<QueryObserver<TData>> _observers = {};
+
+  /// A copy of [_observers] to notify, kept until they change, so that a
+  /// listener can unsubscribe while being notified and a dispatch doesn't
+  /// copy them again.
+  List<QueryObserver<TData>>? _notified;
   bool _abortSignalConsumed = false;
   bool _removed = false;
   bool _restoreAttempted = false;
@@ -198,12 +203,14 @@ class CachedQuery<TData extends Object> extends _Removable {
 
   void _addObserver(QueryObserver<TData> observer) {
     if (!_observers.add(observer)) return;
+    _notified = null;
     _clearGcTimeout();
     _cache._notify();
   }
 
   void _removeObserver(QueryObserver<TData> observer) {
     if (!_observers.remove(observer)) return;
+    _notified = null;
 
     if (_observers.isEmpty) {
       final retryer = _retryer;
@@ -403,7 +410,7 @@ class CachedQuery<TData extends Object> extends _Removable {
     }
 
     notifyManager.batch(() {
-      for (final observer in _observers.toList()) {
+      for (final observer in _notified ??= _observers.toList(growable: false)) {
         // An observer runs callbacks of the app, such as refetchWhile,
         // placeholderData, and its listeners. What they throw is reported,
         // so the other observers are updated and a fetch keeps its outcome.
