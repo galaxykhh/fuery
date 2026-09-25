@@ -53,6 +53,8 @@ export default defineConfig({
 						'guides/infinite-queries',
 						'guides/streaming',
 						'guides/persistence',
+						'guides/query-client',
+						'guides/client-setup',
 						'guides/lifecycle',
 						'guides/bloc',
 						'guides/testing',
@@ -62,7 +64,7 @@ export default defineConfig({
 				{
 					label: 'Reference',
 					items: [
-						'guides/query-client',
+						'reference/query-client',
 						'reference/query-options',
 						'reference/query-results',
 						'reference/mutation-options',

@@ -152,12 +152,14 @@ An app that uses no Fuery widgets calls `FueryBinding.ensureInitialized()` once,
 - [Infinite queries](https://galaxykhh.github.io/fuery/guides/infinite-queries/): paginated lists, cursors, and previous pages.
 - [Streamed queries](https://galaxykhh.github.io/fuery/guides/streaming/): a `Stream` folded into the cache as it arrives.
 - [Persistence](https://galaxykhh.github.io/fuery/guides/persistence/): queries and mutations kept across app restarts.
-- [QueryClient](https://galaxykhh.github.io/fuery/guides/query-client/): reading, writing, and invalidating the cache, defaults, and fetching outside widgets.
-- [Refetching automatically](https://galaxykhh.github.io/fuery/guides/lifecycle/): the app lifecycle, and pausing while offline.
+- [Reading and updating the cache](https://galaxykhh.github.io/fuery/guides/query-client/): invalidating and watching the cache, fetching outside widgets, and clearing it at logout.
+- [Setting up the client](https://galaxykhh.github.io/fuery/guides/client-setup/): defaults, failure reporting, and a client per subtree.
+- [Refetching and going offline](https://galaxykhh.github.io/fuery/guides/lifecycle/): the app lifecycle, and pausing while offline.
 - [Using with bloc](https://galaxykhh.github.io/fuery/guides/bloc/): cubits, blocs, and mutations run from them.
 - [Testing](https://galaxykhh.github.io/fuery/guides/testing/): widget, cubit, and plain Dart tests with a fresh client.
 - [Devtools](https://galaxykhh.github.io/fuery/guides/devtools/): every query and mutation, inspected inside the running app.
 - [Hooks](https://galaxykhh.github.io/fuery/guides/hooks/): `useQuery`, `useMutation`, and the other hooks of `fuery_hooks`.
+- [QueryClient](https://galaxykhh.github.io/fuery/reference/query-client/): every option, method, filter, and cache field.
 - [Query options](https://galaxykhh.github.io/fuery/reference/query-options/): every option, with its default.
 
 ## Acknowledgements
