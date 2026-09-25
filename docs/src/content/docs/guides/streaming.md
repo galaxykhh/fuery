@@ -3,7 +3,9 @@ title: Streamed queries
 description: "Cache a stream in Flutter: show chunks as they arrive, then keep the result."
 ---
 
-`streamedQuery` turns a `Stream` into a query function and folds each chunk into the query data. Use it when a response arrives in chunks: a streamed answer, a progress log, a file being processed.
+`streamedQuery` turns a `Stream` into a query function. The screen shows the data while chunks arrive. The cache keeps the result when the stream ends.
+
+Use it for a response that arrives in chunks and then ends: a streamed answer, a progress log, a file being processed. A connection that stays open, such as a live feed, isn't a fetch and doesn't fit a query. Write each message into the cache with `setQueryData` instead, as in [Reading and writing the cache](../query-client/#reading-and-writing-the-cache).
 
 ```dart
 final answer = Query(
@@ -16,14 +18,19 @@ final answer = Query(
 );
 ```
 
-- **The query succeeds with the first chunk.** Widgets show the data as it grows, while `isFetching` stays true until the stream is done.
-- **`combine` works like `Stream.fold`.** It adds one chunk to the value so far, starting from `initialValue`. The data type comes from `initialValue`, so the call needs no type arguments.
-- **An empty stream** succeeds with `initialValue`.
-- **An error** in the stream or in `combine` fails the query, and the chunks received so far stay in `data`. Retries work like any other query: each attempt starts a new stream and follows `refetchMode`.
+- **The query succeeds with the first chunk.** Widgets show the data as it grows.
+- **`isFetching` stays true until the stream is done.**
+- **`combine` works like `Stream.fold`.** It adds one chunk to the value so far, starting from `initialValue`.
+- **`initialValue` sets the data type**, so the call needs no type arguments.
+- **An empty stream succeeds with `initialValue`.**
+- **An error in the stream or in `combine` fails the query.** `data` keeps the chunks received so far.
+- **Each retry starts a new stream** and follows `refetchMode`. The default mode clears the data first.
 
-Use it for streams that end. A connection that stays open, like a live feed, isn't a fetch and doesn't fit a query.
+The `Query` takes the other [query options](../../reference/query-options/) as usual, such as `staleTime`.
 
 ## Collecting chunks in a list
+
+Start from an empty list and add each chunk to it:
 
 ```dart
 final log = Query(
@@ -38,7 +45,7 @@ final log = Query(
 
 ## Refetching a streamed query
 
-When the query fetches again, for example after `invalidateQueries`, `refetchMode` decides what happens to the data it already has:
+`refetchMode` decides what happens to the cached data when the query fetches again, for example after `invalidateQueries`:
 
 | Mode | While the new stream runs | When it's done |
 |---|---|---|
@@ -57,9 +64,9 @@ queryFn: streamedQuery(
 
 ## Stopping the stream
 
-Cancelling the fetch cancels the stream, for example with `cancelQueries`. A refetch that replaces it does the same.
+Fuery cancels the stream when it cancels the fetch: on `cancelQueries`, or when a refetch replaces the running fetch.
 
-When the last widget stops using the query, the stream keeps running by default and its result is cached, so a streamed answer is complete when the user comes back. To stop it instead, read `context.signal` in `stream`, the same way any query function becomes cancellable:
+By default, the stream keeps running when no widget uses the query, and Fuery caches the result. A streamed answer is then complete when the user comes back. To stop the stream instead, read `context.signal` in `stream`, which makes the fetch [cancellable](../queries/#cancelling-a-request):
 
 ```dart
 stream: (context) {

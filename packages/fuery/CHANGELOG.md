@@ -1,15 +1,15 @@
 ## 1.5.1
-- Released with the performance improvements of `fuery_core` 1.5.1: a widget given a definition built in `build`, such as `QueryBuilder`, `QueriesBuilder`, or `MutationBuilder`, no longer hashes its key on every rebuild, and `MutationStateBuilder`, `MutationStateListener`, and `MutationStateSelector` stay fast with many runs in the cache.
+- Released with `fuery_core` 1.5.1. A widget given a definition built in `build`, such as `QueryBuilder`, `QueriesBuilder`, or `MutationBuilder`, rebuilds faster: it no longer hashes a key built again with the same content. `MutationStateBuilder`, `MutationStateListener`, and `MutationStateSelector` stay fast with many runs in the cache.
 
 ## 1.5.0
-- Add `MutationStateBuilder`, `MutationStateListener`, and `MutationStateSelector`. Each takes `mutation:` and shows or hears every run of a mutation, found by its `mutationKey` or by `MutationFilters`, wherever the run was started. They work in a `StatelessWidget`, without sharing an observer. `MutationStateListener` is called once for each run that changes, and never for the states runs had when it mounted.
-- Listener widgets and consumers listen through `ObserverSlot.listen`. A listener that throws is now reported to the client's `onUncaughtError` when it is set. Before, its error always went to the zone.
+- Add `MutationStateBuilder`, `MutationStateListener`, and `MutationStateSelector`, which show or hear every run of a mutation, wherever the run was started. Each takes `mutation:`, either a `Mutation`, whose runs it finds by its `mutationKey`, or `MutationFilters`. They work in a `StatelessWidget`, without sharing an observer. `MutationStateListener` is called once for each run that changes, and never for the states runs had when it mounted.
+- Report an error that the `listener` of a listener widget or consumer throws to the client's `onUncaughtError`, if it has one. Before, the error always went to the zone. These widgets now listen through `ObserverSlot.listen`.
 - Fix: a listener that throws no longer skips the rebuild of a `QueryConsumer`, `InfiniteQueryConsumer`, or `MutationConsumer`.
 - Fix: a listener no longer hears a change that the widget's previous observer had queued, as after the provided client was replaced.
-- Fix: listener widgets and consumers are no longer called when they mount for a state the query already had, such as while a persisted query's restore is still reading, or when they join a fetch that already failed.
-- The debug warning for a `MutationListener` given a `Mutation` definition points to `MutationStateListener` with a `mutationKey`, then to `MutateOptions`, then to one shared observer.
-- The example reports every failed like, also when likes overlap, keeps the comments queued on a post listed after leaving it, and runs "mark all read" from a `MutationBuilder`.
-- Released together with `fuery_core` 1.5.0, which renames Fuery's focus manager class to `FueryFocusManager`. `package:fuery/fuery.dart` exports it, and still exports the deprecated `FocusManager` alias. In a file that also imports Flutter, write `primaryFocus` or `WidgetsBinding.instance.focusManager`, or hide `FocusManager`.
+- Fix: listener widgets and consumers are no longer called on mount for a state the query already had, such as while a persisted query's restore is still reading, or when they join a fetch that already failed.
+- Point the debug warning for a `MutationListener` given a `Mutation` definition to `MutationStateListener` with a `mutationKey` first, then to `MutateOptions`, then to one shared observer.
+- Update the example: it reports every failed like, also when likes overlap. It keeps the comments queued on a post listed after you leave the post, and runs "mark all read" from a `MutationBuilder`.
+- Released with `fuery_core` 1.5.0, which renames Fuery's focus manager class to `FueryFocusManager`. `package:fuery/fuery.dart` exports it, and still exports the deprecated `FocusManager` alias, which clashes with Flutter's. In a file that also imports Flutter, write `primaryFocus` or `WidgetsBinding.instance.focusManager`, or hide `FocusManager`.
 
 ## 1.4.4
 - Fix: when the provided client and a query's key change in the same frame, the new key is no longer fetched on the old client.
