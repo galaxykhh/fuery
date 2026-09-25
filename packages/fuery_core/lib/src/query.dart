@@ -357,11 +357,13 @@ class Query<TData extends Object> implements QuerySource<TData> {
     return QueryObserver<TData>(client ?? Fuery.client, this);
   }
 
-  Query<TData> _withDefaults(QueryDefaults defaults) {
+  /// These options with [defaults] for what they leave unset, and
+  /// [knownHash], the hash of [queryKey] if the caller knows it.
+  Query<TData> _withDefaults(QueryDefaults defaults, [String? knownHash]) {
     final networkMode = this.networkMode ?? defaults.networkMode;
     return Query<TData>._defaulted(
       queryKey: queryKey,
-      queryHash: queryHash ?? hashKey(queryKey),
+      queryHash: queryHash ?? knownHash ?? hashKey(queryKey),
       queryFn: queryFn,
       enabled: enabled ?? defaults.enabled,
       staleTime: staleTime ?? defaults.staleTime,
