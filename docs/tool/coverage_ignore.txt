@@ -43,7 +43,6 @@ NotifyManager: apps use the notifyManager singleton
 # Cancellation internals.
 AbortController: Fuery owns the controller; a query function gets the signal
 AbortSignal.reason: throwIfAborted throws it, so apps meet it as the error
-AbortedException: Fuery aborts with the CancelledError, which throwIfAborted throws instead
 QueryObserver.currentQuery: the observer attaches itself; apps read results
 
 # Deprecated names.

@@ -244,7 +244,7 @@ queryFn: (context) {
 
 Without the signal, the request finishes and Fuery caches its result for next time.
 
-`context.signal` is an `AbortSignal`. A query function that works in steps can check `signal.aborted` between them, call `signal.throwIfAborted()` to stop with the cancellation's `CancelledError`, or race `signal.whenAborted` against its own work.
+`context.signal` is an `AbortSignal`. A query function that works in steps can check `signal.aborted` between them, call `signal.throwIfAborted()` to stop with the cancellation's `CancelledError`, or race `signal.whenAborted` against its own work. Fuery always aborts the signal with that `CancelledError`, never with an `AbortedException`.
 
 Fuery doesn't treat a cancellation as a failure:
 
