@@ -34,18 +34,18 @@ QueryResult<TData> useMyQuery<TData extends Object>(QuerySource<TData> query) {
 
 ## The slot contract
 
-`QuerySlot` takes a `QuerySource`: a `Query` or a `QueryObserver`. Every slot has these members:
+`QuerySlot` takes a `QuerySource`: a `Query` or a `QueryObserver`. It has these members, and so do `InfiniteQuerySlot` and `MutationSlot`:
 
 | Member | What it does |
 |---|---|
-| `update(source, client)` | Call it on every render. For a definition, the slot owns an observer and updates its options. For an observer, the slot uses it as it is. A new client gets a new observer. |
+| `update(source, client)` | Call it on every render. For a definition, the slot owns an observer and updates its options, and a new client gets a new observer. For an observer, the slot uses it as it is, with the client it was created with. |
 | `result` | The result to render, current as soon as `update` returns. |
 | `subscribe(listener)` | Calls `listener` with every later result, and stays subscribed when `update` moves the slot to another observer. Returns a function that removes it. |
-| `listen((previous, current) {...})` | Calls its listener after each later change, for side effects such as navigation. Returns a function that stops it. |
+| `listen((previous, current) {...})` | Calls its listener after each later change, for side effects such as navigation. `previous` is the last result it passed to the listener, or the `result` it started from. Returns a function that stops it. |
 | `dispose()` | Removes every listener. If the slot created the observer, it destroys a query observer or resets a mutation observer. The reset drops the callbacks of the latest `mutate` call. |
 | `observer` | The observer the slot renders from now. |
 
-`listen` holds the rules of the listener widgets, `useOnQueryChange`, and `useOnMutationChange`, which use it:
+The query, infinite query, and mutation listener and consumer widgets, `useOnQueryChange`, and `useOnMutationChange` call `listen`, so they follow its rules:
 
 - It runs in a microtask, never during a render.
 - It isn't called for the `result` it starts from, or for a result equal to the previous one.
@@ -55,10 +55,12 @@ QueryResult<TData> useMyQuery<TData extends Object>(QuerySource<TData> query) {
 
 ## Batching listener calls
 
-`subscribe` calls its listener synchronously, sometimes while another widget builds: a widget that mounts can start a fetch. In a framework that can't update during a render, do what the hook above does:
+`QuerySlot`, `InfiniteQuerySlot`, and `MutationSlot` call `subscribe` listeners synchronously, sometimes while another widget builds, such as when a widget that mounts starts a fetch. In a framework that can't update during a render, do what the hook above does:
 
 1. Wrap the listener in `notifyManager.batchCalls`, so changes arrive in a microtask.
 2. Ignore the changes that arrive after dispose.
+
+`QueriesSlot` and `MutationStateSlot` already call them in a microtask, so they need neither step.
 
 ## Other slots
 
@@ -77,7 +79,7 @@ QueryResult<TData> useMyQuery<TData extends Object>(QuerySource<TData> query) {
 - It takes a `MutationStateSource`: a `Mutation` with a `mutationKey`, or `MutationFilters`.
 - It only reads the cache. Its `observer` is the client's `MutationCache`.
 - Its `result` lists the runs' states, oldest first. It stays the same list until a matching run is added, removed, or changes.
-- It calls `subscribe` listeners in a microtask, once per batch, and only when the list changed.
+- It calls `subscribe` listeners in a microtask, once per batch, and only when the list changed, so they need no `batchCalls`.
 
 `subscribeToRuns((previous, current) {...})` calls its listener for each later change of each matching run, with that run's previous state: idle for a run that started later. It never reports the states runs had when it was added, or a run that the cache removes. `MutationStateListener` and `useOnMutationStateChange` use it.
 
@@ -105,7 +107,15 @@ void Function() listenTo<TData extends Object>(
 
 ## Reading the client
 
-In Flutter, `FueryProvider.of(context, listen: true)` returns the nearest provided client, or `Fuery.client`. The caller rebuilds when the provided client is replaced, and the next `update` moves the slot to it. Outside Flutter, pass the client your app uses.
+In Flutter, `FueryProvider.of(context, listen: true)` returns the nearest provided client, or `Fuery.client`. The caller rebuilds when the provided client is replaced. The next `update` then moves a slot that owns its observer to the new client.
+
+Outside Flutter, pass the client your app uses.
+
+## Refetching on focus and reconnect
+
+In Flutter, call `FueryBinding.ensureInitialized()` when the adapter mounts, as Fuery's widgets and hooks do. It connects the app lifecycle, so stale queries refetch when the app resumes and retries wait while the app is in the background. Calls after the first do nothing. A `FueryProvider` above calls it too. See [When the app resumes](../lifecycle/#when-the-app-resumes).
+
+A client refetches on focus and on reconnect, and resumes paused mutations, only while it is mounted. `Fuery.client` is always mounted, and a `FueryProvider` mounts its client. Call `mount()` on any other client your adapter uses, and `unmount()` when you stop using it. Outside Flutter, connect the host's focus events with `focusManager.setEventListener`. See the [QueryClient reference](../../reference/query-client/).
 
 ## In the Fuery sources
 
