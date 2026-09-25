@@ -317,6 +317,33 @@ class Mutation<TData, TVariables, TContext extends Object?>
     );
   }
 
+  /// Runs this mutation on [client], or [Fuery.client], without waiting for
+  /// it. A failure goes to the run's state and to the callbacks instead of
+  /// being thrown.
+  ///
+  /// No widget or observer keeps the run: the MutationState widgets, a
+  /// [MutationStateSlot], and [QueryClient.isMutating] find it by
+  /// [mutationKey], and the cache removes it [gcTime] after it settles. A
+  /// widget that shows only the runs it starts runs the mutation from its
+  /// result instead.
+  ///
+  /// ```dart
+  /// addTodo.mutate('Buy milk', context.queryClient);
+  /// ```
+  void mutate(TVariables variables, [QueryClient? client]) {
+    mutateAsync(variables, client).ignore();
+  }
+
+  /// Runs this mutation on [client], or [Fuery.client], and returns its
+  /// data. Throws if it fails. Await it for the effects of one call, such as
+  /// closing the screen that started it.
+  Future<TData> mutateAsync(TVariables variables, [QueryClient? client]) {
+    // An observer without listeners runs it as any observer does, with the
+    // client's defaults, the scope, and persistence, and attaches to nothing,
+    // so neither it nor the run is kept.
+    return observe(client: client).mutateAsync(variables);
+  }
+
   /// Whether [other] configures the mutation the same way, as far as
   /// anything watching the cache can tell. [sameKeyHash] tells whether the
   /// keys have the same hash, which the observer knows. Functions and codecs
@@ -439,6 +466,20 @@ class NoVariablesMutation<TData, TContext extends Object?>
       client ?? Fuery.client,
       this,
     );
+  }
+
+  /// Runs this mutation on [Fuery.client] with `mutate()`, or on another
+  /// client with `mutate(null, client)`, like [Mutation.mutate].
+  @override
+  void mutate([void variables, QueryClient? client]) {
+    super.mutate(null, client);
+  }
+
+  /// Runs this mutation and returns its data, like [Mutation.mutateAsync]:
+  /// `mutateAsync()`, or `mutateAsync(null, client)`.
+  @override
+  Future<TData> mutateAsync([void variables, QueryClient? client]) {
+    return super.mutateAsync(null, client);
   }
 }
 

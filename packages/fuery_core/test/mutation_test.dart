@@ -665,6 +665,316 @@ void main() {
       expect(client.mutationCache.getAll(), isEmpty);
     });
   });
+
+  group('running from the definition', () {
+    /// Makes [replacement] the default client for the rest of the test.
+    void useAsFueryClient(QueryClient replacement) {
+      final original = Fuery.client;
+      Fuery.client = replacement;
+      addTearDown(() {
+        replacement.clear();
+        Fuery.client = original;
+      });
+    }
+
+    fakeTest('mutate runs on the given client, where its key finds the run',
+        (async) {
+      final events = <String>[];
+      final addTodo = Mutation(
+        mutationKey: const ['todos', 'add'],
+        mutationFn: slowEcho,
+        onMutate: (title, on) {
+          events.add('onMutate $title ${identical(on, client)}');
+          return 'context';
+        },
+        onSuccess: (data, title, context, on) =>
+            events.add('onSuccess $data $context ${identical(on, client)}'),
+        onSettled: (data, error, title, context, on) =>
+            events.add('onSettled $data $error'),
+      );
+      final slot = MutationStateSlot(addTodo, client);
+      final heard = <String>[];
+      slot.subscribeToRuns(
+        (previous, current) => heard.add('${previous.status.name} '
+            '${current.status.name} ${current.variables}'),
+      );
+
+      addTodo.mutate('a', client);
+      async.flushMicrotasks();
+      expect(client.isMutating(mutationKey: const ['todos']), 1);
+      expect(slot.result.single.isPending, isTrue);
+      expect(slot.result.single.variables, 'a');
+      expect(slot.result.single.context, 'context');
+
+      async.elapse(ms10);
+      expect(client.isMutating(), 0);
+      expect(slot.result.single.isSuccess, isTrue);
+      expect(slot.result.single.data, 'a');
+      expect(events, [
+        'onMutate a true',
+        'onSuccess a context true',
+        'onSettled a null',
+      ]);
+      expect(heard.first, 'idle pending a');
+      expect(heard.last, 'pending success a');
+      slot.dispose();
+    });
+
+    fakeTest('mutateAsync returns the data', (async) {
+      final addTodo = Mutation(mutationFn: slowEcho);
+
+      String? data;
+      addTodo.mutateAsync('a', client).then<void>((value) {
+        data = value;
+      });
+      async.flushMicrotasks();
+      expect(client.isMutating(), 1);
+
+      async.elapse(ms10);
+      expect(data, 'a');
+      expect(client.mutationCache.getAll().single.state.data, 'a');
+    });
+
+    fakeTest('runs on Fuery.client when no client is given', (async) {
+      final other = QueryClient();
+      useAsFueryClient(other);
+      final clients = <QueryClient>[];
+      final addTodo = Mutation(
+        mutationFn: slowEcho,
+        onSuccess: (data, title, context, on) {
+          clients.add(on);
+        },
+      );
+
+      addTodo.mutate('a');
+      String? data;
+      addTodo.mutateAsync('b').then<void>((value) {
+        data = value;
+      });
+      async.flushMicrotasks();
+      expect(other.isMutating(), 2);
+      expect(client.isMutating(), 0);
+
+      async.elapse(ms10);
+      expect(data, 'b');
+      expect(
+        [for (final run in other.mutationCache.getAll()) run.state.data],
+        ['a', 'b'],
+      );
+      expect(clients, [same(other), same(other)]);
+      expect(client.mutationCache.getAll(), isEmpty);
+    });
+
+    fakeTest('mutate reports a failure to the run and the callbacks only',
+        (async) {
+      final events = <String>[];
+      final uncaught = <Object>[];
+      final failing = QueryClient(
+        mutationCache: MutationCache(
+          config: MutationCacheConfig(
+            onError: (error, variables, context, mutation) =>
+                events.add('cache onError $variables'),
+            onSettled: (data, error, variables, context, mutation) =>
+                events.add('cache onSettled $variables'),
+          ),
+        ),
+        onUncaughtError: (error, _) => uncaught.add(error),
+      );
+      addTearDown(failing.clear);
+      final addTodo = Mutation(
+        mutationKey: const ['todos', 'add'],
+        mutationFn: slowFail,
+        onError: (error, title, context, client) =>
+            events.add('onError $title'),
+        onSettled: (data, error, title, context, client) =>
+            events.add('onSettled $title'),
+      );
+
+      final zone = <Object>[];
+      runZonedGuarded(
+        () => addTodo.mutate('a', failing),
+        (error, _) => zone.add(error),
+      );
+      async.elapse(ms10);
+
+      final run = failing.mutationCache.getAll().single;
+      expect(run.state.isError, isTrue);
+      expect(run.state.error, isA<StateError>());
+      expect(events, [
+        'cache onError a',
+        'onError a',
+        'cache onSettled a',
+        'onSettled a',
+      ]);
+      expect(zone, isEmpty);
+      expect(uncaught, isEmpty);
+    });
+
+    fakeTest('mutateAsync throws the error', (async) {
+      final addTodo = Mutation(mutationFn: slowFail);
+
+      Object? error;
+      addTodo.mutateAsync('a', client).then<void>(
+        (_) {},
+        onError: (Object e) {
+          error = e;
+        },
+      );
+      async.elapse(ms10);
+
+      expect(error, isA<StateError>());
+      expect(client.mutationCache.getAll().single.state.isError, isTrue);
+    });
+
+    fakeTest('keeps no observer, so the cache removes the run after gcTime',
+        (async) {
+      final addTodo = Mutation(
+        mutationFn: (String title) async {
+          await Future<void>.delayed(const Duration(minutes: 2));
+          return title;
+        },
+        gcTime: const Duration(minutes: 1),
+      );
+
+      addTodo.mutate('a', client);
+      // Pending past its gcTime: it is kept until it settles.
+      async.elapse(const Duration(minutes: 1, seconds: 30));
+      expect(client.mutationCache.getAll().single.state.isPending, isTrue);
+
+      async.elapse(const Duration(seconds: 30));
+      expect(client.mutationCache.getAll().single.state.isSuccess, isTrue);
+      async.elapse(const Duration(minutes: 1));
+      expect(client.mutationCache.getAll(), isEmpty);
+    });
+
+    fakeTest('applies the defaults of the client that runs it', (async) {
+      var attempts = 0;
+      client.setMutationDefaults(
+        const ['todos'],
+        MutationDefaults(
+          retry: const RetryPolicy.count(1),
+          retryDelay: (_, __) => ms10,
+          gcTime: const Duration(minutes: 1),
+        ),
+      );
+      final addTodo = Mutation(
+        mutationKey: const ['todos', 'add'],
+        mutationFn: (String title) async {
+          if (++attempts == 1) throw StateError('try again');
+          return title;
+        },
+      );
+
+      addTodo.mutate('a', client);
+      async.elapse(ms10);
+      expect(attempts, 2);
+      expect(client.mutationCache.getAll().single.state.data, 'a');
+      async.elapse(const Duration(minutes: 1));
+      expect(client.mutationCache.getAll(), isEmpty);
+    });
+
+    fakeTest('waits for its turn in a scope', (async) {
+      final events = <String>[];
+      Future<String> save(String title) async {
+        events.add('start $title');
+        await Future<void>.delayed(ms10);
+        events.add('end $title');
+        return title;
+      }
+
+      final saveDraft = Mutation(
+        mutationFn: save,
+        scope: const MutationScope('drafts'),
+      );
+      // Runs from an observer and from the definition share the queue.
+      saveDraft.observe(client: client).mutate('a');
+      saveDraft.mutate('b', client);
+      saveDraft.mutate('c', client);
+      async.flushMicrotasks();
+      expect(
+        [for (final run in client.mutationCache.getAll()) run.state.isPaused],
+        [false, true, true],
+      );
+
+      async.elapse(ms10 * 3);
+      expect(events, [
+        'start a',
+        'end a',
+        'start b',
+        'end b',
+        'start c',
+        'end c',
+      ]);
+    });
+
+    fakeTest('pauses offline and runs once the connection is back', (async) {
+      onlineManager.setOnline(false);
+      final addTodo = Mutation(mutationFn: slowEcho);
+
+      addTodo.mutate('a', client);
+      async.elapse(ms10);
+      final run = client.mutationCache.getAll().single;
+      expect(run.state.isPaused, isTrue);
+
+      onlineManager.setOnline(true);
+      async.elapse(ms10);
+      expect(run.state.isSuccess, isTrue);
+    });
+
+    fakeTest('a NoVariablesMutation runs with mutate() and mutateAsync()',
+        (async) {
+      final other = QueryClient();
+      useAsFueryClient(other);
+      var calls = 0;
+      final refresh = NoVariablesMutation(
+        mutationFn: () async => ++calls,
+      );
+
+      refresh.mutate();
+      int? data;
+      refresh.mutateAsync().then<void>((value) {
+        data = value;
+      });
+      async.flushMicrotasks();
+      expect(data, 2);
+      expect(other.mutationCache.getAll(), hasLength(2));
+
+      // With a client, the variables come first, as null.
+      refresh.mutate(null, client);
+      refresh.mutateAsync(null, client).then<void>((value) {
+        data = value;
+      });
+      async.flushMicrotasks();
+      expect(data, 4);
+      expect(client.mutationCache.getAll(), hasLength(2));
+    });
+
+    fakeTest('a NoVariablesMutation reports failures like any other', (async) {
+      final logout = NoVariablesMutation(
+        mutationFn: () async => throw StateError('offline'),
+      );
+
+      final zone = <Object>[];
+      Object? error;
+      runZonedGuarded(() {
+        logout.mutate(null, client);
+        logout.mutateAsync(null, client).then<void>(
+          (_) {},
+          onError: (Object e) {
+            error = e;
+          },
+        );
+      }, (error, _) => zone.add(error));
+      async.flushMicrotasks();
+
+      expect(error, isA<StateError>());
+      expect(zone, isEmpty);
+      expect(
+        [for (final run in client.mutationCache.getAll()) run.state.status],
+        [MutationStatus.error, MutationStatus.error],
+      );
+    });
+  });
 }
 
 /// A mutation observer equal to every other of its class with the same key.
