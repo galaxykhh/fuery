@@ -36,7 +36,7 @@ The query, infinite query, and mutation widgets, `QueriesBuilder`, and `QueriesS
 - `buildWhen(previous, current)` compares with the last built result.
 - `listenWhen(previous, current)` compares with the previous result.
 - Listeners aren't called for the result the query already had when they mounted.
-- A consumer's listener runs before the rebuild that shows the change. A listener that throws doesn't stop the rebuild: its error goes to [`onUncaughtError`](../query-client/#catching-errors-that-callbacks-throw).
+- A consumer's listener runs before the rebuild that shows the change. A listener that throws doesn't stop the rebuild: its error goes to [`onUncaughtError`](../client-setup/#catching-errors-that-callbacks-throw).
 
 ## Rebuilding only what changed
 
@@ -141,7 +141,7 @@ RefreshIndicator(
 )
 ```
 
-`invalidateQueries` marks every query under `['todos']` stale and refetches the ones a widget is using. `refetchQueries` refetches without marking anything stale; its `type` defaults to `QueryTypeFilter.all`, so pass `QueryTypeFilter.active` to leave screens nobody is looking at alone. [Invalidating](../query-client/#invalidating) covers the filters both take.
+`invalidateQueries` marks every query under `['todos']` stale and refetches the ones a widget is using. `refetchQueries` refetches without marking anything stale; its `type` defaults to `QueryTypeFilter.all`, so pass `QueryTypeFilter.active` to leave screens nobody is looking at alone. [Query filters](../../reference/query-client/#query-filters) lists the filters both take.
 
 Both return a `Future<void>` that completes when every matching fetch settles, and neither throws unless you pass `throwOnError: true`. A fetch that is paused because the device is offline isn't waited for, so the indicator doesn't hang.
 

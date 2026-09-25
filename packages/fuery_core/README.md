@@ -91,8 +91,10 @@ An adapter, for example for another state library, keeps one `QuerySlot` (or `In
 - [Infinite queries](https://galaxykhh.github.io/fuery/guides/infinite-queries/): paginated lists, cursors, and previous pages.
 - [Streamed queries](https://galaxykhh.github.io/fuery/guides/streaming/): a `Stream` folded into the cache as it arrives.
 - [Persistence](https://galaxykhh.github.io/fuery/guides/persistence/): queries and mutations kept across restarts.
-- [QueryClient](https://galaxykhh.github.io/fuery/guides/query-client/): reading, writing, invalidating, and watching the cache, and defaults.
+- [Reading and updating the cache](https://galaxykhh.github.io/fuery/guides/query-client/): invalidating and watching the cache, fetching outside widgets, and clearing it at logout.
+- [Setting up the client](https://galaxykhh.github.io/fuery/guides/client-setup/): defaults, failure reporting, and errors that callbacks throw.
 - [Testing](https://galaxykhh.github.io/fuery/guides/testing/#testing-without-a-widget-tree): queries tested without a widget tree, with fake time.
+- [QueryClient](https://galaxykhh.github.io/fuery/reference/query-client/): every option, method, filter, and cache field.
 - [Query options](https://galaxykhh.github.io/fuery/reference/query-options/): every option, with its default.
 
 ## Acknowledgements

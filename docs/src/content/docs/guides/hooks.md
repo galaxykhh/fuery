@@ -134,7 +134,7 @@ The listener runs outside the build, never during one: right after the change, b
 
 The listener hears every change of the result, including a fetch starting and ending and data written with `setData`. To react to a transition, compare the two results in `listenWhen`, as above: `!previous.isRefetchError && current.isRefetchError` shows one snackbar per failed refresh, not one per rebuild of an error that is still there.
 
-Each widget that calls a change hook gets its own calls, so two widgets reacting to the same query both run their listeners. An effect the whole app needs once, such as reporting every failed fetch, belongs in [`QueryCacheConfig.onError`](../query-client/#reporting-every-failure-in-one-place) instead.
+Each widget that calls a change hook gets its own calls, so two widgets reacting to the same query both run their listeners. An effect the whole app needs once, such as reporting every failed fetch, belongs in [`QueryCacheConfig.onError`](../client-setup/#reporting-every-failure-in-one-place) instead.
 
 A change hook adds no observer, and a change it hears never rebuilds the widget. The widget still rebuilds through the hook that reads. `useOnMutationStateChange` uses the provided client, so it rebuilds the widget when that client is replaced, to follow it. To react without rebuilding a widget, wrap its subtree in a `QueryListener` or `InfiniteQueryListener`, which `fuery_hooks` re-exports.
 

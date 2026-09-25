@@ -108,7 +108,7 @@ class TodoCubit extends Cubit<TodoState> {
 
 ## App lifecycle
 
-An app that uses queries only from blocs has to connect the app lifecycle itself, with one call at startup. See [Refetching automatically](../lifecycle/#when-the-app-resumes).
+An app that uses queries only from blocs has to connect the app lifecycle itself, with one call at startup. See [Refetching and going offline](../lifecycle/#when-the-app-resumes).
 
 ## In the example app
 

@@ -39,7 +39,7 @@ The buttons act on the selected query:
 
 | Button | Does |
 |---|---|
-| Refetch | Fetches it again, like [`refetchQueries`](../query-client/#choosing-which-queries-an-operation-touches): it skips a disabled query, a static one that has data, and one only `setQueryData` has written, which has no query function yet |
+| Refetch | Fetches it again, like [`refetchQueries`](../../reference/query-client/#operations-on-matching-queries): it skips a disabled query, a static one that has data, and one only `setQueryData` has written, which has no query function yet |
 | Invalidate | Marks it stale, which refetches it if it's in use |
 | Reset | Returns it to its initial state and deletes its [persisted data](../persistence/) |
 | Remove | Removes it from the cache and deletes its persisted data |

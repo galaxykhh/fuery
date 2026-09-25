@@ -251,7 +251,7 @@ Without the signal, the request finishes and Fuery caches its result for next ti
 
 `context.signal` is an `AbortSignal`. A query function that works in steps can check `signal.aborted` between them, call `signal.throwIfAborted()` to stop with an `AbortedException`, or race `signal.whenAborted` against its own work.
 
-A cancellation is not a failure. [`cancelQueries`](../query-client/#the-extra-arguments) puts the query back in the state it had before the fetch, the `CancelledError` never reaches `QueryCacheConfig.onError`, and a cancelled fetch that finishes late never overwrites data that was fetched or written after it. Only a query function that swallows the abort and returns a value can put stale data in the cache.
+A cancellation is not a failure. [`cancelQueries`](../../reference/query-client/#refetch-and-cancel-arguments) puts the query back in the state it had before the fetch, the `CancelledError` never reaches `QueryCacheConfig.onError`, and a cancelled fetch that finishes late never overwrites data that was fetched or written after it. Only a query function that swallows the abort and returns a value can put stale data in the cache.
 
 A `CancelledError` that the query function throws itself is a failure. A query function that awaits `context.client.query(userQuery)` can throw one when `userQuery` is cancelled or removed while it loads. The query goes to error, and `QueryCacheConfig.onError` receives the error like any other.
 

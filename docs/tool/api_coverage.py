@@ -79,8 +79,8 @@ ARGUMENTS = {
     "Query options": "reference/query-options.md",
     "Infinite query options": "reference/query-options.md",
     "Mutation options": "reference/query-options.md",
-    "Query filters": "guides/query-client.md",
-    "Mutation filters": "guides/query-client.md",
+    "Query filters": "reference/query-client.md",
+    "Mutation filters": "reference/query-client.md",
 }
 
 

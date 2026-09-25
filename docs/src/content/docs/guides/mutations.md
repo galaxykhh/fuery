@@ -218,7 +218,7 @@ MutationStateBuilder(
 Which runs they show:
 
 - A `Mutation` finds the runs with its `mutationKey`, exactly, typed like the definition. The runs of another definition with the same key and types count too. A definition without a key fails an assert in debug builds.
-- A run of other types under the key is left out, and reported once to [`onUncaughtError`](../query-client/#catching-errors-that-callbacks-throw). Give each definition a key of its own.
+- A run of other types under the key is left out, and reported once to [`onUncaughtError`](../client-setup/#catching-errors-that-callbacks-throw). Give each definition a key of its own.
 - `MutationFilters` find the runs of any mutation that match them, as `client.mutationCache.findAll` does: by key prefix, `exact` key, `status`, or `predicate`. Without a `status`, settled runs match too. Their states are typed `Object?`.
 - The runs are listed oldest first, so `runs.lastOrNull` is the latest.
 - A settled run stays until the cache removes it, `gcTime` (default: 5 minutes) after it settles. A mounted `MutationBuilder` keeps its latest run for as long as it shows it. Build indicators from `isPending`, not from the length. `client.clear()` removes every run.

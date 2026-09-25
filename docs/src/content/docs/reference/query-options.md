@@ -41,7 +41,7 @@ This page lists every option a `Query` takes. [Queries](../../guides/queries/) e
 | `retry` | `RetryPolicy.count(3)` | How often to retry a failed fetch. Also `.never()`, `.always()`, and `.when((count, error) => ...)`. |
 | `retryDelay` | 1s, 2s, 4s, … up to 30s | How long to wait between attempts, as a function of the failure count and the error. |
 | `retryOnMount` | `true` | Set `false` to leave a failed query alone when another widget starts using it. |
-| `networkMode` | `NetworkMode.online` | Whether fetching waits for connectivity. See [Refetching automatically](../../guides/lifecycle/). |
+| `networkMode` | `NetworkMode.online` | Whether fetching waits for connectivity. See [Refetching and going offline](../../guides/lifecycle/). |
 
 ## Data to show before the fetch
 

@@ -76,7 +76,7 @@ Unsubscribe any observer you subscribed by hand before `clear()`. Clearing moves
 
 An observer keeps the client it was created with. An observer created at the top level of a file, as in `final todos = todosQuery.observe();`, therefore keeps the client from the first test that used it, while later tests create fresh clients that never see it.
 
-Keep queries at the top level instead, and pass them to widgets, which use the current client. Call `observe()` where the observer is used, such as in a cubit, so each test gets one on its own client. See [Which client a query uses](../guides/query-client/#which-client-a-query-uses).
+Keep queries at the top level instead, and pass them to widgets, which use the current client. Call `observe()` where the observer is used, such as in a cubit, so each test gets one on its own client. See [Which client a query uses](../guides/client-setup/#which-client-a-query-uses).
 
 ## A screen reads another client's cache
 
@@ -228,7 +228,7 @@ In a `HookWidget`, pass the result of the `useMutation` that runs the mutation t
 The MutationState widgets and `useMutationState` find runs by the definition's `mutationKey`, in the cache of the client they use.
 
 - **The definition has no `mutationKey`.** In debug builds, the widget fails an assert that says so. Give it one, such as `mutationKey: const ['todos', 'add']`.
-- **Another definition with other types uses the key.** Its runs are left out, and reported once to [`onUncaughtError`](../guides/query-client/#catching-errors-that-callbacks-throw). Give each definition a key of its own.
+- **Another definition with other types uses the key.** Its runs are left out, and reported once to [`onUncaughtError`](../guides/client-setup/#catching-errors-that-callbacks-throw). Give each definition a key of its own.
 - **The runs are on another client.** An observer created with `observe()` without `client:` runs on `Fuery.client`, not on the client of a `FueryProvider`. See [A screen reads another client's cache](#a-screen-reads-another-clients-cache).
 - **The runs are gone.** A settled run leaves the cache `gcTime` (default: 5 minutes) after it settles, and `client.clear()` removes every run.
 
@@ -236,7 +236,7 @@ The MutationState widgets and `useMutationState` find runs by the definition's `
 
 An error thrown by a listener goes to the client's `onUncaughtError` when the client has one, and only without it to the current zone, where Flutter passes it to `PlatformDispatcher.onError`. That covers the `listener` of a listener widget, a consumer, or a hook, and a function passed to a slot's `listen` or `subscribeToRuns`. The rebuild still happens, and the other listeners still run.
 
-Report it from `onUncaughtError`, as the other errors that callbacks throw. See [Catching errors that callbacks throw](../guides/query-client/#catching-errors-that-callbacks-throw).
+Report it from `onUncaughtError`, as the other errors that callbacks throw. See [Catching errors that callbacks throw](../guides/client-setup/#catching-errors-that-callbacks-throw).
 
 ## The devtools button covers part of the app
 
@@ -263,4 +263,4 @@ void main() {
 
 ## Nothing pauses while the device is offline
 
-Fuery assumes the device is online until you report connectivity. See [Refetching automatically](../guides/lifecycle/#when-the-network-reconnects).
+Fuery assumes the device is online until you report connectivity. See [Refetching and going offline](../guides/lifecycle/#when-the-network-reconnects).
