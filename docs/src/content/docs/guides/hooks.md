@@ -110,11 +110,18 @@ When the widget goes away, the request still finishes. For a definition, the cal
 
 ## Reacting to changes
 
-Pass `listener` to the hook for navigation, snackbars, and other one-off effects. It runs after a change, never during a build, and not for the result the widget mounts with:
+The hooks above only read. For navigation, snackbars, and other one-off effects, pass what they return to a change hook:
+
+| Hook | Calls its listener after |
+|---|---|
+| `useOnQueryChange(result, ...)` | Each change of the result of a `useQuery` or `useInfiniteQuery` |
+| `useOnMutationChange(result, ...)` | Each change of the result of a `useMutation`: the runs started with it |
+| `useOnMutationStateChange(mutation, ...)` | Each change of each run of a mutation, found by its `mutationKey`, from any widget |
 
 ```dart
-final todos = useQuery(
-  todosQuery,
+final todos = useQuery(todosQuery);
+useOnQueryChange(
+  todos,
   listenWhen: (previous, current) =>
       !previous.isRefetchError && current.isRefetchError,
   listener: (context, result) => ScaffoldMessenger.of(context).showSnackBar(
@@ -123,13 +130,16 @@ final todos = useQuery(
 );
 ```
 
-`listener` and `listenWhen` work as on a [`QueryListener`](../widgets/#reacting-to-changes). `listenWhen` compares the previous result received with the new one, and `context` is the widget's own. `useInfiniteQuery` and `useMutation` take them too.
+The listener runs after the build, never during one, with the widget's own `context`. It isn't called for the result the hook starts with. `listenWhen` compares the previous result received with the new one, as on a [`QueryListener`](../widgets/#reacting-to-changes), and the latest build's `listener` and `listenWhen` are used. Given the result of `useInfiniteQuery`, the closures get an `InfiniteQueryResult`, with its pages.
 
-Given a definition, a mutation's listener hears the runs started with the result its hook returns:
+A change hook adds no observer and no rebuild. The widget still rebuilds through the hook that reads. To react without rebuilding a widget, wrap its subtree in a `QueryListener` or `InfiniteQueryListener`, which `fuery_hooks` re-exports.
+
+`useOnMutationChange` hears the runs started with the result it gets:
 
 ```dart
-final addTodo = useMutation(
-  addTodoMutation,
+final addTodo = useMutation(addTodoMutation);
+useOnMutationChange(
+  addTodo,
   listenWhen: (previous, current) => current.isSuccess,
   listener: (context, result) => Navigator.pop(context),
 );
@@ -140,20 +150,32 @@ FilledButton(
 )
 ```
 
-Run the mutation from that result, or pass the result to the child that runs it. Another `useMutation(addTodoMutation)` has an observer of its own, and this listener doesn't hear its runs. To hear every run, from any widget, pass the listener to [`useMutationState`](#showing-every-run-of-a-mutation) instead. Given a [shared observer](../mutations/#sharing-one-observer), the listener hears every run of that observer.
+Run the mutation from that result, or pass the result to the child that runs it. Another `useMutation(addTodoMutation)` has an observer of its own, and this listener doesn't hear its runs. Given a [shared observer](../mutations/#sharing-one-observer), `useMutation` returns its result, and the listener hears every run of that observer.
+
+`useOnMutationStateChange` hears every run of a mutation, wherever it started, as a `MutationStateListener` does. It needs no `useMutation`. The listener gets the new state of each run that changed, once per run, and `listenWhen` compares that run's previous state with its new one:
+
+```dart
+useOnMutationStateChange(
+  addTodoMutation,
+  listenWhen: (previous, current) => current.isError,
+  listener: (context, run) => ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text('Could not add "${run.variables}"')),
+  ),
+);
+```
 
 | Effect | Where it goes |
 |---|---|
 | Cache work, such as invalidating `['todos']` after any run | The callbacks of the `Mutation` |
-| The screen's reaction to the runs of its own `useMutation`, such as closing the screen | `listener` of `useMutation` |
-| A reaction to every run, from any widget, such as a snackbar for each failure | `listener` of `useMutationState` |
+| The screen's reaction to the runs of its own `useMutation`, such as closing the screen | `useOnMutationChange` |
+| A reaction to every run, from any widget, such as a snackbar for each failure | `useOnMutationStateChange` |
 | An effect of one call that needs that call's variables | `MutateOptions` passed to `mutate` |
 
-The widget still rebuilds when the result changes, with a listener or without. To react without rebuilding a widget, wrap its subtree in a `QueryListener` or `InfiniteQueryListener`, which `fuery_hooks` re-exports.
+When the result the widget mounts with already decides what to show, such as a signed-out user, decide it in `build` from the result the hook returns. No change hook is called for it.
 
-The listener isn't called for the result the widget mounts with. When that result already decides what to show, such as a signed-out user, decide it in `build` from the result the hook returns.
+### Why not `useEffect`
 
-Don't show a snackbar or navigate from `useEffect` or `useValueChanged` keyed on the result: `flutter_hooks` runs them during the build, where those calls fail.
+`flutter_hooks` runs a `useEffect` callback during the build: on the first build, then on every build whose keys changed, or on every build when it has no keys. A snackbar or a navigation fails there, because it changes the widget tree while the tree is building. The effect also runs for the value the widget mounts with. `useValueChanged` runs during the build too. The change hooks run after the build, and only for later changes.
 
 ## Showing every run of a mutation
 
@@ -165,17 +187,7 @@ final runs = useMutationState(addTodoMutation);
 if (runs.any((run) => run.isPending)) return const LinearProgressIndicator();
 ```
 
-Its `listener` gets the new state of each run that changed, as a `MutationStateListener` does, and `listenWhen` compares that run's previous state with its new one:
-
-```dart
-useMutationState(
-  addTodoMutation,
-  listenWhen: (previous, current) => current.isError,
-  listener: (context, run) => ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text('Could not add "${run.variables}"')),
-  ),
-);
-```
+To react to each run instead, use [`useOnMutationStateChange`](#reacting-to-changes).
 
 ## Loading more pages
 
@@ -209,14 +221,19 @@ Each query keeps its observer while its key stays in the list, even when the lis
 | Widget | Hook |
 |---|---|
 | `QueryBuilder` | `useQuery(query)` |
-| `QueryListener`, `QueryConsumer` | `useQuery(query, listener: ...)` |
+| `QueryListener` | `useOnQueryChange(result, listener: ...)` |
+| `QueryConsumer` | `useQuery(query)` and `useOnQueryChange` |
 | `InfiniteQueryBuilder` | `useInfiniteQuery(query)` |
-| `InfiniteQueryListener`, `InfiniteQueryConsumer` | `useInfiniteQuery(query, listener: ...)` |
+| `InfiniteQueryListener` | `useOnQueryChange(result, listener: ...)` |
+| `InfiniteQueryConsumer` | `useInfiniteQuery(query)` and `useOnQueryChange` |
 | `MutationBuilder` | `useMutation(mutation)` |
-| `MutationListener`, `MutationConsumer` | `useMutation(mutation, listener: ...)` |
+| `MutationListener` | `useOnMutationChange(result, listener: ...)` |
+| `MutationConsumer` | `useMutation(mutation)` and `useOnMutationChange` |
 | `QueriesBuilder` | `useQueries(queries)` |
 | `MutationStateBuilder`, `MutationStateSelector` | `useMutationState(mutation)` |
-| `MutationStateListener` | `useMutationState(mutation, listener: ...)` |
+| `MutationStateListener` | `useOnMutationStateChange(mutation, listener: ...)` |
+
+`result` is what the reading hook returns, such as `useQuery(query)`.
 
 ## The client
 

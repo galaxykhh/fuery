@@ -45,7 +45,7 @@ Every timer Fuery starts is cancelled on the matching destroy path, and time com
 |---|---|
 | [`fuery`](packages/fuery) | Flutter widgets, app lifecycle integration, `FueryProvider`, and devtools. Re-exports `fuery_core`. |
 | [`fuery_core`](packages/fuery_core) | Pure Dart core: `QueryClient`, queries, infinite queries, mutations, cache, and retries. |
-| [`fuery_hooks`](packages/fuery_hooks) | `useQuery`, `useInfiniteQuery`, `useMutation`, `useQueries`, and `useMutationState` for [`flutter_hooks`](https://pub.dev/packages/flutter_hooks). Re-exports `fuery`. |
+| [`fuery_hooks`](packages/fuery_hooks) | `useQuery`, `useInfiniteQuery`, `useMutation`, `useQueries`, and `useMutationState` for [`flutter_hooks`](https://pub.dev/packages/flutter_hooks), and `useOnQueryChange`, `useOnMutationChange`, and `useOnMutationStateChange` for side effects. Re-exports `fuery`. |
 
 ## Development
 

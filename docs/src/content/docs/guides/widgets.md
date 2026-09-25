@@ -272,7 +272,8 @@ QueryResult<TData> useMyQuery<TData extends Object>(QuerySource<TData> query) {
 - `result` is current as soon as `update` returns, so the frame that changed the key shows it.
 - `subscribe` delivers every later change and stays subscribed when the slot's `observer` changes. `dispose` drops it, and the observer if the slot created it.
 - `subscribe` calls its listener synchronously, sometimes while another widget is building: a widget that mounts can start a fetch. Wrap the listener in `notifyManager.batchCalls`, so changes arrive in a microtask, and ignore the ones that arrive after dispose, as the widgets and `fuery_hooks` do.
-- `listen((previous, current) {...})` is for side effects, such as navigation. It runs in a microtask after each later change, never for the `result` it starts from, with `previous` as the last result it delivered. It starts over from the new `result`, without a call, when `update` moves the slot to another observer, and reports a listener that throws to `onUncaughtError`. It returns a function that stops it. The query and mutation listener widgets, and the `listener` of `useQuery`, `useInfiniteQuery`, and `useMutation`, use it.
+- `listen((previous, current) {...})` is for side effects, such as navigation. It runs in a microtask after each later change, never for the `result` it starts from, with `previous` as the last result it delivered. It starts over from the new `result`, without a call, when `update` moves the slot to another observer, and reports a listener that throws to `onUncaughtError`. It returns a function that stops it. The query and mutation listener widgets, `useOnQueryChange`, and `useOnMutationChange` use it.
+- A result carries the observer that reported it, as `result.observer`: null for a `QueryResult` built with its constructor, and an `InfiniteQueryObserver` for an `InfiniteQueryResult`. An adapter given only a result, as `useOnQueryChange` and `useOnMutationChange` are, listens through a slot of its own over that observer and its `client`. The slot uses the observer as it is, and never destroys it.
 
 `InfiniteQuerySource` and `MutationSource` are the sources of the other two slots. `QueriesSlot` takes a list of `QuerySource`s and gives a list of results, for a hook like `useQueries`. It calls `subscribe` listeners in a microtask, once for the changes that arrive together. `FueryProvider.of(context, listen: true)` rebuilds the caller when the provided client is replaced.
 
@@ -281,7 +282,7 @@ QueryResult<TData> useMyQuery<TData extends Object>(QuerySource<TData> query) {
 - It takes a `MutationStateSource`: a `Mutation` with a `mutationKey`, or `MutationFilters`. It only reads the cache, so it creates no observer, and its `observer` is the client's `MutationCache`.
 - Its `result` is the list of the runs' states, oldest first. It stays the same list until a matching run is added, removed, or changes.
 - It calls `subscribe` listeners in a microtask, once per batch, and only when the list changed, so they need no `batchCalls`.
-- `subscribeToRuns((previous, current) {...})` calls its listener for each later change of each matching run, with that run's state before it (idle for a run that started later). It never reports the states runs had when it was added, or a run that the cache removes. `MutationStateListener` and the `listener` of `useMutationState` use it.
+- `subscribeToRuns((previous, current) {...})` calls its listener for each later change of each matching run, with that run's state before it (idle for a run that started later). It never reports the states runs had when it was added, or a run that the cache removes. `MutationStateListener` and `useOnMutationStateChange` use it.
 
 ## In the example app
 

@@ -54,7 +54,7 @@ flutter pub add fuery_hooks flutter_hooks
 | `useMutationState(mutation)` | The state of every run of a mutation, oldest first, wherever it started, found by its `mutationKey`. |
 | `useQueryClient()` | The client the hooks use, for `invalidateQueries` and `setData`. |
 
-Each rebuilds the widget when its result changes, and needs no type arguments: `todos` above is a `QueryResult<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`. `useQuery`, `useInfiniteQuery`, `useMutation`, and `useMutationState` also take `listener` and `listenWhen`, for side effects.
+Each rebuilds the widget when its result changes, and needs no type arguments: `todos` above is a `QueryResult<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`. They only read. [Change hooks](#reacting-to-changes) run side effects.
 
 ## Changing data
 
@@ -82,25 +82,30 @@ For a side effect of one call, pass `MutateOptions` to `mutate`. The request its
 
 ## Reacting to changes
 
-Pass `listener` to the hook for navigation, snackbars, and other one-off effects. It runs after a change, never during a build, and not for the result the widget mounts with. `listenWhen` compares the previous result with the new one, as on `QueryListener`. The listener of `useMutationState` hears every run of the mutation, found by the definition's `mutationKey`, from any widget, one run at a time:
+For navigation, snackbars, and other one-off effects, pass what a hook returns to a change hook. Its listener runs after the change, never during a build, and not for the result the widget mounts with. `listenWhen` compares the previous result with the new one, as on `QueryListener`:
 
 ```dart
-useMutationState(
-  addTodoMutation,
-  listenWhen: (previous, current) => current.isError,
-  listener: (context, run) => ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text('Could not add "${run.variables}"')),
-  ),
+final addTodo = useMutation(addTodoMutation);
+useOnMutationChange(
+  addTodo,
+  listenWhen: (previous, current) => current.isSuccess,
+  listener: (context, result) => Navigator.pop(context),
 );
 ```
 
-For a definition, the listener of `useMutation` hears only the runs started with the result its hook returns. For a shared observer, it hears every run. See [Reacting to changes](https://galaxykhh.github.io/fuery/guides/hooks/#reacting-to-changes) for which effect goes where.
+| Hook | Calls its listener after |
+|---|---|
+| `useOnQueryChange(result, listener: ...)` | Each change of the result of `useQuery` or `useInfiniteQuery`. |
+| `useOnMutationChange(result, listener: ...)` | Each change of the result of `useMutation`: the runs started with it, or every run of a shared observer. |
+| `useOnMutationStateChange(mutation, listener: ...)` | Each change of each run of a mutation, found by its `mutationKey`, from any widget. |
+
+See [Reacting to changes](https://galaxykhh.github.io/fuery/guides/hooks/#reacting-to-changes) for which effect goes where.
 
 ## Rules
 
 - **Pass a definition.** A `Query` or a `Mutation` can be a top-level value or be built in `build`: the hook keeps one observer for it and updates its options, so a new key shows in the same frame.
 - **Don't call `.observe()` in `build`.** A new query observer every build subscribes and fetches again, and a new mutation observer starts idle. In debug builds the hook prints a warning once per key.
-- **Run side effects in a listener.** For a snackbar or navigation, pass `listener:` to the hook. `useEffect` and `useValueChanged` run during the build, where those calls fail.
+- **Run side effects in a change hook.** For a snackbar or navigation, use `useOnQueryChange`, `useOnMutationChange`, or `useOnMutationStateChange`. `useEffect` and `useValueChanged` run during the build, where those calls fail.
 - **Watch the client with a memoized stream**: `useStream(useMemoized(() => client.watch(selector), [client]))`. A new stream every build rebuilds the widget on every frame.
 - **The client** is the one a `FueryProvider` above provides, or `Fuery.client`, and `useQueryClient()` returns it. A shared observer keeps the client it was created with instead.
 

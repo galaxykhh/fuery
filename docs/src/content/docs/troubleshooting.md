@@ -221,7 +221,7 @@ late final adding = addTodo.observe(client: context.queryClient);
 
 A builder, consumer, or selector that runs the mutation itself, with `state.mutate`, can take the definition. In debug builds, a `MutationListener` given a definition prints a warning to the console, once, with a link here.
 
-In a `HookWidget`, pass `listener:` to the `useMutation` whose result runs the mutation, or to `useMutationState(addTodo)` to hear every run. See [Reacting to changes](../guides/hooks/#reacting-to-changes).
+In a `HookWidget`, pass the result of the `useMutation` that runs the mutation to `useOnMutationChange`, or call `useOnMutationStateChange(addTodo, ...)` to hear every run. See [Reacting to changes](../guides/hooks/#reacting-to-changes).
 
 ## A MutationStateBuilder shows no runs
 
