@@ -35,6 +35,22 @@ MutationBuilder(
 
 The builder shows the runs it starts. To show the mutation's state anywhere else, such as a progress bar on another screen, use the [MutationState widgets](#showing-every-run-of-a-mutation), which find its runs by `mutationKey`. To run it from a cubit, or from several widgets that must see only each other's runs, see [Sharing one observer](#sharing-one-observer).
 
+## Running a mutation from its definition
+
+A definition runs itself with `mutate`. When the [MutationState widgets](#showing-every-run-of-a-mutation) show its runs, the button that starts one needs no `MutationBuilder`:
+
+```dart
+IconButton(
+  onPressed: () => addTodo.mutate('Buy milk', context.queryClient),
+  icon: const Icon(Icons.add),
+)
+```
+
+- It runs on `Fuery.client` unless you pass a client. Under a `FueryProvider` with a client of its own, pass `context.queryClient`.
+- `mutate` puts a failure in the run's state and passes it to the callbacks. `await addTodo.mutateAsync('Buy milk', client)` returns the data and throws on error, for the effects of one call.
+- A `NoVariablesMutation` runs with `logoutMutation.mutate()`, or `mutate(null, client)` on another client.
+- No widget keeps the run. The cache removes it `gcTime` after it settles.
+
 ## MutationState fields
 
 Builders, listeners, and an observer's `result` all report a `MutationResult`, a `MutationState` with `mutate`, `mutateAsync`, and `reset`. The [MutationState widgets](#showing-every-run-of-a-mutation) and `useMutationState` report plain `MutationState`s, one for each run, without them:
