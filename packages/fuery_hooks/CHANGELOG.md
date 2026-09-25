@@ -1,3 +1,6 @@
+## 1.5.1
+- Released with the performance improvements of `fuery_core` 1.5.1: `useQuery`, `useInfiniteQuery`, `useQueries`, and `useMutation` no longer hash a key built again with the same content on every build, and `useMutationState` and `useOnMutationStateChange` stay fast with many runs in the cache.
+
 ## 1.5.0
 - Add `useMutationState(mutation)`. It returns the state of every run of a mutation, found by its `mutationKey` or by `MutationFilters`, oldest first, wherever the run was started.
 - Add `useOnQueryChange`, `useOnMutationChange`, and `useOnMutationStateChange` for side effects, such as a snackbar or navigation, with the rules of the listener widgets. The first two take the result of `useQuery`, `useInfiniteQuery`, or `useMutation`; `useOnMutationStateChange` hears every run of a mutation, as `MutationStateListener` does. The listener runs after a change, never during a build and not for the result at mount, with the widget's own `context`.

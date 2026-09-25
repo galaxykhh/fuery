@@ -1,6 +1,6 @@
 name: fuery_hooks
 description: "Hooks for Fuery: useQuery, useInfiniteQuery, useMutation, useQueries, and useMutationState for flutter_hooks, with useOnQueryChange and useOnMutationChange for side effects."
-version: 1.5.0
+version: 1.5.1
 homepage: https://galaxykhh.github.io/fuery/guides/hooks/
 repository: https://github.com/galaxykhh/fuery/tree/main/packages/fuery_hooks
 documentation: https://galaxykhh.github.io/fuery/guides/hooks/
@@ -21,7 +21,7 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_hooks: ^0.21.2
-  fuery: ^1.5.0
+  fuery: ^1.5.1
 
 dev_dependencies:
   flutter_test:

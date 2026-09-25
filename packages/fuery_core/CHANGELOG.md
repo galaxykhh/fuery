@@ -1,3 +1,8 @@
+## 1.5.1
+- `MutationStateSlot`, and `MutationFilters` in `find`, `findAll`, and `isMutating`, convert each run's key once instead of hashing it on every read and flush. With 1,000 runs in the cache, reading a slot's runs is 20 times faster, and the flush after a run changes 8 to 11 times.
+- An observer given a definition built again with the same key, as a widget's `build` does, no longer hashes the key. `QueryObserver.setOptions` is 2.3 to 3.5 times faster, `QuerySlot.update` 1.9 to 3 times, `QueriesSlot.update` 1.7 to 2 times, and `MutationObserver.setOptions`, which hashed the key four times, 17 times. This holds for keys of strings, ints, bools, enums, lists, and maps with string keys; other keys are hashed as before.
+- Subscribing and unsubscribing an observer take the same time however many observers watch the query. With 10,000 on one query, they were 40 and 175 times slower.
+
 ## 1.5.0
 - Add `MutationStateSlot`, an `ObserverSlot` over the mutation cache. Its `result` is the state of every run a `MutationStateSource` finds, oldest first, wherever the run was started. A `Mutation` finds its runs by its `mutationKey`, typed like the definition, and `MutationFilters` find every matching run, typed `Object?`. Its `subscribe` listeners run in a microtask, once per batch, and only when the list changed. A definition without a key fails an assert, and a run of other types under the key is left out and reported once to `onUncaughtError`.
 - Add `MutationStateSlot.subscribeToRuns((previous, current) {...})`, which reports each later change of each run with that run's state before it. It never reports a state a run already had when the listener was added, or a run that the cache removed.
