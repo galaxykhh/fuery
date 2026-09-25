@@ -3,7 +3,7 @@ title: Setting up the client
 description: Configure the Flutter QueryClient once in main, with defaults, failure reporting, and a client per subtree when needed.
 ---
 
-One `QueryClient` sets the defaults, reports the failures, and catches the callback errors of the whole app. Configure it once, in `main`, before anything creates an [observer](../../how-the-cache-works/#observers). Every constructor option is listed in the [QueryClient reference](../../reference/query-client/#constructor-options).
+Configure one `QueryClient` for the whole app: set defaults, report every failure in one place, and catch the errors that callbacks throw. Do it once, in `main`, before anything creates an [observer](../../how-the-cache-works/#observers). Part of the app can run on a client of its own, for example in a widget test. The [QueryClient reference](../../reference/query-client/#constructor-options) lists every constructor option.
 
 ## Creating the client
 
@@ -53,9 +53,9 @@ Fuery.client.setMutationDefaults(
 - Options set on the query or mutation win over per-key defaults.
 - Per-key defaults win over the client's `defaultOptions`.
 - A mutation gets per-key defaults only when it has a `mutationKey`.
-- `getQueryDefaults(['settings'])` and `getMutationDefaults(['todos'])` return what a key resolves to, merged from every matching prefix.
+- `getQueryDefaults(['settings'])` and `getMutationDefaults(['todos'])` return the per-key defaults for a key, merged from every matching prefix. They don't include `defaultOptions`.
 
-The fields of `QueryDefaults` and `MutationDefaults` are listed in [Defaults](../../reference/query-client/#defaults).
+[Defaults](../../reference/query-client/#defaults) lists the fields of `QueryDefaults` and `MutationDefaults`.
 
 ## Reporting every failure in one place
 
@@ -79,10 +79,10 @@ Fuery.client = QueryClient(
 
 - A cache keeps its config for its whole life, so pass the config when you construct the client.
 - `QueryCacheConfig` callbacks run after a fetch. A cancelled fetch isn't a failure and reaches none of them.
-- `MutationCacheConfig` callbacks run before the [callbacks of the mutation itself](../mutations/#callbacks), and Fuery awaits a future they return.
-- A mutation arrives as an `AnyCachedMutation`, whose `data`, `variables`, and `context` are `Object?`. Tell mutations apart by `mutation.options.mutationKey` or `mutation.options.meta`.
+- `MutationCacheConfig` callbacks run before the [callbacks of the mutation itself](../../reference/mutation-options/#callbacks), and Fuery awaits a future they return.
+- The callbacks receive each mutation run as an `AnyCachedMutation`, whose `data`, `variables`, and `context` are `Object?`. Tell mutations apart by `mutation.options.mutationKey` or `mutation.options.meta`.
 
-Every callback and when it runs is listed in [Cache callbacks](../../reference/query-client/#cache-callbacks).
+[Cache callbacks](../../reference/query-client/#cache-callbacks) lists every callback and when it runs.
 
 ## Catching errors that callbacks throw
 
@@ -92,7 +92,7 @@ Every callback and when it runs is listed in [Cache callbacks](../../reference/q
 - An error thrown by `onError` or `onSettled` after a mutation failed, from the mutation or from its `MutationCacheConfig`.
 - An error thrown by `refetchWhile` or `placeholderData` while Fuery updates an observer after its query changed.
 - An error thrown by a listener: the `listener` of a listener widget, a consumer, or a hook, or a function passed to a slot's `listen` or `subscribeToRuns`.
-- A mistake Fuery finds while running, such as a `getNextPageParam` that returns a param of the wrong type, or a persisted `mutationKey` that can't be stored.
+- A mistake Fuery finds while running, such as a `getNextPageParam` that returns a param of the wrong type or throws while a result is built, or a persisted `mutationKey` that can't be stored.
 
 ```dart
 Fuery.client = QueryClient(

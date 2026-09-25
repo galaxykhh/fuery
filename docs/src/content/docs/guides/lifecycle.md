@@ -1,5 +1,5 @@
 ---
-title: Automatic refetching
+title: Refetching and going offline
 description: Refetch stale data when a Flutter app resumes, pause while offline, and resume when the network reconnects.
 ---
 
@@ -18,7 +18,7 @@ Fuery maps each `AppLifecycleState` to focus:
 - When the app is focused again, Fuery refetches every stale query in use, such as one a mounted widget shows.
 - While the app isn't focused, retries wait.
 - Polling stops in the background too, unless the query sets `refetchIntervalInBackground`.
-- `refetchOnFocus` sets this per query: `RefetchMode.ifStale` (default), `RefetchMode.always`, or `RefetchMode.never`.
+- `refetchOnFocus` sets, per query, whether it refetches when the app is focused again: `RefetchMode.ifStale` (default), `RefetchMode.always`, or `RefetchMode.never`.
 
 `focusManager`, a `FueryFocusManager`, holds the focus state. It tracks whether the app is in the foreground, not keyboard focus:
 
@@ -27,7 +27,7 @@ Fuery maps each `AppLifecycleState` to focus:
 | `setFocused(false)` | Reports the app as in the background. A test uses it to simulate backgrounding. |
 | `setFocused(null)` | Drops the state set by hand. The app counts as focused until the event source reports a change. |
 | `isFocused` | Whether Fuery treats the app as focused. `true` until something reports otherwise. |
-| `setEventListener(setup)` | Replaces the focus source, including the one `FueryBinding` connects. Outside Flutter, connect whatever your host provides. `setup` receives `setFocused` and returns a cleanup function or `null`. |
+| `setEventListener(setup)` | Replaces the focus source. In Flutter, call `FueryBinding.ensureInitialized()` first, or the first Fuery widget, hook, or `FueryProvider` replaces your source with the app lifecycle. Outside Flutter, connect whatever your host provides. `setup` receives a callback that takes `true` or `false`, or no value to notify listeners again. It returns a cleanup function or `null`. |
 
 An app that uses queries only from blocs, without a `FueryProvider`, has nothing that connects the lifecycle. Call this once at startup:
 

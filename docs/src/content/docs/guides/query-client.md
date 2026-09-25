@@ -3,9 +3,11 @@ title: Reading and updating the cache
 description: Read, write, invalidate, and watch cached data in Flutter, fetch outside widgets, and clear the cache at logout.
 ---
 
-With the `QueryClient`, you update what every screen shows without a new request, refetch data after a change on the server, and fetch before a screen opens. In a widget, `context.queryClient` returns the client the widgets use. Elsewhere, use `Fuery.client`. See [Which client a query uses](../client-setup/#which-client-a-query-uses).
+With the `QueryClient`, you update what every screen shows without a new request, refetch data after a change on the server, and fetch before a screen opens. In a widget, `context.queryClient` returns the client the widgets use. Elsewhere, use the client you configured: `Fuery.client`, or the one you passed to `FueryProvider`. See [Which client a query uses](../client-setup/#which-client-a-query-uses).
 
 ## Reading and writing the cache
+
+The client keeps one cache entry (`CachedQuery`) for each query key: the data and state of that key. Read and write the data with the query definition:
 
 ```dart
 final client = Fuery.client;
@@ -18,12 +20,12 @@ client.getQueryState(['todos'])?.dataUpdatedAt;         // the whole QueryState
 
 - `getData`, `setData`, and `updateData` take the key and the data type from the [query definition](../organizing-queries/), so there is nothing to cast.
 - Every widget that uses the key rebuilds with the new data.
-- A cache entry that `setData` creates gets every option of the query, so Fuery stores its data with `persist` and can refetch it.
+- When the key has no cache entry, `setData` creates one with every option of the query, so Fuery stores its data with `persist` and can refetch it.
 - Returning `null` from the `updateData` updater leaves the cache unchanged.
 
-With only a key, use `getQueryData`, `setQueryData`, and `updateQueryData`, and name the data type: `client.getQueryData<List<Todo>>(['todos'])`. A cache entry that `setQueryData` creates has no query function, so refetches skip it until a query for its key is fetched or observed. Reading a key as another data type throws a [`StateError`](../../troubleshooting/#stateerror-query-holds-x-but-was-requested-as-y).
+With only a key, use `getQueryData`, `setQueryData`, and `updateQueryData`, and name the data type: `client.getQueryData<List<Todo>>(['todos'])`. A cache entry that `setQueryData` creates has no query function, so refetches skip it until an observer or `client.query` brings a query for its key. Reading a key as another data type throws a [`StateError`](../../troubleshooting/#stateerror-query-holds-x-but-was-requested-as-y).
 
-`getQueryState` returns the `QueryState` of one key, such as when its data was last updated. Its fields are listed in [QueryState fields](../../reference/query-client/#querystate-fields).
+`getQueryState` returns the `QueryState` of one key, such as when its data was last updated. [QueryState fields](../../reference/query-client/#querystate-fields) lists its fields.
 
 To write many keys at once, for example from one websocket frame, wrap the writes in `notifyManager.batch`. Fuery then notifies the widgets once, after the last write:
 
@@ -37,7 +39,7 @@ notifyManager.batch(() {
 
 ## Updating many queries at once
 
-`updateQueriesData` updates every cached query under a key that holds the updater's data type, such as a post in every cached search result:
+`updateQueriesData` updates every cache entry under a key whose data has the updater's type, such as a post in every cached search result:
 
 ```dart
 client.updateQueriesData(
@@ -48,14 +50,14 @@ client.updateQueriesData(
 );
 ```
 
-- Fuery skips queries of another data type under the key, so one prefix can hold lists and details.
-- Fuery skips queries without data. Returning `null` leaves a query unchanged.
-- Give the updater's parameter the exact data type of the queries, not a supertype such as `Iterable<Post>`. Without a type, `updateQueriesData` throws an `ArgumentError`.
+- Fuery skips cache entries of another data type under the key, so one prefix can hold lists and details.
+- Fuery skips cache entries without data. Returning `null` leaves a cache entry unchanged.
+- Give the updater's parameter the exact data type of the cache entries, not a supertype such as `Iterable<Post>`. Without a type, `updateQueriesData` throws an `ArgumentError`.
 - `updatedAt` sets when the new data counts as fetched, as for `setData`.
 
 ## Listing what is cached
 
-`getQueriesData` returns the key and data of every cached query that matches `queryKey`, `exact`, and `predicate`:
+`getQueriesData` returns the key and data of every cache entry that matches `queryKey`, `exact`, and `predicate`:
 
 ```dart
 for (final (key, todo) in client.getQueriesData<Todo>(queryKey: ['todo'])) {
@@ -76,22 +78,22 @@ final saving = client.mutationCache.findAll(
 );
 ```
 
-Each match is a `CachedQuery` or a `CachedMutation`, whose fields are listed in [Caches](../../reference/query-client/#caches). The caches are read-only: change the cache through the client.
+A match in the query cache is a cache entry (`CachedQuery`). A match in the mutation cache is the run of one `mutate` call (`CachedMutation`). [Caches](../../reference/query-client/#caches) lists their fields. The caches are read-only: change the cache through the client.
 
 ## Invalidating
 
-After a change on the server, mark the affected queries stale:
+After a change on the server, mark the cache entries it affects stale:
 
 ```dart
 client.invalidateQueries(queryKey: ['todos']); // ['todos'] and everything under it
 client.invalidateQueries(queryKey: ['todos'], exact: true); // only ['todos']
 ```
 
-Fuery refetches the matching queries in use right away: those with an enabled [observer](../../how-the-cache-works/#observers), such as a mounted widget. The others refetch the next time something uses them. Pass `refetchType: RefetchType.none` to only mark them stale.
+Fuery refetches the matching cache entries in use right away: those with an enabled [observer](../../how-the-cache-works/#observers), such as a mounted widget. The others refetch the next time something uses them. Pass `refetchType: RefetchType.none` to only mark them stale.
 
 ## Choosing which queries an operation touches
 
-`invalidateQueries`, `refetchQueries`, `resetQueries`, `cancelQueries`, `removeQueries`, and `isFetching` select queries with the same filters: `queryKey`, `exact`, `type`, `stale`, and `predicate`. See [Operations on matching queries](../../reference/query-client/#operations-on-matching-queries), [Query filters](../../reference/query-client/#query-filters), and [Refetch and cancel arguments](../../reference/query-client/#refetch-and-cancel-arguments).
+`invalidateQueries`, `refetchQueries`, `resetQueries`, `cancelQueries`, `removeQueries`, and `isFetching` select cache entries with the same filters: `queryKey`, `exact`, `type`, `stale`, and `predicate`. See [Operations on matching queries](../../reference/query-client/#operations-on-matching-queries), [Query filters](../../reference/query-client/#query-filters), and [Refetch and cancel arguments](../../reference/query-client/#refetch-and-cancel-arguments).
 
 ### Refreshing only what is on screen
 
@@ -114,7 +116,7 @@ client.removeQueries(
 );
 ```
 
-The predicate receives the `CachedQuery`, so it can also test `query.state` and `query.options`, for example to remove every query that failed.
+The predicate receives the cache entry (`CachedQuery`), so it can also test `query.state` and `query.options`, for example to remove every cache entry whose fetch failed.
 
 ## Watching the cache
 
@@ -126,7 +128,7 @@ client.watch((client) => client.isMutating(mutationKey: ['todos']) > 0); // savi
 client.watch((client) => client.getQueryData<List<Todo>>(['todos'])); // cached data
 ```
 
-- Each listener gets the current value first, then every new value after a query or a mutation changes.
+- Each listener gets the current value first, then every new value after the query cache or the mutation cache changes.
 - Fuery compares values as [selectors](../widgets/#selecting-part-of-the-state) do, so an equal value emits nothing.
 - Watching fetches nothing.
 
@@ -171,9 +173,9 @@ client.query(todosQuery).ignore(); // prefetch: ignore the result and errors
 ```
 
 - Data is fresh for the query's `staleTime`. With the default of zero, `client.query` fetches every time.
-- A call made while the query is fetching waits for that fetch instead of starting another.
+- A call that needs to fetch waits for a fetch already running for the key, instead of starting another.
 - It throws when the fetch fails.
-- It retries only when the query or the client's defaults set `retry`.
+- It retries only when the query, `defaultOptions`, or a `setQueryDefaults` call for its key sets `retry`.
 
 To use whatever is cached, however old, set `staleTime: staticStaleTime`. `client.query` then fetches only when nothing is cached.
 
@@ -196,7 +198,7 @@ await client.infiniteQuery(pagedTodosQuery());
 
 - `pages` sets how many pages a fetch loads when nothing is cached: one by default, and never more than `maxPages`.
 - `pages` belongs to the definition, so a widget that shows this query also loads three pages first.
-- When pages are cached, a fetch reloads those pages and ignores `pages`.
+- When pages are cached, a fetch reloads them from the first, up to `maxPages`, and ignores `pages`.
 
 ## Clearing everything at logout
 
@@ -207,7 +209,7 @@ Future<void> logout() async {
 }
 ```
 
-`clear()` removes every query and every mutation, and deletes all [persisted data](../persistence/#deleting-stored-data). The client stays, with the defaults registered through `setQueryDefaults` and `setMutationDefaults`.
+`clear()` removes every cache entry and every mutation run, and deletes all [persisted data](../persistence/#deleting-stored-data). The client stays, with the defaults registered through `setQueryDefaults` and `setMutationDefaults`.
 
 What happens to a running mutation depends on its stage:
 
