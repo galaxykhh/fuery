@@ -28,8 +28,8 @@ testWidgets('shows todos', (tester) async {
 
 - **Pump the time your fake API takes.** A fake that answers at once needs only `await tester.pump()`.
 - **End each test by unmounting the widgets and calling `client.clear()`.** Otherwise the cache's garbage collection timers are still pending, and [the test fails](../../troubleshooting/#a-timer-is-still-pending-even-after-the-widget-tree-was-disposed).
-- **`QueryDefaults` is enough.** Mutations don't retry unless you set `retry`. Add `mutations: MutationDefaults(...)` only when a test needs a mutation default of its own.
-- **`FueryProvider` works too.** Widgets use the client of the nearest `FueryProvider`, so `FueryProvider(client: client, child: const App())` can replace assigning `Fuery.client`.
+- **Only queries need retries turned off.** Mutations don't retry unless you set `retry`, so `QueryDefaults` is enough. Add `mutations: MutationDefaults(...)` only when a test needs a mutation default of its own.
+- **`FueryProvider` works too.** Widgets use the client of the nearest `FueryProvider`, so `FueryProvider(client: client, child: const App())` can replace assigning `Fuery.client`. `observe()` still uses `Fuery.client` unless you pass `client:`, so an observer that the test or a cubit creates needs `observe(client: client)`.
 - **Create observers inside the test.** An observer keeps its client, so one created at the top level of a file [keeps the first test's client](../../troubleshooting/#a-test-passes-only-when-it-runs-first).
 
 ## Testing without a widget tree
@@ -70,7 +70,13 @@ Test a cubit or a bloc that uses queries in `testWidgets` or `fakeAsync`, like t
 
 ## Testing the app in the background
 
-`focusManager.setFocused(false)` puts the app [in the background](../lifecycle/#when-the-app-resumes): retries wait, and polling pauses unless `refetchIntervalInBackground` is set. `focusManager.setFocused(null)` returns it to the foreground and hands control back to the app lifecycle. Call it before the test ends, because every test in a file shares `focusManager`.
+`focusManager.setFocused(false)` makes Fuery treat the app as [in the background](../lifecycle/#when-the-app-resumes): retries wait, and polling pauses unless `refetchIntervalInBackground` is set. `focusManager.setFocused(null)` hands focus back to the app lifecycle, and Fuery refetches the stale queries in use.
+
+Every test in a file shares `focusManager`, so reset it in a tear-down. A tear-down runs after the widgets are gone, and it runs even when the test fails:
+
+```dart
+addTearDown(() => focusManager.setFocused(null));
+```
 
 ## In the example app
 
