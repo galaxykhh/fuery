@@ -3,7 +3,7 @@ title: Troubleshooting
 description: Errors and surprises with Fuery in Flutter, what causes them, and how to fix them.
 ---
 
-Each entry starts from what you see, explains the cause, and ends with the fix.
+Fixes for the errors and surprising behavior you can hit with Fuery in Flutter, grouped by area. Each heading names what you see.
 
 ## Types and compile errors
 
@@ -98,7 +98,7 @@ Future<void> close() {
 
 ## Queries and refetching
 
-### An error takes seconds to appear
+### An error takes 7 seconds to appear
 
 A failed fetch retries three times by default, waiting 1s, 2s, then 4s. An error that can never succeed, such as a 404, spends those 7 seconds retrying. Retry only the errors worth retrying:
 
@@ -112,7 +112,7 @@ See [Which errors to retry](../guides/queries/#which-errors-to-retry).
 
 ### A query succeeds though the request failed
 
-A query fails only when its query function throws. A repository that returns a result object, such as a `Result` or an `Either`, returns normally either way. Unwrap the result in the query function and throw the failure. See [Reporting failures from a repository](../guides/organizing-queries/#reporting-failures-from-a-repository).
+A query fails when its query function throws. A repository that returns a result object, such as a `Result` or an `Either`, returns normally either way. Unwrap the result in the query function and throw the failure. See [Reporting failures from a repository](../guides/organizing-queries/#reporting-failures-from-a-repository).
 
 ### A form loses what the user typed
 
@@ -124,6 +124,7 @@ final todo = Query(
   queryFn: (_) => api.getTodo(id),
   refetchOnMount: RefetchMode.never,
   refetchOnFocus: RefetchMode.never,
+  refetchOnReconnect: RefetchMode.never,
 );
 ```
 
@@ -262,7 +263,7 @@ The MutationState widgets and `useMutationState` find runs by the definition's `
 - **The runs are on another client.** An observer created with `observe()` without `client:` runs on `Fuery.client`, not on the client of a `FueryProvider`. See [A screen reads another client's cache](#a-screen-reads-another-clients-cache).
 - **The runs are gone.** A settled run that no observer holds leaves the cache after its `gcTime` (default: 5 minutes). `client.clear()` removes every run.
 
-## Clients and errors
+## Clients and error reporting
 
 ### A screen reads another client's cache
 
@@ -303,7 +304,7 @@ A persisted query loads from the network after a restart. Check these causes:
 
 - **The client has no storage.** Set it before anything uses a query: `Fuery.client = QueryClient(storage: myStorage)`.
 - **The query doesn't set `persist`.** Fuery stores only the queries that set it.
-- **The stored entry is no longer valid.** Fuery discards it when its `version` differs from the query's. It also discards an entry older than the query's `maxAge` or the client's `persistMaxAge` (default: one day).
+- **The stored entry is no longer valid.** Fuery discards an entry whose `version` differs from the query's, an entry it can't decode, and an entry older than the query's `maxAge`. A query without `maxAge` uses the client's `persistMaxAge` (default: 1 day). See [When stored data is discarded](../guides/persistence/#when-stored-data-is-discarded).
 
 With a storage that reads asynchronously, the data arrives a frame or two later. To have it on the first frame, `await Fuery.client.restore()` before `runApp`. See [Restoring ahead of time](../guides/persistence/#restoring-ahead-of-time).
 
