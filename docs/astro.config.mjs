@@ -65,6 +65,8 @@ export default defineConfig({
 						'guides/query-client',
 						'reference/query-options',
 						'reference/query-results',
+						'reference/mutation-options',
+						'reference/mutation-results',
 						{ label: 'fuery API', link: 'https://pub.dev/documentation/fuery/latest/' },
 						{ label: 'fuery_core API', link: 'https://pub.dev/documentation/fuery_core/latest/' },
 						{ label: 'fuery_hooks API', link: 'https://pub.dev/documentation/fuery_hooks/latest/' },
