@@ -6,12 +6,20 @@ typedef InfiniteQueryFn<TPage, TParam> = Future<TPage> Function(
 
 /// Returns the param for the page after `data.lastPage`, or `null` if there is
 /// no next page.
+@Deprecated(
+  'Nothing takes this type. Write the function inline: InfiniteQuery takes '
+  'Object? Function(InfiniteData<TPage, TParam> data).',
+)
 typedef GetNextPageParam<TPage, TParam> = TParam? Function(
   InfiniteData<TPage, TParam> data,
 );
 
 /// Returns the param for the page before `data.firstPage`, or `null` if there
 /// is no previous page.
+@Deprecated(
+  'Nothing takes this type. Write the function inline: InfiniteQuery takes '
+  'Object? Function(InfiniteData<TPage, TParam> data).',
+)
 typedef GetPreviousPageParam<TPage, TParam> = TParam? Function(
   InfiniteData<TPage, TParam> data,
 );
@@ -234,7 +242,7 @@ class _InfiniteQueryBehavior<TPage, TParam>
   }
 }
 
-/// Options for an infinite query.
+/// Describes an infinite query.
 class InfiniteQuery<TPage, TParam> extends Query<InfiniteData<TPage, TParam>>
     implements InfiniteQuerySource<TPage, TParam> {
   /// Describes an infinite query. The page and param types are inferred from
@@ -258,11 +266,12 @@ class InfiniteQuery<TPage, TParam> extends Query<InfiniteData<TPage, TParam>>
   /// );
   /// ```
   ///
-  /// When the first page has no param, give `null` its type so the param type
-  /// can be inferred: `initialPageParam: null as String?`. [pages] sets how
-  /// many pages to load when nothing is cached, for example to prefetch
-  /// several pages with [QueryClient.infiniteQuery]. Above [maxPages], it
-  /// loads only [maxPages] pages.
+  /// When the first page has no param, declare the param type, as in a
+  /// function that returns `InfiniteQuery<ItemPage, String?>`, and pass
+  /// `initialPageParam: null`. [pages] sets how many pages to load when
+  /// nothing is cached, for example to prefetch several pages with
+  /// [QueryClient.infiniteQuery]. Above [maxPages], it loads only [maxPages]
+  /// pages.
   //
   // The page param functions return Object?: a return type of TParam? makes
   // Dart infer the page type before queryFn fixes it, which would make
@@ -354,6 +363,11 @@ class InfiniteQueryResult<TPage, TParam>
 
   /// All pages, or an empty list if there is no data yet.
   List<TPage> get pages => data?.pages ?? const [];
+
+  /// The [InfiniteQueryObserver] that reported this result.
+  @override
+  InfiniteQueryObserver<TPage, TParam>? get observer =>
+      _observer as InfiniteQueryObserver<TPage, TParam>?;
 
   InfiniteQueryObserver<TPage, TParam> get _infiniteReporter =>
       _reporter as InfiniteQueryObserver<TPage, TParam>;
@@ -593,7 +607,9 @@ class _PageParamCheck<TPage, TParam> {
 
 /// Builds an [InfiniteQuery], like its constructor.
 @Deprecated(
-    'Use the InfiniteQuery constructor, which takes the same arguments.')
+  'Use the InfiniteQuery constructor, which takes the same arguments. Of '
+  'explicit type arguments, keep the first two: InfiniteQuery<TPage, TParam>.',
+)
 InfiniteQuery<TPage, TParam> infiniteQueryOptions<
     TPage,
     TParam,

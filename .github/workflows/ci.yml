@@ -58,6 +58,13 @@ jobs:
       - if: matrix.version == ''
         run: dart format --output=none --set-exit-if-changed packages
       - run: flutter analyze packages
+      # `dart fix` rewrites deprecated names with fuery_core's lib/fix_data.yaml.
+      # The test_fixes/ of each package whose barrel exports a renamed name
+      # holds a golden case for it; fuery_hooks hides FocusManager.
+      - run: |
+          for p in fuery_core fuery; do
+            (cd packages/$p/test_fixes && dart fix --compare-to-golden) || exit 1
+          done
       # On the latest version the core tests also write coverage/lcov.info.
       - if: matrix.version != ''
         run: dart test

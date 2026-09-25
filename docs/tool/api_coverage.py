@@ -47,12 +47,15 @@ TOP_LEVEL = {CLASS: "Types", ENUM: "Types", TYPEDEF: "Types",
              VARIABLE: "Top-level values"}
 
 # Members are only checked on the types an app actually holds and reads.
+# dartdoc lists a member the slots inherit, such as `listen`, only under
+# ObserverSlot, so that is checked too.
 MEMBERS_OF = {
     "QueryClient", "QueryObserver", "InfiniteQueryObserver", "MutationObserver",
     "NoVariablesMutationObserver", "QueryResult", "InfiniteQueryResult", "InfiniteData",
-    "MutationResult", "QuerySlot", "InfiniteQuerySlot", "MutationSlot", "QueriesSlot",
+    "MutationResult", "ObserverSlot", "QuerySlot", "InfiniteQuerySlot", "MutationSlot",
+    "QueriesSlot", "MutationStateSlot",
     "MutationState", "QueryState", "Fuery", "QueryStorage", "QueryPersist",
-    "InfiniteQueryPersist", "FocusManager", "OnlineManager", "NotifyManager",
+    "InfiniteQueryPersist", "FueryFocusManager", "OnlineManager", "NotifyManager",
     "AbortSignal", "QueryCache", "MutationCache",
 }
 

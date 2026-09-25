@@ -51,20 +51,23 @@ class MutationBuilder<TData, TVariables, TContext> extends StatelessWidget {
   }
 }
 
-/// Runs side effects when a mutation changes. Not called for the state the
-/// mutation already had when the listener mounted.
+/// Runs side effects when an observer's mutation changes. Not called for the
+/// state the mutation already had when the listener mounted.
 ///
-/// A mutation's state belongs to the observer that runs it, and a listener
-/// can't run one, so it hears only the runs of the observer it gets. Create
-/// that observer once with `observe()`, in a `State` field or a cubit, and
-/// pass it both here and to the widget that runs it. In debug builds, a
-/// [Mutation] definition prints a warning.
+/// A listener can't run a mutation, so it hears only the runs of the
+/// observer it gets. To hear every run of a mutation, wherever it started,
+/// give the definition a `mutationKey` and use [MutationStateListener]. For
+/// the callbacks of one call, pass `MutateOptions` to `mutate`. To hear only
+/// one observer's runs, such as the ones a cubit starts, create it once with
+/// `observe()` and pass it here. In debug builds, a [Mutation] definition
+/// prints a warning.
 ///
 /// ```dart
 /// MutationListener(
-///   mutation: adding, // addTodo.observe(), kept in a State field
-///   listenWhen: (previous, current) => current.isSuccess,
-///   listener: (context, state) => Navigator.pop(context),
+///   mutation: cubit.adding, // addTodo.observe(), kept by the cubit
+///   listenWhen: (previous, current) => current.isError,
+///   listener: (context, state) => ScaffoldMessenger.of(context)
+///       .showSnackBar(SnackBar(content: Text('${state.error}'))),
 ///   child: ...,
 /// )
 /// ```
@@ -140,9 +143,10 @@ class MutationConsumer<TData, TVariables, TContext> extends StatelessWidget {
 /// Builds UI from a value selected from a mutation's state, and rebuilds only
 /// when that value changes.
 ///
-/// A mutation's state belongs to the observer that runs it. Unless the
-/// builder runs the mutation itself, pass the observer that runs it,
-/// created once with `observe()`, rather than a definition.
+/// It shows the runs of its own observer. Unless the builder runs the
+/// mutation itself, use [MutationStateSelector] with a definition that has a
+/// `mutationKey`, which selects from every run of the mutation, or pass the
+/// observer that runs it, created once with `observe()`.
 ///
 /// ```dart
 /// MutationSelector(

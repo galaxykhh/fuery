@@ -145,7 +145,7 @@ class QueryDefaults {
   }
 }
 
-/// Options for a query and the observers watching it.
+/// Describes a query and the observers watching it.
 ///
 /// Unset values fall back to [QueryClient] defaults: data is stale immediately,
 /// unused queries are removed after 5 minutes, failed fetches retry 3 times,
@@ -337,17 +337,21 @@ class Query<TData extends Object> implements QuerySource<TData> {
   /// [client] is given. The query fetches when the observer gets its first
   /// listener. Create the observer once, not in `build`.
   ///
-  /// Define a query once as options, then observe it in widgets, fetch it
-  /// with [QueryClient.query], and read or write its data with
-  /// [QueryClient.getData] and [QueryClient.updateData]:
+  /// Define a query once, then pass it to widgets, fetch it with
+  /// [QueryClient.query], and read or write its data with
+  /// [QueryClient.getData] and [QueryClient.updateData]. A widget given the
+  /// query observes it with its own client, and follows a new key. Call
+  /// `observe()` where code outside widgets needs the observer, such as a
+  /// cubit or a service:
   ///
   /// ```dart
-  /// Query<Post> postOptions(int id) => Query(
+  /// Query<Post> postQuery(int id) => Query(
   ///       queryKey: ['posts', id],
   ///       queryFn: (_) => api.getPost(id),
   ///     );
   ///
-  /// late final post = postOptions(widget.id).observe();
+  /// final post = postQuery(1).observe();
+  /// post.stream.listen((result) => print(result.data));
   /// ```
   QueryObserver<TData> observe({QueryClient? client}) {
     return QueryObserver<TData>(client ?? Fuery.client, this);

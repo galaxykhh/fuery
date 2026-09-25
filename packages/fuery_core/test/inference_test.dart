@@ -110,6 +110,30 @@ void main() {
     expect(typed.result.hasNextPage, isFalse);
   });
 
+  fakeTest('a declared InfiniteQuery type types a null first cursor', (async) {
+    final cursors = <String?>[];
+    InfiniteQuery<CursorPage, String?> itemsQuery() => InfiniteQuery(
+          queryKey: ['items'],
+          queryFn: (context) async {
+            cursors.add(context.pageParam);
+            return context.pageParam == null
+                ? const CursorPage(['a'], 'next')
+                : const CursorPage(['b'], null);
+          },
+          initialPageParam: null,
+          getNextPageParam: (data) => data.lastPage.nextCursor,
+        );
+    final items = itemsQuery().observe(client: client);
+    items.subscribe((_) {});
+    async.flushMicrotasks();
+    items.fetchNextPage();
+    async.flushMicrotasks();
+
+    expect(cursors, [null, 'next']);
+    expect(items.result.pages.expand((page) => page.items), ['a', 'b']);
+    expect(items.result.hasNextPage, isFalse);
+  });
+
   fakeTest('refetchWhile gets the typed result', (async) {
     final todo = Query(
       queryKey: ['todo'],
@@ -371,11 +395,76 @@ void main() {
     expect(typedObserved.result.isPending, isTrue);
     expect(typedPages.result.pages, isEmpty);
     expect(typedAdd.result.data!.title, 'b');
+
+    // The listeners of listen get the slot's result type.
+    final heard = <String>[];
+    todosSlot.listen((previous, current) {
+      final QueryResult<List<Todo>> typedPrevious = previous;
+      final QueryResult<List<Todo>> typedCurrent = current;
+      heard.add('todos: ${typedPrevious.data?.length} '
+          '${typedCurrent.data?.single.title}');
+    });
+    addSlot.listen((previous, current) {
+      final MutationResult<Todo, String, Object?> typedPrevious = previous;
+      final MutationResult<Todo, String, Object?> typedCurrent = current;
+      heard.add('add: ${typedPrevious.status.name} '
+          '${typedCurrent.status.name} ${typedCurrent.data?.title}');
+    });
+    typedAdd.result.mutate('c');
+    async.flushMicrotasks();
+    expect(heard, [
+      'add: success pending null',
+      'todos: null a',
+      'add: pending success c',
+    ]);
+    // A definition gives its own types, NoVariablesMutation gives void, and
+    // filters give Object?.
+    final addStateSlot = MutationStateSlot(
+      Mutation(
+        mutationKey: const ['todos', 'add'],
+        mutationFn: (String title) async => Todo(title),
+      ),
+      client,
+    );
+    final clearSlot = MutationStateSlot(
+      NoVariablesMutation(
+        mutationKey: const ['todos', 'clear'],
+        mutationFn: () async => 0,
+      ),
+      client,
+    );
+    final filtersSlot = MutationStateSlot(
+      const MutationFilters(mutationKey: ['todos']),
+      client,
+    );
+    final MutationStateSlot<Todo, String, Object?> typedAddState = addStateSlot;
+    final MutationStateSlot<int, void, Object?> typedClear = clearSlot;
+    final MutationStateSlot<Object?, Object?, Object?> typedFilters =
+        filtersSlot;
+    addStateSlot.subscribeToRuns((previous, current) {
+      final MutationState<Todo, String, Object?> typedPrevious = previous;
+      final MutationState<Todo, String, Object?> typedCurrent = current;
+      heard.add('run: ${typedPrevious.status.name} '
+          '${typedCurrent.status.name} ${typedCurrent.data?.title}');
+    });
+    Mutation(
+      mutationKey: const ['todos', 'add'],
+      mutationFn: (String title) async => Todo(title),
+    ).observe(client: client).mutate('d');
+    async.flushMicrotasks();
+    expect(heard.last, 'run: pending success d');
+    expect(typedAddState.result.single.data!.title, 'd');
+    expect(typedClear.result, isEmpty);
+    expect(typedFilters.result, hasLength(1));
+
     for (final slot in <ObserverSlot<Object?, Object?>>[
       todosSlot,
       observedSlot,
       pagesSlot,
       addSlot,
+      addStateSlot,
+      clearSlot,
+      filtersSlot,
     ]) {
       slot.dispose();
     }

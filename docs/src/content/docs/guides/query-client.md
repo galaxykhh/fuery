@@ -189,6 +189,8 @@ class _LoadingBarState extends State<LoadingBar> {
 
 In a bloc, listen to the stream like any other.
 
+For a mutation, widgets need no stream: [`MutationStateSelector`](../mutations/#showing-every-run-of-a-mutation) shows whether it is running, and so does `useMutationState` in a `HookWidget`.
+
 ## Fetching outside widgets
 
 `client.query` returns cached data if it's fresh, and fetches otherwise. It throws on failure and doesn't retry unless you set `retry`:
@@ -308,6 +310,7 @@ Some errors have no caller to go to, and `onUncaughtError` receives them:
 - An error thrown by a `QueryCacheConfig` or `MutateOptions` callback.
 - An error thrown by `onError` or `onSettled` of a mutation that failed.
 - An error thrown by `refetchWhile` or `placeholderData` while Fuery updates an observer after its query changed.
+- An error thrown by a listener: the `listener` of a listener widget, a consumer, or a hook, or a function passed to a slot's `listen` or `subscribeToRuns`.
 - A mistake Fuery finds while running, such as a `getNextPageParam` that returns a param of the wrong type or throws while a result is built, or a persisted `mutationKey` that can't be stored.
 
 ```dart

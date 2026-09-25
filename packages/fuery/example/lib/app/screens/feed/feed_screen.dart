@@ -8,25 +8,17 @@ import 'package:fuery/fuery.dart';
 
 /// The feed: a page at a time, pull to refresh, and likes that apply before
 /// the server answers.
-class FeedScreen extends StatefulWidget {
+class FeedScreen extends StatelessWidget {
   const FeedScreen({super.key});
 
   @override
-  State<FeedScreen> createState() => _FeedScreenState();
-}
-
-class _FeedScreenState extends State<FeedScreen> {
-  // Every card likes through this one observer, and the listener below
-  // reports its failures, so it is created once instead of passed as a
-  // definition.
-  final likePost = likePostMutation().observe();
-
-  @override
   Widget build(BuildContext context) {
-    return MutationListener(
-      mutation: likePost,
+    // Every like that fails, found by the mutation's key: likes that overlap,
+    // and likes whose card scrolled away before the server answered.
+    return MutationStateListener(
+      mutation: likePostMutation(),
       listenWhen: (previous, current) => current.isError,
-      listener: (context, state) {
+      listener: (context, like) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Could not like the post')),
         );
@@ -64,18 +56,22 @@ class _FeedScreenState extends State<FeedScreen> {
                               onLoadMore: state.fetchNextPage,
                             );
                           }
-                          return PostCard(
-                            post: post,
-                            onLike: () => likePost.mutate(post.id),
-                            onOpen: () => Navigator.push(
-                              context,
-                              PostScreen.route(post.id),
-                            ),
-                            // On the web and desktop the pointer reaches a card
-                            // before the click does, so the post is often
-                            // cached by the time it opens.
-                            onHover: () => context.queryClient.query(
-                              postQuery(post.id),
+                          // Each card runs its own likes.
+                          return MutationBuilder(
+                            mutation: likePostMutation(),
+                            builder: (context, like) => PostCard(
+                              post: post,
+                              onLike: () => like.mutate(post.id),
+                              onOpen: () => Navigator.push(
+                                context,
+                                PostScreen.route(post.id),
+                              ),
+                              // On the web and desktop the pointer reaches a
+                              // card before the click does, so the post is
+                              // often cached by the time it opens.
+                              onHover: () => context.queryClient.query(
+                                postQuery(post.id),
+                              ),
                             ),
                           );
                         },

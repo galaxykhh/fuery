@@ -1,0 +1,7 @@
+# Replaces the package's options, which exclude this directory, so that the
+# deprecation diagnostics the fixes in lib/fix_data.yaml attach to are
+# reported here. Newer SDKs report a deprecated name used in its own package
+# only through this lint.
+linter:
+  rules:
+    - deprecated_member_use_from_same_package

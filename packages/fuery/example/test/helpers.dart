@@ -1,6 +1,7 @@
 import 'package:example/app/app.dart';
 import 'package:example/app/data/demo_api.dart';
 import 'package:example/app/data/recent_posts.dart';
+import 'package:example/app/screens/post/post_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fuery/fuery.dart';
@@ -41,6 +42,19 @@ Future<void> openPost(
   await tester.tap(find.text(body));
   await tester.pump();
   await tester.pump(transition);
+}
+
+/// Goes back from a post, and waits until its route has left the tree. How
+/// long the route animates depends on the Flutter version, and the screen
+/// keeps a progress indicator running, so pumpAndSettle would never settle.
+Future<void> leavePost(WidgetTester tester) async {
+  await tester.pageBack();
+  for (var i = 0;
+      i < 30 && find.byType(PostScreen).evaluate().isNotEmpty;
+      i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+  expect(find.byType(PostScreen), findsNothing);
 }
 
 /// A storage that lives as long as the test, so a second app in the same

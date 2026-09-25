@@ -18,14 +18,12 @@
 QueryClient.mount: assigning Fuery.client mounts the client
 QueryClient.unmount: assigning Fuery.client unmounts the old client
 NotifyManager.schedule: the package schedules its own notifications
-FocusManager.onFocus: called by FueryBinding
+FueryFocusManager.onFocus: called by FueryBinding
 
 # Callback shapes. Readers write closures; the docs show each shape inline.
 QueryFn: the docs show the closure instead
 InfiniteQueryFn: the docs show the closure instead
 MutationFn: the docs show the closure instead
-GetNextPageParam: the docs show the closure instead
-GetPreviousPageParam: the docs show the closure instead
 PlaceholderDataFn: the docs show the closure instead
 MutationOnMutate: the docs show the callback instead
 MutationOnSuccess: the docs show the callback instead
@@ -39,7 +37,6 @@ FocusSetup: the return type of setEventListener, written inline
 OnlineSetup: the return type of setEventListener, written inline
 
 # Singletons apps use, classes they don't name.
-FocusManager: apps use the focusManager singleton
 OnlineManager: apps use the onlineManager singleton
 NotifyManager: apps use the notifyManager singleton
 
@@ -48,12 +45,15 @@ AbortController: Fuery owns the controller; a query function gets the signal
 AbortSignal.reason: throwIfAborted throws it, so apps meet it as the error
 QueryObserver.currentQuery: the observer attaches itself; apps read results
 
-# Deprecated names for the definitions.
+# Deprecated names.
 QueryOptions: deprecated name of Query
 InfiniteQueryOptions: deprecated name of InfiniteQuery
 MutationOptions: deprecated name of Mutation
 AnyMutationOptions: deprecated name of AnyMutation
 infiniteQueryOptions: deprecated, use the InfiniteQuery constructor
+FocusManager: deprecated name of FueryFocusManager
+GetNextPageParam: deprecated, nothing takes it
+GetPreviousPageParam: deprecated, nothing takes it
 
 # Names a key or a hash never needs.
 QueryKey: a key is a plain list

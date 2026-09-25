@@ -8,9 +8,10 @@ import 'package:fuery/fuery.dart';
 /// mutation keeps its own pending and error state. The callbacks receive the
 /// client that runs the mutation, so they work with any client.
 ///
-/// Anything that belongs to a screen, such as a snackbar, goes to the call
-/// site instead: `state.mutate(variables, MutateOptions(...))`, or a
-/// `MutationListener`.
+/// Anything that belongs to a screen, such as a snackbar, goes to the screen
+/// instead. A `MutationStateListener` reacts to every run of a mutation, found
+/// by its `mutationKey`, and `MutateOptions` to one call:
+/// `state.mutate(variables, MutateOptions(...))`.
 
 /// What the cache held before an optimistic like, to put back on failure.
 class LikeSnapshot {
@@ -25,6 +26,8 @@ class LikeSnapshot {
 /// Either way, the post and the search results are fetched again after.
 Mutation<Post, int, LikeSnapshot> likePostMutation() {
   return Mutation(
+    // The feed finds every like by this key, whichever card started it.
+    mutationKey: const ['posts', 'like'],
     mutationFn: (int id) => DemoApi().toggleLike(id),
     onMutate: (id, client) async {
       // A refetch in flight would overwrite the optimistic value.
@@ -124,7 +127,7 @@ Mutation<Post, String, void> createPostMutation() {
 }
 
 /// Marks every notification read on screen first, then on the server. It
-/// takes no variables, so its observer runs it with `mutate()`.
+/// takes no variables, so a result runs it with `mutate(null)`.
 NoVariablesMutation<void, List<FeedNotification>> markAllReadMutation() {
   return NoVariablesMutation(
     mutationFn: () => DemoApi().markAllRead(),
