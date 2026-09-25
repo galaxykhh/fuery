@@ -29,7 +29,10 @@ class CachedQuery<TData extends Object> extends _Removable {
   late QueryState<TData> _initialState;
   QueryState<TData>? _revertState;
   Retryer<TData>? _retryer;
-  final List<QueryObserver<TData>> _observers = [];
+
+  /// In the order they subscribed: a set literal is a `LinkedHashSet`,
+  /// which adds and removes one in constant time.
+  final Set<QueryObserver<TData>> _observers = {};
   bool _abortSignalConsumed = false;
   bool _removed = false;
   bool _restoreAttempted = false;
@@ -194,8 +197,7 @@ class CachedQuery<TData extends Object> extends _Removable {
   }
 
   void _addObserver(QueryObserver<TData> observer) {
-    if (_observers.contains(observer)) return;
-    _observers.add(observer);
+    if (!_observers.add(observer)) return;
     _clearGcTimeout();
     _cache._notify();
   }

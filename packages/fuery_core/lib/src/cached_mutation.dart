@@ -39,7 +39,9 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
 
   /// The write in flight, so the delete after settling can wait for it.
   Future<void>? _storeWrite;
-  final List<MutationObserver<TData, TVariables, TContext>> _observers = [];
+
+  /// In the order they subscribed, like [CachedQuery._observers].
+  final Set<MutationObserver<TData, TVariables, TContext>> _observers = {};
   late Mutation<TData, TVariables, TContext> _options;
   var _state = MutationState<TData, TVariables, TContext>();
   Retryer<TData>? _retryer;
@@ -56,8 +58,7 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
   }
 
   void _addObserver(MutationObserver<TData, TVariables, TContext> observer) {
-    if (_observers.contains(observer)) return;
-    _observers.add(observer);
+    if (!_observers.add(observer)) return;
     _clearGcTimeout();
     _mutationCache._notify();
   }
