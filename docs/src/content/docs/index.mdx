@@ -45,48 +45,50 @@ QueryBuilder(
 
 <CardGrid>
 	<Card title="Built the Flutter way" icon="puzzle">
-		Queries are defined outside `build`, and widgets render them: builders for
-		UI, listeners for side effects, like `StreamBuilder`. A screen that shows a
-		query stays a `StatelessWidget`. Start with one screen; there is nothing to
-		replace. Prefer hooks?
+		A screen that shows a query stays a `StatelessWidget`. You define queries
+		outside `build`, and widgets render them the way `StreamBuilder` renders a
+		stream: builders for UI, listeners for side effects. Adopt it one screen at
+		a time, with nothing to replace. For hooks,
 		<a href="guides/hooks/">fuery_hooks</a> renders the same queries with
 		`useQuery`, in a package of its own.
 	</Card>
 	<Card title="Nothing beyond Dart and Flutter" icon="code-branch">
-		A pure Dart core that depends only on the Dart team's `clock`, `collection`,
-		and `meta`, so widgets, cubits, blocs, services, CLIs, and servers use the
-		same query object. No code generation.
+		No code generation, no native code, and no platform setup. The core is pure
+		Dart and depends only on the Dart team's `clock`, `collection`, and `meta`.
+		Widgets, cubits, blocs, services, CLIs, and servers use the same query
+		object.
 	</Card>
 	<Card title="Cached and fresh" icon="database">
 		Every widget that uses a key shares one cache entry and one request. Stale
-		data stays on screen while it refetches in the background, and a refetch
-		that returns the same items keeps them identical, so list rows don't
+		data stays on screen while Fuery refetches it in the background. A refetch
+		that returns the same items keeps the same objects, so list rows don't
 		rebuild.
 	</Card>
 	<Card title="Types from your functions" icon="approve-check">
-		Queries, mutations, and infinite queries infer their types from their
-		functions, all the way to widgets, results, and callbacks. Two cases name
-		the type: a read or write by key alone, as in
+		Queries, mutations, and infinite queries take their types from their
+		functions. Widgets, results, and callbacks carry those types without type
+		arguments. Two cases name the type: a read or write by key alone, as in
 		`getQueryData<List<Todo>>(['todos'])`, and an
 		<a href="guides/infinite-queries/#cursor-based-pages">infinite query whose
 		first page param is `null`</a>.
 	</Card>
 	<Card title="Built for real networks" icon="rocket">
-		Retries with backoff, refetches when the app resumes, pauses while offline,
-		and cancels requests nobody needs anymore without reporting them as
-		errors. Polls until a condition holds, and folds a stream into the cache.
+		Failed fetches retry 3 times with backoff. Queries refetch when the app
+		resumes and pause while the device is offline. Fuery cancels requests
+		nobody needs anymore, without reporting them as errors. A query can poll
+		until a condition holds, or fold a stream into the cache.
 	</Card>
 	<Card title="Persisted and inspectable" icon="magnifier">
-		Keep queries across restarts with any key-value storage, and inspect the
-		cache inside the running app, on a device.
+		Queries you persist survive app restarts, with any key-value storage. The
+		devtools show the cache inside the running app, on a device.
 	</Card>
 </CardGrid>
 
 <p style="margin-top: 3rem;">
 	<strong>Tested.</strong> Every package has 100% line coverage, and CI fails when a
-	line loses it. The tests run on the oldest supported Flutter (3.27) and the latest.
-	The core's tests run under fake time, and a regression suite keeps fixed edge cases
-	fixed. Every timer is cancelled on its destroy path and time comes from
+	line loses it. The tests run on the oldest supported Flutter (3.27) and on the
+	latest. The core's tests run under fake time. A regression suite keeps fixed edge
+	cases fixed. Fuery cancels every timer on its destroy path and reads time from
 	<code>package:clock</code>, so your own <code>fake_async</code> and widget tests
 	don't leak timers. See <a href="guides/testing/">Testing</a>.
 </p>
