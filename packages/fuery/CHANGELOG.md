@@ -1,9 +1,9 @@
 ## 1.5.1
-- Released with `fuery_core` 1.5.1. A widget given a definition built in `build`, such as `QueryBuilder`, `QueriesBuilder`, or `MutationBuilder`, rebuilds faster: it no longer hashes its key each time. `MutationStateBuilder`, `MutationStateListener`, and `MutationStateSelector` stay fast with many runs in the cache.
+- Released with `fuery_core` 1.5.1. A widget given a definition built in `build`, such as `QueryBuilder`, `QueriesBuilder`, or `MutationBuilder`, rebuilds faster: it no longer hashes a key built again with the same content. `MutationStateBuilder`, `MutationStateListener`, and `MutationStateSelector` stay fast with many runs in the cache.
 
 ## 1.5.0
-- Add `MutationStateBuilder`, `MutationStateListener`, and `MutationStateSelector`, which show or hear every run of a mutation, wherever the run was started. Each takes `mutation:`, a `Mutation` whose runs it finds by `mutationKey`, or `MutationFilters`. They work in a `StatelessWidget`, without sharing an observer. `MutationStateListener` is called once for each run that changes, and never for the states runs had when it mounted.
-- Report errors that listeners throw to the client's `onUncaughtError`, if it has one. Before, its error always went to the zone. Listener widgets and consumers now listen through `ObserverSlot.listen`.
+- Add `MutationStateBuilder`, `MutationStateListener`, and `MutationStateSelector`, which show or hear every run of a mutation, wherever the run was started. Each takes `mutation:`, either a `Mutation`, whose runs it finds by its `mutationKey`, or `MutationFilters`. They work in a `StatelessWidget`, without sharing an observer. `MutationStateListener` is called once for each run that changes, and never for the states runs had when it mounted.
+- Report an error that the `listener` of a listener widget or consumer throws to the client's `onUncaughtError`, if it has one. Before, the error always went to the zone. These widgets now listen through `ObserverSlot.listen`.
 - Fix: a listener that throws no longer skips the rebuild of a `QueryConsumer`, `InfiniteQueryConsumer`, or `MutationConsumer`.
 - Fix: a listener no longer hears a change that the widget's previous observer had queued, as after the provided client was replaced.
 - Fix: listener widgets and consumers are no longer called on mount for a state the query already had, such as while a persisted query's restore is still reading, or when they join a fetch that already failed.
