@@ -1,6 +1,7 @@
 // What a widget's build costs without Flutter: the definition is built
 // again every time (same key, new closures) and passed to the observer,
-// then the result is read. Each case runs N rebuilds.
+// then the result is read. Each case runs N rebuilds. The last case is a
+// mutation's, as a MutationBuilder builds it.
 import 'package:fuery_core/fuery_core.dart';
 
 import 'src/harness.dart';
@@ -13,6 +14,12 @@ Query<Todo> todoQuery(QueryKey key) => Query(
       queryKey: key,
       queryFn: (_) async => {'key': key, 'title': 'Todo'},
       staleTime: const Duration(minutes: 5),
+    );
+
+/// A mutation definition as a widget builds it in every build.
+Mutation<Todo, String, Object?> saveTodo(MutationKey key) => Mutation(
+      mutationKey: key,
+      mutationFn: (title) async => {'key': key, 'title': title},
     );
 
 Future<void> main(List<String> args) async {
@@ -41,6 +48,7 @@ Future<void> main(List<String> args) async {
     final unsubscribe = mounted.subscribe((_) {});
     final slot = QuerySlot<Todo>(todoQuery(keyOf()), client);
     final stopSlot = slot.subscribe(notifyManager.batchCalls((_) {}));
+    final mutation = saveTodo(keyOf()).observe(client: client);
 
     for (final n in [100, 1000, 10000]) {
       bench.section('key $keyName, N=$n rebuilds');
@@ -87,6 +95,17 @@ Future<void> main(List<String> args) async {
           for (var j = 0; j < n; j++) {
             slot.update(todoQuery(keyOf()), client);
             result = slot.result;
+          }
+        }
+        sink = result;
+      }, n: n, per: n, unit: 'rebuild');
+
+      bench.sync('MutationObserver.setOptions + result', (count) {
+        Object? result;
+        for (var i = 0; i < count; i++) {
+          for (var j = 0; j < n; j++) {
+            mutation.setOptions(saveTodo(keyOf()));
+            result = mutation.result;
           }
         }
         sink = result;

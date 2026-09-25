@@ -7,7 +7,7 @@ Micro-benchmarks of the core, one file per area. They use plain `Stopwatch`es an
 | `hash_key.dart` | `hashKey` for typical keys |
 | `query_cache.dart` | a client with N queries: `setData`, `getData`, `find`, `findAll` by prefix, `invalidateQueries`, `removeQueries` |
 | `notifications.dart` | N observers across M queries: mounting them, and a batched write until the last listener ran |
-| `observer_rebuild.dart` | a widget's build without Flutter: `setOptions` with a rebuilt definition, `getOptimisticResult`, `QuerySlot.update` |
+| `observer_rebuild.dart` | a widget's build without Flutter: `setOptions` with a rebuilt definition, `getOptimisticResult`, `QuerySlot.update`, and `MutationObserver.setOptions` |
 | `structural_sharing.dart` | `replaceEqualDeep` and refetches of a list of N JSON maps, equal or with changes |
 | `queries_slot.dart` | `QueriesSlot` with N queries: create, update, reorder, key change, and the push after one query changes |
 | `mutation_state_slot.dart` | `MutationStateSlot` over many settled runs: reading the result, and the flushes after one run settles |
