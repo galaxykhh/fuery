@@ -160,8 +160,9 @@ List<MutationState<TData, TVariables, TContext>>
 /// );
 /// ```
 ///
-/// [listener] runs after the build, never during one, with the widget's
-/// `context`, and never for the result the hook starts from. [listenWhen]
+/// [listener] runs outside the build, never during one: right after the
+/// change, before the rebuild that shows it, with the widget's `context`,
+/// and never for the result the hook starts from. [listenWhen]
 /// compares the previous result received with the new one. The latest
 /// build's [listener] and [listenWhen] are used. The closures get results of
 /// the type of [result], so an [InfiniteQueryResult] has its pages.
@@ -217,8 +218,8 @@ void useOnQueryChange<R extends QueryResult<Object>>(
 /// hear every run of a mutation, from any widget, use
 /// [useOnMutationStateChange].
 ///
-/// Otherwise it works as [useOnQueryChange] does: after the build, with the
-/// widget's `context`, never for the result it starts from, and with the
+/// Otherwise it works as [useOnQueryChange] does: outside the build, with
+/// the widget's `context`, never for the result it starts from, and with the
 /// latest build's [listener] and [listenWhen]. It never resets the observer.
 void useOnMutationChange<TData, TVariables, TContext>(
   MutationResult<TData, TVariables, TContext> result, {
@@ -262,7 +263,7 @@ void useOnMutationChange<TData, TVariables, TContext>(
 /// compares the state that run had before with its new one. It isn't called
 /// for the states runs had when the hook started, or after a new key or a
 /// replaced client until a run changes. Otherwise it works as
-/// [useOnQueryChange] does: after the build, with the widget's `context`,
+/// [useOnQueryChange] does: outside the build, with the widget's `context`,
 /// and with the latest build's [listener] and [listenWhen]. A run never
 /// rebuilds the widget. Like [useQueryClient], the hook rebuilds it when the
 /// provided client is replaced, to follow that client.

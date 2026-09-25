@@ -130,7 +130,11 @@ useOnQueryChange(
 );
 ```
 
-The listener runs after the build, never during one, with the widget's own `context`. It isn't called for the result the hook starts with. `listenWhen` compares the previous result received with the new one, as on a [`QueryListener`](../widgets/#reacting-to-changes), and the latest build's `listener` and `listenWhen` are used. Given the result of `useInfiniteQuery`, the closures get an `InfiniteQueryResult`, with its pages. Given a result built with the `QueryResult` constructor, such as made-up data in a widget test, the hook calls nothing.
+The listener runs outside the build, never during one: right after the change, before the rebuild that shows it, with the widget's own `context`. It isn't called for the result the hook starts with. `listenWhen` compares the previous result received with the new one, as on a [`QueryListener`](../widgets/#reacting-to-changes), and the latest build's `listener` and `listenWhen` are used. Given the result of `useInfiniteQuery`, the closures get an `InfiniteQueryResult`, with its pages. Given a result built with the `QueryResult` constructor, such as made-up data in a widget test, the hook calls nothing.
+
+The listener hears every change of the result, including a fetch starting and ending and data written with `setData`. To react to a transition, compare the two results in `listenWhen`, as above: `!previous.isRefetchError && current.isRefetchError` shows one snackbar per failed refresh, not one per rebuild of an error that is still there.
+
+Each widget that calls a change hook gets its own calls, so two widgets reacting to the same query both run their listeners. An effect the whole app needs once, such as reporting every failed fetch, belongs in [`QueryCacheConfig.onError`](../query-client/#reporting-every-failure-in-one-place) instead.
 
 A change hook adds no observer, and a change it hears never rebuilds the widget. The widget still rebuilds through the hook that reads. `useOnMutationStateChange` uses the provided client, so it rebuilds the widget when that client is replaced, to follow it. To react without rebuilding a widget, wrap its subtree in a `QueryListener` or `InfiniteQueryListener`, which `fuery_hooks` re-exports.
 
@@ -150,7 +154,7 @@ FilledButton(
 )
 ```
 
-Run the mutation from that result, or pass the result to the child that runs it. Another `useMutation(addTodoMutation)` has an observer of its own, and this listener doesn't hear its runs. Given a [shared observer](../mutations/#sharing-one-observer), `useMutation` returns its result, and the listener hears every run of that observer.
+Run the mutation from that result, or pass the result to the child that runs it. Another `useMutation(addTodoMutation)` has an observer of its own, and this listener doesn't hear its runs. A result shows its latest run, so when runs overlap, the listener hears the latest one; to react to each run, use `useOnMutationStateChange` or await `mutateAsync`. Given a [shared observer](../mutations/#sharing-one-observer), `useMutation` returns its result, and the listener hears every run of that observer.
 
 `useOnMutationStateChange` hears every run of a mutation, wherever it started, as a `MutationStateListener` does. It needs no `useMutation`. The listener gets the new state of each run that changed, once per run, and `listenWhen` compares that run's previous state with its new one:
 
@@ -170,12 +174,23 @@ useOnMutationStateChange(
 | The screen's reaction to the runs of its own `useMutation`, such as closing the screen | `useOnMutationChange` |
 | A reaction to every run, from any widget, such as a snackbar for each failure | `useOnMutationStateChange` |
 | An effect of one call that needs that call's variables | `MutateOptions` passed to `mutate` |
+| An effect after one call, in the code that runs it | `await result.mutateAsync(...)`, then check `context.mounted` |
+
+Awaiting the call keeps the effect next to the code that runs it:
+
+```dart
+onPressed: () async {
+  await addTodo.mutateAsync(title.text); // throws if it fails
+  if (!context.mounted) return;
+  Navigator.pop(context);
+},
+```
 
 When the result the widget mounts with already decides what to show, such as a signed-out user, decide it in `build` from the result the hook returns. No change hook is called for it.
 
 ### Showing a snackbar or navigating from `useEffect`
 
-`flutter_hooks` runs a `useEffect` callback during the build: on the first build, then on every build whose keys changed, or on every build when it has no keys. A snackbar or a navigation fails there, because it changes the widget tree while the tree is building. In a debug build, `showSnackBar` reports `The showSnackBar() method cannot be called during build.`, and `Navigator.pop` reports `setState() or markNeedsBuild() called during build.` On the first build, or after its keys changed, an effect that calls `ScaffoldMessenger.of(context)` fails first, with `Cannot listen to inherited widgets inside HookState.initState.` The effect also runs for the value the widget mounts with. `useValueChanged` runs during the build too. The change hooks run after the build, and only for later changes.
+`flutter_hooks` runs a `useEffect` callback during the build: on the first build, then on every build whose keys changed, or on every build when it has no keys. A snackbar or a navigation fails there, because it changes the widget tree while the tree is building. In a debug build, `showSnackBar` reports `The showSnackBar() method cannot be called during build.`, and `Navigator.pop` reports `setState() or markNeedsBuild() called during build.` On the first build, or after its keys changed, an effect that calls `ScaffoldMessenger.of(context)` fails first, with `Cannot listen to inherited widgets inside HookState.initState.` The effect also runs for the value the widget mounts with. `useValueChanged` runs during the build too. The change hooks run outside the build, and only for later changes.
 
 ## Showing every run of a mutation
 
