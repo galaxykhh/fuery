@@ -17,12 +17,12 @@ The query, infinite query, and mutation widgets take a definition: a `Query`, an
 
 ```dart
 QueryBuilder(
-  query: todoQuery(widget.id),
+  query: todoQuery(id),
   builder: (context, state) => Text(state.data?.title ?? '…'),
 )
 ```
 
-- Mounting subscribes. The query fetches if it has no data, and by default also if its data is stale. Unmounting unsubscribes.
+- Mounting subscribes. The query fetches if it has no data, and by default also if its data is stale. A query with `enabled: false` doesn't fetch on mount. Unmounting unsubscribes.
 - When the widget rebuilds with a definition for another key, the observer follows it. The new key's cached data shows in the same frame.
 - The observer uses the client of the nearest `FueryProvider`, or `Fuery.client` without one.
 - The result carries the actions: `state.refetch()`, `state.fetchNextPage()` and `state.fetchPreviousPage()` for infinite queries, and `state.mutate(...)`, `state.mutateAsync(...)`, and `state.reset()` for mutations.
@@ -133,7 +133,7 @@ RefreshIndicator(
 ```
 
 - [`invalidateQueries`](../query-client/#invalidating) marks every query under `['todos']` stale, and refetches the ones with an observer, such as a mounted widget.
-- `refetchQueries` refetches without marking anything stale. Pass `type: QueryTypeFilter.active`: the default, `QueryTypeFilter.all`, also refetches queries without an observer.
+- `refetchQueries` refetches without marking anything stale. Its `type` defaults to `QueryTypeFilter.all`, which also refetches cached queries without an observer. Pass `type: QueryTypeFilter.active` to refetch only the ones with an observer.
 - Both complete when every matching fetch settles, and throw only with `throwOnError: true`. Neither waits for a fetch paused while the device is offline, so the indicator doesn't hang.
 
 ## Retrying after an error
@@ -187,7 +187,7 @@ QueriesBuilder(
 - Build the list in `build`. Each query keeps its observer while its key stays in the list, even when the list is reordered.
 - A key that leaves the list drops its observer.
 - Results that change together cause one rebuild.
-- Every rebuild of the widget that builds `QueriesBuilder` updates every query in the list, even when the ids stay the same. With hundreds of queries, keep state that changes often, such as a text field's, in another widget. This one then rebuilds only when the ids change.
+- Every rebuild of the widget that builds `QueriesBuilder` updates every query in the list, even when the ids stay the same. With hundreds of queries, keep state that changes often, such as a text field's, in another widget. The widget that builds `QueriesBuilder` then rebuilds only when the ids change.
 
 `QueriesSelector` builds from one value combined from the results, and rebuilds only when that value changes:
 
@@ -218,7 +218,7 @@ MutationStateSelector(
 
 ## Passing an observer
 
-Most screens pass the definition: widgets given the same definition already share the cache entry and the request. See [Using a query](../queries/#using-a-query).
+Most screens pass the definition. Widgets given definitions with the same key already share the cache entry and the request. See [Using a query](../queries/#using-a-query).
 
 The query, infinite query, and mutation widgets, `QueriesBuilder`, and `QueriesSelector` also take an observer from `observe()`. They use it as it is, with its options and the client it was created with. Pass one only when a cubit and a widget share one handle, or when several widgets show the runs of one mutation observer and nothing else.
 
@@ -228,7 +228,7 @@ Create the observer once, outside `build`, such as in a cubit or a `State` field
 
 Query observers need no disposing. Only a mutation observer that you hold needs a step in `dispose`.
 
-- A widget given a definition creates its observer when it mounts, and destroys it when it unmounts.
+- A widget given a query definition creates its observer when it mounts, and destroys it when it unmounts.
 - An observer from `observe()` subscribes to its query on its first listener. When the last listener leaves, such as the last widget that uses it, the observer cancels its stale and refetch timers and detaches from the query.
 - A widget that mounts later with the same observer subscribes it again, so a `State` field that holds a query observer needs nothing in `dispose`.
 - A cubit that listens to `stream` cancels its subscription in `close()`, which unsubscribes the same way. See [In a cubit](../bloc/#in-a-cubit).
@@ -237,11 +237,11 @@ A mutation observer you hold still runs the `MutateOptions` callbacks of its lat
 
 The cache entry stays for `gcTime` (default: 5 minutes) after the last observer leaves, so a screen you return to shows its data at once.
 
-`QueryObserver.destroy()` does by hand what the last unsubscribe does. Nothing in the widget tree needs it. Call it when a long-lived object must stop an observer whose listeners it can't reach.
+`QueryObserver.destroy()` removes every listener at once. Like the last unsubscribe, it cancels the observer's timers and detaches it from its query. Nothing in the widget tree needs it. Call it when a long-lived object must stop an observer whose listeners it can't reach.
 
 ## Building your own widgets or adapters
 
-For hooks, use [`fuery_hooks`](../hooks/). For a widget of your own or another state library, see [Building an adapter](../adapters/): it renders queries with the same public API of `fuery_core` that these widgets use.
+For hooks, use [`fuery_hooks`](../hooks/). For a widget of your own or another state library, see [Building an adapter](../adapters/). It shows how to render queries with the public API of `fuery_core`, the same API these widgets use.
 
 ## In the example app
 
