@@ -34,6 +34,14 @@ Coverage (every package is at 100% line coverage, and CI fails otherwise):
 python3 tool/check_coverage.py packages/fuery_core packages/fuery packages/fuery_hooks  # lists any uncovered line
 ```
 
+Benchmarks live in the `benchmark/` folder of every package, with a README of the scenarios and how to read the numbers. The test commands above run only `test/`, and CI analyzes the benchmarks but doesn't run them:
+
+```bash
+(cd packages/fuery_core && dart run benchmark/queries_slot.dart)  # one file per area; `dart compile exe` it to time a release build
+(cd packages/fuery && flutter test benchmark/)                    # widget scenarios S1 to S7
+(cd packages/fuery_hooks && flutter test benchmark/)              # scenarios 1, 2, and 4 with hooks (S6)
+```
+
 Release and docs checks:
 
 ```bash

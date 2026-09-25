@@ -60,6 +60,14 @@ flutter analyze packages
 (cd packages/fuery_hooks && flutter test)
 ```
 
+Benchmarks live in the `benchmark/` folder of every package, with a README of what they measure. The tests don't run them:
+
+```bash
+(cd packages/fuery_core && dart run benchmark/queries_slot.dart)   # one file per area
+(cd packages/fuery && flutter test benchmark/)
+(cd packages/fuery_hooks && flutter test benchmark/)
+```
+
 The documentation site lives in [`docs/`](docs) and is built with Astro Starlight.
 
 The example app in [`packages/fuery/example`](packages/fuery/example) shows queries, mutations with optimistic updates, and the widgets together.
