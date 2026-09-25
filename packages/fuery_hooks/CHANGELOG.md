@@ -1,10 +1,10 @@
 ## 1.5.1
-- Released with the performance improvements of `fuery_core` 1.5.1: `useQuery`, `useInfiniteQuery`, `useQueries`, and `useMutation` no longer hash a key built again with the same content on every build, and `useMutationState` and `useOnMutationStateChange` stay fast with many runs in the cache.
+- Released with `fuery_core` 1.5.1. `useQuery`, `useInfiniteQuery`, `useQueries`, and `useMutation` rebuild faster: they no longer hash a key built again with the same content. `useMutationState` and `useOnMutationStateChange` stay fast with many runs in the cache.
 
 ## 1.5.0
-- Add `useMutationState(mutation)`. It returns the state of every run of a mutation, found by its `mutationKey` or by `MutationFilters`, oldest first, wherever the run was started.
-- Add `useOnQueryChange`, `useOnMutationChange`, and `useOnMutationStateChange` for side effects, such as a snackbar or navigation, with the rules of the listener widgets. The first two take the result of `useQuery`, `useInfiniteQuery`, or `useMutation`; `useOnMutationStateChange` hears every run of a mutation, as `MutationStateListener` does. The listener runs after a change, never during a build and not for the result at mount, with the widget's own `context`.
-- Exports `FueryFocusManager`. `FocusManager` still means Flutter's class.
+- Add `useMutationState(mutation)`, which returns the state of every run of a mutation, oldest first, wherever the run was started. It finds the runs by the `mutationKey` or by `MutationFilters`.
+- Add `useOnQueryChange`, `useOnMutationChange`, and `useOnMutationStateChange` for side effects, such as a snackbar or navigation. They follow the rules of the listener widgets. `useOnQueryChange` takes the result of `useQuery` or `useInfiniteQuery`, and `useOnMutationChange` that of `useMutation`. `useOnMutationStateChange` hears every run of a mutation, as `MutationStateListener` does. The listener runs after a change, with the widget's own `context`, never during a build or for the result at mount.
+- Export `FueryFocusManager`. `FocusManager` still means Flutter's class.
 
 ## 1.4.4
 - First release: `useQuery`, `useInfiniteQuery`, `useMutation`, `useQueries`, and `useQueryClient` render Fuery's queries and mutations in a `HookWidget`. Released and versioned together with `fuery` and `fuery_core`.
