@@ -5,7 +5,7 @@ description: "Cache a stream in Flutter: show chunks as they arrive, then keep t
 
 `streamedQuery` turns a `Stream` into a query function. The screen shows the data while chunks arrive. The cache keeps the result when the stream ends.
 
-Use it for a response that arrives in chunks and then ends: a streamed answer, a progress log, a file being processed. A connection that stays open, such as a live feed, isn't a fetch and doesn't fit a query.
+Use it for a response that arrives in chunks and then ends: a streamed answer, a progress log, a file being processed. A connection that stays open, such as a live feed, isn't a fetch and doesn't fit a query. Write each message into the cache with `setQueryData` instead, as in [Reading and writing the cache](../query-client/#reading-and-writing-the-cache).
 
 ```dart
 final answer = Query(
