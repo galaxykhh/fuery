@@ -67,7 +67,7 @@ import 'package:fuery/fuery.dart' hide FocusManager;
 
 ### A Timer is still pending even after the widget tree was disposed
 
-A cached query keeps a garbage collection timer, and `testWidgets` fails with this message when a timer outlives the test. End each widget test by unmounting the tree and emptying the cache:
+A cache entry keeps a garbage collection timer, and `testWidgets` fails with this message when a timer outlives the test. End each widget test by unmounting the tree and emptying the cache:
 
 ```dart
 await tester.pumpWidget(const SizedBox());

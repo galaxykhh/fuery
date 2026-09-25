@@ -133,7 +133,7 @@ RefreshIndicator(
 ```
 
 - [`invalidateQueries`](../query-client/#invalidating) marks every query under `['todos']` stale, and refetches the ones with an observer, such as a mounted widget.
-- `refetchQueries` refetches without marking anything stale. Its `type` defaults to `QueryTypeFilter.all`, which also refetches cached queries without an observer. Pass `type: QueryTypeFilter.active` to refetch only the ones with an observer.
+- `refetchQueries` refetches without marking anything stale. Its `type` defaults to `QueryTypeFilter.all`, which also refetches cache entries without an observer. Pass `type: QueryTypeFilter.active` to refetch only the ones with an observer.
 - Both complete when every matching fetch settles, and throw only with `throwOnError: true`. Neither waits for a fetch paused while the device is offline, so the indicator doesn't hang.
 
 [Query filters](../../reference/query-client/#query-filters) lists the filters both take.

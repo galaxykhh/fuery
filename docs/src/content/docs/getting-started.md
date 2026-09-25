@@ -124,5 +124,5 @@ The last two lines unmount the screen and empty the cache, so no garbage collect
 - [Queries](../guides/queries/): keys, freshness, and queries that depend on each other.
 - [Widgets](../guides/widgets/): builders, listeners, consumers, and selectors.
 - [Mutations](../guides/mutations/): changing server data, with optimistic updates.
-- [Using with bloc](../guides/bloc/): the same queries inside cubits and blocs.
+- [Bloc and cubits](../guides/bloc/): the same queries inside cubits and blocs.
 - [Devtools](../guides/devtools/): every query and mutation, inspected in the running app.
