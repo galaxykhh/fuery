@@ -181,6 +181,7 @@ void main() {
       final first = <Object?>['todos', 1];
       final second = <Object?>['todos', 2];
       final slot = QueriesSlot([todos(first), todos(second)], client);
+      slot.update([todos(first), todos(second)], client);
       final observers = slot.observer;
 
       first[1] = 3;

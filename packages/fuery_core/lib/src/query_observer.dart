@@ -17,7 +17,9 @@ class QueryObserver<TData extends Object>
 
   /// A copy of the key that the hash of [options] was made from, for
   /// [_hashIfSame], or null for a key that [sameKey] leaves to hashing. A
-  /// copy, so a key changed in place gets its new hash.
+  /// copy, so a key changed in place gets its new hash. Made once options
+  /// come a second time: an observer created for code outside widgets may
+  /// never get new ones.
   List<Object?>? _hashedKey;
   CachedQuery<TData>? _query;
   late QueryState<TData> _currentQueryInitialState;
@@ -143,7 +145,9 @@ class QueryObserver<TData extends Object>
     // Throws before anything changes if the key holds another data type.
     _client.queryCache._build<TData>(_client, defaulted);
     _options = defaulted;
-    if (knownHash == null) _hashedKey = keyCopy(defaulted.queryKey);
+    if (knownHash == null && prevOptions != null) {
+      _hashedKey = keyCopy(defaulted.queryKey);
+    }
 
     _updateQuery();
     currentQuery._setOptions(this.options);
