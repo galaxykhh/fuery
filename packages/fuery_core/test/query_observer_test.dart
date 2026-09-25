@@ -633,6 +633,51 @@ void main() {
       expect(query.future, isNull);
       expect(query.isStale, isTrue);
     });
+
+    fakeTest('keeps its observers in the order they subscribed', (async) {
+      final fetches = <String>[];
+      final heard = <String>[];
+      QueryObserver<String> observer(String name) {
+        final observer = Query(
+          queryKey: ['a'],
+          queryFn: (_) async {
+            fetches.add(name);
+            return name;
+          },
+        ).observe(client: client);
+        return observer;
+      }
+
+      final first = observer('first');
+      final second = observer('second');
+      final stopFirst = first.subscribe((_) => heard.add('first'));
+      second.subscribe((_) => heard.add('second'));
+      async.flushMicrotasks();
+      final query = first.currentQuery;
+      expect(query.observers, [first, second]);
+
+      // A refetch uses the options of the first observer, and every change
+      // reaches the observers in order.
+      fetches.clear();
+      heard.clear();
+      client.invalidateQueries(queryKey: ['a']);
+      async.flushMicrotasks();
+      expect(fetches, ['first']);
+      expect(heard, ['first', 'second', 'first', 'second']);
+
+      // One that subscribes again comes last.
+      stopFirst();
+      first.subscribe((_) => heard.add('first'));
+      expect(query.observers, [second, first]);
+      async.flushMicrotasks();
+      fetches.clear();
+      heard.clear();
+      client.invalidateQueries(queryKey: ['a']);
+      async.flushMicrotasks();
+      expect(fetches, ['second']);
+      expect(heard, ['second', 'first', 'second', 'first']);
+      expect(query.observersCount, 2);
+    });
   });
 
   group('staticStaleTime', () {
