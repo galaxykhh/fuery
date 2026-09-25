@@ -406,5 +406,40 @@ void main() {
       expect(client.isMutating(mutationKey: ['todos']), 0);
       slot.dispose();
     });
+
+    fakeTest('follow a run key changed in place', (async) {
+      // Keys that sameKey compares, and keys it leaves to hashing.
+      for (final (first, second, third) in [(1, 2, 3), (1.5, 2.5, 3.5)]) {
+        final key = <Object?>['todos', first];
+        final observer = save(key).observe(client: client);
+        observer.mutate('a');
+        async.flushMicrotasks();
+        expect(matching(['todos', first], exact: true), 1);
+        expect(matching(['todos', first]), 1);
+
+        // Passed again while the run is pending.
+        key[1] = second;
+        observer.setOptions(save(key));
+        expect(matching(['todos', first], exact: true), 0);
+        expect(matching(['todos', first]), 0);
+        expect(matching(['todos', second], exact: true), 1);
+        expect(matching(['todos', second]), 1);
+        expect(client.isMutating(mutationKey: ['todos', second]), 1);
+
+        // Changed once the run settled, without new options.
+        async.elapse(ms10);
+        final before = MutationStateSlot(save(['todos', second]), client);
+        expect(before.result, hasLength(1));
+        key[1] = third;
+        final after = MutationStateSlot(save(['todos', third]), client);
+        expect(after.result, hasLength(1));
+        expect(before.result, isEmpty);
+        expect(matching(['todos', third]), 1);
+        expect(matching(['todos', second]), 0);
+        before.dispose();
+        after.dispose();
+        client.clear();
+      }
+    });
   });
 }

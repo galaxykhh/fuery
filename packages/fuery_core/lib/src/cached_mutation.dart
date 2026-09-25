@@ -49,9 +49,19 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
 
   /// The key converted for filters on first use, like [CachedQuery._keyForm],
   /// so the filters that test every run on every change don't convert it
-  /// again. [_setOptions] drops them when new options bring another key.
+  /// again while it holds what they were made from.
   String? _hash;
   Object? _form;
+
+  /// A copy ([keyCopy]) of the key [_hash] and [_form] were made from. A key
+  /// that new options bring, or that was changed in place, no longer matches
+  /// it and is converted again. Null for a key that [sameKey] leaves to
+  /// hashing, which is converted on every test.
+  List<Object?>? _convertedKey;
+
+  /// The key [keyCopy] couldn't copy, so the tests that convert it again
+  /// don't try to copy it too.
+  MutationKey? _uncopiedKey;
 
   Mutation<TData, TVariables, TContext> get options => _options;
 
@@ -62,22 +72,34 @@ class CachedMutation<TData, TVariables, TContext> extends _Removable {
   /// [hashKey] of the key, or null without one.
   String? get _keyHash {
     final key = _options.mutationKey;
-    return key == null ? null : _hash ??= hashKey(key);
+    if (key == null) return null;
+    return _keepsConversions(key) ? _hash ??= hashKey(key) : hashKey(key);
   }
 
   /// [keyForm] of the key, or null without one.
   Object? get _keyForm {
     final key = _options.mutationKey;
-    return key == null ? null : _form ??= keyForm(key);
+    if (key == null) return null;
+    return _keepsConversions(key) ? _form ??= keyForm(key) : keyForm(key);
+  }
+
+  /// Whether [_hash] and [_form] can be kept for [key]. Drops them when [key]
+  /// no longer holds what they were made from.
+  bool _keepsConversions(MutationKey key) {
+    final converted = _convertedKey;
+    if (converted != null) {
+      if (sameKey(key, converted)) return true;
+    } else if (identical(key, _uncopiedKey)) {
+      return false;
+    }
+    _hash = null;
+    _form = null;
+    final copy = _convertedKey = keyCopy(key);
+    _uncopiedKey = copy == null ? key : null;
+    return copy != null;
   }
 
   void _setOptions(Mutation<TData, TVariables, TContext> options) {
-    // A pending run gets the new options of its observer, which can bring
-    // another key, such as one where there was none.
-    if (!identical(options.mutationKey, _options.mutationKey)) {
-      _hash = null;
-      _form = null;
-    }
     _options = options;
     _updateGcTime(_options.gcTime);
   }

@@ -29,7 +29,8 @@ class MutationFilters
 
   /// A test for [matches] that converts [mutationKey] once, for testing many
   /// mutations. Each mutation converts its own key once too, and again when
-  /// new options bring another key.
+  /// the key no longer holds the same content: new options can bring another
+  /// key, and a key can change in place.
   bool Function(AnyCachedMutation mutation) _matcher() {
     final mutationKey = this.mutationKey;
     if (mutationKey == null) return _matchesState;
