@@ -19,7 +19,8 @@ class QueryObserver<TData extends Object>
   /// [_hashIfSame], or null for a key that [sameKey] leaves to hashing. A
   /// copy, so a key changed in place gets its new hash. Made once options
   /// come a second time: an observer created for code outside widgets may
-  /// never get new ones.
+  /// never get new ones. Null after options that came already defaulted,
+  /// whose hash this observer didn't make.
   List<Object?>? _hashedKey;
   CachedQuery<TData>? _query;
   late QueryState<TData> _currentQueryInitialState;
@@ -138,14 +139,20 @@ class QueryObserver<TData extends Object>
   void setOptions(Query<TData> options) {
     final prevOptions = _options;
     final prevQuery = _query;
-    // A key built again with the same content keeps its hash.
-    final knownHash = _hashIfSame(options.queryKey);
+    // A key built again with the same content keeps its hash. Options
+    // defaulted before, such as an observer's `options`, keep theirs.
+    final alreadyDefaulted = options._defaulted;
+    final knownHash = alreadyDefaulted ? null : _hashIfSame(options.queryKey);
     final defaulted = _client._defaultQueryOptions(options, knownHash);
 
     // Throws before anything changes if the key holds another data type.
     _client.queryCache._build<TData>(_client, defaulted);
     _options = defaulted;
-    if (knownHash == null && prevOptions != null) {
+    if (alreadyDefaulted) {
+      // Their hash is the one their key had when they were defaulted, which
+      // a key changed in place since no longer has: the next key is hashed.
+      _hashedKey = null;
+    } else if (knownHash == null && prevOptions != null) {
       _hashedKey = keyCopy(defaulted.queryKey);
     }
 

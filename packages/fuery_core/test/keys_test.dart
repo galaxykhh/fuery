@@ -167,6 +167,37 @@ void main() {
       );
       observer.destroy();
     });
+
+    test('hashes the next key after its own options, changed in place', () {
+      final key = <Object?>['todos', 1];
+      final observer = todos(key).observe(client: client);
+      observer.setOptions(todos(key));
+      final options = observer.options;
+
+      // Options defaulted before keep the hash their key had then.
+      key[1] = 2;
+      observer.setOptions(options);
+      observer.setOptions(todos(['todos', 2]));
+      expect(observer.currentQuery.queryHash, hashKey(['todos', 2]));
+      observer.setOptions(todos(['todos', 2]));
+      expect(observer.currentQuery.queryHash, hashKey(['todos', 2]));
+    });
+
+    test('hashes the next key after options of another observer', () {
+      final key = <Object?>['todos', 9];
+      final other = todos(key).observe(client: client);
+      key[1] = 1;
+
+      // With a copy of the key the other options now hold, and without one.
+      final copied = todos(['todos', 1]).observe(client: client);
+      copied.setOptions(todos(['todos', 1]));
+      final uncopied = todos(['posts']).observe(client: client);
+      for (final observer in [copied, uncopied]) {
+        observer.setOptions(other.options);
+        observer.setOptions(todos(['todos', 1]));
+        expect(observer.currentQuery.queryHash, hashKey(['todos', 1]));
+      }
+    });
   });
 
   group('a QueriesSlot', () {
@@ -217,6 +248,29 @@ void main() {
       expect(identical(slot.observer.single, shared), isFalse);
       expect(slot.observer.single.options.queryHash, hashKey(['todos', 1]));
       slot.dispose();
+    });
+
+    test('reuses its observer after options of another observer', () {
+      final key = <Object?>['todos', 9];
+      final other = todos(key).observe(client: client);
+      key[1] = 1;
+
+      // With a copy of the key at the index, and without one.
+      List<Query<String>> built() => [
+            todos(['todos', 1]),
+          ];
+      for (final updated in [false, true]) {
+        final slot = QueriesSlot(built(), client);
+        if (updated) {
+          slot.update(built(), client);
+        }
+        final observer = slot.observer.single;
+        slot.update([other.options], client);
+        slot.update(built(), client);
+        expect(identical(slot.observer.single, observer), isTrue);
+        expect(observer.currentQuery.queryHash, hashKey(['todos', 1]));
+        slot.dispose();
+      }
     });
   });
 
