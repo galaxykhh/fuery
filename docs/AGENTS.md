@@ -14,7 +14,7 @@ npm run build    # must succeed before a pull request
 - Pages live in `src/content/docs/`. The sidebar is declared in `astro.config.mjs`, so a new page has to be added there to appear.
 - The site is served from `/fuery`, set by `base` in `astro.config.mjs`. Link between pages with relative paths ending in a slash (`../queries/`), never with `/fuery/...`.
 - `public/demo/` is the example app built for the web. CI builds it in `.github/workflows/docs.yml`; it does not exist locally, so a local build reports `/fuery/demo/` as missing.
-- Sections: Getting started, Concepts (what server state is and how to organize queries), Guides (one page per feature), Reference (every option in a table), Troubleshooting (symptom, cause, fix).
+- Sections: Getting started (a learning page), Concepts (what server state is and how the cache works), Guides (one page per feature or task), Reference (options, results, and `QueryClient` in tables), Troubleshooting (symptom, cause, fix, grouped by area).
 
 ## How to write
 
