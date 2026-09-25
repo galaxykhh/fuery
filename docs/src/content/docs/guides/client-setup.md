@@ -7,7 +7,7 @@ Configure one `QueryClient` for the whole app: set defaults, report every failur
 
 ## Creating the client
 
-`Fuery.client` is the client that widgets use without a `FueryProvider`, and that `observe()` uses without `client:`. Fuery creates it on first use, so an app that configures nothing still works.
+`Fuery.client` is the client that widgets use without a `FueryProvider`. `observe()` and a definition's `mutate` use it too, unless you pass a client. Fuery creates it on first use, so an app that configures nothing still works.
 
 To configure it, assign a new client in `main`:
 
@@ -144,6 +144,8 @@ Widgets below the provider use its client. `context.queryClient` returns it, or 
 ```dart
 late final todos = todosQuery.observe(client: context.queryClient);
 ```
+
+Pass it to a definition's `mutate` too: `addTodo.mutate('Buy milk', context.queryClient)`.
 
 An [adapter](../adapters/) for another state library reads the client with `FueryProvider.of(context, listen: true)`, which rebuilds when the provider's client is replaced.
 

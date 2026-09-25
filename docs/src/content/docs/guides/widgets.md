@@ -27,7 +27,7 @@ QueryBuilder(
 - The observer uses the client of the nearest `FueryProvider`, or `Fuery.client` without one.
 - The result carries the actions: `state.refetch()`, `state.fetchNextPage()` and `state.fetchPreviousPage()` for infinite queries, and `state.mutate(...)`, `state.mutateAsync(...)`, and `state.reset()` for mutations.
 
-A `MutationBuilder` shows only the runs it starts. The MutationState widgets show the runs of a mutation from anywhere, found by its `mutationKey`. See [Showing every run of a mutation](../mutations/#showing-every-run-of-a-mutation).
+A `MutationBuilder` shows only the runs it starts. The MutationState widgets show the runs of a mutation from anywhere, found by its `mutationKey`. See [Showing every run of a mutation](../mutations/#showing-every-run-of-a-mutation). A button that runs the mutation from its definition, with `addTodo.mutate('Buy milk')`, needs no `MutationBuilder`. See [Running a mutation](../mutations/#running-a-mutation).
 
 ## When builders and listeners run
 
@@ -95,7 +95,7 @@ QueryListener(
 For mutations:
 
 - A `MutationStateListener` hears every run of a mutation, from any screen. See [Telling the user a mutation failed](../mutations/#telling-the-user-a-mutation-failed).
-- To close a screen after its own call succeeds, pass `MutateOptions(onSuccess: ...)` to that `mutate` call. See [Callbacks](../mutations/#callbacks).
+- To close a screen after its own call succeeds, await `mutateAsync`, then check `context.mounted`. See [Acting after one call succeeds](../mutations/#acting-after-one-call-succeeds).
 - A `MutationListener` hears only the runs of the observer it gets. Given a definition, it hears nothing, and prints a warning in debug builds. See [A MutationListener never runs](../../troubleshooting/#a-mutationlistener-never-runs).
 - A `MutationConsumer` given a definition hears the runs that its own builder starts.
 

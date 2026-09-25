@@ -21,7 +21,7 @@ QueryBuilder(
 
 - **Built the Flutter way.** A screen that shows a query stays a `StatelessWidget`, so you can start with one screen of the app you have. Queries keep their data outside `build` and need no `BuildContext` or setup. Widgets render them in the shape of `StreamBuilder`: builders for UI, listeners for side effects.
 - **Nothing beyond Dart and Flutter.** `fuery` depends on Flutter and `fuery_core`, and `fuery_core` only on the Dart team's `clock`, `collection`, and `meta`. The core is pure Dart, so blocs, cubits, services, CLIs, and servers get the same queries as a `Stream` from `observe()`. Hooks live in [`fuery_hooks`](packages/fuery_hooks), a package of its own, so only apps that choose `flutter_hooks` depend on it.
-- **One idea to learn.** A query is a definition. You pass the same object to a widget, fetch it with the client, and read its cached data.
+- **One idea to learn.** A query is a definition. You pass the same object to a widget, fetch it with the client, and read its cached data. A mutation is a definition too, and any widget runs it with `addTodo.mutate('Buy milk')`.
 - **Types come from your functions, with no code generation.** The snippet names no type: `todos` is a `Query<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`. Mutations, widgets, results, and callbacks infer their types the same way. You name a type in two cases: a read or write by key alone, as in `getQueryData<List<Todo>>(['todos'])`, and an [infinite query whose first page param is `null`](https://galaxykhh.github.io/fuery/guides/infinite-queries/#cursor-based-pages).
 - **Devtools in the app.** Inspect every query and mutation on a device, inside the running app.
 

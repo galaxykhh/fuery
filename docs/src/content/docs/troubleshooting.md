@@ -217,7 +217,7 @@ See [Callbacks](../guides/mutations/#callbacks).
 
 ### A MutationListener never runs
 
-A `MutationListener` never calls its listener, or a `MutationBuilder` or `MutationSelector` that only shows the state stays idle while a button's mutation runs. A mutation's state belongs to the observer that runs it. A widget given a definition, as in `MutationListener(mutation: addTodo)`, creates an observer of its own, and nothing runs that one.
+A `MutationListener` never calls its listener, or a `MutationBuilder` or `MutationSelector` that only shows the state stays idle while a button's mutation runs. These widgets show only the runs of their own observer. A widget given a definition, as in `MutationListener(mutation: addTodo)`, creates an observer of its own, and nothing runs that one. A run started with `addTodo.mutate`, or by another widget, never reaches it.
 
 To hear every run of the mutation, wherever it started, give the definition a `mutationKey` and use a `MutationStateListener`:
 
@@ -238,7 +238,7 @@ MutationStateListener(
 
 For the widgets that only show the state, use `MutationStateBuilder` or `MutationStateSelector`. See [Showing every run of a mutation](../guides/mutations/#showing-every-run-of-a-mutation).
 
-For the callbacks of one call, such as closing the form that saved, pass `MutateOptions` to `mutate`.
+For an effect of one call, such as closing the form that saved, await `mutateAsync`. See [Acting after one call succeeds](../guides/mutations/#acting-after-one-call-succeeds).
 
 To hear only the runs of one observer, create it once, in a `State` field. Pass it both to the widget that runs it and to the `MutationListener`:
 

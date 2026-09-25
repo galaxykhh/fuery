@@ -85,7 +85,7 @@ QueryListener(
 
 ## Mutations
 
-A mutation creates, updates, or deletes server data. Define one and run it from a `MutationBuilder`:
+A mutation creates, updates, or deletes server data. Define one, and run it from any widget with `mutate`:
 
 ```dart
 final addTodo = Mutation(
@@ -96,18 +96,15 @@ final addTodo = Mutation(
   },
 );
 
-MutationBuilder(
-  mutation: addTodo,
-  builder: (context, state) => FilledButton(
-    onPressed: state.isPending ? null : () => state.mutate('Buy milk'),
-    child: const Text('Add'),
-  ),
+FilledButton(
+  onPressed: () => addTodo.mutate('Buy milk'),
+  child: const Text('Add'),
 )
 ```
 
-Returning the `invalidateQueries` future from `onSuccess` keeps the mutation pending until the list has refetched.
+The definition holds no state. The run belongs to the client's cache, not to the button. It uses `Fuery.client` unless you pass a client, such as `context.queryClient` under a `FueryProvider`. Returning the `invalidateQueries` future from `onSuccess` keeps the run pending until the list has refetched.
 
-In widgets that don't run the mutation, `MutationStateBuilder`, `MutationStateSelector`, and `MutationStateListener` show or hear every run of it. They find the runs by `mutationKey`, wherever each run started:
+`MutationStateBuilder`, `MutationStateSelector`, and `MutationStateListener` show or hear every run on any screen. They find the runs by `mutationKey`, wherever each run started:
 
 ```dart
 MutationStateListener(
@@ -119,6 +116,8 @@ MutationStateListener(
   child: const TodoListScreen(),
 )
 ```
+
+For an effect after one call, such as closing the screen, `await addTodo.mutateAsync('Buy milk')` returns the data or throws. A `MutationBuilder` runs the mutation with `state.mutate`, and shows only the runs it starts.
 
 ## Bloc and cubits
 
