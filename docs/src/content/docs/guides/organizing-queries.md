@@ -3,7 +3,7 @@ title: Organizing queries
 description: Keep query keys, query functions, and mutations in one place as a Flutter app grows.
 ---
 
-Define each query once, in a file next to its API. As an app grows, the same key and query function otherwise show up on several screens and in several blocs:
+One definition per query keeps its key and data type the same on every screen, in every bloc, and in every service. Put the definitions in a file next to the API they call:
 
 ```dart
 // lib/data/todo_queries.dart
@@ -20,9 +20,9 @@ Query<Todo> todoQuery(int id) => Query(
     );
 ```
 
-A query is only a description, so a top-level `final` is fine. A query that takes a value, such as an id, is a function.
+A query holds no data, so a top-level `final` works. A query that takes a value, such as an id, is a function.
 
-The same query serves every use of the data:
+The same definition serves every use of the data:
 
 ```dart
 QueryBuilder(query: todoQuery(id), builder: ...);     // in a widget
@@ -31,19 +31,26 @@ client.updateData(todoQuery(id), (todo) => todo?.copyWith(done: true));
 final todos = todosQuery.observe();                   // in a cubit or a service
 ```
 
-Every widget and observer of `todosQuery` shares one cache entry, and mutations invalidate `todosKey` without repeating it. Infinite queries work the same way with `InfiniteQuery`.
+Every widget and observer of `todosQuery` shares one cache entry, and mutations invalidate `todosKey` without repeating it. `InfiniteQuery` definitions work the same way.
 
 - **Types stay checked.** Widgets, `client.query`, `getData`, `setData`, and `updateData` take the data type from the query, so there is nothing to cast and no way to write another type to the key.
-- **Keys stay consistent.** A typo in a key would silently create a second cache entry; one definition per query rules that out.
-- **Hierarchy is explicit.** `['todos', ...]` groups everything about todos, so `invalidateQueries(queryKey: ['todos'])` refreshes the list and every detail at once.
+- **Keys stay consistent.** A typo in a key silently creates a second cache entry. One definition per query rules that out.
+- **The hierarchy is explicit.** `['todos', ...]` groups everything about todos, so `invalidateQueries(queryKey: ['todos'])` refreshes the list and every detail at once.
 
 ## Passing dependencies to a query function
 
-A query function must never capture a `BuildContext`. The `api` above is a long-lived object, which is what makes those snippets safe.
+A query function must never capture a `BuildContext`. The `api` in the snippets above is a long-lived object, which makes them safe.
 
-The query keeps its query function with the cache entry and runs it again later: when the app returns to the foreground, when the network reconnects, on every `refetchInterval` tick, and whenever anything invalidates the key. Those runs happen after the widget that used the query is gone, so a captured `BuildContext` is unmounted by then. Capturing a `State`, a `TickerProvider`, or anything reached through `context` has the same problem.
+Fuery keeps the query function with the cache entry and runs it again later:
 
-Plain values are fine. An id or a search term belongs in the key and in the request, and outlives the widget without trouble.
+- when the app returns to the foreground,
+- when the network reconnects,
+- on every `refetchInterval` tick,
+- when anything invalidates or refetches the key.
+
+Some of these runs come after the widget that built the query is gone, when its `BuildContext` is unmounted. A captured `State`, `TickerProvider`, or anything read through `context` has the same problem.
+
+Plain values are safe. An id or a search term belongs in the key and in the request, and outlives the widget.
 
 Give the query the dependency as a parameter:
 
@@ -71,24 +78,17 @@ final todosQuery = Query(
 
 `locator` stands for whatever your app resolves dependencies with. Either shape keeps the closure free of anything tied to a widget. Two widgets with the same key share one cache entry, so give every use of a key the same dependency.
 
-`QueryFunctionContext`, the argument every query function receives, carries nothing from the widget tree:
-
-| Field | What it gives |
-|---|---|
-| `client` | The `QueryClient` running the fetch, for reading other cached data |
-| `queryKey` | The key being fetched, so the function can build the request from it |
-| `meta` | Static values attached with the `meta` option |
-| `signal` | Aborted when the fetch is cancelled. See [Cancelling a request](../queries/#cancelling-a-request). |
+The argument every query function receives, `QueryFunctionContext`, carries nothing from the widget tree: see [Query function context](../../reference/query-options/#query-function-context).
 
 ## Reporting failures from a repository
 
-A query function has to throw. Fuery takes the error state from a thrown error and from nothing else, so a function that returns a `Result`, an `Either`, or any other wrapper always succeeds, whatever the wrapper holds. The query then:
+A query function has to throw to fail. Fuery sets the error state only from a thrown error. A function that returns a `Result`, an `Either`, or any other wrapper always succeeds, whatever the wrapper holds. The query then:
 
-- keeps `status` at `QueryStatus.success` and `error` at null,
+- keeps `status` at `QueryStatus.success` and `error` at `null`,
 - never sets `isError`, `isLoadingError`, or `isRefetchError`,
-- never retries, because the retry policy only ever sees thrown errors.
+- never retries, because the retry policy sees only thrown errors.
 
-Unwrap in the query function and throw the failure:
+Unwrap the result in the query function and throw the failure:
 
 ```dart
 Query<List<Todo>> todosQuery(TodoRepository repo) => Query(
@@ -100,11 +100,11 @@ Query<List<Todo>> todosQuery(TodoRepository repo) => Query(
     );
 ```
 
-Having nothing to return isn't a failure either. Query data can't be null, so a function with no result to give throws as well. See [Query data can't be null](../queries/#query-data-cant-be-null).
+A function with no result to give throws as well, because query data can't be null. See [Query data can't be null](../queries/#query-data-cant-be-null).
 
 ## Organizing mutations
 
-Put mutations next to their queries, defined the same way. Give each one a `mutationKey` built from the key of the data it changes, next to the query keys:
+Put mutations next to their queries, defined the same way. Give each one a `mutationKey` built from the key of the data it changes:
 
 ```dart
 // lib/data/todo_mutations.dart
@@ -116,11 +116,11 @@ final addTodo = Mutation(
 );
 ```
 
-The client keeps every run of a mutation in its cache, from the moment it starts until `gcTime` (default: 5 minutes) after it settles, whichever widget, hook, or cubit started it. The key is how a screen finds those runs: `MutationStateBuilder(mutation: addTodo)` shows them anywhere in the app. See [Showing every run of a mutation](../mutations/#showing-every-run-of-a-mutation).
+The `mutationKey` lets any screen find the runs of the mutation, whichever widget, hook, or cubit started them. `MutationStateBuilder(mutation: addTodo)` shows them anywhere in the app: see [Showing every run of a mutation](../mutations/#showing-every-run-of-a-mutation).
 
-What a screen shares differs from queries, though. Two widgets that use the same query key share one cache entry, but every widget that runs a mutation reports the state of its own runs. The definition shares the mutation function and the cache updates. The callbacks receive the client that runs the mutation, so the cache work reaches the right client in tests and under a `FueryProvider`.
+Mutations share less than queries: each widget that runs a mutation reports only its own runs, while the definition shares the mutation function and its cache updates. The callbacks receive the client that runs the mutation, so the cache work reaches the right client in tests and under a `FueryProvider`. [Mutation runs](../../how-the-cache-works/#mutation-runs) explains the difference.
 
-Keep the cache work, such as invalidating and rolling back, in the definition. Anything that belongs to one screen goes to the call site instead:
+Keep the cache work, such as invalidating and rolling back, in the definition. Put anything that belongs to one screen at the call site:
 
 ```dart
 MutationBuilder(
@@ -137,7 +137,7 @@ MutationBuilder(
 )
 ```
 
-A `MutationStateListener` does the same for a snackbar or a dialog after any run of the mutation, from any screen, with the screen's `BuildContext`. See [Telling the user a mutation failed](../mutations/#telling-the-user-a-mutation-failed).
+A `MutationStateListener` shows a snackbar or a dialog after any run of the mutation, from any screen, with that screen's `BuildContext`. See [Telling the user a mutation failed](../mutations/#telling-the-user-a-mutation-failed).
 
 ## In the example app
 
