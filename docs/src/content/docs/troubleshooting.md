@@ -88,6 +88,8 @@ Pass the definition instead, and the widget observes it with its own client. Whe
 late final adding = addTodo.observe(client: context.queryClient);
 ```
 
+A definition's `mutate` and `mutateAsync` also run on `Fuery.client` unless you pass a client, so under a provider, call `addTodo.mutate('Buy milk', context.queryClient)`.
+
 In a `HookWidget`, `useQueryClient()` returns the client the hooks use. `observer.client` returns the client an observer uses. In debug builds, a Fuery widget or hook that gets an observer of another client than its own prints a warning to the console, once per widget or hook and key, with a link here.
 
 ## A test hangs on await subscription.cancel()
@@ -229,7 +231,7 @@ The MutationState widgets and `useMutationState` find runs by the definition's `
 
 - **The definition has no `mutationKey`.** In debug builds, the widget fails an assert that says so. Give it one, such as `mutationKey: const ['todos', 'add']`.
 - **Another definition with other types uses the key.** Its runs are left out, and reported once to [`onUncaughtError`](../guides/query-client/#catching-errors-that-callbacks-throw). Give each definition a key of its own.
-- **The runs are on another client.** An observer created with `observe()` without `client:` runs on `Fuery.client`, not on the client of a `FueryProvider`. See [A screen reads another client's cache](#a-screen-reads-another-clients-cache).
+- **The runs are on another client.** An observer created with `observe()` without `client:`, or a run started with the definition's `mutate` or `mutateAsync` without a client, runs on `Fuery.client`, not on the client of a `FueryProvider`. See [A screen reads another client's cache](#a-screen-reads-another-clients-cache).
 - **The runs are gone.** A settled run leaves the cache `gcTime` (default: 5 minutes) after it settles, and `client.clear()` removes every run.
 
 ## An error thrown in a listener doesn't reach the zone

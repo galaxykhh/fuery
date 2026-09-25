@@ -5,7 +5,7 @@ description: Read, write, invalidate, and prefetch the Flutter cache, set defaul
 
 The `QueryClient` owns the cache. Use it to read and write cached data, to invalidate or refetch it, and to fetch outside widgets.
 
-`Fuery.client` is the client every widget uses without a `FueryProvider`, and every observer from `observe()` uses unless you pass `client:`. It is created the first time something needs it, so an app that never configures one still works. In a widget, `context.queryClient` returns the client of the nearest provider, or `Fuery.client`.
+`Fuery.client` is the client every widget uses without a `FueryProvider`. Every observer from `observe()`, and every run a definition's `mutate` starts, uses it too unless you pass a client. It is created the first time something needs it, so an app that never configures one still works. In a widget, `context.queryClient` returns the client of the nearest provider, or `Fuery.client`.
 
 ## Reading and writing the cache
 
@@ -356,6 +356,7 @@ A `Query` holds no client. The client is chosen where the query is used:
 
 - A widget that gets a query or a mutation uses the client of the nearest `FueryProvider`, or `Fuery.client` without one. It follows a provider whose client is replaced.
 - `observe()` uses the client you pass as `client:`, or `Fuery.client` at that moment, and keeps it for the observer's whole life. The observer's `client` returns it.
+- A definition's `mutate` and `mutateAsync` use the client you pass them, or `Fuery.client` at that moment. Under a `FueryProvider`, pass `context.queryClient`.
 - A widget that gets an observer uses it with the observer's client. In debug builds, it prints a warning when that isn't its own client. See [A screen reads another client's cache](../../troubleshooting/#a-screen-reads-another-clients-cache).
 - Query functions, `placeholderData`, and mutation callbacks receive the client that runs them.
 
