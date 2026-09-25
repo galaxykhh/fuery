@@ -1,5 +1,7 @@
 /// Hooks for Fuery: `useQuery`, `useInfiniteQuery`, `useMutation`,
-/// `useQueries`, and `useMutationState` for `flutter_hooks`.
+/// `useQueries`, and `useMutationState` for `flutter_hooks`, and
+/// `useOnQueryChange`, `useOnMutationChange`, and `useOnMutationStateChange`
+/// for side effects.
 library;
 
 // Flutter has a FocusManager class too, and FocusManager is also the deprecated

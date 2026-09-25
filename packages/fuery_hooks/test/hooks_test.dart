@@ -64,6 +64,36 @@ void main() {
   String describe(QueryResult<String> post) =>
       '${post.data ?? 'loading'}${post.isPlaceholderData ? ' (old)' : ''}';
 
+  /// Saves a todo after [ms10]. A title that starts with 'fail' fails.
+  Mutation<String, String, Object?> addTodo([String list = 'home']) => Mutation(
+        mutationKey: ['todos', list, 'add'],
+        mutationFn: (title) async {
+          await Future<void>.delayed(ms10);
+          if (title.startsWith('fail')) throw StateError(title);
+          return 'saved $title';
+        },
+      );
+
+  String describeRuns(List<MutationState<String, String, Object?>> runs) {
+    if (runs.isEmpty) return 'no runs';
+    return [for (final run in runs) '${run.variables} ${run.status.name}']
+        .join(', ');
+  }
+
+  /// Starts a run of [addTodo] from an observer of its own.
+  void run(String title, {String list = 'home', QueryClient? on}) {
+    addTodo(list).observe(client: on ?? client).mutate(title);
+  }
+
+  /// A button that runs [addTodo] with a useMutation of its own.
+  Widget addButton(String title) => HookBuilder(builder: (_) {
+        final add = useMutation(addTodo());
+        return TextButton(
+          onPressed: () => add.mutate(title),
+          child: Text('add $title'),
+        );
+      });
+
   group('useQuery', () {
     Widget postScreen(int id) => HookBuilder(builder: (context) {
           // Inferred without a context type, then checked: this stops
@@ -695,7 +725,7 @@ void main() {
     });
   });
 
-  group('listener', () {
+  group('useOnQueryChange', () {
     // Fresh for good, so cached data isn't refetched.
     Query<String> fresh(int id) => Query(
           queryKey: ['post', id],
@@ -708,8 +738,8 @@ void main() {
       final heard = <String>[];
       final compared = <String>[];
       await tester.pumpWidget(app(HookBuilder(builder: (_) {
-        useQuery(
-          post(1),
+        useOnQueryChange(
+          useQuery(post(1)),
           listenWhen: (previous, current) {
             compared.add('${previous.data} > ${current.data}');
             return current.data != 'skipped';
@@ -746,8 +776,8 @@ void main() {
       await tester.pumpWidget(app(Scaffold(
         body: HookBuilder(builder: (context) {
           built = context;
-          useQuery(
-            post(1),
+          useOnQueryChange(
+            useQuery(post(1)),
             listener: (context, result) {
               phases.add(SchedulerBinding.instance.schedulerPhase);
               given = context;
@@ -775,8 +805,9 @@ void main() {
       final heard = <String>[];
       Widget screen(int id) => HookBuilder(builder: (_) {
             building = true;
-            final shown = useQuery(
-              post(id),
+            final shown = useQuery(post(id));
+            useOnQueryChange(
+              shown,
               listener: (context, result) {
                 heard.add('${describe(result)}${building ? ' in build' : ''}');
               },
@@ -806,14 +837,14 @@ void main() {
       ];
       final heard = <String>[];
       Widget screen(QuerySource<String> source) => HookBuilder(builder: (_) {
-            useQuery(
-              source,
+            useOnQueryChange(
+              useQuery(source),
               listener: (context, result) => heard.add(describe(result)),
             );
             return const SizedBox();
           });
 
-      // A replaced provider client.
+      // A replaced provider client: the result comes from a new observer.
       await tester.pumpWidget(app(screen(fresh(1))));
       await tester.pumpWidget(app(screen(fresh(1)), with_: other));
       await tester.pump();
@@ -822,11 +853,12 @@ void main() {
       await tester.pump();
       expect(heard, ['other post 1!']);
 
-      // Another shared observer.
+      // A definition replaced by a shared observer, then by another one.
       await tester.pumpWidget(app(screen(shared[0])));
       await tester.pumpWidget(app(screen(shared[1])));
       await tester.pump();
       expect(heard, ['other post 1!']);
+      client.setData(fresh(2), 'post 2!');
       client.setData(fresh(3), 'post 3!');
       await tester.pump();
       expect(heard, ['other post 1!', 'post 3!']);
@@ -837,13 +869,68 @@ void main() {
       other.clear();
     });
 
+    testWidgets('moves between a query and an infinite query without a call',
+        (tester) async {
+      client.setData(fresh(1), 'post 1');
+      final feed = InfiniteQuery(
+        queryKey: ['feed'],
+        queryFn: (context) async => 'page ${context.pageParam}',
+        initialPageParam: 1,
+        getNextPageParam: (data) => null,
+        staleTime: infiniteDuration,
+      );
+      client.setData(feed, const InfiniteData(pages: ['a'], pageParams: [1]));
+      final heard = <QueryResult<Object>>[];
+      Widget screen({required bool pages}) => HookBuilder(builder: (_) {
+            final shownPost = useQuery(fresh(1));
+            final shownFeed = useInfiniteQuery(feed);
+            // One of two kinds, so the type is declared.
+            final QueryResult<Object> shown = pages ? shownFeed : shownPost;
+            useOnQueryChange(
+              shown,
+              listener: (context, result) => heard.add(result),
+            );
+            return const SizedBox();
+          });
+      await tester.pumpWidget(app(screen(pages: true)));
+      client.setData(feed, const InfiniteData(pages: ['b'], pageParams: [1]));
+      await tester.pump();
+      expect(heard.single, isA<InfiniteQueryResult<String, int>>());
+
+      await tester.pumpWidget(app(screen(pages: false)));
+      await tester.pump();
+      client.setData(feed, const InfiniteData(pages: ['c'], pageParams: [1]));
+      client.setData(fresh(1), 'post 1!');
+      await tester.pump();
+      expect(heard, hasLength(2));
+      expect(heard.last.data, 'post 1!');
+
+      await tester.pumpWidget(app(screen(pages: true)));
+      await tester.pump();
+      client.setData(fresh(1), 'post 1!!');
+      client.setData(feed, const InfiniteData(pages: ['d'], pageParams: [1]));
+      await tester.pump();
+      expect(heard, hasLength(3));
+      expect(heard.last, isA<InfiniteQueryResult<String, int>>());
+      await tearDownApp(tester);
+    });
+
     testWidgets('calls the listener of the latest build', (tester) async {
       client.setData(fresh(1), 'post 1');
       var builds = 0;
-      final heard = <int>[];
+      final heard = <String>[];
       Widget screen() => HookBuilder(builder: (_) {
             final build = ++builds;
-            useQuery(fresh(1), listener: (context, result) => heard.add(build));
+            useOnQueryChange(
+              useQuery(fresh(1)),
+              listenWhen: (previous, current) {
+                heard.add('listenWhen of build $build');
+                return true;
+              },
+              listener: (context, result) {
+                heard.add('listener of build $build');
+              },
+            );
             return const SizedBox();
           });
       await tester.pumpWidget(app(screen()));
@@ -853,27 +940,29 @@ void main() {
 
       client.setData(fresh(1), 'post 1!');
       await tester.pump();
-      expect(heard, [2]);
+      expect(heard, ['listenWhen of build 2', 'listener of build 2']);
       expect(query.observers.single, same(observer));
       await tearDownApp(tester);
     });
 
-    testWidgets(
-        'starts with the first build that passes one, and skips '
-        'builds without one', (tester) async {
+    testWidgets('starts from the result of the build that first calls it',
+        (tester) async {
       client.setData(fresh(1), 'a');
       final heard = <String>[];
       Widget screen({required bool listen}) => HookBuilder(builder: (_) {
-            useQuery(
-              fresh(1),
-              listenWhen: listen
-                  ? (previous, current) {
-                      heard.add('${previous.data} > ${current.data}');
-                      return true;
-                    }
-                  : null,
-              listener: listen ? (context, result) {} : null,
-            );
+            final result = useQuery(fresh(1));
+            // A trailing hook, which flutter_hooks adds and drops as a hot
+            // reload can.
+            if (listen) {
+              useOnQueryChange(
+                result,
+                listenWhen: (previous, current) {
+                  heard.add('${previous.data} > ${current.data}');
+                  return true;
+                },
+                listener: (context, result) {},
+              );
+            }
             return const SizedBox();
           });
       await tester.pumpWidget(app(screen(listen: false)));
@@ -885,6 +974,7 @@ void main() {
       await tester.pump();
       expect(heard, ['b > c']);
 
+      // Dropped, it hears nothing. Called again, it starts over.
       await tester.pumpWidget(app(screen(listen: false)));
       client.setData(fresh(1), 'd');
       await tester.pump();
@@ -904,7 +994,7 @@ void main() {
 
       // A fetch in flight when the widget goes away.
       await tester.pumpWidget(app(HookBuilder(builder: (_) {
-        useQuery(post(1), listener: listener);
+        useOnQueryChange(useQuery(post(1)), listener: listener);
         return const SizedBox();
       })));
       await tester.pumpWidget(app(const SizedBox()));
@@ -925,7 +1015,8 @@ void main() {
             HookBuilder(
               key: const ValueKey('drops'),
               builder: (_) {
-                if (show) useQuery(post(1), listener: listener);
+                final result = useQuery(post(1));
+                if (show) useOnQueryChange(result, listener: listener);
                 return const SizedBox();
               },
             ),
@@ -940,86 +1031,27 @@ void main() {
       await tearDownApp(tester);
     });
 
-    testWidgets('useMutation hears the runs of its result', (tester) async {
-      final addTodo = Mutation(
-        mutationFn: (String title) async {
-          await Future<void>.delayed(ms10);
-          return title;
-        },
-      );
-      final heard = <MutationStatus>[];
-      final screen = HookBuilder(builder: (_) {
-        final add = useMutation(
-          addTodo,
-          listener: (context, result) => heard.add(result.status),
-        );
-        return TextButton(
-          onPressed: () => add.mutate('Buy milk'),
-          child: Text(add.status.name),
-        );
-      });
-      await tester.pumpWidget(app(screen));
-      await tester.tap(find.byType(TextButton));
-      await tester.pump();
-      expect(heard, [MutationStatus.pending]);
-      await tester.pump(ms10);
-      expect(heard, [MutationStatus.pending, MutationStatus.success]);
-
-      // Nothing after the widget goes away mid-run.
-      await tester.tap(find.byType(TextButton));
-      await tester.pump();
-      await tester.pumpWidget(app(const SizedBox()));
-      await tester.pump(ms10);
-      expect(heard, [
-        MutationStatus.pending,
-        MutationStatus.success,
-        MutationStatus.pending,
-      ]);
-      await tearDownApp(tester);
-    });
-
-    testWidgets('useMutation hears every run of a shared observer',
+    testWidgets('leaves a shared observer to the code that shares it',
         (tester) async {
-      final shared = Mutation(
-        mutationFn: (String title) async => title,
-      ).observe(client: client);
-      final heard = <String>[];
+      client.setData(fresh(1), 'post 1');
+      final shared = fresh(1).observe(client: client);
+      final outside = <String?>[];
+      final stop = shared.subscribe((result) => outside.add(result.data));
       await tester.pumpWidget(app(HookBuilder(builder: (_) {
-        useMutation(
-          shared,
-          listenWhen: (previous, current) => current.isSuccess,
-          listener: (context, result) => heard.add(result.data!),
-        );
+        useOnQueryChange(useQuery(shared), listener: (context, result) {});
         return const SizedBox();
       })));
+      await tester.pumpWidget(app(const SizedBox()));
 
-      shared.mutate('from elsewhere');
+      // Destroying the observer would have removed this listener too.
+      client.setData(fresh(1), 'still heard');
       await tester.pump();
-      expect(heard, ['from elsewhere']);
-      await tearDownApp(tester);
-      shared.reset();
-    });
-
-    testWidgets('useMutation hears a NoVariablesMutation', (tester) async {
-      final logout = NoVariablesMutation(mutationFn: () async {});
-      final heard = <MutationStatus>[];
-      await tester.pumpWidget(app(HookBuilder(builder: (_) {
-        final run = useMutation(
-          logout,
-          listener: (context, result) => heard.add(result.status),
-        );
-        return TextButton(
-          onPressed: () => run.mutate(null),
-          child: const Text('Log out'),
-        );
-      })));
-      await tester.tap(find.byType(TextButton));
-      await tester.pump();
-      expect(heard, [MutationStatus.pending, MutationStatus.success]);
+      expect(outside.last, 'still heard');
+      stop();
       await tearDownApp(tester);
     });
 
-    testWidgets('useInfiniteQuery hears new pages', (tester) async {
+    testWidgets('hears new pages of useInfiniteQuery', (tester) async {
       final pages = InfiniteQuery(
         queryKey: ['pages'],
         queryFn: (context) async => 'page ${context.pageParam}',
@@ -1028,8 +1060,9 @@ void main() {
       );
       final heard = <int>[];
       await tester.pumpWidget(app(HookBuilder(builder: (_) {
-        final feed = useInfiniteQuery(
-          pages,
+        final feed = useInfiniteQuery(pages);
+        useOnQueryChange(
+          feed,
           listenWhen: (previous, current) =>
               previous.pages.length != current.pages.length,
           listener: (context, result) => heard.add(result.pages.length),
@@ -1059,8 +1092,9 @@ void main() {
         onUncaughtError: (error, _) => errors.add(error),
       );
       await tester.pumpWidget(app(HookBuilder(builder: (_) {
-        final result = useQuery(
-          post(1),
+        final result = useQuery(post(1));
+        useOnQueryChange(
+          result,
           listener: (context, result) => throw StateError('listener'),
         );
         return Text(describe(result));
@@ -1072,13 +1106,13 @@ void main() {
       await tearDownApp(tester);
     });
 
-    testWidgets('adds no builds', (tester) async {
+    testWidgets('adds no builds and no observer', (tester) async {
       var withListener = 0;
       var without = 0;
       await tester.pumpWidget(app(Column(children: [
         HookBuilder(builder: (_) {
           withListener++;
-          useQuery(post(1), listener: (context, result) {});
+          useOnQueryChange(useQuery(post(1)), listener: (context, result) {});
           return const SizedBox();
         }),
         HookBuilder(builder: (_) {
@@ -1087,6 +1121,8 @@ void main() {
           return const SizedBox();
         }),
       ])));
+      final query = client.queryCache.find(QueryFilters(queryKey: ['post', 1]));
+      expect(query!.observers, hasLength(2));
       await tester.pump(ms10);
       client.setData(post(1), 'edited');
       await tester.pump(Duration.zero);
@@ -1097,9 +1133,26 @@ void main() {
       await tearDownApp(tester);
     });
 
-    testWidgets('listenWhen needs a listener', (tester) async {
+    testWidgets('a result that no observer reported fails an assert',
+        (tester) async {
+      const handMade = QueryResult<String>(
+        status: QueryStatus.pending,
+        fetchStatus: FetchStatus.idle,
+        data: null,
+        dataUpdatedAt: 0,
+        error: null,
+        errorUpdatedAt: 0,
+        errorUpdateCount: 0,
+        failureCount: 0,
+        failureReason: null,
+        isFetched: false,
+        isFetchedAfterMount: false,
+        isPlaceholderData: false,
+        isStale: true,
+        isEnabled: true,
+      );
       await tester.pumpWidget(app(HookBuilder(builder: (_) {
-        useQuery(post(1), listenWhen: (previous, current) => true);
+        useOnQueryChange(handMade, listener: (context, result) {});
         return const SizedBox();
       })));
       expect(tester.takeException(), isA<AssertionError>());
@@ -1107,38 +1160,123 @@ void main() {
     });
   });
 
-  group('useMutationState', () {
-    /// Saves a todo after [ms10]. A title that starts with 'fail' fails.
-    Mutation<String, String, Object?> addTodo([String list = 'home']) =>
-        Mutation(
-          mutationKey: ['todos', list, 'add'],
-          mutationFn: (title) async {
-            await Future<void>.delayed(ms10);
-            if (title.startsWith('fail')) throw StateError(title);
-            return 'saved $title';
-          },
+  group('useOnMutationChange', () {
+    testWidgets('hears the runs of the result it gets', (tester) async {
+      final heard = <MutationStatus>[];
+      final screen = HookBuilder(builder: (_) {
+        final add = useMutation(addTodo());
+        useOnMutationChange(
+          add,
+          listener: (context, result) => heard.add(result.status),
         );
+        return TextButton(
+          onPressed: () => add.mutate('Buy milk'),
+          child: Text(add.status.name),
+        );
+      });
+      await tester.pumpWidget(app(screen));
+      await tester.tap(find.byType(TextButton));
+      await tester.pump();
+      expect(heard, [MutationStatus.pending]);
+      await tester.pump(ms10);
+      expect(heard, [MutationStatus.pending, MutationStatus.success]);
 
-    String describeRuns(List<MutationState<String, String, Object?>> runs) {
-      if (runs.isEmpty) return 'no runs';
-      return [for (final run in runs) '${run.variables} ${run.status.name}']
-          .join(', ');
-    }
+      // Nothing after the widget goes away mid-run.
+      await tester.tap(find.byType(TextButton));
+      await tester.pump();
+      await tester.pumpWidget(app(const SizedBox()));
+      await tester.pump(ms10);
+      expect(heard, [
+        MutationStatus.pending,
+        MutationStatus.success,
+        MutationStatus.pending,
+      ]);
+      await tearDownApp(tester);
+    });
 
-    /// Starts a run of [addTodo] from an observer of its own.
-    void run(String title, {String list = 'home', QueryClient? on}) {
-      addTodo(list).observe(client: on ?? client).mutate(title);
-    }
+    testWidgets('hears every run of a shared observer, and leaves it alone',
+        (tester) async {
+      final shared = Mutation(
+        mutationFn: (String title) async => title,
+      ).observe(client: client);
+      final heard = <String>[];
+      await tester.pumpWidget(app(HookBuilder(builder: (_) {
+        useOnMutationChange(
+          useMutation(shared),
+          listenWhen: (previous, current) => current.isSuccess,
+          listener: (context, result) => heard.add(result.data!),
+        );
+        return const SizedBox();
+      })));
 
-    /// A button that runs [addTodo] with a useMutation of its own.
-    Widget addButton(String title) => HookBuilder(builder: (_) {
-          final add = useMutation(addTodo());
-          return TextButton(
-            onPressed: () => add.mutate(title),
-            child: Text('add $title'),
-          );
-        });
+      shared.mutate('from elsewhere');
+      await tester.pump();
+      expect(heard, ['from elsewhere']);
 
+      // Resetting the observer would have dropped the state of its run.
+      await tester.pumpWidget(app(const SizedBox()));
+      expect(shared.result.data, 'from elsewhere');
+      await tearDownApp(tester);
+      shared.reset();
+    });
+
+    testWidgets('moves with the result to a new observer without a call',
+        (tester) async {
+      final other = newClient();
+      final heard = <String>[];
+      Widget screen() => HookBuilder(builder: (_) {
+            final add = useMutation(addTodo());
+            useOnMutationChange(
+              add,
+              listener: (context, result) {
+                heard.add('${result.variables} ${result.status.name}');
+              },
+            );
+            return TextButton(
+              onPressed: () => add.mutate('milk'),
+              child: const Text('add'),
+            );
+          });
+      await tester.pumpWidget(app(screen()));
+      await tester.tap(find.text('add'));
+      await tester.pump();
+      expect(heard, ['milk pending']);
+
+      // The replaced client gives the hook a new, idle observer.
+      await tester.pumpWidget(app(screen(), with_: other));
+      await tester.pump(ms10);
+      expect(heard, ['milk pending']);
+
+      await tester.tap(find.text('add'));
+      await tester.pump(ms10);
+      expect(heard, ['milk pending', 'milk pending', 'milk success']);
+      await tester.pumpWidget(const SizedBox());
+      other.clear();
+      await tearDownApp(tester);
+    });
+
+    testWidgets('hears a NoVariablesMutation', (tester) async {
+      final logout = NoVariablesMutation(mutationFn: () async {});
+      final heard = <MutationStatus>[];
+      await tester.pumpWidget(app(HookBuilder(builder: (_) {
+        final run = useMutation(logout);
+        useOnMutationChange(
+          run,
+          listener: (context, result) => heard.add(result.status),
+        );
+        return TextButton(
+          onPressed: () => run.mutate(null),
+          child: const Text('Log out'),
+        );
+      })));
+      await tester.tap(find.byType(TextButton));
+      await tester.pump();
+      expect(heard, [MutationStatus.pending, MutationStatus.success]);
+      await tearDownApp(tester);
+    });
+  });
+
+  group('useMutationState', () {
     Widget runsOf(String list, {void Function()? onBuild}) {
       return HookBuilder(builder: (_) {
         onBuild?.call();
@@ -1236,7 +1374,6 @@ void main() {
     });
 
     testWidgets('infers its types from the source', (tester) async {
-      final heard = <Object?>[];
       await tester.pumpWidget(app(HookBuilder(builder: (_) {
         final all = useMutationState(
           const MutationFilters(mutationKey: ['todos']),
@@ -1247,7 +1384,244 @@ void main() {
           mutationFn: () async => 0,
         ));
         final List<MutationState<int, void, Object?>> typedClearing = clearing;
-        final adding = useMutationState(
+        final adding = useMutationState(addTodo());
+        final List<MutationState<String, String, Object?>> typedAdding = adding;
+        return Text('${typedAll.length} ${typedClearing.length} '
+            '${typedAdding.length}');
+      })));
+      run('milk');
+      await tester.pump(ms10);
+      expect(find.text('1 0 1'), findsOneWidget);
+      await tearDownApp(tester);
+    });
+  });
+
+  group('useOnMutationStateChange', () {
+    /// Records each run that failed, from a hook of its own.
+    Widget failures(
+      List<String?> heard, {
+      String list = 'home',
+      Widget child = const SizedBox(),
+    }) {
+      return HookBuilder(builder: (_) {
+        useOnMutationStateChange(
+          addTodo(list),
+          listenWhen: (previous, current) => current.isError,
+          listener: (context, run) => heard.add(run.variables),
+        );
+        return child;
+      });
+    }
+
+    testWidgets('hears every run that fails, from any widget, once',
+        (tester) async {
+      final heard = <String?>[];
+      run('fail before');
+      await tester.pump(ms10);
+      run('fail while mounting');
+
+      await tester.pumpWidget(app(failures(
+        heard,
+        child: Column(children: [addButton('fail a'), addButton('fail b')]),
+      )));
+      await tester.pump();
+      expect(heard, isEmpty);
+
+      // Overlapping runs are heard one by one, and each only once.
+      await tester.tap(find.text('add fail a'));
+      await tester.tap(find.text('add fail b'));
+      await tester.pump(ms10);
+      expect(heard, ['fail while mounting', 'fail a', 'fail b']);
+      await tester.pump(const Duration(minutes: 5));
+      expect(heard, hasLength(3));
+      await tearDownApp(tester);
+    });
+
+    testWidgets('hears a run whose useMutation went away', (tester) async {
+      final heard = <String?>[];
+      await tester.pumpWidget(
+        app(failures(heard, child: addButton('fail x'))),
+      );
+      await tester.tap(find.text('add fail x'));
+      await tester.pumpWidget(app(failures(heard)));
+      expect(find.text('add fail x'), findsNothing);
+      await tester.pump(ms10);
+      expect(heard, ['fail x']);
+      await tearDownApp(tester);
+    });
+
+    testWidgets(
+        'runs with the context of the widget, and the state the run had '
+        'before', (tester) async {
+      final compared = <String>[];
+      await tester.pumpWidget(app(Scaffold(
+        body: HookBuilder(builder: (_) {
+          useOnMutationStateChange(
+            addTodo(),
+            listenWhen: (previous, current) {
+              compared.add('${current.variables}: '
+                  '${previous.status.name} > ${current.status.name}');
+              return current.isSuccess;
+            },
+            listener: (context, run) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Added ${run.variables}')),
+              );
+            },
+          );
+          return const SizedBox();
+        }),
+      )));
+      run('milk');
+      await tester.pump(ms10);
+      await tester.pump();
+      expect(compared, ['milk: idle > pending', 'milk: pending > success']);
+      expect(find.text('Added milk'), findsOneWidget);
+      await tearDownApp(tester);
+    });
+
+    testWidgets(
+        'hears nothing for the runs of a new key or client until they '
+        'change', (tester) async {
+      final other = newClient();
+      final heard = <String?>[];
+      run('fail report', list: 'work');
+      run('fail plan', list: 'work', on: other);
+      await tester.pump(ms10);
+
+      await tester.pumpWidget(app(failures(heard)));
+      await tester.pumpWidget(app(failures(heard, list: 'work')));
+      await tester.pump();
+      await tester.pumpWidget(
+        app(failures(heard, list: 'work'), with_: other),
+      );
+      await tester.pump();
+      expect(heard, isEmpty);
+
+      run('fail schedule', list: 'work', on: other);
+      run('fail on the old client', list: 'work');
+      await tester.pump(ms10);
+      expect(heard, ['fail schedule']);
+      await tester.pumpWidget(const SizedBox());
+      other.clear();
+      await tearDownApp(tester);
+    });
+
+    testWidgets('calls the listener of the latest build', (tester) async {
+      final heard = <String>[];
+      Widget screen(String name) => HookBuilder(builder: (_) {
+            useOnMutationStateChange(
+              addTodo(),
+              listenWhen: (previous, current) {
+                heard.add('$name listenWhen');
+                return true;
+              },
+              listener: (context, run) {
+                heard.add('$name: ${run.variables} ${run.status.name}');
+              },
+            );
+            return const SizedBox();
+          });
+      // Listening starts with the first build's listener.
+      await tester.pumpWidget(app(screen('first')));
+      await tester.pumpWidget(app(screen('second')));
+      run('milk');
+      await tester.pump(ms10);
+      expect(heard, [
+        'second listenWhen',
+        'second: milk pending',
+        'second listenWhen',
+        'second: milk success',
+      ]);
+      await tearDownApp(tester);
+    });
+
+    testWidgets(
+        'hears nothing when clear() removes a run, or after it went '
+        'away', (tester) async {
+      final heard = <String>[];
+      final screen = HookBuilder(builder: (_) {
+        useOnMutationStateChange(
+          addTodo(),
+          listener: (context, run) {
+            heard.add('${run.variables} ${run.status.name}');
+          },
+        );
+        return const SizedBox();
+      });
+      onlineManager.setOnline(false);
+      await tester.pumpWidget(app(screen));
+      run('offline');
+      await tester.pump();
+      expect(heard, ['offline pending']);
+      client.clear();
+      await tester.pump();
+      expect(heard, ['offline pending']);
+
+      onlineManager.setOnline(true);
+      await tester.pumpWidget(app(const SizedBox()));
+      run('milk');
+      await tester.pump(ms10);
+      expect(heard, ['offline pending']);
+      await tearDownApp(tester);
+    });
+
+    testWidgets('adds no builds, and a listener that throws is reported',
+        (tester) async {
+      final errors = <Object>[];
+      final reporting = QueryClient(
+        onUncaughtError: (error, _) => errors.add(error),
+      );
+      var withListener = 0;
+      var without = 0;
+      var listening = 0;
+      await tester.pumpWidget(app(
+        Column(children: [
+          HookBuilder(builder: (_) {
+            withListener++;
+            final runs = useMutationState(addTodo());
+            useOnMutationStateChange(
+              addTodo(),
+              listener: (context, run) => throw StateError('listener'),
+            );
+            return Text('with ${describeRuns(runs)}');
+          }),
+          HookBuilder(builder: (_) {
+            without++;
+            final runs = useMutationState(addTodo());
+            return Text('without ${describeRuns(runs)}');
+          }),
+          // It only listens, so it never rebuilds.
+          HookBuilder(builder: (_) {
+            listening++;
+            useOnMutationStateChange(
+              addTodo(),
+              listener: (context, run) {},
+            );
+            return const SizedBox();
+          }),
+        ]),
+        with_: reporting,
+      ));
+      run('milk', on: reporting);
+      await tester.pump(Duration.zero);
+      await tester.pump(ms10);
+
+      // The first frame, the pending run, and its success.
+      expect(without, 3);
+      expect(withListener, without);
+      expect(listening, 1);
+      expect(find.text('with milk success'), findsOneWidget);
+      expect(errors, [isA<StateError>(), isA<StateError>()]);
+      await tester.pumpWidget(const SizedBox());
+      reporting.clear();
+      await tearDownApp(tester);
+    });
+
+    testWidgets('infers its types from the source', (tester) async {
+      final heard = <Object?>[];
+      await tester.pumpWidget(app(HookBuilder(builder: (_) {
+        useOnMutationStateChange(
           addTodo(),
           listenWhen: (previous, current) {
             final MutationState<String, String, Object?> typedPrevious =
@@ -1259,227 +1633,104 @@ void main() {
             heard.add(typed.data);
           },
         );
-        final List<MutationState<String, String, Object?>> typedAdding = adding;
-        return Text('${typedAll.length} ${typedClearing.length} '
-            '${typedAdding.length}');
+        useOnMutationStateChange(
+          const MutationFilters(mutationKey: ['todos']),
+          listenWhen: (previous, current) => current.isSuccess,
+          listener: (context, run) {
+            final MutationState<Object?, Object?, Object?> typed = run;
+            heard.add(typed.variables);
+          },
+        );
+        return const SizedBox();
       })));
       run('milk');
       await tester.pump(ms10);
-      expect(find.text('1 0 1'), findsOneWidget);
-      expect(heard, [null, 'saved milk']);
+      expect(heard, [null, 'saved milk', 'milk']);
       await tearDownApp(tester);
     });
+  });
 
-    group('listener', () {
-      /// Records each run that failed, from a hook of its own.
-      Widget failures(
-        List<String?> heard, {
-        String list = 'home',
-        Widget child = const SizedBox(),
-      }) {
-        return HookBuilder(builder: (_) {
-          useMutationState(
-            addTodo(list),
-            listenWhen: (previous, current) => current.isError,
-            listener: (context, run) => heard.add(run.variables),
-          );
-          return child;
-        });
-      }
-
-      testWidgets('hears every run that fails, from any widget, once',
-          (tester) async {
-        final heard = <String?>[];
-        run('fail before');
-        await tester.pump(ms10);
-        run('fail while mounting');
-
-        await tester.pumpWidget(app(failures(
-          heard,
-          child: Column(children: [addButton('fail a'), addButton('fail b')]),
-        )));
-        await tester.pump();
-        expect(heard, isEmpty);
-
-        // Overlapping runs are heard one by one, and each only once.
-        await tester.tap(find.text('add fail a'));
-        await tester.tap(find.text('add fail b'));
-        await tester.pump(ms10);
-        expect(heard, ['fail while mounting', 'fail a', 'fail b']);
-        await tester.pump(const Duration(minutes: 5));
-        expect(heard, hasLength(3));
-        await tearDownApp(tester);
-      });
-
-      testWidgets('hears a run whose useMutation went away', (tester) async {
-        final heard = <String?>[];
-        await tester.pumpWidget(
-          app(failures(heard, child: addButton('fail x'))),
-        );
-        await tester.tap(find.text('add fail x'));
-        await tester.pumpWidget(app(failures(heard)));
-        expect(find.text('add fail x'), findsNothing);
-        await tester.pump(ms10);
-        expect(heard, ['fail x']);
-        await tearDownApp(tester);
-      });
-
-      testWidgets(
-          'runs with the context of the widget, and the state the '
-          'run had before', (tester) async {
-        final compared = <String>[];
-        await tester.pumpWidget(app(Scaffold(
-          body: HookBuilder(builder: (_) {
-            useMutationState(
-              addTodo(),
-              listenWhen: (previous, current) {
-                compared.add('${current.variables}: '
-                    '${previous.status.name} > ${current.status.name}');
-                return current.isSuccess;
-              },
-              listener: (context, run) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Added ${run.variables}')),
-                );
-              },
-            );
-            return const SizedBox();
-          }),
-        )));
-        run('milk');
-        await tester.pump(ms10);
-        await tester.pump();
-        expect(compared, ['milk: idle > pending', 'milk: pending > success']);
-        expect(find.text('Added milk'), findsOneWidget);
-        await tearDownApp(tester);
-      });
-
-      testWidgets(
-          'hears nothing for the runs of a new key or client until '
-          'they change', (tester) async {
-        final other = newClient();
-        final heard = <String?>[];
-        run('fail report', list: 'work');
-        run('fail plan', list: 'work', on: other);
-        await tester.pump(ms10);
-
-        await tester.pumpWidget(app(failures(heard)));
-        await tester.pumpWidget(app(failures(heard, list: 'work')));
-        await tester.pump();
-        await tester.pumpWidget(
-          app(failures(heard, list: 'work'), with_: other),
-        );
-        await tester.pump();
-        expect(heard, isEmpty);
-
-        run('fail schedule', list: 'work', on: other);
-        run('fail on the old client', list: 'work');
-        await tester.pump(ms10);
-        expect(heard, ['fail schedule']);
-        await tester.pumpWidget(const SizedBox());
-        other.clear();
-        await tearDownApp(tester);
-      });
-
-      testWidgets('calls the listener of the latest build', (tester) async {
-        final heard = <String>[];
-        Widget screen(String name) => HookBuilder(builder: (_) {
-              useMutationState(
-                addTodo(),
-                listener: (context, run) {
-                  heard.add('$name: ${run.variables} ${run.status.name}');
-                },
-              );
-              return const SizedBox();
-            });
-        // Listening starts with the first build's listener.
-        await tester.pumpWidget(app(screen('first')));
-        await tester.pumpWidget(app(screen('second')));
-        run('milk');
-        await tester.pump(ms10);
-        expect(heard, ['second: milk pending', 'second: milk success']);
-        await tearDownApp(tester);
-      });
-
-      testWidgets(
-          'hears nothing when clear() removes a run, or after it '
-          'went away', (tester) async {
-        final heard = <String>[];
-        final screen = HookBuilder(builder: (_) {
-          useMutationState(
-            addTodo(),
-            listener: (context, run) {
-              heard.add('${run.variables} ${run.status.name}');
-            },
-          );
-          return const SizedBox();
-        });
-        onlineManager.setOnline(false);
-        await tester.pumpWidget(app(screen));
-        run('offline');
-        await tester.pump();
-        expect(heard, ['offline pending']);
-        client.clear();
-        await tester.pump();
-        expect(heard, ['offline pending']);
-
-        onlineManager.setOnline(true);
-        await tester.pumpWidget(app(const SizedBox()));
-        run('milk');
-        await tester.pump(ms10);
-        expect(heard, ['offline pending']);
-        await tearDownApp(tester);
-      });
-
-      testWidgets('adds no builds, and a listener that throws is reported',
-          (tester) async {
-        final errors = <Object>[];
-        final reporting = QueryClient(
-          onUncaughtError: (error, _) => errors.add(error),
-        );
-        var withListener = 0;
-        var without = 0;
-        await tester.pumpWidget(app(
-          Column(children: [
-            HookBuilder(builder: (_) {
-              withListener++;
-              final runs = useMutationState(
-                addTodo(),
-                listener: (context, run) => throw StateError('listener'),
-              );
-              return Text('with ${describeRuns(runs)}');
-            }),
-            HookBuilder(builder: (_) {
-              without++;
-              final runs = useMutationState(addTodo());
-              return Text('without ${describeRuns(runs)}');
-            }),
-          ]),
-          with_: reporting,
-        ));
-        run('milk', on: reporting);
-        await tester.pump(Duration.zero);
-        await tester.pump(ms10);
-
-        // The first frame, the pending run, and its success.
-        expect(without, 3);
-        expect(withListener, without);
-        expect(find.text('with milk success'), findsOneWidget);
-        expect(errors, [isA<StateError>(), isA<StateError>()]);
-        await tester.pumpWidget(const SizedBox());
-        reporting.clear();
-        await tearDownApp(tester);
-      });
-
-      testWidgets('listenWhen needs a listener', (tester) async {
-        await tester.pumpWidget(app(HookBuilder(builder: (_) {
-          useMutationState(addTodo(), listenWhen: (previous, current) => true);
-          return const SizedBox();
-        })));
-        expect(tester.takeException(), isA<AssertionError>());
-        await tearDownApp(tester);
-      });
+  testWidgets(
+      'a snackbar and a Navigator.pop run from the change hooks, with no '
+      'useEffect', (tester) async {
+    final form = HookBuilder(builder: (context) {
+      final add = useMutation(addTodo());
+      // Closes the form after its own save.
+      useOnMutationChange(
+        add,
+        listenWhen: (previous, current) => current.isSuccess,
+        listener: (context, result) => Navigator.pop(context),
+      );
+      return Scaffold(
+        body: Column(children: [
+          TextButton(
+            onPressed: () => add.mutate('fail x'),
+            child: const Text('save fail x'),
+          ),
+          TextButton(
+            onPressed: () => add.mutate('milk'),
+            child: const Text('save milk'),
+          ),
+        ]),
+      );
     });
+    // Reports every failed save, from any screen.
+    final home = HookBuilder(builder: (context) {
+      useOnMutationStateChange(
+        addTodo(),
+        listenWhen: (previous, current) => current.isError,
+        listener: (context, run) => ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not add ${run.variables}')),
+        ),
+      );
+      return Scaffold(
+        body: TextButton(
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute<void>(builder: (_) => form),
+          ),
+          child: const Text('open'),
+        ),
+      );
+    });
+    await tester.pumpWidget(app(home));
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('save fail x'));
+    await tester.pump(ms10);
+    await tester.pump();
+    expect(find.text('Could not add fail x'), findsOneWidget);
+
+    await tester.tap(find.text('save milk'));
+    await tester.pump(ms10);
+    await tester.pumpAndSettle();
+    expect(find.text('save milk'), findsNothing);
+    expect(find.text('open'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tearDownApp(tester);
+  });
+
+  testWidgets('the change hooks show in the widget inspector by name',
+      (tester) async {
+    await tester.pumpWidget(app(HookBuilder(builder: (_) {
+      useOnQueryChange(useQuery(post(1)), listener: (context, result) {});
+      useOnMutationChange(
+        useMutation(addTodo()),
+        listener: (context, result) {},
+      );
+      useOnMutationStateChange(addTodo(), listener: (context, run) {});
+      return const SizedBox();
+    })));
+    final description = tester
+        .element(find.byType(HookBuilder))
+        .toDiagnosticsNode()
+        .toStringDeep();
+    expect(description, contains('useOnQueryChange'));
+    expect(description, contains('useOnMutationChange'));
+    expect(description, contains('useOnMutationStateChange'));
+    await tester.pump(ms10);
+    await tearDownApp(tester);
   });
 
   testWidgets('hooks infer their types from observers and mixed lists',
@@ -1506,10 +1757,13 @@ void main() {
         final renaming = useMutation(rename);
         final MutationResult<int, String, List<String>> typedRenaming =
             renaming;
+        final one = useQuery(post(1));
+        final QueryResult<String> typedOne = one;
 
-        // Listener closures get the result type of their hook.
-        final one = useQuery(
-          post(1),
+        // The change hooks give their closures the type of the result they
+        // get, an InfiniteQueryResult included.
+        useOnQueryChange(
+          one,
           listenWhen: (previous, current) {
             final QueryResult<String> typedPrevious = previous;
             return typedPrevious.data != current.data;
@@ -1519,9 +1773,8 @@ void main() {
             heard.add(typed.data);
           },
         );
-        final QueryResult<String> typedOne = one;
-        final listenedFeed = useInfiniteQuery(
-          pages,
+        useOnQueryChange(
+          feed,
           listenWhen: (previous, current) {
             final InfiniteQueryResult<String, int> typedPrevious = previous;
             return typedPrevious.pages.length != current.pages.length;
@@ -1531,9 +1784,8 @@ void main() {
             heard.add(typed.pages.length);
           },
         );
-        final InfiniteQueryResult<String, int> typedListenedFeed = listenedFeed;
-        final listenedRenaming = useMutation(
-          rename,
+        useOnMutationChange(
+          renaming,
           listenWhen: (previous, current) {
             final MutationResult<int, String, List<String>> typedPrevious =
                 previous;
@@ -1544,22 +1796,18 @@ void main() {
             heard.add(typed.data);
           },
         );
-        final MutationResult<int, String, List<String>> typedListenedRenaming =
-            listenedRenaming;
 
-        // A listener for any query still leaves the data type to the query.
-        final two = useQuery(post(2), listener: _recordAnyQuery);
-        final QueryResult<String> typedTwo = two;
+        // A listener for any query fits the result of any query.
+        final two = useQuery(post(2));
+        useOnQueryChange(two, listener: _recordAnyQuery);
         return Text(
           '${typedPosts.length} ${typedFeed.pages.length} '
-          '${typedRenaming.status.name} ${typedOne.data} '
-          '${typedListenedFeed.pages.length} '
-          '${typedListenedRenaming.status.name} ${typedTwo.data}',
+          '${typedRenaming.status.name} ${typedOne.data} ${two.data}',
         );
       })),
     );
     await tester.pump(ms10);
-    expect(find.text('2 1 idle post 1 1 idle post 2'), findsOneWidget);
+    expect(find.text('2 1 idle post 1 post 2'), findsOneWidget);
     expect(heard, [1, 'post 1']);
     expect(_anyQueryData, ['post 2']);
     await tearDownApp(tester);

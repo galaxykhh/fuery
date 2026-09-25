@@ -22,36 +22,15 @@ import 'package:fuery/fuery.dart';
 /// }
 /// ```
 ///
-/// [listener] runs side effects, such as a snackbar or navigation, after
-/// each later change, as a [QueryListener] does: never during a build, and
-/// not for the result the widget mounts with. [listenWhen] compares the
-/// previous result received with the new one, and needs a [listener]. The
-/// listener gets the widget's own `context`, and the latest build's
-/// [listener] and [listenWhen] are used.
-///
-/// ```dart
-/// final todos = useQuery(
-///   todosQuery,
-///   listenWhen: (previous, current) =>
-///       !previous.isRefetchError && current.isRefetchError,
-///   listener: (context, result) => ScaffoldMessenger.of(context)
-///       .showSnackBar(SnackBar(content: Text('${result.error}'))),
-/// );
-/// ```
-QueryResult<TData> useQuery<TData extends Object>(
-  QuerySource<TData> query, {
-  ResultWidgetListener<QueryResult<TData>>? listener,
-  ResultCondition<QueryResult<TData>>? listenWhen,
-}) {
+/// For side effects of its changes, such as a snackbar, pass the result to
+/// [useOnQueryChange].
+QueryResult<TData> useQuery<TData extends Object>(QuerySource<TData> query) {
   return use(
-    _SlotHook<QuerySource<TData>, QueryResult<TData>, QueryResult<TData>>(
+    _SlotHook<QuerySource<TData>, QueryResult<TData>>(
       query,
       QuerySlot<TData>.new,
       _recreatedQuery,
       'useQuery',
-      _listenToResults,
-      listener: listener,
-      listenWhen: listenWhen,
     ),
   );
 }
@@ -59,22 +38,17 @@ QueryResult<TData> useQuery<TData extends Object>(
 /// Returns the latest result of an infinite [query], and rebuilds when it
 /// changes. Load more with `fetchNextPage` on the result.
 ///
-/// [listener] and [listenWhen] work as in [useQuery]. See [useQuery].
+/// See [useQuery]. [useOnQueryChange] takes its result too.
 InfiniteQueryResult<TPage, TParam> useInfiniteQuery<TPage, TParam>(
-  InfiniteQuerySource<TPage, TParam> query, {
-  ResultWidgetListener<InfiniteQueryResult<TPage, TParam>>? listener,
-  ResultCondition<InfiniteQueryResult<TPage, TParam>>? listenWhen,
-}) {
+  InfiniteQuerySource<TPage, TParam> query,
+) {
   return use(
     _SlotHook<InfiniteQuerySource<TPage, TParam>,
-        InfiniteQueryResult<TPage, TParam>, InfiniteQueryResult<TPage, TParam>>(
+        InfiniteQueryResult<TPage, TParam>>(
       query,
       InfiniteQuerySlot<TPage, TParam>.new,
       _recreatedQuery,
       'useInfiniteQuery',
-      _listenToResults,
-      listener: listener,
-      listenWhen: listenWhen,
     ),
   );
 }
@@ -98,36 +72,19 @@ InfiniteQueryResult<TPage, TParam> useInfiniteQuery<TPage, TParam>(
 ///
 /// A [NoVariablesMutation] runs with `mutate(null)`.
 ///
-/// [listener] and [listenWhen] work as in [useQuery]. For a definition, the
-/// listener hears the runs started with the result this hook returns, also
-/// when a child runs it; another `useMutation` of the same definition has
-/// an observer of its own. For a shared observer, it hears every run.
-///
-/// ```dart
-/// final addTodo = useMutation(
-///   addTodoMutation,
-///   listenWhen: (previous, current) => current.isSuccess,
-///   listener: (context, result) => Navigator.pop(context),
-/// );
-/// ```
+/// For side effects of its runs, such as closing the screen, pass the result
+/// to [useOnMutationChange].
 MutationResult<TData, TVariables, TContext>
     useMutation<TData, TVariables, TContext>(
-  MutationSource<TData, TVariables, TContext> mutation, {
-  ResultWidgetListener<MutationResult<TData, TVariables, TContext>>? listener,
-  ResultCondition<MutationResult<TData, TVariables, TContext>>? listenWhen,
-}) {
+  MutationSource<TData, TVariables, TContext> mutation,
+) {
   return use(
-    _SlotHook<
-        MutationSource<TData, TVariables, TContext>,
-        MutationResult<TData, TVariables, TContext>,
+    _SlotHook<MutationSource<TData, TVariables, TContext>,
         MutationResult<TData, TVariables, TContext>>(
       mutation,
       MutationSlot<TData, TVariables, TContext>.new,
       _recreatedMutation,
       'useMutation',
-      _listenToResults,
-      listener: listener,
-      listenWhen: listenWhen,
     ),
   );
 }
@@ -145,13 +102,11 @@ List<QueryResult<TData>> useQueries<TData extends Object>(
   List<QuerySource<TData>> queries,
 ) {
   return use(
-    _SlotHook<List<QuerySource<TData>>, List<QueryResult<TData>>,
-        List<QueryResult<TData>>>(
+    _SlotHook<List<QuerySource<TData>>, List<QueryResult<TData>>>(
       queries,
       QueriesSlot<TData>.new,
       _recreatedInList,
       'useQueries',
-      _listenToResults,
     ),
   );
 }
@@ -173,13 +128,130 @@ List<QueryResult<TData>> useQueries<TData extends Object>(
 ///     : const SizedBox.shrink();
 /// ```
 ///
-/// [listener] runs side effects for each run that changes, as a
-/// [MutationStateListener] does: it gets the run's new state, and
-/// [listenWhen] compares the state that run had before with its new one. It
-/// isn't called for the states runs had when listening started.
+/// For side effects of each run, such as a snackbar when one fails, use
+/// [useOnMutationStateChange].
+List<MutationState<TData, TVariables, TContext>>
+    useMutationState<TData, TVariables, TContext>(
+  MutationStateSource<TData, TVariables, TContext> mutation,
+) {
+  return use(
+    _SlotHook<MutationStateSource<TData, TVariables, TContext>,
+        List<MutationState<TData, TVariables, TContext>>>(
+      mutation,
+      MutationStateSlot<TData, TVariables, TContext>.new,
+      _noRecreated,
+      'useMutationState',
+    ),
+  );
+}
+
+/// Calls [listener] after each later change of [result], the result of a
+/// [useQuery] or a [useInfiniteQuery], for side effects such as a snackbar
+/// or navigation. It works as a [QueryListener] does.
 ///
 /// ```dart
-/// useMutationState(
+/// final todos = useQuery(todosQuery);
+/// useOnQueryChange(
+///   todos,
+///   listenWhen: (previous, current) =>
+///       !previous.isRefetchError && current.isRefetchError,
+///   listener: (context, result) => ScaffoldMessenger.of(context)
+///       .showSnackBar(SnackBar(content: Text('${result.error}'))),
+/// );
+/// ```
+///
+/// [listener] runs after the build, never during one, with the widget's
+/// `context`, and never for the result the hook starts from. [listenWhen]
+/// compares the previous result received with the new one. The latest
+/// build's [listener] and [listenWhen] are used. The closures get results of
+/// the type of [result], so an [InfiniteQueryResult] has its pages.
+///
+/// The hook listens to the observer that reported [result], which it never
+/// destroys, and adds no observer and no rebuild. When a later result comes
+/// from another observer, such as after the provided client was replaced,
+/// it moves to that one without a call.
+void useOnQueryChange<R extends QueryResult<Object>>(
+  R result, {
+  required ResultWidgetListener<R> listener,
+  ResultCondition<R>? listenWhen,
+}) {
+  final observer = result.observer;
+  assert(
+    observer != null,
+    'useOnQueryChange got a result that no observer reported, such as one '
+    'built with the QueryResult constructor. Pass the result that useQuery '
+    'or useInfiniteQuery returns.',
+  );
+  final infinite = observer is InfiniteQueryObserver;
+  use(
+    _ChangeHook<QueryObserver<Object>,
+        ObserverSlot<Object?, QueryResult<Object>>, R>(
+      name: 'useOnQueryChange',
+      source: observer,
+      client: observer?.client,
+      createSlot: _querySlotFor,
+      listenTo: (slot, onChange) => slot.listen(
+        (previous, current) => onChange(previous as R, current as R),
+      ),
+      listener: listener,
+      listenWhen: listenWhen,
+      // A slot takes observers of one kind, so another kind starts over.
+      keys: [infinite],
+    ),
+  );
+}
+
+/// Calls [listener] after each later change of [result], the result of a
+/// [useMutation], for side effects such as closing the screen after a save.
+/// It works as a [MutationListener] does.
+///
+/// ```dart
+/// final addTodo = useMutation(addTodoMutation);
+/// useOnMutationChange(
+///   addTodo,
+///   listenWhen: (previous, current) => current.isSuccess,
+///   listener: (context, result) => Navigator.pop(context),
+/// );
+/// ```
+///
+/// It hears the runs of the observer that reported [result]: for a
+/// definition, the runs started with the result [useMutation] returns, also
+/// from a child it is passed to, and for a shared observer, every run. To
+/// hear every run of a mutation, from any widget, use
+/// [useOnMutationStateChange].
+///
+/// Otherwise it works as [useOnQueryChange] does: after the build, with the
+/// widget's `context`, never for the result it starts from, and with the
+/// latest build's [listener] and [listenWhen]. It never resets the observer.
+void useOnMutationChange<TData, TVariables, TContext>(
+  MutationResult<TData, TVariables, TContext> result, {
+  required ResultWidgetListener<MutationResult<TData, TVariables, TContext>>
+      listener,
+  ResultCondition<MutationResult<TData, TVariables, TContext>>? listenWhen,
+}) {
+  final observer = result.observer;
+  use(
+    _ChangeHook<
+        MutationObserver<TData, TVariables, TContext>,
+        MutationSlot<TData, TVariables, TContext>,
+        MutationResult<TData, TVariables, TContext>>(
+      name: 'useOnMutationChange',
+      source: observer,
+      client: observer.client,
+      createSlot: MutationSlot<TData, TVariables, TContext>.new,
+      listenTo: (slot, onChange) => slot.listen(onChange),
+      listener: listener,
+      listenWhen: listenWhen,
+    ),
+  );
+}
+
+/// Calls [listener] for each later change of each run of [mutation],
+/// wherever the run was started, for side effects such as a snackbar for
+/// every run that fails. It works as a [MutationStateListener] does.
+///
+/// ```dart
+/// useOnMutationStateChange(
 ///   addTodoMutation,
 ///   listenWhen: (previous, current) => current.isError,
 ///   listener: (context, run) => ScaffoldMessenger.of(context).showSnackBar(
@@ -187,22 +259,32 @@ List<QueryResult<TData>> useQueries<TData extends Object>(
 ///   ),
 /// );
 /// ```
-List<MutationState<TData, TVariables, TContext>>
-    useMutationState<TData, TVariables, TContext>(
+///
+/// [mutation] finds the runs as in [useMutationState]. [listener] gets the
+/// new state of each run that changed, once per run, and [listenWhen]
+/// compares the state that run had before with its new one. It isn't called
+/// for the states runs had when the hook started, or after a new key or a
+/// replaced client until a run changes. Otherwise it works as
+/// [useOnQueryChange] does: after the build, with the widget's `context`,
+/// and with the latest build's [listener] and [listenWhen]. It never
+/// rebuilds the widget.
+void useOnMutationStateChange<TData, TVariables, TContext>(
   MutationStateSource<TData, TVariables, TContext> mutation, {
-  ResultWidgetListener<MutationState<TData, TVariables, TContext>>? listener,
+  required ResultWidgetListener<MutationState<TData, TVariables, TContext>>
+      listener,
   ResultCondition<MutationState<TData, TVariables, TContext>>? listenWhen,
 }) {
-  return use(
-    _SlotHook<
+  use(
+    _ChangeHook<
         MutationStateSource<TData, TVariables, TContext>,
-        List<MutationState<TData, TVariables, TContext>>,
+        MutationStateSlot<TData, TVariables, TContext>,
         MutationState<TData, TVariables, TContext>>(
-      mutation,
-      MutationStateSlot<TData, TVariables, TContext>.new,
-      _noRecreated,
-      'useMutationState',
-      _listenToRuns,
+      name: 'useOnMutationStateChange',
+      source: mutation,
+      // The provided client, as the other hooks of the widget use.
+      client: null,
+      createSlot: MutationStateSlot<TData, TVariables, TContext>.new,
+      listenTo: (slot, onChange) => slot.subscribeToRuns(onChange),
       listener: listener,
       listenWhen: listenWhen,
     ),
@@ -279,52 +361,10 @@ String? _recreatedInList(List<Object?> previous, List<Object?> current) {
   return null;
 }
 
-/// How a hook's listener hears changes of its [slot]: as `(previous,
-/// current)` pairs of what the listener gets, [L].
-typedef _ListenTo<S, R, L> = void Function() Function(
-  ObserverSlot<S, R> slot,
-  void Function(L previous, L current) onChange,
-);
-
-/// Hears each later result of [slot], as the listener widgets do.
-void Function() _listenToResults<S, R>(
-  ObserverSlot<S, R> slot,
-  void Function(R previous, R current) onChange,
-) {
-  return slot.listen(onChange);
-}
-
-/// Hears each later change of each run of [slot], as a
-/// [MutationStateListener] does.
-void Function() _listenToRuns<TData, TVariables, TContext>(
-  ObserverSlot<MutationStateSource<TData, TVariables, TContext>,
-          List<MutationState<TData, TVariables, TContext>>>
-      slot,
-  void Function(
-    MutationState<TData, TVariables, TContext> previous,
-    MutationState<TData, TVariables, TContext> current,
-  ) onChange,
-) {
-  final runs = slot as MutationStateSlot<TData, TVariables, TContext>;
-  return runs.subscribeToRuns(onChange);
-}
-
 /// Renders a source through the [ObserverSlot] that [createSlot] creates,
-/// the way the widgets of `fuery` do, and calls [listener] after each later
-/// change that [listenTo] reports, as the listener widgets do.
-class _SlotHook<S, R, L> extends Hook<R> {
-  const _SlotHook(
-    this.source,
-    this.createSlot,
-    this.debugKey,
-    this.name,
-    this.listenTo, {
-    this.listener,
-    this.listenWhen,
-  }) : assert(
-          listener != null || listenWhen == null,
-          'listenWhen needs a listener',
-        );
+/// the way the widgets of `fuery` do.
+class _SlotHook<S, R> extends Hook<R> {
+  const _SlotHook(this.source, this.createSlot, this.debugKey, this.name);
 
   final S source;
   final ObserverSlot<S, R> Function(S source, QueryClient client) createSlot;
@@ -333,19 +373,13 @@ class _SlotHook<S, R, L> extends Hook<R> {
   final _RecreatedKey<S> debugKey;
   final String name;
 
-  /// What [listener] hears: each result, or each change of a run.
-  final _ListenTo<S, R, L> listenTo;
-  final ResultWidgetListener<L>? listener;
-  final ResultCondition<L>? listenWhen;
-
   @override
-  _SlotHookState<S, R, L> createState() => _SlotHookState<S, R, L>();
+  _SlotHookState<S, R> createState() => _SlotHookState<S, R>();
 }
 
-class _SlotHookState<S, R, L> extends HookState<R, _SlotHook<S, R, L>> {
+class _SlotHookState<S, R> extends HookState<R, _SlotHook<S, R>> {
   ObserverSlot<S, R>? _slot;
   void Function()? _unsubscribe;
-  void Function()? _stopListening;
   R? _built;
 
   /// What the slot was last updated with, so a rebuild with the same ones,
@@ -364,7 +398,7 @@ class _SlotHookState<S, R, L> extends HookState<R, _SlotHook<S, R, L>> {
   }
 
   @override
-  void didUpdateHook(_SlotHook<S, R, L> oldHook) {
+  void didUpdateHook(_SlotHook<S, R> oldHook) {
     super.didUpdateHook(oldHook);
     if (!identical(oldHook.source, hook.source)) {
       _debugWarnRecreated(hook, oldHook.source);
@@ -391,31 +425,14 @@ class _SlotHookState<S, R, L> extends HookState<R, _SlotHook<S, R, L>> {
     }
     _source = hook.source;
     _client = client;
-    // From the first build that passes a listener, whose result, or the
-    // states its runs have, are not changes. A later build without one keeps
-    // listening and skips the calls.
-    if (hook.listener != null) {
-      _stopListening ??= hook.listenTo(slot, _onChange);
-    }
     // Current as soon as update returns, so a new key shows in this frame.
     final result = slot.result;
     _built = result;
     return result;
   }
 
-  /// Runs in a microtask, never during a build, with the latest build's
-  /// listener.
-  void _onChange(L previous, L current) {
-    final listener = hook.listener;
-    if (listener != null &&
-        (hook.listenWhen?.call(previous, current) ?? true)) {
-      listener(context, current);
-    }
-  }
-
   @override
   void dispose() {
-    _stopListening?.call();
     _disposed = true;
     _unsubscribe?.call();
     _slot?.dispose();
@@ -424,6 +441,110 @@ class _SlotHookState<S, R, L> extends HookState<R, _SlotHook<S, R, L>> {
 
   @override
   String get debugLabel => hook.name;
+}
+
+/// The slot for the observer of a query result, of the observer's kind.
+ObserverSlot<Object?, QueryResult<Object>> _querySlotFor(
+  QueryObserver<Object> observer,
+  QueryClient client,
+) {
+  return observer is InfiniteQueryObserver<Object?, Object?>
+      ? InfiniteQuerySlot<Object?, Object?>(observer, client)
+      : QuerySlot<Object>(observer, client);
+}
+
+/// Calls [listener] for the changes of [source] that [listenTo] reports
+/// through the slot that [createSlot] creates, as the listener widgets of
+/// `fuery` do. The rules of those calls live in the slot: [listenTo] is
+/// [ObserverSlot.listen] or [MutationStateSlot.subscribeToRuns].
+class _ChangeHook<S, T extends ObserverSlot<Object?, Object?>, L>
+    extends Hook<void> {
+  const _ChangeHook({
+    required this.name,
+    required this.source,
+    required this.client,
+    required this.createSlot,
+    required this.listenTo,
+    required this.listener,
+    required this.listenWhen,
+    super.keys,
+  });
+
+  final String name;
+
+  /// What the slot takes, or null for nothing to listen to.
+  final S? source;
+
+  /// The client of the slot, or null for the provided one.
+  final QueryClient? client;
+  final T Function(S source, QueryClient client) createSlot;
+  final void Function() Function(
+    T slot,
+    void Function(L previous, L current) onChange,
+  ) listenTo;
+  final ResultWidgetListener<L> listener;
+  final ResultCondition<L>? listenWhen;
+
+  @override
+  _ChangeHookState<S, T, L> createState() => _ChangeHookState<S, T, L>();
+}
+
+class _ChangeHookState<S, T extends ObserverSlot<Object?, Object?>, L>
+    extends HookState<void, _ChangeHook<S, T, L>> {
+  T? _slot;
+
+  @override
+  void initHook() {
+    super.initHook();
+    FueryBinding.ensureInitialized();
+  }
+
+  @override
+  void build(BuildContext context) {
+    final source = hook.source;
+    if (source == null) {
+      // coverage:ignore-start
+      // Only a release build gets here: useOnQueryChange asserts first, and
+      // tests run asserts.
+      _slot?.dispose();
+      _slot = null;
+      return;
+      // coverage:ignore-end
+    }
+    final client = hook.client ?? FueryProvider.of(context, listen: true);
+    final slot = _slot;
+    if (slot == null) {
+      final created = _slot = hook.createSlot(source, client);
+      // From the result, or the states of the runs, that there are now.
+      hook.listenTo(created, _onChange);
+    } else {
+      // Another observer or client moves the slot without a call. The same
+      // ones change nothing.
+      slot.update(source, client);
+    }
+  }
+
+  /// Runs in a microtask, never during a build, with the latest build's
+  /// listener.
+  void _onChange(L previous, L current) {
+    if (hook.listenWhen?.call(previous, current) ?? true) {
+      hook.listener(context, current);
+    }
+  }
+
+  /// Disposing the slot stops the listening. It never destroys or resets
+  /// an observer it was given.
+  @override
+  void dispose() {
+    _slot?.dispose();
+    super.dispose();
+  }
+
+  @override
+  String get debugLabel => hook.name;
+
+  @override
+  bool get debugSkipValue => true;
 }
 
 /// Keys already warned about, so each mistake is reported once.
@@ -444,7 +565,7 @@ String _definitionExample(String hookName) {
 /// on a rebuild, which is what `useQuery(todosQuery.observe())` looks like:
 /// each new query observer subscribes and refetches again, and each new
 /// mutation observer starts idle.
-void _debugWarnRecreated<S, R, L>(_SlotHook<S, R, L> hook, S previous) {
+void _debugWarnRecreated<S, R>(_SlotHook<S, R> hook, S previous) {
   assert(() {
     final keyHash = hook.debugKey(previous, hook.source);
     if (keyHash == null) return true;

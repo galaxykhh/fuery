@@ -24,9 +24,10 @@ class TodoScreen extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final todos = useQuery(todosQuery);
-    final addTodo = useMutation(
-      addTodoMutation,
-      // Runs after the change, never during a build.
+    final addTodo = useMutation(addTodoMutation);
+    // Runs after the change, never during a build.
+    useOnMutationChange(
+      addTodo,
       listenWhen: (previous, current) => current.isError,
       listener: (context, result) => ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not add the todo: ${result.error}')),
