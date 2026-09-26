@@ -57,8 +57,8 @@ class MutationBuilder<TData, TVariables, TContext> extends StatelessWidget {
 /// A listener can't run a mutation, so it hears only the runs of the
 /// observer it gets. To hear every run of a mutation, wherever it started,
 /// give the definition a `mutationKey` and use [MutationStateListener]. For
-/// the callbacks of one call, pass `MutateOptions` to `mutate`. To hear only
-/// one observer's runs, such as the ones a cubit starts, create it once with
+/// an effect of one call, await [Mutation.mutateAsync]. To hear only one
+/// observer's runs, such as the ones a cubit starts, create it once with
 /// `observe()` and pass it here. In debug builds, a [Mutation] definition
 /// prints a warning.
 ///

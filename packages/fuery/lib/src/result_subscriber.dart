@@ -89,10 +89,10 @@ void debugWarnMutationDefinition(String widgetName) {
       '[fuery] $widgetName got a Mutation definition, so it watches an '
       'observer of its own that nothing runs, and it never hears a change. '
       'To hear every run of the mutation, give it a mutationKey and use '
-      'MutationStateListener(mutation: addTodo, ...). For one call, pass '
-      "MutateOptions to mutate. To hear only one observer's runs, create it "
-      'with addTodo.observe() in a State field or a cubit and pass it here '
-      'and to the widget that runs it. See $_troubleshooting'
+      'MutationStateListener(mutation: addTodo, ...). For an effect of one '
+      "call, await addTodo.mutateAsync(...). To hear only one observer's "
+      'runs, create it with addTodo.observe() in a State field or a cubit '
+      'and pass it here and to the widget that runs it. See $_troubleshooting'
       '#a-mutationlistener-never-runs',
     );
     return true;
