@@ -27,7 +27,7 @@ QueryBuilder(
 - The observer uses the client of the nearest `FueryProvider`, or `Fuery.client` without one.
 - The result carries the actions: `state.refetch()`, `state.fetchNextPage()` and `state.fetchPreviousPage()` for infinite queries, and `state.mutate(...)`, `state.mutateAsync(...)`, and `state.reset()` for mutations.
 
-A `MutationBuilder` shows only the runs it starts. The MutationState widgets show the runs of a mutation from anywhere, found by its `mutationKey`. See [Showing every run of a mutation](../mutations/#showing-every-run-of-a-mutation). A button that runs the mutation from its definition, with `addTodo.mutate('Buy milk')`, needs no `MutationBuilder`. See [Running a mutation](../mutations/#running-a-mutation).
+A `MutationBuilder` shows only the runs it starts. The MutationState widgets show the runs of a mutation from anywhere, found by its `mutationKey`. See [Showing every run of a mutation](../mutations/#showing-every-run-of-a-mutation). A button that runs the mutation from its definition, with `addTodo.mutate('Buy milk', context.queryClient)`, needs no `MutationBuilder`. See [Running a mutation](../mutations/#running-a-mutation).
 
 ## When builders and listeners run
 

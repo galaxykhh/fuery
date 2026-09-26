@@ -159,7 +159,10 @@ Mutation<Comment, NewComment, void> addCommentMutation() {
 }
 
 // In a screen:
-addCommentMutation().mutate((postId: post.id, body: 'Nice post'));
+addCommentMutation().mutate(
+  (postId: post.id, body: 'Nice post'),
+  context.queryClient,
+);
 
 // In main, before runApp:
 await Fuery.client.restore(mutations: [addCommentMutation()]);

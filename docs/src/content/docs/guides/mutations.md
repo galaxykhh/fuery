@@ -21,7 +21,7 @@ Type the parameter of `mutationFn`, like `String title` above, and Dart infers t
 
 ## Running a mutation
 
-Call `mutate` on the definition. Any widget runs a mutation this way, a `StatelessWidget` included:
+Call `mutate` on the definition, and pass it `context.queryClient`. Any widget runs a mutation this way, a `StatelessWidget` included:
 
 ```dart
 class AddTodoButton extends StatelessWidget {
@@ -30,7 +30,7 @@ class AddTodoButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FilledButton(
-      onPressed: () => addTodo.mutate('Buy milk'),
+      onPressed: () => addTodo.mutate('Buy milk', context.queryClient),
       child: const Text('Add'),
     );
   }
@@ -39,7 +39,8 @@ class AddTodoButton extends StatelessWidget {
 
 - `mutate` starts a run and returns at once. When the run fails, the error goes to the run's state and to the callbacks, not to the caller.
 - A definition holds no state. The run belongs to the client's cache, not to a widget, so it goes on after the button leaves the screen.
-- The run uses `Fuery.client`. Under a `FueryProvider` with a client of its own, pass that client: `addTodo.mutate('Buy milk', context.queryClient)`.
+- `context.queryClient` is the client the widgets use: the nearest `FueryProvider`'s, or `Fuery.client` without one. Passing it puts the run in the cache that the [MutationState widgets](#showing-every-run-of-a-mutation) read.
+- Without a client, the run uses `Fuery.client`. Code without a `BuildContext`, such as a [cubit](../bloc/#mutations-from-a-cubit-or-bloc), runs a mutation this way.
 
 ## Showing every run of a mutation
 
@@ -58,7 +59,8 @@ MutationStateSelector(
   mutation: addTodo,
   selector: (runs) => runs.any((run) => run.isPending),
   builder: (context, adding) => FilledButton(
-    onPressed: adding ? null : () => addTodo.mutate('Buy milk'),
+    onPressed:
+        adding ? null : () => addTodo.mutate('Buy milk', context.queryClient),
     child: Text(adding ? 'Adding…' : 'Add'),
   ),
 )
@@ -130,7 +132,7 @@ A `MutationListener` hears only the runs of the observer it gets. Given a defini
 FilledButton(
   onPressed: () async {
     try {
-      await addTodo.mutateAsync('Buy milk');
+      await addTodo.mutateAsync('Buy milk', context.queryClient);
     } catch (_) {
       return; // The MutationStateListener above reports the failure.
     }
@@ -142,7 +144,6 @@ FilledButton(
 
 - Check `context.mounted` after the `await`. The user can leave the screen while the run is pending.
 - Catch the error. An error that nothing catches reaches the zone as an uncaught error.
-- `mutateAsync` takes the same client as `mutate`: `addTodo.mutateAsync('Buy milk', context.queryClient)`.
 
 ## Showing only the runs a widget starts
 

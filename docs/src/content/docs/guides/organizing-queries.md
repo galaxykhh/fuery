@@ -124,12 +124,16 @@ Keep the cache work, such as invalidating and rolling back, in the definition. P
 
 ```dart
 onPressed: () async {
-  await addTodo.mutateAsync(title); // throws if it fails
+  try {
+    await addTodo.mutateAsync(title, context.queryClient);
+  } catch (_) {
+    return; // A MutationStateListener reports the failure.
+  }
   if (context.mounted) Navigator.pop(context);
 },
 ```
 
-[Acting after one call succeeds](../mutations/#acting-after-one-call-succeeds) shows the whole button, with the failure caught.
+[Acting after one call succeeds](../mutations/#acting-after-one-call-succeeds) shows the whole button.
 
 A `MutationStateListener` shows a snackbar or a dialog after any run of the mutation, from any screen, with that screen's `BuildContext`. See [Telling the user a mutation failed](../mutations/#telling-the-user-a-mutation-failed).
 

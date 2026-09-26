@@ -114,7 +114,7 @@ A `Query` holds no client, so one definition works with every client. Fuery pick
 
 - A widget or hook that gets a definition uses the client of the nearest `FueryProvider`, or `Fuery.client` without one. It follows a provider whose client is replaced.
 - `observe()` uses the client you pass as `client:`, or `Fuery.client` at that moment. The observer keeps that client for its whole life, and `observer.client` returns it.
-- A definition's `mutate` and `mutateAsync` use the client you pass them, or `Fuery.client` at that moment. Under a `FueryProvider`, pass `context.queryClient`.
+- A definition's `mutate` and `mutateAsync` use the client you pass them, or `Fuery.client` at that moment. In a widget, pass `context.queryClient`, so the run reaches the cache that the widgets read.
 - A widget or hook that gets an observer uses the observer's client. In debug builds, it prints a warning when that isn't its own client. See [A screen reads another client's cache](../../troubleshooting/#a-screen-reads-another-clients-cache).
 - Query functions, `placeholderData`, and mutation callbacks receive the client that runs them.
 

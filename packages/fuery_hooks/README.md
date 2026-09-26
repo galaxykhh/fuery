@@ -58,18 +58,19 @@ Each hook rebuilds the widget when its result changes. None needs type arguments
 
 ## Changing data
 
-Run a mutation from its definition, as in any widget. `useMutationState` reads its runs:
+Run a mutation from its definition, as in any widget, and pass it the client from `useQueryClient()`. `useMutationState` reads its runs:
 
 ```dart
+final client = useQueryClient();
 final adding = useMutationState(addTodoMutation).any((run) => run.isPending);
 
 ElevatedButton(
-  onPressed: adding ? null : () => addTodoMutation.mutate('Buy milk'),
+  onPressed: adding ? null : () => addTodoMutation.mutate('Buy milk', client),
   child: const Text('Add'),
 )
 ```
 
-The run belongs to the client's cache, not to the widget. It uses `Fuery.client` unless you pass the client from `useQueryClient()`. A `NoVariablesMutation` runs with `logoutMutation.mutate()`.
+The run belongs to the client's cache, not to the widget. `useQueryClient()` returns the client the hooks use, so the run goes to the cache that `useMutationState` reads. Without a client, the run uses `Fuery.client`. A `NoVariablesMutation` runs with `logoutMutation.mutate(null, client)`.
 
 `useMutation` is for a widget that shows only the runs it starts, as a `MutationBuilder` does. Its result runs the mutation with `mutate`, and a `NoVariablesMutation` with `mutate(null)`:
 
@@ -82,7 +83,7 @@ ElevatedButton(
 )
 ```
 
-For a side effect of one call through the result, pass `MutateOptions` to `mutate`. When the widget goes away, the request still finishes. For a definition, the hook then drops the `MutateOptions` callbacks. A shared observer still runs them, so check `context.mounted` in them.
+For a side effect of one call through the result, pass `MutateOptions` to `mutate`. When the widget goes away, the request still finishes. When `useMutation` got a definition, the hook then drops those callbacks. A shared observer still runs them, so check `context.mounted` in them.
 
 ## Reacting to changes
 
