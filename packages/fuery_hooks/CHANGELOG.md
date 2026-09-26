@@ -1,5 +1,5 @@
 ## 1.6.0
-- Released with `fuery_core` 1.6.0. A `HookWidget` runs a mutation from its definition with `addTodoMutation.mutate('Buy milk')`, and `useMutationState` shows the run.
+- Released with `fuery_core` 1.6.0. A `HookWidget` runs a mutation from its definition with `addTodoMutation.mutate('Buy milk')`, and `useMutationState` shows the run. Under a `FueryProvider`, pass the client that `useQueryClient()` returns.
 
 ## 1.5.1
 - Released with `fuery_core` 1.5.1. A widget that calls `useQuery`, `useInfiniteQuery`, `useQueries`, or `useMutation` rebuilds faster: the hook no longer hashes a key built again with the same content. `useMutationState` and `useOnMutationStateChange` stay fast with many runs in the cache.

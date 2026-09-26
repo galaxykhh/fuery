@@ -1,6 +1,6 @@
 ## 1.6.0
 - Add `Mutation.mutate(variables, [client])` and `Mutation.mutateAsync(variables, [client])`, which run a mutation from its definition. `NoVariablesMutation` runs with `mutate()` and `mutateAsync()`. They use `Fuery.client` unless given a client, as in `logout.mutate(null, client)`.
-- A run started from a definition belongs to the client's cache, not to a widget or an observer. `MutationStateBuilder`, `useMutationState`, and `isMutating` find it by its `mutationKey`, and it leaves the cache `gcTime` after it settles.
+- A run started from a definition belongs to the client's cache, not to a widget or an observer. A `MutationStateSlot` and `QueryClient.isMutating` find it by its `mutationKey`, and it leaves the cache `gcTime` after it settles.
 
 ## 1.5.1
 - Speed up reading a mutation's runs when many are cached: a run keeps its converted key while the key holds the same content. With 1,000 runs in the cache, a `MutationStateSlot` reads the runs of a `Mutation` 7 times faster, and of `MutationFilters` 1.3 times. Its flush after a run changes is 5 to 6 times faster over a `Mutation`, and 3 times with `subscribeToRuns`, which `MutationStateListener` and `useOnMutationStateChange` use. `MutationFilters` in `find`, `findAll`, and `isMutating` are faster too. This holds for keys of strings, ints, bools, enums, lists, and maps with string keys, and other keys are still converted on every read.
