@@ -1194,7 +1194,8 @@ void main() {
           allOf(
             contains('give it a mutationKey and use '
                 'MutationStateListener(mutation: addTodo, ...)'),
-            contains('pass MutateOptions to mutate'),
+            contains('For an effect of one call, await '
+                'addTodo.mutateAsync(...).'),
             contains('addTodo.observe() in a State field or a cubit'),
           ),
         );

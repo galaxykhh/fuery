@@ -113,7 +113,25 @@ final posts = useQueries(
 
 ## Changing data
 
-`useMutation` returns the mutation's result, with `mutate` on it:
+Run a mutation from its definition, as in any widget, and pass it the client from `useQueryClient()`. [`useMutationState`](#showing-every-run-of-a-mutation) reads its runs:
+
+```dart
+final client = useQueryClient();
+final adding = useMutationState(addTodoMutation).any((run) => run.isPending);
+
+ElevatedButton(
+  onPressed: adding ? null : () => addTodoMutation.mutate('Buy milk', client),
+  child: const Text('Add'),
+)
+```
+
+- The run belongs to the client's cache, not to the widget.
+- [`useQueryClient()`](#reading-the-client) returns the client the hooks use: the nearest `FueryProvider`'s, or `Fuery.client` without one. Passing it puts the run in the cache that `useMutationState` reads. Without a client, the run uses `Fuery.client`.
+- A `NoVariablesMutation` takes `null` for its variables before the client: `logoutMutation.mutate(null, client)`. See [Mutations without variables](../mutations/#mutations-without-variables).
+
+### Showing only the runs a widget starts
+
+`useMutation` keeps an observer for the widget, as a `MutationBuilder` does. Its result shows only the runs started through it, with `mutate` on it:
 
 ```dart
 final addTodo = useMutation(addTodoMutation);
@@ -124,7 +142,7 @@ ElevatedButton(
 )
 ```
 
-A `NoVariablesMutation` runs with `mutate(null)`, as from a `MutationBuilder`. See [Mutations without variables](../mutations/#mutations-without-variables).
+The result of a `NoVariablesMutation` runs it with `mutate(null)`:
 
 ```dart
 final logout = useMutation(logoutMutation);
@@ -135,7 +153,7 @@ TextButton(
 )
 ```
 
-For a side effect of one call, such as a snackbar, pass `MutateOptions` to `mutate`:
+For a side effect of one call through the result, such as a snackbar, pass `MutateOptions` to `mutate`:
 
 ```dart
 addTodo.mutate(
@@ -149,12 +167,12 @@ addTodo.mutate(
 
 When the widget goes away, the request still finishes.
 
-- For a definition, the hook drops the callbacks passed to its `mutate` calls.
+- When `useMutation` got a definition, the hook drops the `MutateOptions` passed to its result's `mutate`.
 - A [shared observer](../mutations/#sharing-one-observer) is left alone and still runs them. Check `context.mounted` in them, or call the observer's `reset()` in the `dispose` of the screen that created it.
 
 ## Showing every run of a mutation
 
-`useMutationState` returns the state of every run of a mutation, oldest first, wherever it started: a `useMutation` in another widget, a `MutationBuilder`, or a cubit's observer. It finds the runs by the definition's `mutationKey`, as [`MutationStateBuilder`](../mutations/#showing-every-run-of-a-mutation) does, and never runs the mutation:
+`useMutationState` returns the state of every run of a mutation, oldest first, wherever it started: the definition's `mutate`, a `useMutation` in another widget, a `MutationBuilder`, or a cubit. It finds the runs by the definition's `mutationKey`, as [`MutationStateBuilder`](../mutations/#showing-every-run-of-a-mutation) does, and never runs the mutation:
 
 ```dart
 final runs = useMutationState(addTodoMutation);
@@ -237,18 +255,28 @@ useOnMutationStateChange(
 | Cache work, such as invalidating `['todos']` after any run | The callbacks of the `Mutation` |
 | The screen's reaction to the runs of its own `useMutation`, such as closing the screen | `useOnMutationChange` |
 | A reaction to every run, from any widget, such as a snackbar for each failure | `useOnMutationStateChange` |
-| An effect of one call that needs that call's variables | `MutateOptions` passed to `mutate` |
-| An effect after one call, in the code that runs it | `await result.mutateAsync(...)`, then check `context.mounted` |
+| An effect of one call that needs that call's variables | `MutateOptions` passed to the `mutate` of a `useMutation` result |
+| An effect after one call, in the code that runs it | `await addTodoMutation.mutateAsync(...)` in a `try`, then check `context.mounted` |
 
 Awaiting the call keeps the effect next to the code that runs it:
 
 ```dart
-onPressed: () async {
-  await addTodo.mutateAsync(title.text); // throws if it fails
-  if (!context.mounted) return;
-  Navigator.pop(context);
-},
+final client = useQueryClient();
+
+FilledButton(
+  onPressed: () async {
+    try {
+      await addTodoMutation.mutateAsync(title.text, client);
+    } catch (_) {
+      return; // useOnMutationStateChange above reports the failure.
+    }
+    if (context.mounted) Navigator.pop(context);
+  },
+  child: const Text('Add'),
+)
 ```
+
+The `try` keeps a failure from reaching the zone as an uncaught error.
 
 When the result the widget mounts with already decides what to show, such as a signed-out user, decide it in `build` from the result the hook returns. No change hook is called for it.
 
@@ -292,7 +320,7 @@ RefreshIndicator(
 )
 ```
 
-An observer from `observe()` keeps its own client: `Fuery.client`, unless you pass `client:`. Under a `FueryProvider` with a client of its own, pass the definition, or create the observer with the client `useQueryClient()` returns. In debug builds, a hook given an observer of another client prints a warning. See [A screen reads another client's cache](../../troubleshooting/#a-screen-reads-another-clients-cache).
+An observer from `observe()` keeps its own client: `Fuery.client`, unless you pass `client:`. Under a `FueryProvider` with a client of its own, pass the definition, or create the observer with the client `useQueryClient()` returns. A definition's `mutate` also uses `Fuery.client` unless you pass a client: `addTodoMutation.mutate('Buy milk', client)`. In debug builds, a hook given an observer of another client prints a warning. See [A screen reads another client's cache](../../troubleshooting/#a-screen-reads-another-clients-cache).
 
 ## Watching the cache
 

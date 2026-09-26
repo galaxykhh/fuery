@@ -7,7 +7,7 @@ Configure one `QueryClient` for the whole app: set defaults, report every failur
 
 ## Creating the client
 
-`Fuery.client` is the client that widgets use without a `FueryProvider`, and that `observe()` uses without `client:`. Fuery creates it on first use, so an app that configures nothing still works.
+`Fuery.client` is the client that widgets use without a `FueryProvider`. `observe()` and a definition's `mutate` use it too, unless you pass a client. Fuery creates it on first use, so an app that configures nothing still works.
 
 To configure it, assign a new client in `main`:
 
@@ -114,6 +114,7 @@ A `Query` holds no client, so one definition works with every client. Fuery pick
 
 - A widget or hook that gets a definition uses the client of the nearest `FueryProvider`, or `Fuery.client` without one. It follows a provider whose client is replaced.
 - `observe()` uses the client you pass as `client:`, or `Fuery.client` at that moment. The observer keeps that client for its whole life, and `observer.client` returns it.
+- A definition's `mutate` and `mutateAsync` use the client you pass them, or `Fuery.client` at that moment. In a widget, pass `context.queryClient`, so the run reaches the cache that the widgets read.
 - A widget or hook that gets an observer uses the observer's client. In debug builds, it prints a warning when that isn't its own client. See [A screen reads another client's cache](../../troubleshooting/#a-screen-reads-another-clients-cache).
 - Query functions, `placeholderData`, and mutation callbacks receive the client that runs them.
 
@@ -143,6 +144,8 @@ Widgets below the provider use its client. `context.queryClient` returns it, or 
 ```dart
 late final todos = todosQuery.observe(client: context.queryClient);
 ```
+
+Pass it to a definition's `mutate` too: `addTodo.mutate('Buy milk', context.queryClient)`.
 
 An [adapter](../adapters/) for another state library reads the client with `FueryProvider.of(context, listen: true)`, which rebuilds when the provider's client is replaced.
 

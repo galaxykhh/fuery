@@ -133,6 +133,87 @@ void main() {
     await tearDownApp(tester);
   });
 
+  testWidgets('a like whose card scrolled away still rolls back and reports',
+      (tester) async {
+    await pumpApp(tester);
+    await loadFeed(tester);
+    final flakyCard = find.ancestor(
+      of: find.text(flakyPost),
+      matching: find.byType(Card),
+    );
+
+    // Offline, the like waits for the connection, after its optimistic
+    // update.
+    await tester.tap(find.byIcon(Icons.wifi));
+    await tester.pump();
+    await tester.tap(
+      find.descendant(
+        of: flakyCard,
+        matching: find.byIcon(Icons.favorite_border),
+      ),
+    );
+    await tester.pump();
+    expect(
+      find.descendant(of: flakyCard, matching: find.text('4')),
+      findsOneWidget,
+    );
+
+    // The card leaves the tree. The run lives in the cache, not in the card,
+    // so it still runs.
+    await tester.drag(find.byType(ListView), const Offset(0, -1200));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text(flakyPost, skipOffstage: false), findsNothing);
+    expect(Fuery.client.isMutating(mutationKey: const ['posts', 'like']), 1);
+
+    // Back online, it runs, fails, and is reported.
+    await tester.tap(find.byIcon(Icons.wifi_off));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300)); // the request
+    await tester.pump();
+    expect(find.text('Could not like the post'), findsOneWidget);
+    expect(Fuery.client.isMutating(), 0);
+
+    // Back at the top, the like is rolled back.
+    await tester.drag(find.byType(ListView), const Offset(0, 3000));
+    await tester.pump(const Duration(milliseconds: 400)); // the next page
+    expect(
+      find.descendant(of: flakyCard, matching: find.text('3')),
+      findsOneWidget,
+    );
+
+    await tearDownApp(tester);
+  });
+
+  testWidgets('a settled like leaves the cache while its card is on screen',
+      (tester) async {
+    await pumpApp(tester);
+    await loadFeed(tester);
+    const likes = MutationFilters(mutationKey: ['posts', 'like']);
+    final topCard = find.ancestor(
+      of: find.text(topPost),
+      matching: find.byType(Card),
+    );
+
+    await tester.tap(
+      find.descendant(of: topCard, matching: find.byIcon(Icons.favorite)),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300)); // the request
+    await tester.pump(const Duration(milliseconds: 300)); // the refetch
+    expect(
+      Fuery.client.mutationCache.findAll(likes).single.state.isSuccess,
+      isTrue,
+    );
+
+    // The like runs from its definition, so no widget of the card keeps the
+    // run, and the cache removes it gcTime after it settled.
+    await tester.pump(const Duration(minutes: 5));
+    expect(topCard, findsOneWidget);
+    expect(Fuery.client.mutationCache.findAll(likes), isEmpty);
+
+    await tearDownApp(tester);
+  });
+
   testWidgets('hovering a post prefetches it, so it opens without loading',
       (tester) async {
     await pumpApp(tester);

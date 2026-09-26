@@ -10,7 +10,7 @@ Widgets, hooks, slots, and observers report a mutation's progress as one of two 
 | `MutationBuilder`, `MutationSelector`, `MutationListener`, `MutationConsumer`, `useMutation`, `useOnMutationChange`, a `MutationSlot`, and an observer's `result` and `stream` | A [`MutationResult`](#mutationresult): the state of the observer's latest run, with the methods that start another |
 | `MutationStateBuilder`, `MutationStateSelector`, `MutationStateListener`, `useMutationState`, `useOnMutationStateChange`, and a `MutationStateSlot` | One [`MutationState`](#mutationstate-fields) for each run, wherever it started |
 
-Read a `MutationResult` to run the mutation and show its latest run. Read the `MutationState`s to show every run of a mutation, as in [Showing every run of a mutation](../../guides/mutations/#showing-every-run-of-a-mutation).
+Read a `MutationResult` to run the mutation through one widget or observer, and to show the latest run it started. Read the `MutationState`s to show every run of a mutation, as in [Showing every run of a mutation](../../guides/mutations/#showing-every-run-of-a-mutation). A run started from the definition, as with `addTodo.mutate('Buy milk')`, shows only in the `MutationState`s. [Running the mutation](../mutation-options/#running-the-mutation) lists the definition's `mutate` and `mutateAsync`.
 
 ## MutationResult
 
@@ -24,6 +24,7 @@ A `MutationResult<TData, TVariables, TContext>` is the `MutationState` of the ob
 | `observer` | `MutationObserver<TData, TVariables, TContext>` | The observer that reported this result, so an adapter given only a result can listen to it. `==` leaves it out. |
 
 - `options` is a [`MutateOptions`](../mutation-options/#mutateoptions).
+- The run uses the observer's client. The definition's `mutate` and `mutateAsync` take a client instead of `options`.
 - A new run replaces the latest one, so the result follows only the newest run when runs overlap.
 - For a `NoVariablesMutation`, the variables are `void`: call `mutate(null)`.
 

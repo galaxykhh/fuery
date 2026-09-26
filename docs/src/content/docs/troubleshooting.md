@@ -217,7 +217,7 @@ See [Callbacks](../guides/mutations/#callbacks).
 
 ### A MutationListener never runs
 
-A `MutationListener` never calls its listener, or a `MutationBuilder` or `MutationSelector` that only shows the state stays idle while a button's mutation runs. A mutation's state belongs to the observer that runs it. A widget given a definition, as in `MutationListener(mutation: addTodo)`, creates an observer of its own, and nothing runs that one.
+A `MutationListener` never calls its listener, or a `MutationBuilder` or `MutationSelector` that only shows the state stays idle while a button's mutation runs. These widgets show only the runs of their own observer. A widget given a definition, as in `MutationListener(mutation: addTodo)`, creates an observer of its own, and nothing runs that one. A run started with `addTodo.mutate`, or by another widget, never reaches it.
 
 To hear every run of the mutation, wherever it started, give the definition a `mutationKey` and use a `MutationStateListener`:
 
@@ -238,7 +238,7 @@ MutationStateListener(
 
 For the widgets that only show the state, use `MutationStateBuilder` or `MutationStateSelector`. See [Showing every run of a mutation](../guides/mutations/#showing-every-run-of-a-mutation).
 
-For the callbacks of one call, such as closing the form that saved, pass `MutateOptions` to `mutate`.
+For an effect of one call, such as closing the form that saved, await `mutateAsync`. See [Acting after one call succeeds](../guides/mutations/#acting-after-one-call-succeeds).
 
 To hear only the runs of one observer, create it once, in a `State` field. Pass it both to the widget that runs it and to the `MutationListener`:
 
@@ -260,7 +260,7 @@ The MutationState widgets and `useMutationState` find runs by the definition's `
 
 - **The definition has no `mutationKey`.** Give it one, such as `mutationKey: const ['todos', 'add']`. In debug builds, the widget fails an assert that says so.
 - **Another definition with other types uses the key.** Fuery leaves its runs out and reports them once to [`onUncaughtError`](../guides/client-setup/#catching-errors-that-callbacks-throw). Give each definition a key of its own.
-- **The runs are on another client.** An observer created with `observe()` without `client:` runs on `Fuery.client`, not on the client of a `FueryProvider`. See [A screen reads another client's cache](#a-screen-reads-another-clients-cache).
+- **The runs are on another client.** An observer created with `observe()` without `client:`, and a run started with the definition's `mutate` without a client, run on `Fuery.client`, not on the client of a `FueryProvider`. See [A screen reads another client's cache](#a-screen-reads-another-clients-cache).
 - **The runs are gone.** A settled run that no observer holds leaves the cache after its `gcTime` (default: 5 minutes). `client.clear()` removes every run.
 
 ## Clients and error reporting
@@ -274,6 +274,8 @@ Pass the definition instead, and the widget observes it with its own client. Whe
 ```dart
 late final adding = addTodo.observe(client: context.queryClient);
 ```
+
+A definition's `mutate` and `mutateAsync` also use `Fuery.client` unless you pass a client. Under a provider, call `addTodo.mutate('Buy milk', context.queryClient)`.
 
 In a `HookWidget`, `useQueryClient()` returns the client the hooks use. `observer.client` returns the client an observer uses.
 

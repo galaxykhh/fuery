@@ -29,7 +29,7 @@ testWidgets('shows todos', (tester) async {
 - **Pump the time your fake API takes.** A fake that answers at once needs only `await tester.pump()`.
 - **End each test by unmounting the widgets and calling `client.clear()`.** Otherwise the cache's garbage collection timers are still pending, and [the test fails](../../troubleshooting/#a-timer-is-still-pending-even-after-the-widget-tree-was-disposed).
 - **Only queries need retries turned off.** Mutations don't retry unless you set `retry`, so `QueryDefaults` is enough. Add `mutations: MutationDefaults(...)` only when a test needs a mutation default of its own.
-- **`FueryProvider` works too.** Widgets use the client of the nearest `FueryProvider`, so `FueryProvider(client: client, child: const App())` can replace assigning `Fuery.client`. `observe()` still uses `Fuery.client` unless you pass `client:`, so an observer that the test or a cubit creates needs `observe(client: client)`.
+- **`FueryProvider` works too.** Widgets use the client of the nearest `FueryProvider`, so `FueryProvider(client: client, child: const App())` can replace assigning `Fuery.client`. `observe()` and a definition's `mutate` and `mutateAsync` still use `Fuery.client` unless you pass a client. An observer that the test or a cubit creates then needs `observe(client: client)`, and a widget that runs a mutation from its definition passes `context.queryClient`.
 - **Create observers inside the test.** An observer keeps its client, so one created at the top level of a file [keeps the first test's client](../../troubleshooting/#a-test-passes-only-when-it-runs-first).
 
 ## Testing without a widget tree

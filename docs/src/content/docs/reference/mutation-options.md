@@ -1,9 +1,9 @@
 ---
 title: Mutation options
-description: Every option of Mutation and NoVariablesMutation, with its type and default, and the callbacks of one mutate call.
+description: Every option of Mutation and NoVariablesMutation, with its type and default, the methods that run it, and the callbacks of one mutate call.
 ---
 
-Every option of `Mutation` and `NoVariablesMutation`, with its type and default, plus `MutateOptions` and `MutationPersist`. To set `gcTime`, `retry`, `retryDelay`, `networkMode`, or `meta` for every mutation, or for the mutations under a key, use `MutationDefaults` ([Defaults](../query-client/#defaults)). [Mutations](../../guides/mutations/) shows the options in use.
+Every option of `Mutation` and `NoVariablesMutation`, with its type and default, the methods that run the mutation, plus `MutateOptions` and `MutationPersist`. To set `gcTime`, `retry`, `retryDelay`, `networkMode`, or `meta` for every mutation, or for the mutations under a key, use `MutationDefaults` ([Defaults](../query-client/#defaults)). [Mutations](../../guides/mutations/) shows the options in use.
 
 ## Options
 
@@ -22,6 +22,22 @@ Every option of `Mutation` and `NoVariablesMutation`, with its type and default,
 | `onSuccess` | See [Callbacks](#callbacks) | none | Runs after `mutationFn` succeeds. |
 | `onError` | See [Callbacks](#callbacks) | none | Runs after the last attempt fails. |
 | `onSettled` | See [Callbacks](#callbacks) | none | Runs after either. |
+
+## Running the mutation
+
+A definition runs itself with these methods. `client` is optional, and defaults to `Fuery.client` at the time of the call:
+
+| Method | Returns | What it does |
+|---|---|---|
+| `mutate(variables, [client])` | `void` | Starts a run without waiting for it. An error goes to the run's state and to the callbacks, not to the caller. |
+| `mutateAsync(variables, [client])` | `Future<TData>` | Starts a run and returns its data. Throws the error if the run fails. |
+| `observe({client})` | `MutationObserver<TData, TVariables, TContext>` | Returns a new observer that runs the mutation and reports its latest run. See [Sharing one observer](../../guides/mutations/#sharing-one-observer). |
+
+- A definition holds no state. A run started with `mutate` or `mutateAsync` belongs to the client's mutation cache, and no observer holds it. It leaves the cache `gcTime` after it settles.
+- The MutationState widgets, `useMutationState`, and `isMutating` find the run by `mutationKey`. No `MutationResult` shows it.
+- The run gets the client's defaults, its `scope`, and `persist`, as a run from an observer does.
+- Neither method takes `MutateOptions`. Await `mutateAsync` for the effects of one call.
+- Under a `FueryProvider` with a client of its own, pass `context.queryClient`.
 
 ## Callbacks
 
@@ -56,6 +72,8 @@ Every option of `Mutation` and `NoVariablesMutation`, with its type and default,
 | `onError` | `Object error, TContext? context, QueryClient client` | `FutureOr<void>` |
 | `onSettled` | `TData? data, Object? error, TContext? context, QueryClient client` | `FutureOr<void>` |
 
+The definition runs it with `mutate()` and `mutateAsync()`. To pass a client, pass `null` first: `mutate(null, client)`.
+
 It is a `Mutation<TData, void, TContext>`, so:
 
 - Widgets and hooks run it with `mutate(null)` or `mutateAsync(null)`.
@@ -66,7 +84,7 @@ To persist it, pass `MutationPersist.noVariables`.
 
 ## MutateOptions
 
-`MutateOptions` holds callbacks for one call, passed as the second argument of `mutate` or `mutateAsync`:
+`MutateOptions` holds callbacks for one call, passed as the second argument of the `mutate` or `mutateAsync` of a result or an observer. A definition's `mutate` takes none:
 
 | Field | Arguments | Runs |
 |---|---|---|

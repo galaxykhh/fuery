@@ -1,7 +1,7 @@
 part of 'core.dart';
 
-/// Holds the default [QueryClient], which [Query.observe] and
-/// [Mutation.observe] use when no client is passed.
+/// Holds the default [QueryClient], which [Query.observe], [Mutation.observe],
+/// and [Mutation.mutate] use when no client is passed.
 abstract final class Fuery {
   static QueryClient? _client;
 

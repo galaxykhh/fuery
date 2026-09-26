@@ -118,24 +118,22 @@ final addTodo = Mutation(
 
 The `mutationKey` lets any screen find the runs of the mutation, whichever widget, hook, or cubit started them. `MutationStateBuilder(mutation: addTodo)` shows them anywhere in the app: see [Showing every run of a mutation](../mutations/#showing-every-run-of-a-mutation).
 
-Mutations share less than queries: each widget that runs a mutation reports only its own runs, while the definition shares the mutation function and its cache updates. The callbacks receive the client that runs the mutation, so the cache work reaches the right client in tests and under a `FueryProvider`. [Mutation runs](../../how-the-cache-works/#mutation-runs) explains the difference.
+A definition holds no state, so it can be a top-level value, like a query. Each run belongs to the client's cache. The callbacks receive the client that runs the mutation, so the cache work reaches the right client in tests and under a `FueryProvider`. [Mutation runs](../../how-the-cache-works/#mutation-runs) explains how runs differ from cache entries.
 
-Keep the cache work, such as invalidating and rolling back, in the definition. Put anything that belongs to one screen at the call site:
+Keep the cache work, such as invalidating and rolling back, in the definition. Put anything that belongs to one screen at the call site, such as closing the screen after its call succeeds:
 
 ```dart
-MutationBuilder(
-  mutation: addTodo,
-  builder: (context, state) => FilledButton(
-    onPressed: () => state.mutate(
-      title,
-      MutateOptions(
-        onSuccess: (todo, title, _, __) => Navigator.pop(context),
-      ),
-    ),
-    child: const Text('Add'),
-  ),
-)
+onPressed: () async {
+  try {
+    await addTodo.mutateAsync(title, context.queryClient);
+  } catch (_) {
+    return; // A MutationStateListener reports the failure.
+  }
+  if (context.mounted) Navigator.pop(context);
+},
 ```
+
+[Acting after one call succeeds](../mutations/#acting-after-one-call-succeeds) shows the whole button.
 
 A `MutationStateListener` shows a snackbar or a dialog after any run of the mutation, from any screen, with that screen's `BuildContext`. See [Telling the user a mutation failed](../mutations/#telling-the-user-a-mutation-failed).
 

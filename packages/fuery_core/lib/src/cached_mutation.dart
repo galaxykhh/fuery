@@ -2,8 +2,9 @@ part of 'core.dart';
 
 /// A single execution of a mutation, stored in the [MutationCache].
 ///
-/// Application code usually works with a [MutationObserver] from
-/// [Mutation.observe].
+/// Application code starts one with [Mutation.mutate], or with a
+/// [MutationObserver] from [Mutation.observe], and reads it through the
+/// observer or a [MutationStateSlot].
 class CachedMutation<TData, TVariables, TContext> extends _Removable {
   CachedMutation._({
     required QueryClient client,

@@ -49,7 +49,7 @@ flutter pub add fuery_hooks flutter_hooks
 |---|---|
 | `useQuery(query)` | The latest `QueryResult`. `refetch()` is on the result. |
 | `useInfiniteQuery(query)` | The latest `InfiniteQueryResult`. `fetchNextPage()` is on the result. |
-| `useMutation(mutation)` | The latest `MutationResult`. `mutate(...)` is on the result. |
+| `useMutation(mutation)` | The latest `MutationResult` of the runs this widget starts. `mutate(...)` is on the result. |
 | `useQueries(queries)` | The results of a list of queries of one data type, in order. |
 | `useMutationState(mutation)` | The state of every run of a mutation, oldest first, wherever it started, found by its `mutationKey`. |
 | `useQueryClient()` | The client the hooks use, for `invalidateQueries` and `setData`. |
@@ -57,6 +57,22 @@ flutter pub add fuery_hooks flutter_hooks
 Each hook rebuilds the widget when its result changes. None needs type arguments: `todos` above is a `QueryResult<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`. These hooks only read; [change hooks](#reacting-to-changes) run side effects.
 
 ## Changing data
+
+Run a mutation from its definition, as in any widget, and pass it the client from `useQueryClient()`. `useMutationState` reads its runs:
+
+```dart
+final client = useQueryClient();
+final adding = useMutationState(addTodoMutation).any((run) => run.isPending);
+
+ElevatedButton(
+  onPressed: adding ? null : () => addTodoMutation.mutate('Buy milk', client),
+  child: const Text('Add'),
+)
+```
+
+The run belongs to the client's cache, not to the widget. `useQueryClient()` returns the client the hooks use, so the run goes to the cache that `useMutationState` reads. Without a client, the run uses `Fuery.client`. A `NoVariablesMutation` runs with `logoutMutation.mutate(null, client)`.
+
+`useMutation` is for a widget that shows only the runs it starts, as a `MutationBuilder` does. Its result runs the mutation with `mutate`, and a `NoVariablesMutation` with `mutate(null)`:
 
 ```dart
 final addTodo = useMutation(addTodoMutation);
@@ -67,18 +83,7 @@ ElevatedButton(
 )
 ```
 
-A `NoVariablesMutation` runs with `mutate(null)`, as from a `MutationBuilder`:
-
-```dart
-final logout = useMutation(logoutMutation);
-
-TextButton(
-  onPressed: () => logout.mutate(null),
-  child: const Text('Log out'),
-)
-```
-
-For a side effect of one call, pass `MutateOptions` to `mutate`. When the widget goes away, the request still finishes. For a definition, the hook then drops the `MutateOptions` callbacks. A shared observer still runs them, so check `context.mounted` in them.
+For a side effect of one call through the result, pass `MutateOptions` to `mutate`. When the widget goes away, the request still finishes. When `useMutation` got a definition, the hook then drops those callbacks. A shared observer still runs them, so check `context.mounted` in them.
 
 ## Reacting to changes
 

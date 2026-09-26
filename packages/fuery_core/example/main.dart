@@ -43,30 +43,32 @@ Future<void> main() async {
     initialPageParam: 1,
     getNextPageParam: (data) => data.lastPage.nextCursor,
   ).observe();
-  names.subscribe((_) {});
+  final unsubscribeNames = names.subscribe((_) {});
   await Future<void>.delayed(Duration.zero);
   while (names.result.hasNextPage) {
     await names.fetchNextPage();
   }
   print('pages: ${names.result.pages.length}');
 
-  // A mutation invalidates the queries it affects.
+  // A mutation runs from its definition and invalidates the queries it
+  // affects, through the client that runs it.
   final createName = Mutation(
     mutationFn: (String name) => repository.create(name),
     onSuccess: (data, name, _, client) async {
       print('$data created');
-      await Fuery.client.invalidateQueries(queryKey: ['names']);
+      await client.invalidateQueries(queryKey: ['names']);
     },
-  ).observe();
+  );
   await createName.mutateAsync('New name');
 
   final removeAll = NoVariablesMutation(
     mutationFn: () => repository.removeAll(),
     onSuccess: (_, __, client) => print('all names removed'),
-  ).observe();
+  );
   removeAll.mutate();
 
   await subscription.cancel();
+  unsubscribeNames();
 
   // Stop garbage collection timers so the program can exit.
   Fuery.client.clear();

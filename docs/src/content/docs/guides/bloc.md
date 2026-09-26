@@ -64,25 +64,31 @@ class TodoBloc extends Bloc<TodoEvent, TodoState> {
 }
 ```
 
-## Mutations from a bloc
+## Mutations from a cubit or bloc
 
-A bloc that runs a mutation keeps one observer for it. Create it once, with `final _addTodo = addTodo.observe();`. `mutateAsync` returns the data or throws, which fits event handlers:
+A cubit runs a mutation from its definition, with no observer of its own. `mutateAsync` returns the data or throws, which fits a cubit's methods:
 
 ```dart
-on<TodoAdded>((event, emit) async {
+Future<void> add(String title) async {
   try {
-    await _addTodo.mutateAsync(event.title);
+    await addTodo.mutateAsync(title);
   } catch (error) {
     emit(state.copyWith(error: error));
   }
-});
+}
 ```
+
+A bloc's event handler does the same: `await addTodo.mutateAsync(event.title)`.
+
+- The run uses `Fuery.client`. A cubit given another client, such as a test's, passes it: `addTodo.mutateAsync(title, client)`.
+- The run belongs to the client's cache, not to the cubit, so every screen can show it. See [Sharing with widgets](#sharing-with-widgets).
+- Keep an observer, `final _addTodo = addTodo.observe();`, only when the cubit follows the state of its own runs through the observer's `result` or `stream`.
 
 ## Sharing with widgets
 
 A cubit and a `QueryBuilder` that use the same key share one cache entry. A change made on one screen, such as marking notifications read, shows in the cubit and in every widget.
 
-Give `addTodo` a `mutationKey`, and the runs a bloc starts show in `MutationStateBuilder(mutation: addTodo)` on any screen. The bloc doesn't have to expose its observer. See [Showing every run of a mutation](../mutations/#showing-every-run-of-a-mutation).
+Give `addTodo` a `mutationKey`, and the runs a cubit or bloc starts show in `MutationStateBuilder(mutation: addTodo)` on any screen. See [Showing every run of a mutation](../mutations/#showing-every-run-of-a-mutation).
 
 A cubit that reacts to every run of a mutation, wherever it started, keeps a `MutationStateSlot`. `subscribeToRuns` calls its listener for each later change of each run, and `result` lists the current runs. See [Every run of a mutation](../adapters/#every-run-of-a-mutation).
 

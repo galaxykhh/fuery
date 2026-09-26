@@ -1,3 +1,8 @@
+## 1.6.0
+- Released with `fuery_core` 1.6.0, which runs a mutation from its definition: a button in a `StatelessWidget` calls `addTodo.mutate('Buy milk')`, and the MutationState widgets show the run. Under a `FueryProvider`, pass `context.queryClient`.
+- The docs lead with running a mutation from its definition. `MutationBuilder` is for a widget that shows only the runs it starts.
+- Update the example: it runs likes and comments from their definitions.
+
 ## 1.5.1
 - Released with `fuery_core` 1.5.1. A widget given a definition built in `build`, such as `QueryBuilder`, `QueriesBuilder`, or `MutationBuilder`, rebuilds faster: it no longer hashes a key built again with the same content. `MutationStateBuilder`, `MutationStateListener`, and `MutationStateSelector` stay fast with many runs in the cache.
 

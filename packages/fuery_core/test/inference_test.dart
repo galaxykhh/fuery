@@ -274,6 +274,61 @@ void main() {
     expect(typed.result.data, 42);
   });
 
+  fakeTest('a definition runs itself without type arguments', (async) {
+    final original = Fuery.client;
+    Fuery.client = client;
+    addTearDown(() => Fuery.client = original);
+
+    final addTodo = Mutation(
+      mutationFn: (String title) async => Todo(title),
+      onMutate: (title, client) => [title],
+    );
+    addTodo.mutate('a');
+    addTodo.mutate('b', client);
+    final added = addTodo.mutateAsync('c');
+    final addedOn = addTodo.mutateAsync('d', client);
+
+    final refresh = NoVariablesMutation(mutationFn: () async => 42);
+    refresh.mutate();
+    refresh.mutate(null, client);
+    // As a button's `onPressed`.
+    final void Function() onPressed = refresh.mutate;
+    onPressed();
+    final refreshed = refresh.mutateAsync();
+    final refreshedOn = refresh.mutateAsync(null, client);
+    async.flushMicrotasks();
+
+    final Future<Todo> typedAdded = added;
+    final Future<Todo> typedAddedOn = addedOn;
+    final Future<int> typedRefreshed = refreshed;
+    final Future<int> typedRefreshedOn = refreshedOn;
+    final titles = <String>[];
+    typedAdded.then<void>((todo) {
+      titles.add(todo.title);
+    });
+    typedAddedOn.then<void>((todo) {
+      titles.add(todo.title);
+    });
+    final counts = <int>[];
+    typedRefreshed.then<void>(counts.add);
+    typedRefreshedOn.then<void>(counts.add);
+    async.flushMicrotasks();
+
+    expect(titles, ['c', 'd']);
+    expect(counts, [42, 42]);
+    final runs = client.mutationCache.findAll(
+      MutationFilters(predicate: (run) => run.state.context != null),
+    );
+    expect([
+      for (final run in runs) run.state.context
+    ], [
+      ['a'],
+      ['b'],
+      ['c'],
+      ['d'],
+    ]);
+  });
+
   fakeTest('options infer their data type and observe it', (async) {
     final todos = Query(
       queryKey: ['todos'],

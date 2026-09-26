@@ -8,7 +8,7 @@ Two screens share one request, stale data refetches on its own, and unused data 
 | Term | What it is | API type |
 |---|---|---|
 | Query | A definition of server data: its key, query function, and options. It holds no data. | `Query`, `InfiniteQuery` |
-| Mutation | A definition of a change: its mutation function and options. | `Mutation`, `NoVariablesMutation` |
+| Mutation | A definition of a change: its mutation function and options. It holds no state. | `Mutation`, `NoVariablesMutation` |
 | Client | The owner of a query cache and a mutation cache. | `QueryClient` |
 | Cache entry | The data and state of one key in one client. | `CachedQuery` |
 | Observer | The link between a definition and one client. A query observer watches one cache entry. A mutation observer starts runs and reports the latest one. | `QueryObserver`, `InfiniteQueryObserver`, `MutationObserver` |
@@ -94,13 +94,14 @@ Each refetch trigger has an option, such as `refetchOnFocus`. [Query options](..
 
 ## Mutation runs
 
-A mutation doesn't share a cache entry the way a query does. Each `mutate` call adds a run to the mutation cache, with its own variables and state.
+A mutation doesn't share a cache entry the way a query does. Each `mutate` call adds a run to the mutation cache, with its own variables and state. The run belongs to the client's cache, not to the definition or a widget.
 
-- **Showing the latest run.** A `MutationResult` shows the latest run that its observer started. The next `mutate` call replaces it, and `reset()` returns the result to idle.
-- **Keeping runs apart.** Two widgets that run the same mutation each keep an observer, and each shows only its own runs. [Sharing one observer](../guides/mutations/#sharing-one-observer) covers the cases that need one.
+- **Running from the definition.** `addTodo.mutate('Buy milk')` adds a run to the cache of `Fuery.client`, or of the client you pass. No observer holds the run.
+- **Showing the latest run.** A `MutationResult` shows the latest run that its observer started, such as the runs of one `MutationBuilder`. The next `mutate` call on it replaces that run, and `reset()` returns the result to idle.
+- **Keeping runs apart.** Two `MutationBuilder`s of the same mutation each keep an observer, and each shows only its own runs. [Sharing one observer](../guides/mutations/#sharing-one-observer) covers the cases that need one observer for several widgets.
 - **Finding every run.** `MutationStateBuilder`, `MutationStateListener`, `MutationStateSelector`, and `useMutationState` find every run of a definition by its `mutationKey`, or every run that matches `MutationFilters`, wherever it started. See [Showing every run of a mutation](../guides/mutations/#showing-every-run-of-a-mutation).
 - **Retrying.** A run retries only when the mutation or the client's mutation defaults (`DefaultOptions`, `setMutationDefaults`) set `retry`.
-- **Leaving the cache.** A run stays while an observer shows it. Once it has settled and no observer shows it, Fuery removes it after `gcTime` (default: 5 minutes). `client.clear()` removes every run at once.
+- **Leaving the cache.** A run stays while an observer shows it. Once it has settled and no observer shows it, Fuery removes it after `gcTime` (default: 5 minutes). A run started from the definition has no observer, so it leaves `gcTime` after it settles. `client.clear()` removes every run at once.
 
 [Mutation results](../reference/mutation-results/) lists the fields of `MutationResult` and `MutationState`.
 

@@ -70,8 +70,8 @@ class MutationStateBuilder<TData, TVariables, TContext>
 /// the new state of each run that changed, once per run, and [listenWhen]
 /// compares the state that run had before with its new one. It isn't called
 /// for the states runs already had when the widget mounted, or for a run
-/// that the cache removes. For the callbacks of one call, such as closing
-/// the form that saved, pass `MutateOptions` to `mutate` instead.
+/// that the cache removes. For an effect of one call, such as closing the
+/// form that saved, await [Mutation.mutateAsync] instead.
 ///
 /// ```dart
 /// MutationStateListener(

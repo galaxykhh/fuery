@@ -50,18 +50,21 @@ The stream sends the current `QueryResult` first, then every change. `todos.resu
 
 ## Mutations
 
-A `Mutation` changes server data. Its `observe()` returns a `MutationObserver` that runs it:
+A `Mutation` changes server data. Run it from the definition with `mutateAsync` or `mutate`:
 
 ```dart
 final addTodo = Mutation(
+  mutationKey: const ['todos', 'add'],
   mutationFn: (String title) => api.addTodo(title),
   onSuccess: (todo, title, context, client) =>
       client.invalidateQueries(queryKey: ['todos']),
-).observe();
+);
 
 final todo = await addTodo.mutateAsync('Buy milk'); // throws on error
-addTodo.mutate('Buy milk'); // reports errors in addTodo.result instead
+addTodo.mutate('Buy milk'); // puts an error in the run's state instead
 ```
+
+The definition holds no state. Each run belongs to the client's cache: `Fuery.client`, or the client you pass, as in `addTodo.mutate('Buy milk', client)`. `Fuery.client.isMutating(mutationKey: ['todos', 'add'])` counts the pending runs, and a `MutationStateSlot` lists them. To follow the state of your own runs, `addTodo.observe()` returns a `MutationObserver` with a `result` and a `stream`.
 
 ## QueryClient
 

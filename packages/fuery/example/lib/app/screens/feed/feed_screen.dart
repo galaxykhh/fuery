@@ -56,22 +56,22 @@ class FeedScreen extends StatelessWidget {
                               onLoadMore: state.fetchNextPage,
                             );
                           }
-                          // Each card runs its own likes.
-                          return MutationBuilder(
-                            mutation: likePostMutation(),
-                            builder: (context, like) => PostCard(
-                              post: post,
-                              onLike: () => like.mutate(post.id),
-                              onOpen: () => Navigator.push(
-                                context,
-                                PostScreen.route(post.id),
-                              ),
-                              // On the web and desktop the pointer reaches a
-                              // card before the click does, so the post is
-                              // often cached by the time it opens.
-                              onHover: () => context.queryClient.query(
-                                postQuery(post.id),
-                              ),
+                          return PostCard(
+                            post: post,
+                            // The cache shows the like and the listener above
+                            // reports a failure, so the definition runs it and
+                            // no widget of the card has to keep it.
+                            onLike: () => likePostMutation()
+                                .mutate(post.id, context.queryClient),
+                            onOpen: () => Navigator.push(
+                              context,
+                              PostScreen.route(post.id),
+                            ),
+                            // On the web and desktop the pointer reaches a
+                            // card before the click does, so the post is
+                            // often cached by the time it opens.
+                            onHover: () => context.queryClient.query(
+                              postQuery(post.id),
                             ),
                           );
                         },
