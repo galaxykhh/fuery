@@ -43,7 +43,7 @@ Future<void> main() async {
     initialPageParam: 1,
     getNextPageParam: (data) => data.lastPage.nextCursor,
   ).observe();
-  names.subscribe((_) {});
+  final unsubscribeNames = names.subscribe((_) {});
   await Future<void>.delayed(Duration.zero);
   while (names.result.hasNextPage) {
     await names.fetchNextPage();
@@ -68,6 +68,7 @@ Future<void> main() async {
   removeAll.mutate();
 
   await subscription.cancel();
+  unsubscribeNames();
 
   // Stop garbage collection timers so the program can exit.
   Fuery.client.clear();
