@@ -134,6 +134,7 @@ Status and enum values stay code: a query 处于 `pending` 状态, a fetch is `p
 | selector | 选择器 | The widget kind, and a `selector` function. |
 | the query, infinite query, and mutation widgets | 查询、无限查询和变更 widget | |
 | hook | hook | "change hook" 变化 hook. "reading hook" 读取 hook. |
+| keys (of `useMemoized` or `useEffect`) | keys | Kept in English, so they don't read as 查询键. |
 | adapter | 适配器 | |
 | slot | slot | `ObserverSlot`. Never 插槽, which readers know as another concept. |
 | source | 来源 | `QuerySource`. "event source" 事件源. "connectivity source" 网络状态来源. |
@@ -148,6 +149,7 @@ Status and enum values stay code: a query 处于 `pending` 状态, a fetch is `p
 | dispose | 释放 | `dispose` |
 | destroy | 销毁 | `destroy()` |
 | screen | 界面 | 详情界面, 登录界面. Keeps 页 free for infinite-query pages. |
+| feed, post, compose screen, notifications screen | 信息流、帖子、撰写界面、通知界面 | The example app's screens. |
 | on screen | 屏幕上 | |
 | frame | 帧 | "the first frame" 第一帧 |
 | subtree | 子树 | |
@@ -157,6 +159,7 @@ Status and enum values stay code: a query 处于 `pending` 状态, a fetch is `p
 | English | 简体中文 | Notes |
 |---|---|---|
 | filter | 过滤器 | "query filters" 查询过滤器 (`QueryFilters`). "mutation filters" 变更过滤器 (`MutationFilters`). |
+| a filter in the UI, such as a search filter | 筛选条件 | Keeps 过滤器 for `QueryFilters` and `MutationFilters`. |
 | predicate | 谓词函数 | `predicate` |
 | match, matching | 匹配 | |
 | exact | 精确匹配 | `exact: true` |
@@ -197,10 +200,12 @@ Status and enum values stay code: a query 处于 `pending` 状态, a fetch is `p
 | infer, type inference | 推断、类型推断 | |
 | nullable, non-nullable | 可空、不可空 | |
 | parameter, argument | 参数 | |
+| constructor | 构造函数 | |
 | field, member, method | 字段、成员、方法 | |
 | enum | 枚举 | |
 | top-level value | 顶层值 | |
 | closure | 闭包 | |
+| tear-off | tear-off | `onPressed: logoutMutation.mutate` |
 | throw | 抛出 | ``抛出 `StateError`。`` |
 | exception | 异常 | |
 | uncaught error | 未捕获的错误 | |
@@ -210,11 +215,15 @@ Status and enum values stay code: a query 处于 `pending` 状态, a fetch is `p
 | debug, profile, release build | debug 构建、profile 构建、release 构建 | |
 | hot reload | 热重载 | |
 | fake, fake clock | 模拟、模拟时钟 | |
+| helper | 工具函数 | |
+| dev dependency | 开发依赖 | |
 | tear-down | 清理回调 | `addTearDown` |
 | repository | 仓库 | |
 | service | 服务 | |
 | navigation | 导航 | |
 | pull to refresh | 下拉刷新 | |
+| debounce | 防抖 | |
+| todo | 待办事项 | What the snippets' `Todo` holds. |
 | crash reporter | 崩溃上报工具 | |
 | list item | 列表项 | Never 条目. |
 | map entry | 键值对 | Never 条目. |
