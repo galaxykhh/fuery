@@ -99,10 +99,12 @@ Fuery 문서를 한국어로 옮길 때 쓰는 용어와 문장 규칙이에요.
 | placeholder data | 플레이스홀더 데이터 | `placeholderData` |
 | initial data | 초기 데이터 | `initialData` |
 | structural sharing | 구조적 공유 | `structuralSharing` |
-| static | static | `staleTime: staticStaleTime`을 설정한 쿼리. "static 쿼리"처럼 써요. |
+| static | 정적 | `staleTime: staticStaleTime`을 설정한 쿼리(`isStatic`). "a static query"는 "정적 쿼리", "static and has data"는 "정적이고 데이터가 있는"이에요. |
 | default, defaults | 기본값 | "per-key defaults"는 "키별 기본값"이에요. |
 | option | 옵션 | |
 | filter | 필터 | "query filters"는 "쿼리 필터"예요. |
+| config | 설정 | `QueryCacheConfig`, `MutationCacheConfig`. 코드의 `config`는 그대로 써요. |
+| updater | 업데이트 함수 | `updateData`, `updateQueriesData`에 넘기는 함수. 인수 이름은 `updater`로 써요. |
 | prefix | 접두사 | "key prefix"는 "키 접두사"예요. |
 | match | 조건에 맞는 캐시 항목 | "the matches"는 "조건에 맞는 캐시 항목", 뮤테이션이면 "조건에 맞는 실행"이에요. 동사는 "일치하다", "조건에 맞다"예요. |
 | predicate | `predicate`, 조건 함수 | |
@@ -151,7 +153,7 @@ Fuery 문서를 한국어로 옮길 때 쓰는 용어와 문장 규칙이에요.
 | listener | 리스너 | "listener widget"은 "리스너 위젯"이에요. |
 | consumer | 컨슈머 | |
 | selector | 셀렉터 | "선택자"로 쓰지 않아요. |
-| flag | 플래그 | `isFetchingNextPage`처럼 결과에 있는 `bool` 필드. |
+| flag | 플래그 | `isFetchingNextPage`처럼 결과에 있는 `bool` 필드. "fetch flags"는 "가져오기 플래그"예요. |
 | hook | 훅 | |
 | reading hook | 읽기 훅 | `useQuery`처럼 값을 읽는 훅. |
 | change hook | 변화 훅 | `useOnQueryChange`, `useOnMutationChange`, `useOnMutationStateChange` |
@@ -171,10 +173,12 @@ Fuery 문서를 한국어로 옮길 때 쓰는 용어와 문장 규칙이에요.
 | controller | 컨트롤러 | `TextEditingController` 같은 객체. |
 | snackbar | 스낵바 | |
 | navigation | 화면 이동 | 동사 navigate는 "화면을 이동하다"예요. |
+| route guard | 라우트 가드 | |
 | dialog | 다이얼로그 | |
 | pull to refresh | 당겨서 새로고침 | |
 | loading indicator | 로딩 표시 | |
 | refresh indicator | 새로고침 표시 | `RefreshIndicator`가 보여주는 표시. |
+| loading bar | 로딩 바 | "activity indicator"는 "로딩 표시"예요. |
 | spinner | 스피너 | |
 | progress bar | 진행 표시줄 | |
 | footer, header | 푸터, 헤더 | |
@@ -190,6 +194,7 @@ Fuery 문서를 한국어로 옮길 때 쓰는 용어와 문장 규칙이에요.
 | foreground, background | 포그라운드, 백그라운드 | "when the app resumes"는 "앱이 포그라운드로 돌아올 때"예요. |
 | connectivity | 네트워크 연결 상태 | 뜻이 분명하면 "연결 상태"로 줄여요. |
 | connectivity source | 연결 상태 소스 | |
+| cleanup function | 정리 함수 | `setEventListener`의 `setup`이 반환하는 함수. |
 | online, offline | 온라인, 오프라인 | |
 | reconnect | 재연결 | 동사는 "네트워크가 다시 연결되다"예요. 명사는 목록에서만 써요. |
 | network mode | 네트워크 모드 | `networkMode` |
@@ -236,6 +241,7 @@ Fuery 문서를 한국어로 옮길 때 쓰는 용어와 문장 규칙이에요.
 | type argument, type parameter | 타입 인수, 타입 매개변수 | |
 | type inference | 타입 추론 | 동사는 "추론하다"예요. |
 | generic | 제네릭 | |
+| supertype | 상위 타입 | |
 | parameter | 매개변수 | |
 | argument | 인수 | "인자"로 쓰지 않아요. "named argument"는 "이름 있는 인수"예요. |
 | field, member, method | 필드, 멤버, 메서드 | "메소드"로 쓰지 않아요. |
@@ -251,6 +257,7 @@ Fuery 문서를 한국어로 옮길 때 쓰는 용어와 문장 규칙이에요.
 | dependency | 의존성 | "dev dependency"는 "개발 의존성"이에요. |
 | package | 패키지 | |
 | code generation | 코드 생성 | |
+| runtime | 런타임 | "at runtime"은 "런타임에"예요. |
 | native code | 네이티브 코드 | |
 | pure Dart | 순수 Dart | |
 | core | 코어 | `fuery_core`를 가리킬 때. |
@@ -259,6 +266,7 @@ Fuery 문서를 한국어로 옮길 때 쓰는 용어와 문장 규칙이에요.
 | repository | 리포지토리 | |
 | service | 서비스 | |
 | hash | 해시 | |
+| broadcast stream | 브로드캐스트 스트림 | |
 | deprecated | 지원 중단된 | |
 | alias | 별칭 | |
 | singleton | 싱글턴 | |
@@ -284,6 +292,7 @@ Fuery 문서를 한국어로 옮길 때 쓰는 용어와 문장 규칙이에요.
 | comment | 댓글 |
 | like | 좋아요 |
 | feed | 피드 |
+| home shell | 홈 셸 |
 | notification | 알림 |
 | search term | 검색어 |
 | list screen, detail screen | 목록 화면, 상세 화면 |
@@ -338,6 +347,7 @@ Fuery 문서를 한국어로 옮길 때 쓰는 용어와 문장 규칙이에요.
 | update | 업데이트하다 | "갱신하다"로 쓰지 않아요. |
 | change | 바꾸다, 바뀌다 | |
 | set, configure | 설정하다 | |
+| win over, take precedence | ~보다 우선하다 | 옵션과 기본값 사이. "precedence"는 "우선순위"예요. |
 | hold | 담다 | "A `Query` holds no data"는 "`Query`에는 데이터가 담기지 않아요"보다 "`Query`는 데이터를 담지 않아요"로 써요. |
 | keep | 유지하다, 두다 | "keeps the data"는 "데이터를 유지해요", "keep the client in a `State` field"는 "클라이언트를 `State` 필드에 두세요"예요. |
 | remove | 제거하다 | 캐시에서 없애는 것. |
