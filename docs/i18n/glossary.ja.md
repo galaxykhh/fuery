@@ -44,7 +44,8 @@ Rewrite translationese:
 - A link follows the same rule by its visible text: ``[クエリのライフサイクル](../how-the-cache-works/#クエリのライフサイクル)を参照してください``, but ``[`MutationStateSelector`](../mutations/#ミューテーションのすべての実行を表示する) を使います``.
 - End sentences with 「。」 and separate clauses with 「、」.
 - Use full-width 「（）」 for every parenthesis in prose, whatever it holds: 「キャッシュエントリ（`CachedQuery`）」.
-- Put a full-width 「：」 after a label, with no space after it: `**変換：**`.
+- Put a full-width 「：」 after a label, with no space after it: `**変換**：`.
+- Keep a 「。」 or 「：」 that follows bold text outside the `**`: `**古くなります**。`, `**購読**：`. Markdown doesn't close `**` after that punctuation when Japanese text follows, so `**古くなります。**1 分前` shows the asterisks.
 - Quote words and UI text with 「」, and a quote inside a quote with 『』. Strings in code stay in backticks.
 - End the sentence before a code block or a list with 「。」, not with a colon.
 - End a list item or a table cell that is a sentence with 「。」. A noun phrase gets none.
