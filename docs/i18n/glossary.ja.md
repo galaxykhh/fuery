@@ -44,7 +44,7 @@ Rewrite translationese:
 - A link follows the same rule by its visible text: ``[クエリのライフサイクル](../how-the-cache-works/#クエリのライフサイクル)を参照してください``, but ``[`MutationStateSelector`](../mutations/#ミューテーションのすべての実行を表示する) を使います``.
 - End sentences with 「。」 and separate clauses with 「、」.
 - Use full-width 「（）」 for every parenthesis in prose, whatever it holds: 「キャッシュエントリ（`CachedQuery`）」.
-- Put a full-width 「：」 after a label, with no space after it: `**変換：**`.
+- Put a full-width 「：」 after a label, outside the bold, with no space after it: `**変換**：`. Markdown doesn't close `**変換：**` when Japanese text follows it, so the page shows the asterisks.
 - Quote words and UI text with 「」, and a quote inside a quote with 『』. Strings in code stay in backticks.
 - End the sentence before a code block or a list with 「。」, not with a colon.
 - End a list item or a table cell that is a sentence with 「。」. A noun phrase gets none.
@@ -104,6 +104,10 @@ Use the same Japanese term on every page. Where a note says "first use", write t
 | streamed query | ストリーミングクエリ | `streamedQuery` |
 | filter | フィルター | `QueryFilters`, `MutationFilters` |
 | key prefix | キーのプレフィックス | "Starts with" is 「〜で始まる」. |
+| under a key | キーの配下 | The cache entries whose key starts with it: 「`['todos']` の配下にあるキャッシュエントリ」 |
+| per-key defaults | キーごとのデフォルト | What `setQueryDefaults` and `setMutationDefaults` register |
+| updater | 更新関数 | The function that `updateData` and `updateQueriesData` take |
+| config (of a cache) | 設定 | `QueryCacheConfig` and `MutationCacheConfig` stay code, and so does the field `config`. |
 | match | 一致する | "The matches" are 「一致するキャッシュエントリ」 or 「一致する実行」. |
 | exact | 完全一致 | |
 | structural sharing | 構造共有 | |
@@ -117,6 +121,7 @@ Use the same Japanese term on every page. Where a note says "first use", write t
 | prefetch | 事前取得 | |
 | request | リクエスト | |
 | in flight | 実行中の | 「実行中の取得」. For a run, see 実行 under [Mutations](#mutations). |
+| join (a fetch in flight) | 合流する | 「実行中の取得に合流します」 |
 | fresh | 新鮮 | First use: 新鮮（fresh） |
 | stale | 古い | First use: 古い（stale）. "Goes stale" is 古くなる, and "marks stale" is 古い状態にする. |
 | freshness | 鮮度 | |
@@ -266,6 +271,9 @@ Use the same Japanese term on every page. Where a note says "first use", write t
 | handle | ハンドル | |
 | event, event handler | イベント, イベントハンドラー | |
 | repository, service | リポジトリ, サービス | |
+| merge | マージする | 「一致するすべてのプレフィックスのデフォルトをマージします」 |
+| supertype | スーパータイプ | |
+| milliseconds since epoch | エポックからのミリ秒 | 「`data` が最後に変わった時刻（エポックからのミリ秒）」 |
 
 ### Keep in English
 
