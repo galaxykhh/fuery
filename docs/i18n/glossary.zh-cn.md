@@ -50,6 +50,7 @@ Write standard written technical Chinese, as docs.flutter.cn and dart.cn do. The
 | run a mutation | 执行变更 | 执行 belongs to mutations. Code that runs, such as a callback or a query function, takes 运行. |
 | mutation function | 变更函数 | `mutationFn` |
 | variables | 变量 | What a `mutate` call passes. |
+| context | 上下文 | What `onMutate` returns. "query function context" 查询函数上下文 (`QueryFunctionContext`). |
 | infinite query | 无限查询 | `InfiniteQuery` |
 | server | 服务器 | The machine that answers. |
 | server data, server state | 服务端数据、服务端状态 | |
@@ -136,6 +137,8 @@ Status and enum values stay code: a query 处于 `pending` 状态, a fetch is `p
 | hook | hook | "change hook" 变化 hook. "reading hook" 读取 hook. |
 | adapter | 适配器 | |
 | slot | slot | `ObserverSlot`. Never 插槽, which readers know as another concept. |
+| the slot contract | slot 的约定 | What an adapter calls, and when. |
+| state library | 状态管理库 | "an adapter for another state library" 面向其他状态管理库的适配器 |
 | source | 来源 | `QuerySource`. "event source" 事件源. "connectivity source" 网络状态来源. |
 | mount, unmount | 挂载、卸载 | Widgets and clients. |
 | subscribe, unsubscribe | 订阅、取消订阅 | |
@@ -151,6 +154,7 @@ Status and enum values stay code: a query 处于 `pending` 状态, a fetch is `p
 | on screen | 屏幕上 | |
 | frame | 帧 | "the first frame" 第一帧 |
 | subtree | 子树 | |
+| the home shell | 主页框架 | The example app's `home_shell.dart`. |
 
 ### Reading and changing the cache
 
@@ -164,6 +168,8 @@ Status and enum values stay code: a query 处于 `pending` 状态, a fetch is `p
 | option | 选项 | |
 | read, write | 读取、写入 | |
 | update | 更新 | |
+| updater | 更新函数 | The function `updateData`, `updateQueryData`, and `updateQueriesData` take. |
+| config | 配置 | `QueryCacheConfig`, `MutationCacheConfig` |
 | reset | 重置 | |
 | remove | 移除 | From the cache. |
 | delete | 删除 | Persisted data. |
@@ -259,6 +265,8 @@ Say what the English says about another library, and nothing more. Never call Fu
 | Troubleshooting | 问题排查 |
 | Next steps | 下一步 |
 | In the example app | 在示例应用中 |
+| required (a default in a table) | 必填 |
+| none (a default in a table) | 无 |
 
 "Coming from TanStack Query" gives the Fuery name for each TanStack Query concept. It isn't a migration guide, so its title never says 迁移.
 
