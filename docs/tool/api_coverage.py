@@ -10,7 +10,8 @@ The public API comes from `dart doc`, which is the same list pub.dev shows.
 Named options and filter arguments don't appear there, so those are read from
 the source signatures instead.
 
-An entry counts as covered when its name appears anywhere in the docs site.
+An entry counts as covered when its name appears anywhere in the English
+pages of the docs site; the translations in ko/, ja/, and zh-cn/ don't count.
 That is a low bar on purpose: it catches API a reader cannot even learn the
 name of. It says nothing about whether the explanation is any good.
 
@@ -32,6 +33,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 DOCS = ROOT / "docs" / "src" / "content" / "docs"
+LOCALES = ROOT / "docs" / "i18n" / "locales.json"
 REPORT = ROOT / "docs" / "api-coverage.md"
 IGNORE = Path(__file__).parent / "coverage_ignore.txt"
 PACKAGES = [
@@ -138,7 +140,11 @@ def named_arguments() -> dict[str, set[str]]:
 
 
 def docs_text() -> str:
-    return "\n".join(p.read_text() for p in sorted(DOCS.rglob("*.md*")))
+    """The English pages. A translation mirrors its English page, so a name
+    that only a translation mentions isn't documented."""
+    translations = {key for key in json.loads(LOCALES.read_text(encoding="utf-8")) if key != "root"}
+    return "\n".join(p.read_text() for p in sorted(DOCS.rglob("*.md*"))
+                     if p.relative_to(DOCS).parts[0] not in translations)
 
 
 def code_only(text: str) -> str:
