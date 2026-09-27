@@ -1,0 +1,76 @@
+---
+title: Flutter のためのサーバー状態
+description: Fuery は Flutter でサーバーデータを取得し、キャッシュし、再取得します。クエリ、ミューテーション、無限スクロール、オフライン永続化、devtools を備え、コード生成は不要です。
+sourceHash: 5313571a1cb6
+template: splash
+hero:
+  title: Fuery
+  tagline: Flutter でサーバーデータを取得し、キャッシュし、<strong>新鮮</strong>に保ちます。
+  image:
+    alt: F の形に並んだ、角の丸い 3 枚のタイルでできた Fuery のロゴ
+    light: ../../../assets/mark.svg
+    dark: ../../../assets/mark-dark.svg
+  actions:
+    - text: はじめる
+      link: getting-started/
+      icon: right-arrow
+    - text: デモを試す
+      link: /fuery/demo/
+      icon: laptop
+      variant: secondary
+    - text: GitHub で見る
+      link: https://github.com/galaxykhh/fuery
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+```dart
+// A Query<List<Todo>>, with no type arguments.
+final todos = Query(
+  queryKey: ['todos'],
+  queryFn: (_) => api.getTodos(),
+);
+
+QueryBuilder(
+  query: todos,
+  builder: (context, state) => switch (state.data) {
+    final data? => TodoList(data), // a List<Todo>
+    null => const CircularProgressIndicator(),
+  },
+)
+```
+
+サーバーデータにキャッシュが必要な理由は、[Flutter のサーバー状態](server-state/)で説明しています。[ミューテーション](guides/mutations/)はサーバーデータを作成、更新、削除します。楽観的更新も使えます。
+
+## Fuery を選ぶ理由
+
+<CardGrid>
+	<Card title="Flutter の流儀で設計" icon="puzzle">
+		クエリを表示する画面は `StatelessWidget` のままです。クエリは `build` の外で定義します。ウィジェットは、`StreamBuilder` がストリームを描画するのと同じようにクエリを描画します。UI はビルダーが、副作用はリスナーが受け持ちます。何も置き換えずに、1 画面ずつ Fuery を導入できます。フックを使う場合は、独立したパッケージの <a href="guides/hooks/">fuery_hooks</a> が `useQuery` で同じクエリを描画します。
+	</Card>
+	<Card title="Dart と Flutter 以外に依存しない" icon="code-branch">
+		コード生成も、ネイティブコードも、プラットフォームごとの設定も不要です。コアは純粋な Dart で、依存するのは Dart チームの `clock`、`collection`、`meta` だけです。ウィジェット、Cubit、Bloc、サービス、CLI、サーバーが同じクエリオブジェクトを使います。
+	</Card>
+	<Card title="キャッシュされ、新鮮に保たれる" icon="database">
+		キーが同じウィジェットはすべて、<a href="how-the-cache-works/">同じキャッシュエントリとリクエスト</a>を共有します。Fuery がバックグラウンドで再取得している間も、古いデータは画面に表示されたままです。再取得で返った項目が `==` で等しい場合、Fuery は以前のオブジェクトを保持します。そのため、その項目を表示するリストの行はリビルドされません。
+	</Card>
+	<Card title="関数から決まる型" icon="approve-check">
+		クエリ、ミューテーション、無限クエリは、それぞれの関数から型を受け取ります。ウィジェット、結果、コールバックは、型引数なしでその型を引き継ぎます。型を明示するのは 2 つの場合です。`getQueryData<List<Todo>>(['todos'])` のようにキーだけで読み書きする場合と、<a href="guides/infinite-queries/#カーソルベースのページ">最初のページパラメーターが `null` の無限クエリ</a>です。
+	</Card>
+	<Card title="現実のネットワークに対応" icon="rocket">
+		画面に表示中のクエリは、失敗した取得をバックオフ付きで 3 回再試行します。アプリが再開すると再取得もします。<a href="guides/lifecycle/#ネットワークに再接続したとき">接続状態のソース</a>を設定すると、デバイスがオフラインの間は一時停止し、再接続すると再取得します。クエリを使うものがなくなると、Fuery は `context.signal` を読むクエリ関数をキャンセルします。このキャンセルはエラーとして報告しません。クエリは、条件が満たされるまでポーリングすることも、ストリームを畳み込んでキャッシュに入れることもできます。
+	</Card>
+	<Card title="永続化と中身の確認" icon="magnifier">
+		<a href="guides/persistence/">永続化したクエリ</a>は、アプリを再起動しても残ります。ストレージには任意のキーバリューストアを使えます。<a href="guides/devtools/">devtools</a> は、デバイスで実行中のアプリの中にキャッシュを表示します。
+	</Card>
+</CardGrid>
+
+<p style="margin-top: 3rem;">
+	<strong>テスト済み</strong>：すべてのパッケージが行カバレッジ 100% で、カバーされない行が出ると CI が失敗します。テストは、サポートする最も古い Flutter（3.27）と最新版で実行します。コアのテストはフェイクの時間で実行します。回帰テストスイートが、修正済みのエッジケースが再発しないようにしています。Fuery は破棄の過程ですべてのタイマーをキャンセルし、時刻を <code>package:clock</code> から読み取ります。そのため、独自の <code>fake_async</code> テストやウィジェットテストでも、タイマーがリークしません。<a href="guides/testing/">テスト</a>を参照してください。
+</p>
+
+<p style="font-size: var(--sl-text-sm); color: var(--sl-color-gray-3);">
+	Fuery のキャッシュと再取得のモデルは、<a href="https://tanstack.com/query">TanStack Query</a> から着想を得ています。TanStack Query の各概念に対応する Fuery の名前は、<a href="coming-from-tanstack-query/">TanStack Query を使ってきた方へ</a>で紹介しています。
+</p>

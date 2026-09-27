@@ -1,6 +1,6 @@
 ---
 title: Query results
-description: "What builders, hooks, and streams receive for a query: status, data, errors, fetch flags, and the pages of an infinite query."
+description: "What Fuery's widgets, hooks, and streams receive for a query in Flutter: status, data, errors, fetch flags, and the pages of an infinite query."
 ---
 
 Every query widget, `useQuery`, and observer stream receives a `QueryResult`. An infinite query reports an `InfiniteQueryResult`, which adds the pages and the page actions. Which field to read depends on the question:

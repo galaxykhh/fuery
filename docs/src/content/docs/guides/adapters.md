@@ -1,6 +1,6 @@
 ---
 title: Building an adapter
-description: "Render Fuery queries and mutations in your own widgets or another state library, with the slots of fuery_core."
+description: Render Fuery queries and mutations in your own Flutter widgets or another state library, with the slots of fuery_core, as fuery and fuery_hooks do.
 ---
 
 An adapter renders Fuery's queries and mutations in your own widgets or another state library, with only the public API of `fuery_core`. The widgets of `fuery` and the hooks of [`fuery_hooks`](../hooks/) are adapters built this way, so yours can do everything they do.

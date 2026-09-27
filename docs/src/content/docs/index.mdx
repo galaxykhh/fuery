@@ -1,6 +1,6 @@
 ---
 title: Server state for Flutter
-description: Fetch, cache, and keep server data fresh in Flutter.
+description: Fuery fetches, caches, and refetches server data in Flutter. Queries, mutations, infinite scrolling, offline persistence, and devtools, with no code generation.
 template: splash
 hero:
   title: Fuery
@@ -41,6 +41,10 @@ QueryBuilder(
 )
 ```
 
+[Server state in Flutter](server-state/) explains why server data needs a cache.
+[Mutations](guides/mutations/) create, update, and delete it, with optimistic
+updates.
+
 ## Why Fuery
 
 <CardGrid>
@@ -59,7 +63,8 @@ QueryBuilder(
 		object.
 	</Card>
 	<Card title="Cached and fresh" icon="database">
-		Every widget that uses a key shares one cache entry and one request. Stale
+		Every widget that uses a key shares
+		<a href="how-the-cache-works/">one cache entry and one request</a>. Stale
 		data stays on screen while Fuery refetches it in the background. A refetch
 		that returns equal items, by `==`, keeps the previous objects, so those
 		list rows don't rebuild.
@@ -83,8 +88,9 @@ QueryBuilder(
 		cache.
 	</Card>
 	<Card title="Persisted and inspectable" icon="magnifier">
-		Queries you persist survive app restarts, with any key-value storage. The
-		devtools show the cache inside the running app, on a device.
+		<a href="guides/persistence/">Queries you persist</a> survive app restarts,
+		with any key-value storage. The <a href="guides/devtools/">devtools</a> show
+		the cache inside the running app, on a device.
 	</Card>
 </CardGrid>
 
@@ -99,4 +105,5 @@ QueryBuilder(
 
 <p style="font-size: var(--sl-text-sm); color: var(--sl-color-gray-3);">
 	Fuery's caching and refetching model is inspired by <a href="https://tanstack.com/query">TanStack Query</a>.
+	<a href="coming-from-tanstack-query/">Coming from TanStack Query</a> gives the Fuery name for each of its concepts.
 </p>

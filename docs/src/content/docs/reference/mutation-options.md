@@ -1,6 +1,6 @@
 ---
 title: Mutation options
-description: Every option of Mutation and NoVariablesMutation, with its type and default, the methods that run it, and the callbacks of one mutate call.
+description: Every option of Mutation and NoVariablesMutation in Fuery for Flutter, with its type and default, the methods that run it, and the callbacks of one mutate call.
 ---
 
 Every option of `Mutation` and `NoVariablesMutation`, with its type and default, the methods that run the mutation, plus `MutateOptions` and `MutationPersist`. To set `gcTime`, `retry`, `retryDelay`, `networkMode`, or `meta` for every mutation, or for the mutations under a key, use `MutationDefaults` ([Defaults](../query-client/#defaults)). [Mutations](../../guides/mutations/) shows the options in use.

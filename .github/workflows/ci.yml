@@ -54,6 +54,10 @@ jobs:
       # when some paths change, and misses READMEs and fuery_hooks.
       - if: matrix.version == ''
         run: python3 tool/check_doc_links.py
+      # Every English docs page has a Korean, Japanese, and Simplified Chinese
+      # translation made from its current text. docs/AGENTS.md has the rules.
+      - if: matrix.version == ''
+        run: python3 tool/check_translations.py
       # Formatting can differ between Dart versions; check it on the latest.
       - if: matrix.version == ''
         run: dart format --output=none --set-exit-if-changed packages

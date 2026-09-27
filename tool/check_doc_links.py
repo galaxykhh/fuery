@@ -5,9 +5,11 @@ Usage: python3 tool/check_doc_links.py
 
 Reads the debug warnings in packages/*/lib, the READMEs, and the pubspecs,
 and finds each link to https://galaxykhh.github.io/fuery/. A link must name
-a page in docs/src/content/docs, and its #anchor must be a heading on that
-page. A released package keeps printing its links until the next release, so
-renaming a page or a heading must not break one.
+an English page in docs/src/content/docs, and its #anchor must be a heading on
+that page. A released package keeps printing its links until the next release,
+so renaming a page or a heading must not break one. A link into a translation's
+folder (ko/, ja/, zh-cn/, as docs/i18n/locales.json lists them) fails: the
+packages are in English, and a translation's anchors change with its headings.
 
 A warning may split its link across adjacent string literals, or build it
 from a top-level const string of the same file, as in '$_page#heading'. The
@@ -18,12 +20,14 @@ the warnings' links from it fails instead of passing.
 The site root and the web demo (demo/, built only in CI) aren't checked.
 """
 
+import json
 import re
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs" / "src" / "content" / "docs"
+LOCALES = ROOT / "docs" / "i18n" / "locales.json"
 
 LINK = re.compile(r"https?://galaxykhh\.github\.io/fuery/[^\s'\"<>()\[\]`]*")
 # Adjacent string literals, which Dart joins into one: 'https://...'
@@ -107,8 +111,14 @@ def find_page(path: str) -> Path | None:
     return None
 
 
+def translations() -> set[str]:
+    """The folders of docs/src/content/docs that hold a translation."""
+    return {key for key in json.loads(LOCALES.read_text(encoding="utf-8")) if key != "root"}
+
+
 def check(root: Path) -> list[str]:
     problems = []
+    languages = translations()
     # Links with an #anchor in the Dart sources, all of which are in lib/.
     anchored_in_lib = 0
     for source in sources(root):
@@ -128,6 +138,9 @@ def check(root: Path) -> list[str]:
                 continue
             if "." in path.rsplit("/", 1)[-1]:
                 continue  # a file, such as an image, not a page
+            if path.split("/", 1)[0] in languages:
+                problems.append(f"{where}: {link}: links a translation; link the English page")
+                continue
             page = find_page(path)
             if page is None:
                 problems.append(f"{where}: {link}: no page docs/src/content/docs/{path}.md")

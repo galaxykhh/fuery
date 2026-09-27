@@ -1,0 +1,110 @@
+---
+title: Flutter용 서버 상태
+description: Fuery는 Flutter에서 서버 데이터를 가져오고, 캐시하고, 다시 가져와요. 코드 생성 없이 사용하는 쿼리, 뮤테이션, 무한 스크롤, 오프라인 저장, 개발자 도구.
+sourceHash: 5313571a1cb6
+template: splash
+hero:
+  title: Fuery
+  tagline: Flutter에서 서버 데이터를 가져오고, 캐시하고, <strong>fresh</strong> 상태로 유지해요.
+  image:
+    alt: 둥근 타일 세 개가 F 모양을 이루는 Fuery 로고
+    light: ../../../assets/mark.svg
+    dark: ../../../assets/mark-dark.svg
+  actions:
+    - text: 시작하기
+      link: getting-started/
+      icon: right-arrow
+    - text: 데모 사용해보기
+      link: /fuery/demo/
+      icon: laptop
+      variant: secondary
+    - text: GitHub에서 보기
+      link: https://github.com/galaxykhh/fuery
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+```dart
+// A Query<List<Todo>>, with no type arguments.
+final todos = Query(
+  queryKey: ['todos'],
+  queryFn: (_) => api.getTodos(),
+);
+
+QueryBuilder(
+  query: todos,
+  builder: (context, state) => switch (state.data) {
+    final data? => TodoList(data), // a List<Todo>
+    null => const CircularProgressIndicator(),
+  },
+)
+```
+
+서버 데이터에 캐시가 필요한 이유는 [Flutter의 서버 상태](server-state/)에 있어요.
+[뮤테이션](guides/mutations/)은 서버 데이터를 만들고, 업데이트하고, 삭제해요.
+낙관적 업데이트도 할 수 있어요.
+
+## Fuery를 쓰는 이유
+
+<CardGrid>
+	<Card title="Flutter 방식 그대로" icon="puzzle">
+		쿼리를 보여주는 화면은 `StatelessWidget` 그대로예요. 쿼리는 `build` 밖에서
+		정의해요. 위젯은 `StreamBuilder`가 스트림을 렌더링하듯 쿼리를 렌더링해요. UI는
+		빌더가, 사이드 이펙트는 리스너가 맡아요. 기존 코드를 걷어내지 않고 화면 하나씩
+		Fuery를 적용하세요. 훅을 사용한다면 별도 패키지인
+		<a href="guides/hooks/">fuery_hooks</a>가 같은 쿼리를 `useQuery`로
+		렌더링해요.
+	</Card>
+	<Card title="Dart와 Flutter만 있으면 돼요" icon="code-branch">
+		코드 생성도, 네이티브 코드도, 플랫폼 설정도 없어요. 코어는 순수 Dart이고, Dart
+		팀의 `clock`, `collection`, `meta`에만 의존해요. 위젯, Cubit, Bloc, 서비스,
+		CLI(Command-Line Interface), 서버가 모두 같은 쿼리 객체를 사용해요.
+	</Card>
+	<Card title="캐시하고, fresh 상태로 유지해요" icon="database">
+		같은 키를 사용하는 위젯은 모두
+		<a href="how-the-cache-works/">캐시 항목 하나와 요청 하나</a>를 공유해요.
+		Fuery가 백그라운드에서 다시 가져오는 동안 stale 데이터는 화면에 그대로 있어요.
+		Fuery는 다시 가져온 항목을 `==`로 비교해요. 이전 항목과 같으면 이전 객체를
+		유지해요. 그래서 그 목록 행은 다시 빌드되지 않아요.
+	</Card>
+	<Card title="타입은 함수가 정해요" icon="approve-check">
+		쿼리, 뮤테이션, 무한 쿼리는 함수에서 타입을 얻어요. 타입 인수를 적지 않아도
+		위젯, 결과, 콜백까지 그 타입이 이어져요. 타입을 직접 적는 경우는 두 가지예요.
+		`getQueryData<List<Todo>>(['todos'])`처럼 키만으로 읽거나 쓸 때, 그리고
+		<a href="guides/infinite-queries/#커서-기반-페이지">첫 페이지 파라미터가
+		`null`인 무한 쿼리</a>예요.
+	</Card>
+	<Card title="실제 네트워크에 맞춰 만들었어요" icon="rocket">
+		화면에 있는 쿼리는 가져오다가 실패하면 간격을 늘려가며 3번 재시도해요. 앱이
+		포그라운드로 돌아오면 다시 가져와요.
+		<a href="guides/lifecycle/#네트워크가-다시-연결될-때">연결 상태 소스</a>가
+		있으면 기기가 오프라인인 동안 멈췄다가, 네트워크가 다시 연결되면 다시 가져와요.
+		쿼리를 사용하는 곳이 없어지면 Fuery가 `context.signal`을 읽는 쿼리 함수를
+		취소해요. 이 취소는 에러로 알리지 않아요. 쿼리는 조건을 만족할 때까지
+		폴링하거나, 스트림을 캐시에 쌓을 수도 있어요.
+	</Card>
+	<Card title="기기에 저장하고, 살펴볼 수 있어요" icon="magnifier">
+		<a href="guides/persistence/">기기에 저장하는 쿼리</a>는 앱을 다시 시작해도
+		남아 있어요. 키-값 스토리지라면 무엇이든 사용할 수 있어요.
+		<a href="guides/devtools/">개발자 도구</a>는 기기에서 실행 중인 앱 안에서 캐시를
+		보여줘요.
+	</Card>
+</CardGrid>
+
+<p style="margin-top: 3rem;">
+	<strong>테스트를 거쳤어요.</strong> 모든 패키지의 라인 커버리지가 100%예요.
+	커버리지에서 빠지는 라인이 생기면 CI(Continuous Integration)가 실패해요. 테스트는
+	지원하는 가장 낮은 Flutter 버전(3.27)과 최신 버전에서 모두 실행해요. 코어의
+	테스트는 가짜 시간으로 실행해요. 회귀 테스트가 고친 엣지 케이스를 계속 지켜요.
+	Fuery는 객체를 없애는 과정에서 타이머를 모두 취소하고, 시간을
+	<code>package:clock</code>에서 읽어요. 그래서 직접 작성한 <code>fake_async</code>
+	테스트와 위젯 테스트에 타이머가 남지 않아요. <a href="guides/testing/">테스트</a>를
+	참고하세요.
+</p>
+
+<p style="font-size: var(--sl-text-sm); color: var(--sl-color-gray-3);">
+	Fuery의 캐싱과 다시 가져오기 모델은 <a href="https://tanstack.com/query">TanStack Query</a>에서 영감을 받았어요.
+	<a href="coming-from-tanstack-query/">TanStack Query에서 넘어왔다면</a> 페이지는 TanStack Query의 개념마다 Fuery에서 부르는 이름을 알려줘요.
+</p>

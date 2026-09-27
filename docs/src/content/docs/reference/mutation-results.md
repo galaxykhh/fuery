@@ -1,6 +1,6 @@
 ---
 title: Mutation results
-description: The fields of MutationResult and MutationState, and the methods that run a mutation from a result.
+description: The fields of MutationResult and MutationState in Fuery for Flutter, which widgets and hooks report each, and the methods that run a mutation from a result.
 ---
 
 Widgets, hooks, slots, and observers report a mutation's progress as one of two types:

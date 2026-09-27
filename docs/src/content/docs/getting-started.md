@@ -119,6 +119,7 @@ The last two lines unmount the screen and empty the cache, so no garbage collect
 
 ## Next steps
 
+- [Coming from TanStack Query](../coming-from-tanstack-query/): the Fuery name for each TanStack Query concept.
 - [Server state in Flutter](../server-state/): why server data needs a cache.
 - [How the cache works](../how-the-cache-works/): definitions, observers, and the lifecycle of cached data.
 - [Queries](../guides/queries/): keys, freshness, and queries that depend on each other.

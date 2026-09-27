@@ -1,6 +1,9 @@
 ---
 title: Infinite queries
 description: Paginated and infinite scrolling lists in Flutter, with cached pages.
+head:
+  - tag: title
+    content: Infinite scroll and pagination in Flutter | Fuery
 ---
 
 An infinite query holds a list of pages under one key and loads the next page on

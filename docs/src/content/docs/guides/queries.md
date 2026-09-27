@@ -1,6 +1,9 @@
 ---
 title: Queries
 description: "Fetch and cache server data in Flutter: query keys, freshness, retries, dependent queries, polling, and cancellation."
+head:
+  - tag: title
+    content: Fetching and caching API data in Flutter | Fuery
 ---
 
 A query describes one piece of server data: the key it is cached under and the function that fetches it. Every widget that shows the same key shares one cache entry and one request, so you never pass the data down the tree.
