@@ -39,6 +39,7 @@ export default defineConfig({
 			},
 			sidebar: [
 				{ label: 'Getting started', slug: 'getting-started' },
+				{ label: 'Coming from TanStack Query', slug: 'coming-from-tanstack-query' },
 				{
 					label: 'Concepts',
 					items: ['server-state', 'how-the-cache-works'],
