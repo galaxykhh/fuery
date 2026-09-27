@@ -6,11 +6,27 @@
 
 # Fuery Core
 
-Server state caching for Dart: queries, infinite queries, and mutations. Observers of one key share one request and keep the cached data while Fuery refetches it. Retries and pagination are built in.
+Server state caching for Dart: queries, infinite queries, and mutations. Observers of one key share one request and keep the cached data while Fuery refetches it. Retries, pagination, and persistence are built in. Queries and mutations pause while offline and resume on reconnect.
 
-This is the pure Dart core. **For Flutter apps, use [`fuery`](https://pub.dev/packages/fuery)**, which re-exports this package and adds widgets. Use `fuery_core` directly in Dart servers, CLIs, and packages that shouldn't depend on Flutter. It depends only on the Dart team's `clock`, `collection`, and `meta`, and needs no code generation.
+This is the pure Dart core. **For Flutter apps, use [`fuery`](https://pub.dev/packages/fuery)**, which re-exports this package and adds widgets and devtools. Use `fuery_core` directly in Dart servers, CLIs, and packages that shouldn't depend on Flutter. It depends only on the Dart team's `clock`, `collection`, and `meta`, and needs no code generation.
+
+Fuery's caching and refetching model is inspired by [TanStack Query](https://tanstack.com/query).
 
 **[Read the documentation →](https://galaxykhh.github.io/fuery/)**
+
+## Learn more
+
+- [How the cache works](https://galaxykhh.github.io/fuery/how-the-cache-works/): when data is shared, refetched, and removed.
+- [Queries](https://galaxykhh.github.io/fuery/guides/queries/): keys, stale time, polling, and cancelling a request.
+- [Mutations](https://galaxykhh.github.io/fuery/guides/mutations/): changing server data, optimistic updates, and rollback.
+- [Infinite queries](https://galaxykhh.github.io/fuery/guides/infinite-queries/): paginated lists, cursors, and previous pages.
+- [Streamed queries](https://galaxykhh.github.io/fuery/guides/streaming/): a `Stream` folded into the cache as it arrives.
+- [Persistence](https://galaxykhh.github.io/fuery/guides/persistence/): queries and mutations kept across restarts.
+- [Setting up the client](https://galaxykhh.github.io/fuery/guides/client-setup/): defaults, error reporting, and which client a query uses.
+- [Reading and updating the cache](https://galaxykhh.github.io/fuery/guides/query-client/): reading, writing, invalidating, and watching cached data.
+- [Testing](https://galaxykhh.github.io/fuery/guides/testing/#testing-without-a-widget-tree): queries tested without a widget tree, with fake time.
+
+Reference: [Query options](https://galaxykhh.github.io/fuery/reference/query-options/), [Query results](https://galaxykhh.github.io/fuery/reference/query-results/), [Mutation options](https://galaxykhh.github.io/fuery/reference/mutation-options/), [Mutation results](https://galaxykhh.github.io/fuery/reference/mutation-results/), and [QueryClient](https://galaxykhh.github.io/fuery/reference/query-client/).
 
 ## Install
 
@@ -91,21 +107,3 @@ A Dart process stays alive while cached queries keep their garbage collection ti
 ## Building an adapter for another framework
 
 An adapter, for example for another state library, keeps one slot per rendered source: a `QuerySlot`, `InfiniteQuerySlot`, `MutationSlot`, `QueriesSlot` for a list of queries, or `MutationStateSlot` for every run of a mutation. On every render, call the slot's `update(source, client)` and render its `result`. Call `subscribe` to render again after each change, and `dispose` when the component goes away. The widgets in `fuery` and the hooks in `fuery_hooks` are built this way, with this package's public API alone. See [Building an adapter](https://galaxykhh.github.io/fuery/guides/adapters/) for batching and side effects.
-
-## Learn more
-
-- [How the cache works](https://galaxykhh.github.io/fuery/how-the-cache-works/): when data is shared, refetched, and removed.
-- [Queries](https://galaxykhh.github.io/fuery/guides/queries/): keys, stale time, polling, and cancelling a request.
-- [Mutations](https://galaxykhh.github.io/fuery/guides/mutations/): changing server data, optimistic updates, and rollback.
-- [Infinite queries](https://galaxykhh.github.io/fuery/guides/infinite-queries/): paginated lists, cursors, and previous pages.
-- [Streamed queries](https://galaxykhh.github.io/fuery/guides/streaming/): a `Stream` folded into the cache as it arrives.
-- [Persistence](https://galaxykhh.github.io/fuery/guides/persistence/): queries and mutations kept across restarts.
-- [Setting up the client](https://galaxykhh.github.io/fuery/guides/client-setup/): defaults, error reporting, and which client a query uses.
-- [Reading and updating the cache](https://galaxykhh.github.io/fuery/guides/query-client/): reading, writing, invalidating, and watching cached data.
-- [Testing](https://galaxykhh.github.io/fuery/guides/testing/#testing-without-a-widget-tree): queries tested without a widget tree, with fake time.
-
-Reference: [Query options](https://galaxykhh.github.io/fuery/reference/query-options/), [Query results](https://galaxykhh.github.io/fuery/reference/query-results/), [Mutation options](https://galaxykhh.github.io/fuery/reference/mutation-options/), [Mutation results](https://galaxykhh.github.io/fuery/reference/mutation-results/), and [QueryClient](https://galaxykhh.github.io/fuery/reference/query-client/).
-
-## Acknowledgements
-
-Fuery's caching and refetching model is inspired by [TanStack Query](https://tanstack.com/query).

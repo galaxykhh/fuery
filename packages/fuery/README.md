@@ -6,7 +6,7 @@
 
 Fetch, cache, and keep server data fresh in Flutter.
 
-Screens that use the same key share one request, and cached data stays on screen while Fuery refetches it. Retries, pagination, optimistic updates, and persistence are built in.
+Screens that use the same key share one request, and cached data stays on screen while Fuery refetches it. Retries, pagination, optimistic updates, persistence, and devtools are built in. With a [connectivity source](https://galaxykhh.github.io/fuery/guides/lifecycle/#when-the-network-reconnects), queries and mutations pause while the device is offline and resume when it reconnects.
 
 **[Read the documentation →](https://galaxykhh.github.io/fuery/)** · **[Try the demo →](https://galaxykhh.github.io/fuery/demo/)**
 
@@ -18,6 +18,27 @@ Screens that use the same key share one request, and cached data stays on screen
 - **Stale data refreshes in the background.** The cached data stays on screen while Fuery refetches it, when another screen starts using it or the app returns to the foreground.
 - **Works with bloc and your services.** The core is pure Dart, so cubits, blocs, and services observe the same queries as a `Stream`.
 - **Hooks in a package of their own.** [`fuery_hooks`](https://pub.dev/packages/fuery_hooks) renders the same queries with `useQuery`, so only apps that choose `flutter_hooks` depend on it.
+
+Fuery's caching and refetching model is inspired by [TanStack Query](https://tanstack.com/query).
+
+## Learn more
+
+- [How the cache works](https://galaxykhh.github.io/fuery/how-the-cache-works/): when data is shared, refetched, and removed.
+- [Queries](https://galaxykhh.github.io/fuery/guides/queries/): keys, stale time, polling, and cancelling a request.
+- [Widgets](https://galaxykhh.github.io/fuery/guides/widgets/): builders, listeners, consumers, selectors, and pull to refresh.
+- [Mutations](https://galaxykhh.github.io/fuery/guides/mutations/): changing server data, optimistic updates, and rollback.
+- [Infinite queries](https://galaxykhh.github.io/fuery/guides/infinite-queries/): paginated lists, cursors, and previous pages.
+- [Streamed queries](https://galaxykhh.github.io/fuery/guides/streaming/): a `Stream` folded into the cache as it arrives.
+- [Persistence](https://galaxykhh.github.io/fuery/guides/persistence/): queries and mutations kept across app restarts.
+- [Setting up the client](https://galaxykhh.github.io/fuery/guides/client-setup/): defaults, error reporting, and a client for a subtree.
+- [Reading and updating the cache](https://galaxykhh.github.io/fuery/guides/query-client/): invalidating, watching, and fetching outside widgets.
+- [Refetching and going offline](https://galaxykhh.github.io/fuery/guides/lifecycle/): on resume and reconnect, and pausing while offline.
+- [Bloc and cubits](https://galaxykhh.github.io/fuery/guides/bloc/): queries and mutations in cubits and blocs.
+- [Testing](https://galaxykhh.github.io/fuery/guides/testing/): widget, cubit, and Dart tests with a fresh client.
+- [Devtools](https://galaxykhh.github.io/fuery/guides/devtools/): every query and mutation, inspected in the running app.
+- [Hooks](https://galaxykhh.github.io/fuery/guides/hooks/): `useQuery`, `useMutation`, and the other hooks of `fuery_hooks`.
+
+Reference: [Query options](https://galaxykhh.github.io/fuery/reference/query-options/), [Query results](https://galaxykhh.github.io/fuery/reference/query-results/), [Mutation options](https://galaxykhh.github.io/fuery/reference/mutation-options/), [Mutation results](https://galaxykhh.github.io/fuery/reference/mutation-results/), and [QueryClient](https://galaxykhh.github.io/fuery/reference/query-client/).
 
 ## Install
 
@@ -145,26 +166,3 @@ class TodoCubit extends Cubit<TodoState> {
 ```
 
 An app that uses no Fuery widgets calls `FueryBinding.ensureInitialized()` once, so queries refetch when the app resumes.
-
-## Learn more
-
-- [How the cache works](https://galaxykhh.github.io/fuery/how-the-cache-works/): when data is shared, refetched, and removed.
-- [Queries](https://galaxykhh.github.io/fuery/guides/queries/): keys, stale time, polling, and cancelling a request.
-- [Widgets](https://galaxykhh.github.io/fuery/guides/widgets/): builders, listeners, consumers, selectors, and pull to refresh.
-- [Mutations](https://galaxykhh.github.io/fuery/guides/mutations/): changing server data, optimistic updates, and rollback.
-- [Infinite queries](https://galaxykhh.github.io/fuery/guides/infinite-queries/): paginated lists, cursors, and previous pages.
-- [Streamed queries](https://galaxykhh.github.io/fuery/guides/streaming/): a `Stream` folded into the cache as it arrives.
-- [Persistence](https://galaxykhh.github.io/fuery/guides/persistence/): queries and mutations kept across app restarts.
-- [Setting up the client](https://galaxykhh.github.io/fuery/guides/client-setup/): defaults, error reporting, and a client for a subtree.
-- [Reading and updating the cache](https://galaxykhh.github.io/fuery/guides/query-client/): invalidating, watching, and fetching outside widgets.
-- [Refetching and going offline](https://galaxykhh.github.io/fuery/guides/lifecycle/): on resume and reconnect, and pausing while offline.
-- [Bloc and cubits](https://galaxykhh.github.io/fuery/guides/bloc/): queries and mutations in cubits and blocs.
-- [Testing](https://galaxykhh.github.io/fuery/guides/testing/): widget, cubit, and Dart tests with a fresh client.
-- [Devtools](https://galaxykhh.github.io/fuery/guides/devtools/): every query and mutation, inspected in the running app.
-- [Hooks](https://galaxykhh.github.io/fuery/guides/hooks/): `useQuery`, `useMutation`, and the other hooks of `fuery_hooks`.
-
-Reference: [Query options](https://galaxykhh.github.io/fuery/reference/query-options/), [Query results](https://galaxykhh.github.io/fuery/reference/query-results/), [Mutation options](https://galaxykhh.github.io/fuery/reference/mutation-options/), [Mutation results](https://galaxykhh.github.io/fuery/reference/mutation-results/), and [QueryClient](https://galaxykhh.github.io/fuery/reference/query-client/).
-
-## Acknowledgements
-
-Fuery's caching and refetching model is inspired by [TanStack Query](https://tanstack.com/query).
