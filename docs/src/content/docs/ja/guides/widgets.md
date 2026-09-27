@@ -26,7 +26,7 @@ QueryBuilder(
 - マウントすると購読します。クエリはデータがなければ取得し、デフォルトではデータが古い場合も取得します。`enabled: false` のクエリは、マウント時に取得しません。アンマウントすると購読を解除します。
 - 別のキーの定義でウィジェットがリビルドされると、オブザーバーもそのキーに切り替わります。新しいキーのキャッシュされたデータは、同じフレームで表示されます。
 - オブザーバーは、最も近い `FueryProvider` のクライアントを使います。`FueryProvider` がなければ `Fuery.client` を使います。
-- 結果には操作が含まれます。`state.refetch()`、無限クエリの `state.fetchNextPage()` と `state.fetchPreviousPage()`、ミューテーションの `state.mutate(...)`、`state.mutateAsync(...)`、`state.reset()` です。
+- 結果にはアクションが含まれます。`state.refetch()`、無限クエリの `state.fetchNextPage()` と `state.fetchPreviousPage()`、ミューテーションの `state.mutate(...)`、`state.mutateAsync(...)`、`state.reset()` です。
 
 `MutationBuilder` は、自身が開始した実行だけを表示します。MutationState ウィジェットは、`mutationKey` で見つけたミューテーションの実行を、どこで開始されたものでも表示します。[ミューテーションのすべての実行を表示する](../mutations/#ミューテーションのすべての実行を表示する)を参照してください。`addTodo.mutate('Buy milk', context.queryClient)` のように定義からミューテーションを実行するボタンには、`MutationBuilder` は必要ありません。[ミューテーションを実行する](../mutations/#ミューテーションを実行する)を参照してください。
 
@@ -133,7 +133,7 @@ RefreshIndicator(
 )
 ```
 
-- [`invalidateQueries`](../query-client/#無効化する) は、`['todos']` 以下のすべてのクエリを古い状態にします。そのうえで、マウントされたウィジェットなど、オブザーバーがあるクエリを再取得します。
+- [`invalidateQueries`](../query-client/#無効化する) は、`['todos']` の配下にあるすべてのクエリを古い状態にします。そのうえで、マウントされたウィジェットなど、オブザーバーがあるクエリを再取得します。
 - `refetchQueries` は、何も古い状態にせずに再取得します。`type` のデフォルトは `QueryTypeFilter.all` で、オブザーバーのないキャッシュエントリも再取得します。オブザーバーがあるキャッシュエントリだけを再取得するには、`type: QueryTypeFilter.active` を渡してください。
 - どちらも、一致するすべての取得が完了した時点で完了し、`throwOnError: true` のときだけスローします。どちらも、デバイスがオフラインの間に一時停止した取得は待ちません。そのため、インジケーターが止まったままになることはありません。
 
@@ -166,7 +166,7 @@ QueryBuilder(
 ```
 
 - `state.isFetching` の間は、ボタンを無効にしてください。そうすれば、実行中の取得にタップが重なりません。
-- データの分岐を最初にマッチさせてください。再取得が失敗してもデータは残るので、リストは画面に表示されたままで、`isRefetchError` は true です。その失敗は、画面を置き換えずに、`QueryListener` とスナックバーで知らせてください。
+- データの分岐を先頭に置いてください。再取得が失敗してもデータは残るので、リストは画面に表示されたままで、`isRefetchError` は true です。その失敗は、画面を置き換えずに、`QueryListener` とスナックバーで知らせてください。
 - デフォルトでは、エラーの分岐がビルドされる前に、クエリは 1 秒、2 秒、4 秒と待ちながら 3 回再試行します。[再試行するエラーを選ぶ](../queries/#再試行するエラーを選ぶ)で、再試行するエラーを絞り込めます。
 
 ## 複数のクエリをまとめて表示する

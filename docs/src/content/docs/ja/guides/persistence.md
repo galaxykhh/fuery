@@ -1,10 +1,10 @@
 ---
 title: 永続化
 description: 任意のキーバリューストレージを使って、Flutter アプリを再起動してもキャッシュしたサーバーデータを保持します。
+sourceHash: 8e8642971351
 head:
   - tag: title
     content: Flutter でのオフラインキャッシュの永続化 | Fuery
-sourceHash: 8e8642971351
 ---
 
 クエリのデータと保留中のミューテーションをデバイスに保存すると、アプリを再起動しても残ります。
@@ -42,7 +42,7 @@ class PreferencesStorage implements QueryStorage {
 
 Fuery が書き込むキーは、すべて定数 `persistKeyPrefix` で始まります。上の例のように、`readAll` をこのプレフィックスで絞り込んでください。そうすると、`readAll` はストアから Fuery が書き込んだものだけを返します。
 
-ストレージをクライアントに渡します。
+ストレージをクライアントに渡してください。
 
 ```dart
 Future<void> main() async {
@@ -76,7 +76,7 @@ final todosQuery = Query(
 
 - **変換**：`toJson` からは、`jsonEncode` が受け付ける値を返してください。エンコードできない場合、Fuery はデータを保存せず、エラーも報告しません。`fromJson` は `jsonDecode` が生成した値を受け取るので、`fromJson` の中で 1 回だけキャストしてください。上の `Todo.fromJson` は `Object?` を受け取ります。生成された `Todo.fromJson(Map<String, dynamic> json)` を使う場合は、`Todo.fromJson(item as Map<String, dynamic>)` と書いてください。
 - **復元**：クエリが初めて使われたとき、Fuery は保存されたデータを取得時刻とともに復元します。その後、クエリが再取得するかどうかは `staleTime` で決まります。そのため、新鮮（fresh）なデータを再び取得することはありません。復元にネットワークは不要です。
-- **保存**：データが変わり、取得が実行中でなければ、Fuery はそのたびにデータを保存します。`setData` による変更も含みます。`client.setData(todosQuery, todos)` は、何もクエリを使っていなくても保存します。`setData` が作成するクエリが、定義の `persist` を受け継ぐからです。[ストリーミングクエリ](../streaming/)は、ストリームが終わった時点で Fuery が保存します。
+- **保存**：データが変わり、取得が実行中でなければ、Fuery はそのたびにデータを保存します。`setData` による変更も含みます。`client.setData(todosQuery, todos)` は、まだ何もそのクエリを使っていなくても保存します。`setData` が作成するクエリが、定義の `persist` を受け継ぐからです。[ストリーミングクエリ](../streaming/)は、ストリームが終わった時点で Fuery が保存します。
 - **enum を含むキー**：Fuery は、キーの中の enum を型なしで名前だけで保存します。難読化や minify をしたビルドでは、アプリのアップデートで型の名前が変わることがあります。名前だけなら、その場合も一致します。そのため、同じ名前の enum の型だけが違うキーを持つ 2 つの永続化クエリは、同じ保存先を共有します。`['todos', Filter.done]` と `['todos', Status.done]` は、互いのデータを上書きします。`['todos', 'filter', Filter.done]` のように、区別するための文字列を追加してください。
 
 ## 無限クエリを永続化する
@@ -97,7 +97,7 @@ final posts = InfiniteQuery(
 );
 ```
 
-Fuery は、読み込んだすべてのページを 1 つのキーにまとめて保存し、ページを読み込むたびに書き直します。長いフィードの保存データが大きくなりすぎないように、`maxPages` を設定してください。
+Fuery は、読み込んだすべてのページを 1 件のデータにまとめて保存し、ページを読み込むたびに書き直します。長いフィードの保存データが大きくなりすぎないように、`maxPages` を設定してください。
 
 Fuery はページパラメーターをそのまま保存します。そのため、ページパラメーターは数値、文字列、`null` などの JSON の値でなければなりません。それ以外のパラメーターには、`paramToJson` と `paramFromJson` を追加してください。`paramToJson` は各パラメーターを `Object?` として受け取るので、`paramToJson: (date) => (date! as DateTime).toIso8601String()` のようにキャストしてください。
 

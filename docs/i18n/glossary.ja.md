@@ -102,6 +102,7 @@ Use the same Japanese term on every page. Where a note says "first use", write t
 | page, page param | ページ, ページパラメーター | `pageParam` |
 | cursor | カーソル | |
 | item (of a list or page) | 項目 | |
+| id (in prose) | ID | 「ID ごとのクエリ」. The variable `id` stays code. |
 | todo (the example data) | Todo | 「Todo のリスト」, 「タイトルが「Buy milk」の Todo」 |
 | streamed query | ストリーミングクエリ | `streamedQuery` |
 | filter | フィルター | `QueryFilters`, `MutationFilters` |

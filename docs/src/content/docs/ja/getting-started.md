@@ -109,7 +109,7 @@ void main() {
 
 テストごとに新しいクライアントを使う方法、再試行をオフにする方法、Cubit と純粋な Dart のコードをテストする方法は、[テスト](../guides/testing/)で紹介しています。
 
-## Fuery が代わりにしたこと
+## Fuery が引き受けたこと
 
 - **型は関数から決まります**。`api.getTodos()` が `Future<List<Todo>>` を返すので、`todosQuery` は `Query<List<Todo>>` になり、ビルダーの `state` は `QueryResult<List<Todo>>` になります。型を明示するのは 2 つの場合です。`client.getQueryData<List<Todo>>(['todos'])` のようにキーだけで読み書きする場合と、最初のページパラメーターが `null` の無限クエリです（[カーソルベースのページ](../guides/infinite-queries/#カーソルベースのページ)を参照してください）。
 - **null チェックは不要です**。`QueryResult(:final data?)` はデータがあるときだけ一致するので、その分岐では `data` は `List<Todo>` です。

@@ -38,7 +38,7 @@ Fuery のキャッシュと再取得のモデルは TanStack Query から着想�
 | `mount()`、`unmount()` | `mount()`、`unmount()`。`Fuery.client` への代入と `FueryProvider` が、この 2 つを自動で呼び出します。 |
 | `setQueryDefaults`、`getQueryDefaults`、`setMutationDefaults`、`getMutationDefaults` | 同じ名前 |
 
-各コード例のペアは、同じコードを 2 通りで示します。先が TanStack Query、後が Fuery です。`api`、`Todo`、`TodoList` などのウィジェットは、アプリ独自のコードを表します。
+各コード例のペアは、同じ処理を 2 通りで示します。先が TanStack Query、後が Fuery です。`api`、`Todo`、`TodoList` などのウィジェットは、アプリ独自のコードを表します。
 
 ```tsx title="TanStack Query"
 const queryClient = new QueryClient({
@@ -381,7 +381,7 @@ class DeleteTodoButton extends StatelessWidget {
 | `useQueries({ queries: [...] })` | `QueriesBuilder(queries: [...], builder: (context, results) => ...)`、または `fuery_hooks` の `useQueries([...])` |
 | `useQueries({ queries, combine })` | `QueriesSelector(queries: [...], selector: (results) => ..., builder: ...)` |
 
-1 つのリストに入れるクエリは、id ごとのクエリのように、同じデータ型を共有します。型の異なるクエリには、`QueryBuilder` を入れ子にするか、クエリごとに `useQuery` を 1 回ずつ呼び出してください。[複数のクエリをまとめて表示する](../guides/widgets/#複数のクエリをまとめて表示する)を参照してください。
+1 つのリストに入れるクエリは、ID ごとのクエリのように、同じデータ型を共有します。型の異なるクエリには、`QueryBuilder` を入れ子にするか、クエリごとに `useQuery` を 1 回ずつ呼び出してください。[複数のクエリをまとめて表示する](../guides/widgets/#複数のクエリをまとめて表示する)を参照してください。
 
 ## すべての失敗を 1 か所で報告する
 
@@ -447,7 +447,7 @@ Fuery が保存するのは、`persist` を持つクエリとミューテーシ�
 
 ### build の外で定義し、ウィジェットで描画する
 
-`Query` や `Mutation` は定義です。キー、関数、オプションを持ちます。データは持たず、何も開始しません。上の `todosQuery` や `deleteTodo` のようにトップレベルの値にするか、id を受け取る関数にしてください。
+`Query` や `Mutation` は定義です。キー、関数、オプションを持ちます。データは持たず、何も開始しません。上の `todosQuery` や `deleteTodo` のようにトップレベルの値にするか、ID を受け取る関数にしてください。
 
 ウィジェットは、`StreamBuilder` がストリームを描画するのと同じように定義を描画します。
 

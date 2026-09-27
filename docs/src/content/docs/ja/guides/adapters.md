@@ -10,7 +10,7 @@ sourceHash: f61aaedad61c
 
 ## スロットでクエリを描画する
 
-描画のたびに `update` を呼び出し、`result` を読み取り、再描画のために購読します。次のフックは `flutter_hooks` だけで書かれていて、スロットの仕様をすべて含んでいます。
+描画のたびに `update` を呼び出し、`result` を読み取り、再描画のために購読してください。次のフックは `flutter_hooks` だけで書かれていて、スロットの仕様をすべて含んでいます。
 
 ```dart
 QueryResult<TData> useMyQuery<TData extends Object>(QuerySource<TData> query) {
@@ -43,7 +43,7 @@ QueryResult<TData> useMyQuery<TData extends Object>(QuerySource<TData> query) {
 | `result` | 描画する結果です。`update` から戻った時点で最新になっています。 |
 | `subscribe(listener)` | 以降のすべての結果で `listener` を呼び出します。`update` でスロットが別のオブザーバーに移っても、購読は続きます。リスナーを削除する関数を返します。 |
 | `listen((previous, current) {...})` | 以降の変更のたびにリスナーを呼び出します。画面遷移などの副作用に使います。`previous` は、最後にリスナーに渡した結果か、開始時の `result` です。リッスンを止める関数を返します。 |
-| `dispose()` | すべてのリスナーを削除します。スロットがオブザーバーを作成した場合は、クエリのオブザーバーを破棄するか、ミューテーションのオブザーバーをリセットします。リセットすると、最新の `mutate` 呼び出しのコールバックはなくなります。 |
+| `dispose()` | すべてのリスナーを削除します。スロットがオブザーバーを作成した場合は、クエリのオブザーバーを破棄するか、ミューテーションのオブザーバーをリセットします。リセットすると、最新の `mutate` 呼び出しのコールバックが破棄されます。 |
 | `observer` | スロットが現在描画に使っているオブザーバー |
 
 クエリ、無限クエリ、ミューテーションのリスナーウィジェットとコンシューマーウィジェット、`useOnQueryChange`、`useOnMutationChange` は `listen` を呼び出します。そのため、次の規則に従います。

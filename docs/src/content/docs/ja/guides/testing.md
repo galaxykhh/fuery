@@ -66,7 +66,7 @@ test('loads todos', () {
 
 クエリを使う Cubit や Bloc は、上のテストと同じく、`testWidgets` か `fakeAsync` の中でテストしてください。
 
-- **`close()` では、`subscription.cancel()` を `await` せずに呼び出してください**。フェイククロックの下では、`cancel()` が返す Future が完了せず、テストが止まったままになります。
+- **`close()` では、`subscription.cancel()` を `await` せずに呼び出してください**。フェイククロックでは、`cancel()` が返す Future が完了せず、テストが止まったままになります。
 - **`client.clear()` の前に Cubit を閉じてください**。`clear()` は、まだ購読しているオブザーバーを新しいクエリに移し、そのクエリが再び読み込みます。
 
 ## バックグラウンドのアプリをテストする

@@ -48,7 +48,7 @@ class TodoCubit extends Cubit<TodoState> {
 }
 ```
 
-`close()` では、`cancel()` を await せずに呼び出してください。`testWidgets` と `fakeAsync` の下では、`cancel()` の Future が完了しません。[Cubit と Bloc をテストする](../testing/#cubit-と-bloc-をテストする)を参照してください。
+`close()` では、`cancel()` を await せずに呼び出してください。`testWidgets` と `fakeAsync` の中では、`cancel()` の Future が完了しません。[Cubit と Bloc をテストする](../testing/#cubit-と-bloc-をテストする)を参照してください。
 
 ## Bloc で使う
 
@@ -118,7 +118,7 @@ class TodoCubit extends Cubit<TodoState> {
 
 ## アプリのライフサイクル
 
-Fuery のウィジェット、フック、`FueryProvider` は、アプリのライフサイクルに接続します。そのため、アプリが再開すると、古いクエリが再取得されます。`FueryProvider` を使わずに Bloc からだけクエリを使うアプリでは、代わりに `main` で `FueryBinding.ensureInitialized()` を 1 回呼び出してください。[アプリが再開したとき](../lifecycle/#アプリが再開したとき)を参照してください。
+Fuery のウィジェット、フック、`FueryProvider` は、アプリのライフサイクルを接続します。そのため、アプリが再開すると、Fuery が古いクエリを再取得します。`FueryProvider` を使わずに Bloc からだけクエリを使うアプリでは、代わりに `main` で `FueryBinding.ensureInitialized()` を 1 回呼び出してください。[アプリが再開したとき](../lifecycle/#アプリが再開したとき)を参照してください。
 
 ## サンプルアプリでは
 
