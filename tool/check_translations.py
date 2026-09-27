@@ -19,6 +19,8 @@ translation's path translates, to paste into the translation once it says
 what the English says.
 
 The check fails on:
+- a `**` that can't open or close under CommonMark's flanking rules, on any
+  page (full-width punctuation right inside a closing `**` breaks bold text),
 - an English page with no translation in some language,
 - a translation whose sourceHash is missing or isn't the English page's hash,
 - a translation of an English page that no longer exists.
@@ -32,6 +34,7 @@ import hashlib
 import json
 import re
 import sys
+import unicodedata
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -81,9 +84,50 @@ def english_pages(languages: list[str]) -> list[Path]:
     return [page for page in pages(DOCS) if page.relative_to(DOCS).parts[0] not in languages]
 
 
+FENCE = re.compile(r"^\s*(```|~~~)")
+INLINE_CODE = re.compile(r"`+[^`]*`+")
+
+
+def _kind(char: str) -> str:
+    """'space', 'punct', or 'other', as CommonMark's flanking rules see it."""
+    if not char or char.isspace():
+        return "space"
+    return "punct" if unicodedata.category(char).startswith(("P", "S")) else "other"
+
+
+def unclosed_bold(page: Path) -> list[str]:
+    """Lines where a `**` can't open or close under CommonMark's flanking rules.
+
+    A closing `**` right after punctuation needs whitespace or punctuation
+    after it, so `**変換：**テキスト` renders the asterisks. So does an opening
+    `**` right after a letter with punctuation after it. Full-width punctuation
+    in Japanese and Chinese hits this often; keep it outside the `**`.
+    """
+    found = []
+    in_fence = False
+    for number, line in enumerate(read(page).split("\n"), start=1):
+        if FENCE.match(line):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        text = INLINE_CODE.sub(lambda m: "x" * len(m.group(0)), line)
+        for index, match in enumerate(re.finditer(r"\*\*", text)):
+            before = _kind(text[match.start() - 1] if match.start() else "")
+            after = _kind(text[match.end()] if match.end() < len(text) else "")
+            opening = index % 2 == 0
+            if opening and before == "other" and after == "punct":
+                found.append(f"{page.relative_to(DOCS)}:{number}: `**` can't open here")
+            if not opening and before == "punct" and after == "other":
+                found.append(f"{page.relative_to(DOCS)}:{number}: `**` can't close here")
+    return found
+
+
 def check() -> list[str]:
     languages = locales()
     problems = []
+    for page in pages(DOCS):
+        problems.extend(unclosed_bold(page))
     for page in english_pages(languages):
         relative = page.relative_to(DOCS)
         expected = source_hash(page)
