@@ -80,8 +80,8 @@ Fuery.client = QueryClient(
 
 - 缓存在整个生命周期中保留它的配置，因此在构造客户端时传入配置。
 - `QueryCacheConfig` 的回调在获取之后运行。取消的获取不算失败，不会到达任何回调。
-- `MutationCacheConfig` 的回调在[变更自身的回调](../../reference/mutation-options/#回调)之前运行，Fuery 会等待它们返回的 Future。
-- 回调以 `AnyCachedMutation` 的形式接收每次变更执行，它的 `data`、`variables` 和 `context` 都是 `Object?`。用 `mutation.options.mutationKey` 或 `mutation.options.meta` 区分不同的变更。
+- `MutationCacheConfig` 的回调在[变更自身的回调](../../reference/mutation-options/#回调)之前运行，Fuery 会等待它们返回的 `Future`。
+- 回调以 `AnyCachedMutation` 的形式接收变更的每次执行，它的 `data`、`variables` 和 `context` 都是 `Object?`。用 `mutation.options.mutationKey` 或 `mutation.options.meta` 区分不同的变更。
 
 [缓存回调](../../reference/query-client/#缓存回调)列出了每个回调及其运行时机。
 
@@ -152,4 +152,4 @@ late final todos = todosQuery.observe(client: context.queryClient);
 
 ## 在示例应用中
 
-示例在 [`main`](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/main.dart) 中给 `Fuery.client` 赋值一个带存储的客户端，并在 `runApp` 之前恢复存储的变更。它的 [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) 列出了每个界面展示的内容。
+示例在 [`main`](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/main.dart) 中把一个带存储的客户端赋给 `Fuery.client`，并在 `runApp` 之前恢复存储的变更。它的 [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) 列出了每个界面展示的内容。

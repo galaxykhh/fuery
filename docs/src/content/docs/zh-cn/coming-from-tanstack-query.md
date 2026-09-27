@@ -35,7 +35,7 @@ Fuery 的缓存和重新获取模型受 TanStack Query 启发，因此你已经�
 | `new QueryClient({ defaultOptions })` | `QueryClient(defaultOptions: DefaultOptions(...))`，`queries` 用 `QueryDefaults`，`mutations` 用 `MutationDefaults` |
 | `<QueryClientProvider client={queryClient}>` | 不需要。在 `main` 中给 `Fuery.client` 赋值。`FueryProvider(client: ..., child: ...)` 为一棵子树提供它自己的客户端。 |
 | `useQueryClient()` | 在任何 widget 中用 `context.queryClient`，或者用 `fuery_hooks` 的 `useQueryClient()` |
-| `mount()`、`unmount()` | `mount()`、`unmount()`。给 `Fuery.client` 赋值和 `FueryProvider` 会替你调用它们。 |
+| `mount()`、`unmount()` | `mount()`、`unmount()`。给 `Fuery.client` 赋值和 `FueryProvider` 都会替你调用它们。 |
 | `setQueryDefaults`、`getQueryDefaults`、`setMutationDefaults`、`getMutationDefaults` | 名称相同 |
 
 每组代码片段把同一段代码展示两遍：先是 TanStack Query，然后是 Fuery。`api`、`Todo` 以及 `TodoList` 等 widget 代表你自己的代码。
@@ -455,7 +455,7 @@ widget 像 `StreamBuilder` 渲染 stream 那样渲染定义：
 - 监听器（例如 `QueryListener` 或 `MutationStateListener`）运行副作用，例如显示 snackbar 或导航。它在变化之后运行，从不在构建期间运行。
 - 选择器（例如 `QuerySelector`）只在它选择的值变化时重建。
 
-每个 widget 在挂载期间保持一个观察者，因此显示服务端数据的界面仍然是 `StatelessWidget`。[widget](../guides/widgets/)列出所有 widget。
+每个 widget 在挂载期间保持一个观察者，因此显示服务端数据的界面仍然是 `StatelessWidget`。[widget](../guides/widgets/) 列出所有 widget。
 
 ### 从定义执行变更
 
@@ -463,8 +463,8 @@ widget 像 `StreamBuilder` 渲染 stream 那样渲染定义：
 
 - 执行属于客户端的缓存，不属于 widget，因此 widget 卸载后执行仍会继续。
 - `MutationStateSelector` 和 `MutationStateBuilder` 在任何界面上显示它的进度。它们按 `mutationKey` 查找执行。
-- 要响应一次调用，例如关闭表单，在 `try` 中用 await 等待 `mutateAsync`，然后检查 `context.mounted`。参见[在一次调用成功后执行操作](../guides/mutations/#在一次调用成功后执行操作)。
-- `MutationBuilder` 保持自己的观察者。只显示自己开始的执行的 widget 使用它。
+- 要响应一次调用，例如关闭表单，在 `try` 中用 `await` 等待 `mutateAsync`，然后检查 `context.mounted`。参见[在一次调用成功后采取行动](../guides/mutations/#在一次调用成功后采取行动)。
+- `MutationBuilder` 保持自己的观察者。widget 只显示自己开始的执行时，使用它。
 
 ### 独立包中的 hook
 
@@ -484,7 +484,7 @@ useOnQueryChange(
 );
 ```
 
-变化 hook 在变化之后、构建之外运行它的监听器。`flutter_hooks` 在构建期间运行 `useEffect` 回调，这时显示 snackbar 或导航会失败。参见[useEffect 中的 snackbar 和导航](../guides/hooks/#useeffect-中的-snackbar-和导航)。
+变化 hook 在变化之后、构建之外运行它的监听器。`flutter_hooks` 在构建期间运行 `useEffect` 回调，这时显示 snackbar 或导航会失败。参见 [useEffect 中的 snackbar 和导航](../guides/hooks/#useeffect-中的-snackbar-和导航)。
 
 ### 获得焦点和重新连接时重新获取
 
@@ -492,9 +492,9 @@ useOnQueryChange(
 - 在来源报告设备离线之前，Fuery 一直把设备视为在线。用 `onlineManager.setEventListener` 接入一个来源，例如 `connectivity_plus`。之后查询会在离线时暂停，在重新连接时重新获取。
 - 应用在后台时轮询停止，除非查询设置了 `refetchIntervalInBackground`。
 
-[重新获取与离线](../guides/lifecycle/)展示网络连接状态的配置。
+[重新获取和离线](../guides/lifecycle/)展示网络连接状态的配置。
 
-### 无需代码生成，类型来自你的函数
+### 无须代码生成，类型来自你的函数
 
 - 上面的 `todosQuery` 是 `Query<List<Todo>>`，因为 `api.getTodos()` 返回 `Future<List<Todo>>`。widget、结果和回调无须类型参数就带有这个类型。
 - 变更从 `mutationFn` 的参数（例如 `(int id) => api.deleteTodo(id)`）以及 `onMutate` 的返回值获得类型。

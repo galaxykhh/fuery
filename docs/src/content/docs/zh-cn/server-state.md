@@ -54,9 +54,9 @@ final todosQuery = Query(
 
 - `QueryBuilder` 渲染它；
 - cubit 监听 `todosQuery.observe()` 的 `stream`；
-- 脚本用 await 等待 `client.query(todosQuery)`。
+- 脚本用 `await` 等待 `client.query(todosQuery)`。
 
-Fuery 不会取代你已经在用的状态管理方案。[Bloc 和 cubit](../guides/bloc/)展示如何在 cubit 和 bloc 中使用查询。
+Fuery 不会取代你已经在用的状态管理方案。[Bloc 和 cubit](../guides/bloc/) 展示如何在 cubit 和 bloc 中使用查询。
 
 ## 下一步
 

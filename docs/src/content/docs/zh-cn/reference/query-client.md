@@ -11,7 +11,7 @@ sourceHash: 0f608d9305c6
 | 名称 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `queryCache` | `QueryCache` | `QueryCache()` | 保存缓存条目。传入自己的实例，为它提供 [`QueryCacheConfig`](#缓存回调)。 |
-| `mutationCache` | `MutationCache` | `MutationCache()` | 保存变更执行。传入自己的实例，为它提供 [`MutationCacheConfig`](#缓存回调)。 |
+| `mutationCache` | `MutationCache` | `MutationCache()` | 保存变更的执行。传入自己的实例，为它提供 [`MutationCacheConfig`](#缓存回调)。 |
 | `defaultOptions` | `DefaultOptions` | `DefaultOptions()` | 所有查询和变更的默认值。参见[默认值](#默认值)。 |
 | `storage` | `QueryStorage?` | `null` | 设置了 `persist` 的查询和变更存储数据的位置。没有存储时，`persist` 不起作用。 |
 | `persistMaxAge` | `Duration` | 1 天 | 存储的数据最多多久仍能恢复，除非查询的 `QueryPersist` 设置了 `maxAge`。 |
@@ -38,7 +38,7 @@ sourceHash: 0f608d9305c6
 | `getQueryState(queryKey)` | `QueryState<Object>?` | 这个键的缓存条目的状态，或 `null`。参见 [QueryState 字段](#querystate-字段)。 |
 | `watch<T>(selector)` | `Stream<T>` | `selector(client)` 的广播 stream。 |
 
-`watch` 先给每个监听器发送当前值。查询缓存或变更缓存发生变化后，如果新值不同，它再次发出。它按内容比较列表、映射和集合，其他值用 `==` 比较。选择器抛出的错误进入 stream。观察不会获取任何数据。
+`watch` 先给每个监听器发送当前值。查询缓存或变更缓存发生变化后，如果新值不同，它再次发出。它按内容比较列表、Map 和 Set，其他值用 `==` 比较。选择器抛出的错误进入 stream。观察不会获取任何数据。
 
 ## 获取
 
@@ -50,7 +50,7 @@ sourceHash: 0f608d9305c6
 两个方法都遵循以下规则：
 
 - 需要获取的调用会等待这个键上已在进行的获取，而不是再发起一次。
-- 获取失败时，返回的 Future 失败。
+- 获取失败时，返回的 `Future` 失败。
 - 只有查询、`defaultOptions` 或针对它的键的 `setQueryDefaults` 调用设置了 `retry` 时，Fuery 才会重试失败的获取。
 
 ## 对匹配查询的操作
@@ -72,7 +72,7 @@ sourceHash: 0f608d9305c6
 - 静态且有数据：某个观察者使用 `staleTime: staticStaleTime`。
 - 只由 `setQueryData` 写入，因此还没有查询函数。
 
-它们返回的 Future 在重新获取完成时完成。它们不等待暂停的获取，比如等待网络的获取。
+它们返回的 `Future` 在重新获取完成时完成。它们不等待暂停的获取，比如等待网络的获取。
 
 `removeQueries` 和 `clear()` 不会停止仍在订阅的观察者。Fuery 把它转到同一个键的新缓存条目上，这个缓存条目会重新加载。
 
@@ -111,7 +111,7 @@ await client.cancelQueries(queryKey: ['todos'], exact: true);
 |---|---|---|---|
 | `refetchType` | `RefetchType?` | `null` | `invalidateQueries` 重新获取哪些匹配项：`RefetchType.active`、`.inactive`、`.all`，或用 `.none` 只把它们标记为过期。 |
 | `cancelRefetch` | `bool` | `true` | 对有数据的缓存条目，取消进行中的获取并开始新的获取。为 `false` 时，等待进行中的获取。正在加载首批数据的缓存条目始终保留它的获取。 |
-| `throwOnError` | `bool` | `false` | 为 `true` 时，重新获取失败会让返回的 Future 失败。 |
+| `throwOnError` | `bool` | `false` | 为 `true` 时，重新获取失败会让返回的 `Future` 失败。 |
 | `revert` | `bool` | `true` | 把取消的缓存条目还原到获取前的状态。为 `false` 时，把 `CancelledError` 记为它的错误。 |
 | `silent` | `bool` | `false` | 为 `true` 且 `revert: false` 时，不记录错误：缓存条目保持原有状态并回到 `idle`。 |
 
@@ -132,10 +132,10 @@ await client.invalidateQueries(
 
 | 方法 | 返回 | 说明 |
 |---|---|---|
-| `isMutating({mutationKey, exact, predicate})` | `int` | 统计处于 `pending` 状态的匹配变更执行数量。 |
-| `resumePausedMutations()` | `Future<void>` | 继续所有暂停的变更执行。设备离线时什么也不做。 |
+| `isMutating({mutationKey, exact, predicate})` | `int` | 统计处于 `pending` 状态的匹配执行数量。 |
+| `resumePausedMutations()` | `Future<void>` | 继续执行所有暂停的变更。设备离线时什么也不做。 |
 
-`MutationFilters` 选择变更执行。`isMutating` 会构建一个，`mutationCache.find` 和 `findAll` 接受一个：
+`MutationFilters` 选择变更的执行。`isMutating` 会构建一个，`mutationCache.find` 和 `findAll` 接受一个：
 
 | 过滤器 | 类型 | 默认值 | 选择 |
 |---|---|---|---|
@@ -198,7 +198,7 @@ final savingTodos = client.isMutating(
 
 取消的获取不会到达任何回调。它们抛出的错误进入 `onUncaughtError`。
 
-`MutationCacheConfig` 为缓存中的每次变更执行运行回调。每个回调都可以返回 Future，最后一个参数是 `AnyCachedMutation`。`error` 是 `Object`，`data`、`variables` 和 `context` 是 `Object?`：
+`MutationCacheConfig` 为缓存中变更的每次执行运行回调。每个回调都可以返回 `Future`，最后一个参数是 `AnyCachedMutation`。`error` 是 `Object`，`data`、`variables` 和 `context` 是 `Object?`：
 
 | 回调 | 运行时机 |
 |---|---|
@@ -207,7 +207,7 @@ final savingTodos = client.isMutating(
 | `onError(error, variables, context, mutation)` | 失败后。 |
 | `onSettled(data, error, variables, context, mutation)` | 两者任一发生后。 |
 
-- 每个回调都在[变更的对应回调](../mutation-options/#回调)之前运行，Fuery 会等待它返回的 Future。
+- 每个回调都在[变更的对应回调](../mutation-options/#回调)之前运行，Fuery 会等待它返回的 `Future`。
 - `restore` 重新开始的执行会跳过两个 `onMutate` 回调。
 - `onMutate` 抛出的错误，或成功后 `onSuccess` 或 `onSettled` 抛出的错误，会让变更失败。
 - 失败后 `onError` 或 `onSettled` 抛出的错误进入 `onUncaughtError`。
@@ -222,7 +222,7 @@ final savingTodos = client.isMutating(
 | `queryCache.find(filters)` | `CachedQuery<Object>?` | 第一个匹配项。精确匹配 `queryKey`。 |
 | `queryCache.findAll([filters])` | `List<CachedQuery<Object>>` | 所有匹配项；不传过滤器时为所有缓存条目。 |
 | `queryCache.get(queryHash)` | `CachedQuery<Object>?` | 具有这个 `queryHash` 的缓存条目。 |
-| `mutationCache.getAll()` | `List<AnyCachedMutation>` | 所有变更执行。 |
+| `mutationCache.getAll()` | `List<AnyCachedMutation>` | 变更的所有执行。 |
 | `mutationCache.find(filters)` | `AnyCachedMutation?` | 第一个匹配项。精确匹配 `mutationKey`。 |
 | `mutationCache.findAll([filters])` | `List<AnyCachedMutation>` | 所有匹配项；不传过滤器时为所有执行。 |
 
@@ -245,7 +245,7 @@ final savingTodos = client.isMutating(
 | `isStaleByTime([staleTime])` | `bool` | 数据不存在、已失效或超过 `staleTime`。使用 `staticStaleTime` 时，只要有数据就为 `false`。 |
 | `future` | `Future<TData>?` | 进行中的获取（如果有）。 |
 
-`CachedMutation<TData, TVariables, TContext>` 是一次变更执行：
+`CachedMutation<TData, TVariables, TContext>` 是变更的一次执行：
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
@@ -282,4 +282,4 @@ final savingTodos = client.isMutating(
 |---|---|---|
 | `storage` | `QueryStorage?` | 传给构造函数的存储。 |
 | `restore({mutations})` | `Future<void>` | 提前读取所有持久化的查询，并重新开始你传入的变更的存储执行。没有存储时什么也不做。参见[提前恢复](../../guides/persistence/#提前恢复)。 |
-| `clear()` | `void` | 移除所有缓存条目和变更执行，并删除所有持久化数据。保留客户端及其按键设置的默认值。参见[退出登录时清空所有数据](../../guides/query-client/#退出登录时清空所有数据)。 |
+| `clear()` | `void` | 移除所有缓存条目和所有变更的执行，并删除所有持久化数据。保留客户端及其按键设置的默认值。参见[退出登录时清空所有数据](../../guides/query-client/#退出登录时清空所有数据)。 |

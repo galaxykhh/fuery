@@ -48,7 +48,7 @@ class TodoCubit extends Cubit<TodoState> {
 }
 ```
 
-在 `close()` 中调用 `cancel()`，但不要用 `await` 等待它。在 `testWidgets` 和 `fakeAsync` 下，它返回的 `Future` 永远不会完成。见[测试 cubit 和 bloc](../testing/#测试-cubit-和-bloc)。
+在 `close()` 中调用 `cancel()`，但不要用 `await` 等待它。在 `testWidgets` 和 `fakeAsync` 下，它返回的 `Future` 永远不会完成。参见[测试 cubit 和 bloc](../testing/#测试-cubit-和-bloc)。
 
 ## 在 bloc 中
 
@@ -85,16 +85,16 @@ Future<void> add(String title) async {
 bloc 的事件处理函数也一样：`await addTodo.mutateAsync(event.title)`。
 
 - 执行使用 `Fuery.client`。拿到另一个客户端（例如测试的客户端）的 cubit 要传入它：`addTodo.mutateAsync(title, client)`。
-- 执行属于客户端的缓存，而不属于 cubit，因此每个界面都能显示它。见[与 widget 共享](#与-widget-共享)。
+- 执行属于客户端的缓存，而不属于 cubit，因此每个界面都能显示它。参见[与 widget 共享](#与-widget-共享)。
 - 只有 cubit 要用观察者的 `result` 或 `stream` 跟踪自己执行的状态时，才保留一个观察者：`final _addTodo = addTodo.observe();`。
 
 ## 与 widget 共享
 
 使用同一个键的 cubit 和 `QueryBuilder` 共享一个缓存条目。在一个界面上做出的更改（例如把通知标记为已读）会显示在 cubit 和每个 widget 中。
 
-给 `addTodo` 设置 `mutationKey`，cubit 或 bloc 开始的执行就会显示在任何界面的 `MutationStateBuilder(mutation: addTodo)` 中。见[显示变更的每次执行](../mutations/#显示变更的每次执行)。
+给 `addTodo` 设置 `mutationKey`，cubit 或 bloc 开始的执行就会显示在任何界面的 `MutationStateBuilder(mutation: addTodo)` 中。参见[显示变更的每次执行](../mutations/#显示变更的每次执行)。
 
-cubit 要响应变更的每次执行（无论从哪里开始）时，持有一个 `MutationStateSlot`。`subscribeToRuns` 对每次执行之后的每次变化调用它的监听器，`result` 列出当前的执行。见[变更的每次执行](../adapters/#变更的每次执行)。
+cubit 要响应变更的每次执行（无论从哪里开始）时，持有一个 `MutationStateSlot`。`subscribeToRuns` 对每次执行的每次后续变化调用它的监听器，`result` 列出当前的执行。参见[变更的每次执行](../adapters/#变更的每次执行)。
 
 ```dart
 class TodoCubit extends Cubit<TodoState> {
@@ -118,7 +118,7 @@ class TodoCubit extends Cubit<TodoState> {
 
 ## 应用生命周期
 
-Fuery 的 widget、hook 和 `FueryProvider` 会接入应用生命周期，因此应用回到前台时，过期的查询会重新获取。只在 bloc 中使用查询、没有 `FueryProvider` 的应用，改为在 `main` 中调用一次 `FueryBinding.ensureInitialized()`。见[应用回到前台时](../lifecycle/#应用回到前台时)。
+Fuery 的 widget、hook 和 `FueryProvider` 会接入应用生命周期，因此应用回到前台时，过期的查询会重新获取。只在 bloc 中使用查询、没有 `FueryProvider` 的应用，改为在 `main` 中调用一次 `FueryBinding.ensureInitialized()`。参见[应用回到前台时](../lifecycle/#应用回到前台时)。
 
 ## 在示例应用中
 

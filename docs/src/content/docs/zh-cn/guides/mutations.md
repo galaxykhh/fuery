@@ -126,7 +126,7 @@ MutationStateListener(
 - 对于它挂载时各次执行已有的状态，以及缓存移除的执行，都不会调用它。
 - 它也接收恢复的执行和来自其他界面的执行，因此只在这条消息所属的地方挂载一次。
 
-`MutationListener` 只接收它拿到的观察者的执行。传入定义时，它会创建一个自己的观察者，而没有任何代码用这个观察者执行变更，因此它什么也接收不到。在 debug 构建中，它还会打印一条警告。见 [MutationListener 从不运行](../../troubleshooting/#mutationlistener-从不运行)。
+`MutationListener` 只接收它拿到的观察者的执行。传入定义时，它会创建一个自己的观察者，而没有任何代码用这个观察者执行变更，因此它什么也接收不到。在 debug 构建中，它还会打印一条警告。参见 [MutationListener 从不运行](../../troubleshooting/#mutationlistener-从不运行)。
 
 ## 在一次调用成功后采取行动
 
@@ -167,7 +167,7 @@ MutationBuilder(
 - `state` 显示这个 widget 最近开始的一次执行。用 `addTodo.mutate` 开始的执行，或由其他 widget 开始的执行，不会显示在 `state` 中。
 - `state.reset()` 让状态回到 `idle`。
 - 这个 widget 使用最近的 `FueryProvider` 的客户端；没有 `FueryProvider` 时使用 `Fuery.client`。
-- 在 `HookWidget` 中，`useMutation(addTodo)` 返回同样的结果。见 [hook](../hooks/#只显示-widget-自己开始的执行)。
+- 在 `HookWidget` 中，`useMutation(addTodo)` 返回同样的结果。参见 [hook](../hooks/#只显示-widget-自己开始的执行)。
 
 [变更结果](../../reference/mutation-results/#mutationresult)列出了 `state` 的所有成员和字段。
 

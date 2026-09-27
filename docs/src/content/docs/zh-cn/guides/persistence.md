@@ -55,7 +55,7 @@ Future<void> main() async {
 }
 ```
 
-`SharedPreferencesWithCache` 同步读取，因此 Fuery 在第一帧之前恢复持久化的查询。存储方法也可以返回 Future，比如对接数据库时。参见[提前恢复](#提前恢复)。
+`SharedPreferencesWithCache` 同步读取，因此 Fuery 在第一帧之前恢复持久化的查询。存储方法也可以返回 `Future`，比如对接数据库时。参见[提前恢复](#提前恢复)。
 
 ## 持久化查询
 

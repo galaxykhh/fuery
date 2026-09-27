@@ -39,7 +39,7 @@ QueryResult<TData> useMyQuery<TData extends Object>(QuerySource<TData> query) {
 
 | 成员 | 作用 |
 |---|---|
-| `update(source, client)` | 每次渲染时调用。传入定义时，slot 持有一个观察者并更新它的选项，换了新客户端就换一个新观察者。传入观察者时，slot 按原样使用它，以及创建它时的客户端。 |
+| `update(source, client)` | 每次渲染时调用。传入定义时，slot 持有一个观察者并更新它的选项，传入新的客户端时会换用新的观察者。传入观察者时，slot 按原样使用它，以及创建它时的客户端。 |
 | `result` | 要渲染的结果，`update` 返回后立即是最新的。 |
 | `subscribe(listener)` | 用之后的每个结果调用 `listener`，`update` 把 slot 转到另一个观察者时仍保持订阅。返回一个移除它的函数。 |
 | `listen((previous, current) {...})` | 在之后的每次变化后调用它的监听器，用于导航等副作用。`previous` 是它上次传给监听器的结果，或它开始时的 `result`。返回一个停止它的函数。 |
@@ -82,7 +82,7 @@ QueryResult<TData> useMyQuery<TData extends Object>(QuerySource<TData> query) {
 - 它的 `result` 列出各次执行的状态，最早的在前。在添加或移除匹配的执行，或匹配的执行发生变化之前，它始终是同一个列表。
 - 它在微任务中调用 `subscribe` 的监听器，每批只调用一次，并且只在列表变化时调用，因此不需要 `batchCalls`。
 
-`subscribeToRuns((previous, current) {...})` 在每个匹配的执行之后每次变化时调用它的监听器，并传入这次执行之前的状态：对于之后才开始的执行，之前的状态是 `idle`。它从不报告添加它时各次执行已有的状态，也不报告缓存移除的执行。`MutationStateListener` 和 `useOnMutationStateChange` 使用它。
+`subscribeToRuns((previous, current) {...})` 对每个匹配执行的每次后续变化调用它的监听器，并传入这次执行之前的状态：对于之后才开始的执行，之前的状态是 `idle`。它从不报告添加它时各次执行已有的状态，也不报告缓存移除的执行。`MutationStateListener` 和 `useOnMutationStateChange` 使用它。
 
 ## 只凭结果监听
 

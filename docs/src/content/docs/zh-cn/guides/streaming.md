@@ -79,4 +79,4 @@ stream: (context) {
 
 ## 在示例应用中
 
-示例应用在[帖子界面](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/post/post_screen.dart)中以流式方式输出讨论串摘要。它的 [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) 列出每个界面展示了什么。
+示例应用在[帖子界面](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/post/post_screen.dart)中以流式方式输出讨论串摘要。它的 [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) 列出了每个界面展示的内容。

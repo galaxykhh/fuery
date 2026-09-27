@@ -131,7 +131,7 @@ ElevatedButton(
 
 - 执行属于客户端的缓存，而不属于 widget。
 - [`useQueryClient()`](#读取客户端) 返回 hook 使用的客户端：最近的 `FueryProvider` 的客户端；没有 `FueryProvider` 时为 `Fuery.client`。传入它，执行就会记入 `useMutationState` 读取的缓存。不传客户端时，执行使用 `Fuery.client`。
-- `NoVariablesMutation` 在客户端之前为变量接收 `null`：`logoutMutation.mutate(null, client)`。见[不带变量的变更](../mutations/#不带变量的变更)。
+- `NoVariablesMutation` 在客户端之前为变量接收 `null`：`logoutMutation.mutate(null, client)`。参见[不带变量的变更](../mutations/#不带变量的变更)。
 
 ### 只显示 widget 自己开始的执行
 
@@ -172,7 +172,7 @@ addTodo.mutate(
 widget 消失后，请求仍会完成。
 
 - `useMutation` 接收的是定义时，hook 会丢弃传给结果的 `mutate` 的 `MutateOptions`。
-- [共享观察者](../mutations/#共享一个观察者)不受影响，仍会运行它们。在它们之中检查 `context.mounted`，或者在创建这个观察者的界面的 `dispose` 中调用观察者的 `reset()`。
+- [共享观察者](../mutations/#共享一个观察者)不受影响，仍会运行它们。在这些回调中检查 `context.mounted`，或者在创建这个观察者的界面的 `dispose` 中调用观察者的 `reset()`。
 
 ## 显示变更的每次执行
 
@@ -286,7 +286,7 @@ widget 挂载时的结果已经决定了要显示什么时（例如用户已退�
 
 ### useEffect 中的 snackbar 和导航
 
-在变化 hook 中显示 snackbar 和导航，它在构建之外运行，并且只响应之后的变化。`useEffect` 和 `useValueChanged` 在构建期间运行，在那里显示 snackbar 或导航会失败：它们在 widget 树构建期间修改 widget 树。`useEffect` 回调在第一次构建时针对 widget 挂载时的值运行，之后在 keys 变化的每次构建中运行；没有 keys 时，则在每次构建中运行。在 debug 构建中，这些调用会以下面的错误失败：
+在变化 hook 中显示 snackbar 和导航。变化 hook 在构建之外运行，并且只响应之后的变化。`useEffect` 和 `useValueChanged` 在构建期间运行，在那里显示 snackbar 或导航会失败：它们在 widget 树构建期间修改 widget 树。`useEffect` 回调在第一次构建时针对 widget 挂载时的值运行，之后在 keys 变化的每次构建中运行；没有 keys 时，则在每次构建中运行。在 debug 构建中，这些调用会以下面的错误失败：
 
 - `showSnackBar` 报告 `The showSnackBar() method cannot be called during build.`。
 - `Navigator.pop` 报告 `setState() or markNeedsBuild() called during build.`。
@@ -324,7 +324,7 @@ RefreshIndicator(
 )
 ```
 
-`observe()` 返回的观察者保留自己的客户端：除非传入 `client:`，否则为 `Fuery.client`。在带有自己客户端的 `FueryProvider` 之下，传入定义，或者用 `useQueryClient()` 返回的客户端创建观察者。定义的 `mutate` 同样使用 `Fuery.client`，除非你传入客户端：`addTodoMutation.mutate('Buy milk', client)`。在 debug 构建中，传入另一个客户端的观察者的 hook 会打印警告。见[界面读取了另一个客户端的缓存](../../troubleshooting/#界面读取了另一个客户端的缓存)。
+`observe()` 返回的观察者保留自己的客户端：除非传入 `client:`，否则为 `Fuery.client`。在带有自己客户端的 `FueryProvider` 之下，传入定义，或者用 `useQueryClient()` 返回的客户端创建观察者。定义的 `mutate` 同样使用 `Fuery.client`，除非你传入客户端：`addTodoMutation.mutate('Buy milk', client)`。在 debug 构建中，传入另一个客户端的观察者的 hook 会打印警告。参见[界面读取了另一个客户端的缓存](../../troubleshooting/#界面读取了另一个客户端的缓存)。
 
 ## 观察缓存
 

@@ -28,7 +28,7 @@ QueryBuilder(
 - 观察者使用最近的 `FueryProvider` 的客户端；没有 `FueryProvider` 时使用 `Fuery.client`。
 - 结果带有各种操作：`state.refetch()`；无限查询的 `state.fetchNextPage()` 和 `state.fetchPreviousPage()`；变更的 `state.mutate(...)`、`state.mutateAsync(...)` 和 `state.reset()`。
 
-`MutationBuilder` 只显示它自己开始的执行。MutationState 系列 widget 按 `mutationKey` 找到变更的执行，显示来自任何地方的执行。见[显示变更的每次执行](../mutations/#显示变更的每次执行)。用 `addTodo.mutate('Buy milk', context.queryClient)` 从定义执行变更的按钮不需要 `MutationBuilder`。见[执行变更](../mutations/#执行变更)。
+`MutationBuilder` 只显示它自己开始的执行。MutationState 系列 widget 按 `mutationKey` 找到变更的执行，显示来自任何地方的执行。参见[显示变更的每次执行](../mutations/#显示变更的每次执行)。用 `addTodo.mutate('Buy milk', context.queryClient)` 从定义执行变更的按钮不需要 `MutationBuilder`。参见[执行变更](../mutations/#执行变更)。
 
 ## 构建器和监听器何时运行
 
@@ -95,9 +95,9 @@ QueryListener(
 
 对于变更：
 
-- `MutationStateListener` 接收变更的每次执行，无论它来自哪个界面。见[告诉用户变更失败](../mutations/#告诉用户变更失败)。
-- 要在界面自己的调用成功后关闭界面，用 `await` 等待 `mutateAsync`，然后检查 `context.mounted`。见[在一次调用成功后采取行动](../mutations/#在一次调用成功后采取行动)。
-- `MutationListener` 只接收它拿到的观察者的执行。传入定义时，它什么也接收不到，并在 debug 构建中打印一条警告。见 [MutationListener 从不运行](../../troubleshooting/#mutationlistener-从不运行)。
+- `MutationStateListener` 接收变更的每次执行，无论它来自哪个界面。参见[告诉用户变更失败](../mutations/#告诉用户变更失败)。
+- 要在界面自己的调用成功后关闭界面，用 `await` 等待 `mutateAsync`，然后检查 `context.mounted`。参见[在一次调用成功后采取行动](../mutations/#在一次调用成功后采取行动)。
+- `MutationListener` 只接收它拿到的观察者的执行。传入定义时，它什么也接收不到，并在 debug 构建中打印一条警告。参见 [MutationListener 从不运行](../../troubleshooting/#mutationlistener-从不运行)。
 - 传入定义的 `MutationConsumer` 接收它自己的构建器开始的执行。
 
 ## 下拉刷新
@@ -134,7 +134,7 @@ RefreshIndicator(
 ```
 
 - [`invalidateQueries`](../query-client/#使查询失效) 把 `['todos']` 下的所有查询标记为过期，并重新获取有观察者（例如已挂载的 widget）的查询。
-- `refetchQueries` 重新获取，但不把任何查询标记为过期。它的 `type` 默认为 `QueryTypeFilter.all`，没有观察者的缓存条目也会重新获取。传入 `type: QueryTypeFilter.active`，只重新获取有观察者的查询。
+- `refetchQueries` 重新获取，但不把任何查询标记为过期。它的 `type` 默认为 `QueryTypeFilter.all`，没有观察者的缓存条目（`CachedQuery`）也会重新获取。传入 `type: QueryTypeFilter.active`，只重新获取有观察者的查询。
 - 两者都在所有匹配的获取结束时完成，并且只在 `throwOnError: true` 时抛出异常。两者都不等待设备离线时暂停的获取，因此指示器不会卡住。
 
 [查询过滤器](../../reference/query-client/#查询过滤器)列出了两者接受的过滤器。
@@ -207,7 +207,7 @@ QueriesSelector(
 
 ## 显示是否有获取正在进行
 
-跟随应用中每个查询的进度条读取的是客户端，而不是 widget。见[观察缓存](../query-client/#观察缓存)。
+跟随应用中每个查询的进度条读取的是客户端，而不是 widget。参见[观察缓存](../query-client/#观察缓存)。
 
 对于变更，带 `MutationFilters` 的 `MutationStateSelector` 显示是否有变更正在执行：
 
@@ -221,7 +221,7 @@ MutationStateSelector(
 
 ## 传入观察者
 
-大多数界面传入定义。传入相同键的定义的 widget 已经共享缓存条目（`CachedQuery`）和请求。见[使用查询](../queries/#使用查询)。
+大多数界面传入定义。传入相同键的定义的 widget 已经共享缓存条目和请求。参见[使用查询](../queries/#使用查询)。
 
 查询、无限查询和变更 widget，以及 `QueriesBuilder` 和 `QueriesSelector`，也接收 `observe()` 返回的观察者。它们原样使用这个观察者，包括它的选项和创建它时使用的客户端。只在以下情况传入观察者：cubit 和 widget 共享同一个句柄，或者多个 widget 只显示一个变更观察者的执行。
 
@@ -234,7 +234,7 @@ MutationStateSelector(
 - 传入查询定义的 widget 在挂载时创建观察者，在卸载时销毁它。
 - `observe()` 返回的观察者在有了第一个监听器时订阅它的查询。最后一个监听器（例如使用它的最后一个 widget）离开时，观察者取消它的过期计时器和重新获取计时器，并与查询分离。
 - 之后用同一个观察者挂载的 widget 会再次订阅它，因此持有查询观察者的 `State` 字段无须在 `dispose` 中做任何事。
-- 监听 `stream` 的 cubit 在 `close()` 中取消它的订阅，这同样会取消观察者的订阅。见[在 cubit 中](../bloc/#在-cubit-中)。
+- 监听 `stream` 的 cubit 在 `close()` 中取消它的订阅，这同样会取消观察者的订阅。参见[在 cubit 中](../bloc/#在-cubit-中)。
 
 widget 消失后，你持有的变更观察者仍会运行它最近一次调用的 `MutateOptions` 回调。在 `dispose` 中对它调用 `reset()`，或者在使用 `State` 或它的 `BuildContext` 的回调中检查 `mounted`。以定义形式传入变更的 widget 在卸载时会重置它自己的观察者。
 
@@ -244,7 +244,7 @@ widget 消失后，你持有的变更观察者仍会运行它最近一次调用�
 
 ## 构建自己的 widget 或适配器
 
-要使用 hook，请用 [`fuery_hooks`](../hooks/)。要编写自己的 widget，或者为其他状态管理库编写适配器，见[构建适配器](../adapters/)。它展示了如何用 `fuery_core` 的公共 API 渲染查询，这些 widget 使用的也是同一套 API。
+要使用 hook，请用 [`fuery_hooks`](../hooks/)。要编写自己的 widget，或者为其他状态管理库编写适配器，参见[构建适配器](../adapters/)。它展示了如何用 `fuery_core` 的公开 API 渲染查询，这些 widget 使用的也是同一套 API。
 
 ## 在示例应用中
 

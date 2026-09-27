@@ -64,7 +64,7 @@ Query<Todo> todoQuery(int id) => Query(
 - **跟随键**。widget 用另一个键的定义重建时，它的观察者转到那个键的缓存条目。
 - **报告结果**。每次发生变化，观察者都会报告一个结果。结果按观察者的选项呈现缓存条目的状态，例如按它自己的 `staleTime` 计算的 `isStale`。[QueryResult 字段](../reference/query-results/#queryresult-字段)列出所有字段。
 
-[使用查询](../guides/queries/#使用查询)展示观察查询的两种方式。[widget](../guides/widgets/)列出保持观察者的 widget。
+[使用查询](../guides/queries/#使用查询)展示观察查询的两种方式。[widget](../guides/widgets/) 列出保持观察者的 widget。
 
 ## 查询生命周期
 

@@ -213,7 +213,7 @@ Future<void> logout() async {
 }
 ```
 
-`clear()` 移除所有缓存条目和所有变更执行，并删除所有[持久化数据](../persistence/#删除存储的数据)。客户端保留下来，用 `setQueryDefaults` 和 `setMutationDefaults` 注册的默认值也保留。
+`clear()` 移除所有缓存条目和所有变更的执行，并删除所有[持久化数据](../persistence/#删除存储的数据)。客户端保留下来，用 `setQueryDefaults` 和 `setMutationDefaults` 注册的默认值也保留。
 
 正在执行的变更会怎样，取决于它所处的阶段：
 
@@ -224,4 +224,4 @@ Future<void> logout() async {
 
 ## 在示例应用中
 
-示例在[信息流](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/feed/feed_screen.dart)中，当指针悬停在帖子卡片上时预取这篇帖子；在[主页框架](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/home/home_shell.dart)中观察客户端，用来显示活动指示器。它的 [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) 列出了每个界面展示的内容。
+示例在[信息流](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/feed/feed_screen.dart)中，指针悬停在帖子卡片上时预取这篇帖子；在[主页框架](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/home/home_shell.dart)中观察客户端，用来显示活动指示器。它的 [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) 列出了每个界面展示的内容。

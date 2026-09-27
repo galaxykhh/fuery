@@ -1,6 +1,6 @@
 ---
 title: 组织查询
-description: 在 Flutter 应用不断增长时，把查询键、查询函数和变更集中放在一处。
+description: 随着 Flutter 应用规模扩大，把查询键、查询函数和变更集中放在一处。
 sourceHash: 65a5f2f56dec
 ---
 
@@ -44,9 +44,9 @@ final todos = todosQuery.observe();                   // in a cubit or a service
 
 Fuery 把查询函数和缓存条目保存在一起，并在之后再次运行它：
 
-- 应用回到前台时，
-- 网络重新连接时，
-- `refetchInterval` 每次触发时，
+- 应用回到前台时；
+- 网络重新连接时；
+- `refetchInterval` 每次触发时；
 - 任何代码使这个键失效或重新获取这个键时。
 
 其中一些运行发生在构建查询的 widget 已经消失之后，这时它的 `BuildContext` 已经卸载。捕获的 `State`、`TickerProvider` 或任何从 `context` 读取的东西都有同样的问题。
@@ -85,8 +85,8 @@ final todosQuery = Query(
 
 查询函数必须抛出错误才会失败。Fuery 只根据抛出的错误设置错误状态。返回 `Result`、`Either` 或任何其他包装类型的函数总是成功，无论包装里装的是什么。这时查询：
 
-- `status` 保持为 `QueryStatus.success`，`error` 保持为 `null`，
-- 永远不会设置 `isError`、`isLoadingError` 或 `isRefetchError`，
+- `status` 保持为 `QueryStatus.success`，`error` 保持为 `null`；
+- 永远不会设置 `isError`、`isLoadingError` 或 `isRefetchError`；
 - 永远不会重试，因为重试策略只看得到抛出的错误。
 
 在查询函数中解开结果，并抛出失败：
@@ -134,10 +134,10 @@ onPressed: () async {
 },
 ```
 
-[在一次调用成功后执行操作](../mutations/#在一次调用成功后执行操作)展示了完整的按钮。
+[在一次调用成功后采取行动](../mutations/#在一次调用成功后采取行动)展示了完整的按钮。
 
 `MutationStateListener` 在这个变更的任何一次执行之后，用当前界面的 `BuildContext` 显示 snackbar 或对话框，无论执行来自哪个界面。参见[告诉用户变更失败](../mutations/#告诉用户变更失败)。
 
 ## 在示例应用中
 
-示例应用在[信息流查询](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/data/feed_queries.dart)中定义查询，在[信息流变更](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/data/feed_mutations.dart)中定义变更。它的 [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) 列出每个界面展示了什么。
+示例应用在[信息流查询](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/data/feed_queries.dart)中定义查询，在[信息流变更](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/data/feed_mutations.dart)中定义变更。它的 [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) 列出了每个界面展示的内容。

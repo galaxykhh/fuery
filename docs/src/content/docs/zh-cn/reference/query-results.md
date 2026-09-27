@@ -69,9 +69,9 @@ RefreshIndicator(
 | 参数 | 类型 | 默认值 | 作用 |
 |---|---|---|---|
 | `cancelRefetch` | `bool` | `true` | 查询有数据时，取消进行中的获取并开始新的获取。为 `false` 或没有数据时，调用会加入进行中的获取。 |
-| `throwOnError` | `bool` | `false` | 为 `true` 时，返回的 Future 以获取的错误失败。否则错误只出现在结果中。 |
+| `throwOnError` | `bool` | `false` | 为 `true` 时，返回的 `Future` 以获取的错误失败。否则错误只出现在结果中。 |
 
-- 返回的 Future 在获取结束后以结果完成。
+- 返回的 `Future` 在获取结束后以结果完成。
 - 它重新获取观察者当前的查询。widget 换到另一个键后，就是新键。
 - 即使 `enabled` 为 `false`，它也会获取。
 - 用构造函数构建的结果没有观察者，因此它的 `refetch()` 抛出 `StateError`。

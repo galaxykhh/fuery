@@ -12,7 +12,7 @@ sourceHash: d451e877320c
 
 | 选项 | 类型 | 默认值 | 作用 |
 |---|---|---|---|
-| `queryKey` | `List<Object?>` | 必填 | 为缓存条目命名。参见[查询键](../../guides/queries/#查询键)。 |
+| `queryKey` | `List<Object?>` | 必填 | 为缓存条目（`CachedQuery`）命名。参见[查询键](../../guides/queries/#查询键)。 |
 | `queryFn` | `Future<TData> Function(QueryFunctionContext)` | 必填 | 获取数据。接收一个[查询函数上下文](#查询函数上下文)。 |
 | `enabled` | `bool` | `true` | 为 `false` 时，查询不会自动获取。`refetch()` 仍然会获取。 |
 | `meta` | `Map<String, Object?>` | 无 | 查询函数以 `context.meta` 读取的值。 |

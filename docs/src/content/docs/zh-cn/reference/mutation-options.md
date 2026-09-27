@@ -37,7 +37,7 @@ sourceHash: 6b3b19657ff1
 - 定义不持有状态。用 `mutate` 或 `mutateAsync` 开始的执行属于客户端的变更缓存，没有观察者持有它。执行结束 `gcTime` 之后，它离开缓存。
 - MutationState 系列 widget、`useMutationState` 和 `isMutating` 按 `mutationKey` 找到这次执行。任何 `MutationResult` 都不显示它。
 - 与来自观察者的执行一样，这次执行获得客户端的默认值、它的 `scope` 和 `persist`。
-- 两个方法都不接受 `MutateOptions`。要处理一次调用的副作用，await `mutateAsync`。
+- 两个方法都不接受 `MutateOptions`。要处理一次调用的副作用，用 `await` 等待 `mutateAsync`。
 - 在拥有自己客户端的 `FueryProvider` 下，传入 `context.queryClient`。
 
 ## 回调
@@ -55,7 +55,7 @@ sourceHash: 6b3b19657ff1
 2. 变更自身的回调。
 3. 两个 `onSettled` 回调运行后，执行的状态变为 `success` 或 `error`。接着运行这次调用的 `MutateOptions` 回调，然后 widget 才接收到新状态。
 
-- Fuery 会等待第 1 步和第 2 步返回的 Future，因此在 Future 完成前，执行保持 `pending` 状态。
+- Fuery 会等待第 1 步和第 2 步返回的 `Future`，因此在 `Future` 完成前，执行保持 `pending` 状态。
 - `onMutate` 抛出的错误，或成功后 `onSuccess` 或 `onSettled` 抛出的错误，会让执行失败，并到达 `onError`。
 - 失败执行的 `onError` 或 `onSettled` 抛出的错误进入 [`onUncaughtError`](../../guides/client-setup/#捕获回调抛出的错误)。
 - `restore(mutations:)` 恢复的执行跳过 `onMutate`，它的回调收到的 `context` 为 `null`。
@@ -96,7 +96,7 @@ sourceHash: 6b3b19657ff1
 - 执行结束后，它们在变更自身的回调之后运行。Fuery 不等待它们。
 - 同一个观察者上的新调用会替换它们，因此只有最近一次调用的回调会运行。
 - `reset()` 丢弃它们。卸载持有观察者的 widget，或释放持有观察者的 hook 或 slot，也会丢弃它们。
-- 无论有没有东西监听，共享观察者都会运行它们。在其中使用 `BuildContext` 之前，检查 `context.mounted`。
+- 无论有没有东西监听，共享观察者都会运行它们。在这些回调中使用 `BuildContext` 之前，检查 `context.mounted`。
 - 它们抛出的错误进入 `onUncaughtError`。
 
 ## MutationPersist

@@ -34,7 +34,7 @@ Query<Todo> todoQuery(int id) => Query(
 - Map 中键值对的顺序无关紧要。
 - `1` 和 `1.0` 在移动端和桌面端是不同的键，在 Web 上是同一个键。键中的数字使用 `int`。
 
-每个键只保存一种数据类型。以另一种类型使用这个键会抛出 `StateError`：解决方法见[问题排查](../../troubleshooting/#stateerror-query-holds-x-but-was-requested-as-y)。
+每个键只保存一种数据类型。以另一种类型使用这个键会抛出 `StateError`：解决方法参见[问题排查](../../troubleshooting/#stateerror-query-holds-x-but-was-requested-as-y)。
 
 ## 使用查询
 
@@ -78,7 +78,7 @@ Fuery 用 `null` 表示“尚无数据”，因此查询函数返回不可空类
 
 ## 重试哪些错误
 
-获取失败时，默认重试 3 次，依次等待 1 秒、2 秒、4 秒。因此，一个永远不会成功的请求大约要 7 秒才会进入错误分支。只重试值得重试的错误：
+获取失败时，默认重试 3 次，依次等待 1 秒、2 秒和 4 秒。因此，一个永远不会成功的请求大约要 7 秒才会进入错误分支。只重试值得重试的错误：
 
 ```dart
 Fuery.client = QueryClient(
@@ -115,7 +115,7 @@ QueryBuilder(
 ```
 
 - `enabled: false` 让查询不会自行获取，因此空的搜索词不会发送请求。`state.refetch()` 仍然会获取。
-- 下一个搜索词加载期间，`placeholderData` 让上一次的结果留在屏幕上：见[在屏幕上保留上一页](#在屏幕上保留上一页)。
+- 下一个搜索词加载期间，`placeholderData` 让上一次的结果留在屏幕上：参见[在屏幕上保留上一页](#在屏幕上保留上一页)。
 - 每个搜索词都有自己的缓存条目，因此回到之前的搜索词时，会立即显示它的结果。
 
 在 widget 中调用 `setState` 之前，用 `Timer` 做防抖。在 widget 之外，把下一个查询传给观察者的 `setOptions`。
@@ -168,7 +168,7 @@ QueryBuilder(
 
 下一页加载期间，`state.isPlaceholderData` 为 `true`。用它把列表调暗，或者禁用下一页按钮。无限滚动请改用[无限查询](../infinite-queries/)。
 
-`keepPreviousData` 需要从上下文获得数据类型，例如 `postsQuery` 的返回类型。在由 Dart 推断类型的 `Query(...)` 中，改写为 `(previous, client) => previous`。在那里，`keepPreviousData` 会让 Dart 把数据类型推断为 `Object`，而不是取自 `queryFn`。
+`keepPreviousData` 需要从周围的代码获得数据类型，例如 `postsQuery` 的返回类型。在由 Dart 推断类型的 `Query(...)` 中，改写为 `(previous, client) => previous`。在那里，`keepPreviousData` 会让 Dart 把数据类型推断为 `Object`，而不是取自 `queryFn`。
 
 ## 打开详情界面时不显示加载指示器
 

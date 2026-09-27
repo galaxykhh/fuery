@@ -79,7 +79,7 @@ client.clear();
 
 `addTearDown(Fuery.client.clear)` 运行得太晚。测试主体结束后，`testWidgets` 卸载 widget 树，这会启动计时器。接着它在清理回调运行之前检查待处理的计时器。把这两行放在测试主体的末尾。
 
-### 测试只有在第一个运行时才通过
+### 测试只在最先运行时通过
 
 某个测试单独运行时通过，在另一个测试之后运行就失败：它的客户端一直是空的。观察者会保留创建它时的客户端。在文件顶层创建的观察者，例如 `final todos = todosQuery.observe();`，保留的是第一个使用它的测试的客户端。之后的测试创建新的客户端，这些客户端看不到它。
 
@@ -87,7 +87,7 @@ client.clear();
 
 ### 测试卡在 await subscription.cancel()
 
-在 `testWidgets` 和 `fakeAsync` 中，`cancel()` 返回的 future 永远不会完成。调用它时不要 `await`：
+在 `testWidgets` 和 `fakeAsync` 中，`cancel()` 返回的 `Future` 永远不会完成。调用它时不要 `await`：
 
 ```dart
 @override
@@ -163,7 +163,7 @@ QueriesBuilder(queries: [for (final id in ids) todoQuery(id)], builder: ...)
 
 在 `build` 中创建的变更观察者，例如 `MutationBuilder(mutation: saveTodo.observe())`，每次重建时都从 `idle` 开始。按钮就会丢失它所开始的变更的 `pending` 或 `error` 状态。需要观察者时，只调用一次 `observe()`，放在 `State` 字段或 cubit 中，再把它传下去。参见[共享一个观察者](../guides/mutations/#共享一个观察者)。
 
-在 debug 构建中，Fuery 的 widget 或 hook（包括列表形式）在重建时如果为同一个键和客户端得到一个新的观察者，就会打印一条带有本页链接的警告。每个键只警告一次。替换了 provider 的客户端后得到新的观察者是预期行为，因此不会打印任何内容。
+在 debug 构建中，Fuery 的 widget 或 hook（包括列表形式）在重建时如果为同一个键和客户端得到一个新的观察者，就会打印一条带有本页链接的警告。每个键只警告一次。`FueryProvider` 替换客户端后得到新的观察者是预期行为，因此不会打印任何内容。
 
 ### fetchNextPage 取消了重新获取
 
@@ -206,7 +206,7 @@ onMutate: (id, client) async {
 
 ### 请求结束后变更仍处于 `pending` 状态
 
-返回 future 的回调会让变更保持 `pending`，直到这个 future 完成。`onSuccess: (_, __, ___, client) => client.invalidateQueries(...)` 返回失效操作，因此变更会一直处于 `pending`，直到重新获取完成。这适合保存按钮，它的加载指示器应该等列表刷新完。界面不需要等待时，使用块函数体，它不返回任何值：
+返回 `Future` 的回调会让变更保持 `pending`，直到这个 `Future` 完成。`onSuccess: (_, __, ___, client) => client.invalidateQueries(...)` 返回失效操作，因此变更会一直处于 `pending`，直到重新获取完成。这适合保存按钮，它的加载指示器应该等列表刷新完。界面不需要等待时，使用块函数体，它不返回任何值：
 
 ```dart
 onSuccess: (post, _, __, client) {
@@ -218,7 +218,7 @@ onSuccess: (post, _, __, client) {
 
 ### MutationListener 从不运行
 
-`MutationListener` 从不调用它的监听器，或者只显示状态的 `MutationBuilder` 或 `MutationSelector` 在按钮的变更执行期间一直处于 `idle`。这些 widget 只显示它们自己的观察者的执行。接收定义的 widget，例如 `MutationListener(mutation: addTodo)`，会创建自己的观察者，而没有任何东西用这个观察者执行变更。用 `addTodo.mutate` 或由另一个 widget 开始的执行永远到不了它这里。
+`MutationListener` 从不调用它的监听器，或者只显示状态的 `MutationBuilder` 或 `MutationSelector` 在按钮执行变更期间一直处于 `idle`。这些 widget 只显示它们自己的观察者的执行。接收定义的 widget，例如 `MutationListener(mutation: addTodo)`，会创建自己的观察者，而没有任何东西用这个观察者执行变更。用 `addTodo.mutate` 或由另一个 widget 开始的执行永远到不了它这里。
 
 要接收这个变更的每次执行，无论执行从哪里开始，给定义设置 `mutationKey`，并使用 `MutationStateListener`：
 
@@ -239,7 +239,7 @@ MutationStateListener(
 
 对于只显示状态的 widget，使用 `MutationStateBuilder` 或 `MutationStateSelector`。参见[显示变更的每次执行](../guides/mutations/#显示变更的每次执行)。
 
-对于一次调用的副作用，例如关闭完成保存的表单，用 await 等待 `mutateAsync`。参见[在一次调用成功后执行操作](../guides/mutations/#在一次调用成功后执行操作)。
+对于一次调用的副作用，例如关闭完成保存的表单，用 `await` 等待 `mutateAsync`。参见[在一次调用成功后采取行动](../guides/mutations/#在一次调用成功后采取行动)。
 
 只接收一个观察者的执行时，在 `State` 字段中只创建一次这个观察者。把它同时传给执行变更的 widget 和 `MutationListener`：
 
@@ -268,7 +268,7 @@ MutationState 系列 widget 和 `useMutationState` 在它们所用客户端的�
 
 ### 界面读取了另一个客户端的缓存
 
-变更的回调使查询失效，但界面没有更新。观察者会保留创建它时的客户端。不带 `client:` 的 `observe()` 使用 `Fuery.client`。在拥有自己客户端的 `FueryProvider` 下，`State` 字段中的观察者，例如 `final adding = addTodo.observe();`，读取和写入的是 `Fuery.client`。它周围接收定义的 widget 使用 provider 的客户端，因此回调使错误的缓存失效。
+变更的回调使查询失效，但界面没有更新。观察者会保留创建它时的客户端。不带 `client:` 的 `observe()` 使用 `Fuery.client`。在拥有自己客户端的 `FueryProvider` 下，`State` 字段中的观察者，例如 `final adding = addTodo.observe();`，读取和写入的是 `Fuery.client`。它周围接收定义的 widget 使用 `FueryProvider` 提供的客户端，因此回调使错误的缓存失效。
 
 改为传入定义，widget 会用自己的客户端观察它。代码需要共享观察者时，用 widget 所用的客户端创建它：
 
@@ -276,7 +276,7 @@ MutationState 系列 widget 和 `useMutationState` 在它们所用客户端的�
 late final adding = addTodo.observe(client: context.queryClient);
 ```
 
-除非传入客户端，否则定义的 `mutate` 和 `mutateAsync` 也使用 `Fuery.client`。在 provider 下，调用 `addTodo.mutate('Buy milk', context.queryClient)`。
+除非传入客户端，否则定义的 `mutate` 和 `mutateAsync` 也使用 `Fuery.client`。在 `FueryProvider` 下，调用 `addTodo.mutate('Buy milk', context.queryClient)`。
 
 在 `HookWidget` 中，`useQueryClient()` 返回 hook 使用的客户端。`observer.client` 返回观察者使用的客户端。
 

@@ -46,7 +46,7 @@ Write standard written technical Chinese, as docs.flutter.cn and dart.cn do. The
 | state | 状态 | `QueryState`, `MutationState` |
 | status, fetch status | 状态、获取状态 | The fields `status` and `fetchStatus`. |
 | mutation | 变更 | `Mutation`. Never 突变 or 修改. |
-| run (noun) | 执行 | One `mutate` call, `CachedMutation`. 一次执行, 每次执行, 最近一次执行. |
+| run (noun) | 执行 | One `mutate` call, `CachedMutation`. 一次执行, 每次执行, 最近一次执行. "mutation run" 变更的执行, never the compound 变更执行. |
 | run a mutation | 执行变更 | 执行 belongs to mutations. Code that runs, such as a callback or a query function, takes 运行. |
 | mutation function | 变更函数 | `mutationFn` |
 | variables | 变量 | What a `mutate` call passes. |
@@ -137,6 +137,7 @@ Status and enum values stay code: a query 处于 `pending` 状态, a fetch is `p
 | hook | hook | "change hook" 变化 hook. "reading hook" 读取 hook. |
 | keys (of `useMemoized` or `useEffect`) | keys | Kept in English, so they don't read as 查询键. |
 | adapter | 适配器 | |
+| public API | 公开 API | "the public API of `fuery_core`" `fuery_core` 的公开 API. Never 公共 API. |
 | slot | slot | `ObserverSlot`. Never 插槽, which readers know as another concept. |
 | the slot contract | slot 的约定 | What an adapter calls, and when. |
 | state library | 状态管理库 | "an adapter for another state library" 面向其他状态管理库的适配器 |
@@ -153,6 +154,7 @@ Status and enum values stay code: a query 处于 `pending` 状态, a fetch is `p
 | destroy | 销毁 | `destroy()` |
 | screen | 界面 | 详情界面, 登录界面. Keeps 页 free for infinite-query pages. |
 | feed, post, compose screen, notifications screen | 信息流、帖子、撰写界面、通知界面 | The example app's screens. |
+| thread (of a post) | 讨论串 | "a thread summary" 讨论串摘要 |
 | on screen | 屏幕上 | |
 | frame | 帧 | "the first frame" 第一帧 |
 | subtree | 子树 | |
@@ -163,7 +165,7 @@ Status and enum values stay code: a query 处于 `pending` 状态, a fetch is `p
 | English | 简体中文 | Notes |
 |---|---|---|
 | filter | 过滤器 | "query filters" 查询过滤器 (`QueryFilters`). "mutation filters" 变更过滤器 (`MutationFilters`). |
-| a filter in the UI, such as a search filter | 筛选条件 | Keeps 过滤器 for `QueryFilters` and `MutationFilters`. |
+| a filter in the UI, such as a search filter | 筛选条件 | Keeps 过滤器 for `QueryFilters` and `MutationFilters`. The text field is 筛选框. |
 | predicate | 谓词函数 | `predicate` |
 | match, matching | 匹配 | |
 | exact | 精确匹配 | `exact: true` |
@@ -211,16 +213,21 @@ Status and enum values stay code: a query 处于 `pending` 状态, a fetch is `p
 | enum | 枚举 | |
 | top-level value | 顶层值 | |
 | closure | 闭包 | |
+| block body | 块函数体 | A function body in `{}`, as opposed to `=>`. |
 | tear-off | tear-off | `onPressed: logoutMutation.mutate` |
 | throw | 抛出 | ``抛出 `StateError`。`` |
 | exception | 异常 | |
+| error boundary | 错误边界 | The React concept, on the TanStack Query page. |
 | uncaught error | 未捕获的错误 | |
 | microtask | 微任务 | |
+| await (a future or a call) | 用 `await` 等待 | ``用 `await` 等待 `mutateAsync` ``. A future in prose is `` `Future` ``. |
 | assert | 断言 | |
 | warning | 警告 | |
 | debug, profile, release build | debug 构建、profile 构建、release 构建 | |
 | hot reload | 热重载 | |
 | fake, fake clock | 模拟、模拟时钟 | |
+| timer | 计时器 | "garbage collection timer" 垃圾回收计时器 |
+| test body | 测试主体 | The callback of `testWidgets` or `test`. |
 | helper | 工具函数 | |
 | dev dependency | 开发依赖 | |
 | tear-down | 清理回调 | `addTearDown` |
@@ -233,6 +240,7 @@ Status and enum values stay code: a query 处于 `pending` 状态, a fetch is `p
 | crash reporter | 崩溃上报工具 | |
 | list item | 列表项 | Never 条目. |
 | map entry | 键值对 | Never 条目. |
+| list, map, set | 列表、Map、Set | "compares lists, maps, and sets by content" 按内容比较列表、Map 和 Set |
 | milliseconds since epoch | 自 Unix 纪元以来的毫秒数 | |
 | code generation, native code | 代码生成、原生代码 | |
 
