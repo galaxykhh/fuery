@@ -174,6 +174,7 @@ Use the same Japanese term on every page. Where a note says "first use", write t
 | scope | スコープ | `MutationScope` |
 | mutation key | ミューテーションキー | `mutationKey` |
 | the MutationState widgets | MutationState ウィジェット | `MutationStateBuilder`, `MutationStateListener`, and `MutationStateSelector` |
+| shared observer | 共有したオブザーバー | An observer from `observe()` that several widgets are given |
 
 ### Persistence
 
@@ -205,7 +206,7 @@ Use the same Japanese term on every page. Where a note says "first use", write t
 | select | 選択する | |
 | provider | プロバイダー | `FueryProvider` stays code. |
 | hook | フック | `fuery_hooks` stays code. |
-| change hook | 変更に反応するフック | `useOnQueryChange`, `useOnMutationChange`, and `useOnMutationStateChange` |
+| change hook, reading hook | 変更に反応するフック, 読み取り用のフック | `useOnQueryChange` and the other `useOn...Change` hooks; `useQuery` and the other hooks that return a result |
 | build | ビルドする | The method is 「`build` メソッド」. |
 | rebuild | リビルドする | Not 再ビルド |
 | mount, unmount | マウントする, アンマウントする | |
@@ -264,6 +265,8 @@ Use the same Japanese term on every page. Where a note says "first use", write t
 | fake, fake clock | フェイク, フェイククロック | |
 | tear-down | ティアダウン | `addTearDown` stays code. |
 | package, dependency | パッケージ, 依存関係 | |
+| dev dependency | 開発用の依存関係 | |
+| branch (of a `switch`) | 分岐 | 「データの分岐」, 「エラーの分岐」 |
 | code generation, native code | コード生成, ネイティブコード | |
 | batch | バッチ | |
 | notify | 通知する | |
