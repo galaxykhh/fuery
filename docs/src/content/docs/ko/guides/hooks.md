@@ -9,7 +9,7 @@ head:
 
 `fuery_hooks`는 빌더 없이, 쿼리마다 호출 한 번으로 `build` 안에서 Fuery의 쿼리와 뮤테이션을 읽어요. [`flutter_hooks`](https://pub.dev/packages/flutter_hooks)의 `HookWidget`에서 동작해요.
 
-Fuery 고유의 방식은 Flutter의 관례를 따르는 [위젯](../widgets/)이에요. UI에는 빌더를, 사이드 이펙트에는 리스너를 써요. 훅은 `build` 안에서 데이터를 읽는 쪽을 선호하는 개발자를 위한 것이에요. 두 방식 모두 같은 쿼리, 뮤테이션, 클라이언트를 사용해요. 그래서 훅으로 만든 화면과 위젯으로 만든 화면이 캐시 하나와 요청 하나를 공유해요.
+Fuery 고유의 방식은 Flutter의 관례를 따르는 [위젯](../widgets/)이에요. UI에는 빌더를, 사이드 이펙트에는 리스너를 사용해요. 훅은 `build` 안에서 데이터를 읽는 쪽을 선호하는 개발자를 위한 것이에요. 두 방식 모두 같은 쿼리, 뮤테이션, 클라이언트를 사용해요. 그래서 훅으로 만든 화면과 위젯으로 만든 화면이 캐시 하나와 요청 하나를 공유해요.
 
 `fuery`는 Dart와 Flutter에만 의존해요. 훅에는 `flutter_hooks`가 필요해요. 그래서 훅은 별도 패키지에 있고, 훅을 선택한 앱만 그 패키지에 의존해요.
 
@@ -157,7 +157,7 @@ TextButton(
 )
 ```
 
-결과의 `mutate`를 호출한 한 번에 스낵바 같은 사이드 이펙트를 붙이려면 `mutate`에 `MutateOptions`를 넘기세요.
+결과의 `mutate`를 한 번 호출할 때 스낵바 같은 사이드 이펙트를 실행하려면 `mutate`에 `MutateOptions`를 넘기세요.
 
 ```dart
 addTodo.mutate(
@@ -286,13 +286,13 @@ FilledButton(
 
 ### useEffect에서 스낵바와 화면 이동
 
-스낵바를 보여주거나 화면을 이동할 때는 변화 훅을 사용하세요. 변화 훅은 빌드 밖에서, 이후의 변화에만 실행돼요. `useEffect`와 `useValueChanged`는 빌드하는 동안 실행되는데, 빌드하는 동안에는 스낵바와 화면 이동이 실패해요. 트리를 빌드하는 동안 위젯 트리를 바꾸기 때문이에요. `useEffect` 콜백은 첫 빌드에서 위젯이 마운트될 때의 값으로 실행돼요. 그 뒤에는 키가 바뀐 빌드마다 실행되고, 키가 없으면 모든 빌드마다 실행돼요. 디버그 빌드에서는 이 호출이 이런 에러로 실패해요.
+스낵바를 보여주거나 화면을 이동할 때는 변화 훅을 사용하세요. 변화 훅은 빌드 밖에서, 이후의 변화에만 실행돼요. `useEffect`와 `useValueChanged`는 빌드하는 동안 실행돼요. 빌드하는 동안에는 스낵바를 띄우거나 화면을 이동하면 실패해요. 트리를 빌드하는 동안 위젯 트리를 바꾸기 때문이에요. `useEffect` 콜백은 첫 빌드에서 위젯이 마운트될 때의 값으로 실행돼요. 그 뒤에는 키가 바뀐 빌드마다 실행되고, 키가 없으면 모든 빌드마다 실행돼요. 디버그 빌드에서는 이 호출이 이런 에러로 실패해요.
 
 - `showSnackBar`는 `The showSnackBar() method cannot be called during build.` 에러를 알려요.
 - `Navigator.pop`은 `setState() or markNeedsBuild() called during build.` 에러를 알려요.
 - 첫 빌드나 키가 바뀐 뒤에는 `ScaffoldMessenger.of(context)`가 먼저 `Cannot listen to inherited widgets inside HookState.initState.` 에러로 실패해요.
 
-## 위젯마다 쓰는 훅
+## 위젯에 대응하는 훅
 
 | 위젯 | 훅 |
 |---|---|
@@ -350,4 +350,4 @@ if (fetching.data ?? false) return const LinearProgressIndicator();
 
 ## 테스트
 
-훅을 쓰는 화면도 다른 위젯처럼 테스트하세요. [테스트](../testing/)의 내용이 그대로 적용돼요. 테스트마다 끝에 트리를 언마운트하고 클라이언트를 비우세요.
+훅을 사용하는 화면도 다른 위젯처럼 테스트하세요. [테스트](../testing/)의 내용이 그대로 적용돼요. 테스트마다 끝에 트리를 언마운트하고 클라이언트를 비우세요.

@@ -14,7 +14,7 @@ sourceHash: d451e877320c
 |---|---|---|---|
 | `queryKey` | `List<Object?>` | 필수 | 캐시 항목을 구분하는 이름이에요. [쿼리 키](../../guides/queries/#쿼리-키)를 참고하세요. |
 | `queryFn` | `Future<TData> Function(QueryFunctionContext)` | 필수 | 데이터를 가져와요. [쿼리 함수 컨텍스트](#쿼리-함수-컨텍스트)를 받아요. |
-| `enabled` | `bool` | `true` | `false`면 쿼리가 스스로 데이터를 가져오지 않아요. `refetch()`로는 여전히 가져와요. |
+| `enabled` | `bool` | `true` | `false`면 쿼리가 알아서 데이터를 가져오지 않아요. `refetch()`로는 여전히 가져와요. |
 | `meta` | `Map<String, Object?>` | 없음 | 쿼리 함수가 `context.meta`로 읽는 값 |
 
 ## fresh 상태와 캐싱

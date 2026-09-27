@@ -1,6 +1,6 @@
 ---
 title: 뮤테이션
-description: 낙관적 업데이트와 롤백으로 Flutter에서 서버 데이터를 만들고, 업데이트하고, 삭제해요.
+description: Flutter에서 서버 데이터를 만들고, 업데이트하고, 삭제해요. 낙관적 업데이트와 롤백도 할 수 있어요.
 sourceHash: 9a0946e72979
 head:
   - tag: title
@@ -41,7 +41,7 @@ class AddTodoButton extends StatelessWidget {
 }
 ```
 
-- `mutate`는 실행을 시작하고 바로 반환해요. 실행이 실패하면 에러는 호출한 쪽이 아니라 실행의 상태와 콜백으로 가요.
+- `mutate`는 실행을 시작하고 바로 반환해요. 실행이 실패하면 에러는 호출한 쪽이 아니라 실행의 상태와 콜백으로 전달돼요.
 - 정의는 상태를 담지 않아요. 실행은 위젯이 아니라 클라이언트의 캐시에 속해요. 그래서 버튼이 화면에서 사라져도 실행은 계속돼요.
 - `context.queryClient`는 위젯이 사용하는 클라이언트예요. 가장 가까운 `FueryProvider`의 클라이언트이고, `FueryProvider`가 없으면 `Fuery.client`예요. 이 클라이언트를 넘기면 [MutationState 위젯](#뮤테이션의-모든-실행-보여주기)이 읽는 캐시에 실행이 들어가요.
 - 클라이언트를 넘기지 않으면 실행은 `Fuery.client`를 사용해요. [Cubit](../bloc/#cubit이나-bloc에서-뮤테이션-실행하기)처럼 `BuildContext`가 없는 코드는 이렇게 뮤테이션을 실행해요.
@@ -54,9 +54,9 @@ MutationState 위젯은 어느 화면에서든 뮤테이션의 실행을 보여�
 |---|---|
 | `MutationStateBuilder` | 모든 실행의 `MutationState`, 오래된 실행부터 |
 | `MutationStateSelector` | 그 상태에서 선택한 값. 값이 바뀔 때만 다시 빌드해요. |
-| `MutationStateListener` | 사이드 이펙트에 쓰는, 실행마다 일어나는 모든 변화 |
+| `MutationStateListener` | 사이드 이펙트에 사용하는, 실행마다 일어나는 모든 변화 |
 
-할 일을 추가하는 동안 위 버튼을 비활성화했어요.
+할 일을 추가하는 동안에는 위 버튼을 비활성화해요.
 
 ```dart
 MutationStateSelector(
@@ -260,7 +260,7 @@ final saveDraft = Mutation(
 
 정의의 `mutate`와 MutationState 위젯에는 직접 만든 옵저버가 필요 없어요. Cubit도 정의에서 뮤테이션을 실행해요([Cubit이나 Bloc에서 뮤테이션 실행하기](../bloc/#cubit이나-bloc에서-뮤테이션-실행하기)). 여러 위젯이 한 화면의 실행만 따라가야 할 때만 옵저버 하나를 공유하세요.
 
-`addTodo.observe()`는 `MutationObserver`를 반환해요. 이 옵저버를 받은 위젯은 모두 옵저버를 그대로 사용해요. 여기서는 이 화면의 폼이 저장하는 동안 앱 바에 진행 표시줄을 보여줘요. `MutationStateSelector`를 쓰면 다른 화면이 시작한 실행도 보여줘요.
+`addTodo.observe()`는 `MutationObserver`를 반환해요. 이 옵저버를 받은 위젯은 모두 옵저버를 그대로 사용해요. 여기서는 이 화면의 폼이 저장하는 동안 앱 바에 진행 표시줄을 보여줘요. `MutationStateSelector`를 사용하면 다른 화면이 시작한 실행도 보여줘요.
 
 ```dart
 class _AddTodoScreenState extends State<AddTodoScreen> {

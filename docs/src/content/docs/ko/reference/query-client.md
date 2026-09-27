@@ -19,7 +19,7 @@ sourceHash: 0f608d9305c6
 
 옵션은 모두 클라이언트의 필드이기도 해요.
 
-클라이언트는 마운트된 동안에만 앱이 포커스를 얻거나 네트워크가 다시 연결되면 데이터를 다시 가져와요. 멈춘 뮤테이션을 이어서 실행하는 것도 마운트된 동안뿐이에요. `Fuery.client`에 할당하거나 `FueryProvider`에 넘긴 클라이언트는 마운트돼요. 그 밖의 클라이언트는 `mount()`와 `unmount()`를 직접 호출하세요.
+마운트된 클라이언트만 앱이 포그라운드로 돌아오거나 네트워크가 다시 연결될 때 데이터를 다시 가져와요. 멈춘 뮤테이션을 이어서 실행하는 것도 마운트된 클라이언트뿐이에요. `Fuery.client`에 할당하거나 `FueryProvider`에 넘긴 클라이언트는 마운트돼요. 그 밖의 클라이언트는 `mount()`와 `unmount()`를 직접 호출하세요.
 
 ## 데이터 읽고 쓰기
 
@@ -238,7 +238,7 @@ final savingTodos = client.isMutating(
 | `observers` | `List<QueryObserver<TData>>` | 캐시 항목을 사용하는 옵저버를 구독한 순서대로 담은 리스트 |
 | `observersCount` | `int` | 캐시 항목을 사용하는 옵저버 수 |
 | `isActive` | `bool` | 켜진 옵저버가 하나 이상 있어요. |
-| `isDisabled` | `bool` | 캐시 항목이 스스로 가져오지 않아요. 모든 옵저버가 꺼져 있거나, 관찰하는 옵저버가 없고 `isFetched`가 `false`인 경우예요. |
+| `isDisabled` | `bool` | 캐시 항목을 알아서 가져오지 않아요. 모든 옵저버가 꺼져 있거나, 관찰하는 옵저버가 없고 `isFetched`가 `false`인 경우예요. |
 | `isStale` | `bool` | 옵저버 하나 이상에게 stale 상태예요. 옵저버가 없으면 데이터가 없거나 무효화됐을 때 `true`예요. |
 | `isStatic` | `bool` | 옵저버가 `staticStaleTime`을 사용해요. 그래서 캐시 항목이 절대 stale 상태가 되지 않아요. |
 | `isFetched` | `bool` | 캐시 항목이 가져오기나 `setData` 같은 쓰기로 데이터나 에러를 한 번 이상 받았어요. 스토리지에서 복원한 데이터는 치지 않아요. |

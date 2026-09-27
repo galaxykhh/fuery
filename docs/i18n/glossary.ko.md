@@ -190,7 +190,7 @@ Fuery 문서를 한국어로 옮길 때 쓰는 용어와 문장 규칙이에요.
 | 영어 | 한국어 | 메모 |
 |---|---|---|
 | app lifecycle | 앱 생명주기 | |
-| focus | 포커스 | 앱이 포그라운드에 있다는 뜻이에요. 키보드 포커스와 구분해요. |
+| focus | 포커스 | 앱이 포그라운드에 있다는 뜻이에요. 키보드 포커스와 구분해요. "refetches on focus"는 "앱이 포그라운드로 돌아오면 다시 가져와요"로 풀어요. "포커스를 얻다"는 포커스 상태를 설명하는 [다시 가져오기와 오프라인](../src/content/docs/guides/lifecycle.md)에서만 써요. |
 | foreground, background | 포그라운드, 백그라운드 | "when the app resumes"는 "앱이 포그라운드로 돌아올 때"예요. |
 | connectivity | 네트워크 연결 상태 | 뜻이 분명하면 "연결 상태"로 줄여요. |
 | connectivity source | 연결 상태 소스 | |
@@ -386,6 +386,10 @@ Fuery 문서를 한국어로 옮길 때 쓰는 용어와 문장 규칙이에요.
 | meanwhile | 그동안 | |
 | for good | 계속 | |
 | wherever it started | 어디서 시작했든 | |
+| on its own | 알아서 | "doesn't fetch on its own"은 "알아서 가져오지 않아요"예요. "스스로"로 쓰지 않아요. |
+| latest | 가장 최근 | "the latest run"은 "가장 최근 실행", "the latest call"은 "가장 최근 호출"이에요. "마지막 실행"은 '끝 실행'으로 읽히니 쓰지 않아요. |
+| reach | 전달되다 | 에러나 실행이 콜백, zone, 옵저버에 가는 것. "never reaches `onError`"는 "`onError`로 전달되지 않아요"예요. "닿다"로 쓰지 않아요. |
+| future | `Future` | 문장에서 future를 가리키면 영어 원문이 소문자로 써도 `Future`로 써요. |
 | See [page]. | [page]를 참고하세요. | 링크 앞뒤 문장을 바꾸지 않고 끝에 붙여요. |
 | [page] lists X, [page] covers X | X는 [page]에 있어요 | "[Query options] lists every option"은 "모든 옵션은 [쿼리 옵션]에 있어요"예요. |
 
@@ -539,6 +543,7 @@ Fuery 문서를 한국어로 옮길 때 쓰는 용어와 문장 규칙이에요.
 | ~들 | 생략 | "화면들이 공유해요" → "화면이 모두 공유해요" |
 | ~할 필요가 있다 | ~해야 하다 | "해제할 필요가 있어요" → "해제해야 해요" |
 | ~와 함께 | ~로, ~하고 | "기본값과 함께 만들어요" → "기본값으로 만들어요" |
+| ~하므로 | ~해서, 문장 나누기 | "키를 값으로 비교하므로 두 객체는" → "키를 값으로 비교해서 두 객체는" |
 
 ### 쉬운 말을 쓰고 군더더기를 빼요
 

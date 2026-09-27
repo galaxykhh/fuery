@@ -43,16 +43,16 @@ QueryBuilder(
 ```
 
 서버 데이터에 캐시가 필요한 이유는 [Flutter의 서버 상태](server-state/)에 있어요.
-[뮤테이션](guides/mutations/)은 낙관적 업데이트로 서버 데이터를 만들고, 업데이트하고,
-삭제해요.
+[뮤테이션](guides/mutations/)은 서버 데이터를 만들고, 업데이트하고, 삭제해요.
+낙관적 업데이트도 할 수 있어요.
 
 ## Fuery를 쓰는 이유
 
 <CardGrid>
 	<Card title="Flutter 방식 그대로" icon="puzzle">
 		쿼리를 보여주는 화면은 `StatelessWidget` 그대로예요. 쿼리는 `build` 밖에서
-		정의하고, 위젯은 `StreamBuilder`가 스트림을 렌더링하듯 쿼리를 렌더링해요. UI는
-		빌더가, 사이드 이펙트는 리스너가 맡아요. 아무것도 걷어내지 않고 화면 하나씩
+		정의해요. 위젯은 `StreamBuilder`가 스트림을 렌더링하듯 쿼리를 렌더링해요. UI는
+		빌더가, 사이드 이펙트는 리스너가 맡아요. 기존 코드를 걷어내지 않고 화면 하나씩
 		Fuery를 적용하세요. 훅을 사용한다면 별도 패키지인
 		<a href="guides/hooks/">fuery_hooks</a>가 같은 쿼리를 `useQuery`로
 		렌더링해요.
@@ -66,8 +66,8 @@ QueryBuilder(
 		같은 키를 사용하는 위젯은 모두
 		<a href="how-the-cache-works/">캐시 항목 하나와 요청 하나</a>를 공유해요.
 		Fuery가 백그라운드에서 다시 가져오는 동안 stale 데이터는 화면에 그대로 있어요.
-		다시 가져온 항목이 `==`로 비교해 같으면 Fuery는 이전 객체를 유지해요. 그래서
-		그 목록 행은 다시 빌드하지 않아요.
+		Fuery는 다시 가져온 항목을 `==`로 비교해요. 이전 항목과 같으면 이전 객체를
+		유지해요. 그래서 그 목록 행은 다시 빌드되지 않아요.
 	</Card>
 	<Card title="타입은 함수가 정해요" icon="approve-check">
 		쿼리, 뮤테이션, 무한 쿼리는 함수에서 타입을 얻어요. 타입 인수를 적지 않아도
@@ -88,7 +88,7 @@ QueryBuilder(
 	<Card title="기기에 저장하고, 살펴볼 수 있어요" icon="magnifier">
 		<a href="guides/persistence/">기기에 저장하는 쿼리</a>는 앱을 다시 시작해도
 		남아 있어요. 키-값 스토리지라면 무엇이든 사용할 수 있어요.
-		<a href="guides/devtools/">개발자 도구</a>는 기기에서 실행 중인 앱 안에 캐시를
+		<a href="guides/devtools/">개발자 도구</a>는 기기에서 실행 중인 앱 안에서 캐시를
 		보여줘요.
 	</Card>
 </CardGrid>

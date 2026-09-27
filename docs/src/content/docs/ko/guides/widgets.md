@@ -41,7 +41,7 @@ QueryBuilder(
 
 ## 바뀐 부분만 다시 빌드하기
 
-`buildWhen`을 쓰면 빌더가 보여주지 않는 변화에는 다시 빌드하지 않아요. 이 빌더는 쿼리가 데이터를 다시 가져오는 동안 진행 표시줄만 보여줘요.
+`buildWhen`을 사용하면 빌더가 보여주지 않는 변화에는 다시 빌드하지 않아요. 이 빌더는 쿼리가 데이터를 다시 가져오는 동안 진행 표시줄만 보여줘요.
 
 ```dart
 QueryBuilder(
@@ -190,7 +190,7 @@ QueriesBuilder(
 - 리스트는 `build`에서 만드세요. 키가 리스트에 남아 있는 동안에는 리스트 순서가 바뀌어도 쿼리마다 옵저버를 유지해요.
 - 키가 리스트에서 빠지면 그 옵저버도 없어져요.
 - 여러 결과가 함께 바뀌면 한 번만 다시 빌드해요.
-- `QueriesBuilder`를 만드는 위젯이 다시 빌드될 때마다, id가 그대로여도 리스트의 모든 쿼리를 업데이트해요. 쿼리가 수백 개라면 텍스트 필드의 상태처럼 자주 바뀌는 상태는 다른 위젯에 두세요. 그러면 `QueriesBuilder`를 만드는 위젯은 id가 바뀔 때만 다시 빌드돼요.
+- `QueriesBuilder`를 만드는 위젯이 다시 빌드되면, id가 그대로여도 `QueriesBuilder`가 리스트의 모든 쿼리를 업데이트해요. 쿼리가 수백 개라면 텍스트 필드의 상태처럼 자주 바뀌는 상태는 다른 위젯에 두세요. 그러면 `QueriesBuilder`를 만드는 위젯은 id가 바뀔 때만 다시 빌드돼요.
 
 `QueriesSelector`는 결과를 합쳐 만든 값 하나로 빌드해요. 그 값이 바뀔 때만 다시 빌드해요.
 
@@ -223,7 +223,7 @@ MutationStateSelector(
 
 대부분의 화면은 정의를 넘겨요. 같은 키의 정의를 받은 위젯은 이미 캐시 항목과 요청을 공유해요. [쿼리 사용하기](../queries/#쿼리-사용하기)를 참고하세요.
 
-쿼리, 무한 쿼리, 뮤테이션 위젯과 `QueriesBuilder`, `QueriesSelector`는 `observe()`로 만든 옵저버도 받아요. 위젯은 받은 옵저버를 바꾸지 않고 사용해요. 옵저버의 옵션과, 옵저버를 만들 때 쓴 클라이언트도 그대로예요. 옵저버는 Cubit과 위젯이 핸들 하나를 공유할 때나, 여러 위젯이 뮤테이션 옵저버 하나의 실행만 보여줄 때만 넘기세요.
+쿼리, 무한 쿼리, 뮤테이션 위젯과 `QueriesBuilder`, `QueriesSelector`는 `observe()`로 만든 옵저버도 받아요. 위젯은 받은 옵저버를 바꾸지 않고 사용해요. 옵저버의 옵션과, 옵저버를 만들 때 사용한 클라이언트도 그대로예요. 옵저버는 Cubit과 위젯이 핸들 하나를 공유할 때나, 여러 위젯이 뮤테이션 옵저버 하나의 실행만 보여줄 때만 넘기세요.
 
 옵저버는 Cubit이나 `State` 필드처럼 `build` 밖에서 한 번만 만드세요. `observe()`를 호출할 때마다 옵저버가 새로 생겨요. 새 옵저버는 구독하고 데이터를 다시 가져와요. `State` 필드, 클라이언트, `dispose`에서 호출하는 `reset()`은 [옵저버 하나 공유하기](../mutations/#옵저버-하나-공유하기)에 있어요.
 
@@ -240,7 +240,7 @@ MutationStateSelector(
 
 캐시 항목은 마지막 옵저버가 떠난 뒤에도 `gcTime`(가비지 컬렉션 시간, 기본값: 5분) 동안 남아요. 그래서 다시 돌아온 화면은 데이터를 바로 보여줘요.
 
-`QueryObserver.destroy()`는 모든 리스너를 한 번에 제거해요. 마지막 구독을 해제할 때처럼 옵저버의 타이머를 취소하고 쿼리와의 연결을 끊어요. 위젯 트리에서는 쓸 일이 없어요. 수명이 긴 객체가 리스너에 접근할 수 없는 옵저버를 멈춰야 할 때 호출하세요.
+`QueryObserver.destroy()`는 모든 리스너를 한 번에 제거해요. 마지막 구독을 해제할 때처럼 옵저버의 타이머를 취소하고 쿼리와의 연결을 끊어요. 위젯 트리에서는 필요 없어요. 수명이 긴 객체가 리스너에 접근할 수 없는 옵저버를 멈춰야 할 때 호출하세요.
 
 ## 위젯이나 어댑터 직접 만들기
 
@@ -248,4 +248,4 @@ MutationStateSelector(
 
 ## 예제 앱에서
 
-예제의 [피드](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/feed/feed_screen.dart)에는 다시 가져오기 표시에 쓰는 `buildWhen`, 재시도 버튼이 있는 당겨서 새로고침, 스낵바를 띄우는 `MutationStateListener`가 있어요. 화면마다 보여주는 기능은 예제의 [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example)에 있어요.
+예제의 [피드](https://github.com/galaxykhh/fuery/blob/main/packages/fuery/example/lib/app/screens/feed/feed_screen.dart)에는 다시 가져오기 표시에 사용하는 `buildWhen`, 재시도 버튼이 있는 당겨서 새로고침, 스낵바를 띄우는 `MutationStateListener`가 있어요. 화면마다 보여주는 기능은 예제의 [README](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example)에 있어요.

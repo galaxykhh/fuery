@@ -9,7 +9,7 @@ head:
 
 이 페이지는 [TanStack Query](https://tanstack.com/query) v5(이전 이름 React Query)의 개념마다 Fuery에서 부르는 이름을 알려줘요. TanStack Query를 아는 React 개발자가 Flutter 앱에서 같은 캐싱 모델을 사용하려 할 때 읽으면 돼요.
 
-Fuery의 캐싱과 다시 가져오기 모델은 TanStack Query에서 영감을 받았어요. 그래서 알고 있는 내용 대부분을 그대로 쓸 수 있어요.
+Fuery의 캐싱과 다시 가져오기 모델은 TanStack Query에서 영감을 받았어요. 그래서 알고 있는 내용 대부분이 Fuery에도 그대로 적용돼요.
 
 - 쿼리 키는 캐시 항목의 이름이에요. 그 키를 사용하는 화면은 모두 그 캐시 항목과 요청을 공유해요.
 - 데이터는 `staleTime` 동안 fresh 상태이고, 그 뒤에는 stale 상태예요. Fuery가 백그라운드에서 다시 가져오는 동안 stale 데이터는 화면에 남아요.
@@ -71,7 +71,7 @@ void main() {
 
 | TanStack Query | Fuery |
 |---|---|
-| `queryKey: ['todos', id]` | `queryKey: ['todos', id]`. 타입은 `List<Object?>`예요. Fuery는 키를 값으로 비교하고, 필터는 키를 접두사로 찾아요. |
+| `queryKey: ['todos', id]` | `queryKey: ['todos', id]`. 타입은 `List<Object?>`예요. Fuery는 키를 값으로 비교하고, 필터는 접두사가 일치하는 키를 찾아요. |
 | `queryKey: ['todos', { status, page }]` | `queryKey: ['todos', {'status': status, 'page': page}]`. 맵 항목의 순서는 상관없어요. 키에 넣는 객체에는 `toJson()` 메서드가 있어야 해요. |
 | `queryFn: ({ queryKey, signal, meta, client }) => ...` | `queryFn: (context) => ...`. `context.queryKey`, `context.signal`, `context.meta`, `context.client`가 있어요. |
 | 데이터는 `undefined`가 될 수 없어요. | 쿼리 함수는 `Future<List<Todo>>`처럼 null이 될 수 없는 타입을 반환해요. |
@@ -186,7 +186,7 @@ Fuery 옵션은 값을 받아요. `staleTime: (query) => ...`처럼 TanStack Que
 | `clear()` | `clear()`. 기기에 저장한 데이터도 삭제해요. |
 | `notifyManager.batch(...)` | `notifyManager.batch(...)` |
 
-`getData`, `setData`, `updateData`는 정의에서 키와 데이터 타입을 얻으므로 캐스팅이 필요 없어요. [캐시 읽고 업데이트하기](../guides/query-client/)를 참고하세요.
+`getData`, `setData`, `updateData`는 정의에서 키와 데이터 타입을 얻어서 캐스팅할 필요가 없어요. [캐시 읽고 업데이트하기](../guides/query-client/)를 참고하세요.
 
 ## 위젯 밖에서 가져오기
 
@@ -391,7 +391,7 @@ id마다 쿼리가 하나씩 있는 경우처럼, 한 리스트에 담긴 쿼리
 | `new MutationCache({ onMutate, onSuccess, onError, onSettled })` | `MutationCache(config: MutationCacheConfig(...))` |
 | `query` 인수 | `query`, 캐시 항목(`CachedQuery`) |
 | `mutation` 인수 | `mutation`, 실행(`AnyCachedMutation`). 마지막 인수로 와요. |
-| `isCancelledError(error)` | `error is CancelledError`. 취소된 가져오기는 `QueryCacheConfig` 콜백 어디에도 닿지 않아요. |
+| `isCancelledError(error)` | `error is CancelledError`. 가져오기가 취소되면 `QueryCacheConfig`의 콜백은 하나도 호출되지 않아요. |
 
 두 캐시를 `QueryClient` 생성자에 넘기세요. [모든 실패를 한곳에서 보고하기](../guides/client-setup/#모든-실패를-한곳에서-보고하기)를 참고하세요.
 
@@ -399,7 +399,7 @@ id마다 쿼리가 하나씩 있는 경우처럼, 한 리스트에 담긴 쿼리
 
 | TanStack Query | Fuery |
 |---|---|
-| `createSyncStoragePersister`나 `createAsyncStoragePersister`를 쓰는 `PersistQueryClientProvider` | `QueryClient(storage: ...)`와, 원하는 키-값 스토리지에 맞춰 직접 작성한 `QueryStorage` |
+| `createSyncStoragePersister`나 `createAsyncStoragePersister`를 사용하는 `PersistQueryClientProvider` | `QueryClient(storage: ...)`와, 원하는 키-값 스토리지에 맞춰 직접 작성한 `QueryStorage` |
 | `experimental_createQueryPersister`와 `persister` 옵션 | 쿼리의 `persist: QueryPersist(toJson: ..., fromJson: ...)`, 무한 쿼리의 `InfiniteQueryPersist` |
 | `maxAge`(기본값: 24시간) | 클라이언트의 `persistMaxAge`(기본값: 1일), 또는 `QueryPersist`의 `maxAge` |
 | `buster` | `QueryPersist`의 `version` |
@@ -419,7 +419,7 @@ Fuery는 `persist`를 설정한 쿼리와 뮤테이션만 저장해요. [캐시�
 | `onClose`를 받는 `ReactQueryDevtoolsPanel` | `FueryDevtoolsPanel(onClose: ...)` |
 | `process.env.NODE_ENV === 'development'`일 때만 포함돼요. | 디버그 빌드와 프로파일 빌드에서 보여요. `enabled`의 기본값은 `!kReleaseMode`예요. |
 
-패널이 앱 안에서 실행되므로 기기에서도 동작해요. [개발자 도구](../guides/devtools/)를 참고하세요.
+패널은 앱 안에서 실행돼요. 그래서 기기에서도 동작해요. [개발자 도구](../guides/devtools/)를 참고하세요.
 
 ## 응답 스트리밍하기
 
@@ -459,7 +459,7 @@ Fuery는 `persist`를 설정한 쿼리와 뮤테이션만 저장해요. [캐시�
 
 ### 정의에서 뮤테이션 실행하기
 
-어느 위젯에서든 `context.queryClient`의 클라이언트로 정의에서 뮤테이션을 실행해요. `deleteTodo.mutate(todo.id, context.queryClient)`처럼 호출해요. `StatelessWidget`에는 이를 위한 훅도 빌더도 필요 없어요.
+어느 위젯에서든 `deleteTodo.mutate(todo.id, context.queryClient)`처럼 정의에서 뮤테이션을 실행해요. 클라이언트는 `context.queryClient`로 넘겨요. `StatelessWidget`에는 이를 위한 훅도 빌더도 필요 없어요.
 
 - 실행은 위젯이 아니라 클라이언트의 캐시에 속해요. 그래서 위젯이 언마운트된 뒤에도 계속돼요.
 - `MutationStateSelector`와 `MutationStateBuilder`는 어느 화면에서나 실행의 진행 상황을 보여줘요. 두 위젯은 `mutationKey`로 실행을 찾아요.
@@ -484,11 +484,11 @@ useOnQueryChange(
 );
 ```
 
-변화 훅은 빌드 밖에서, 상태가 바뀐 뒤에 리스너를 실행해요. `flutter_hooks`는 `useEffect` 콜백을 빌드하는 동안 실행하는데, 이때는 스낵바나 화면 이동이 실패해요. [useEffect에서 스낵바와 화면 이동](../guides/hooks/#useeffect에서-스낵바와-화면-이동)을 참고하세요.
+변화 훅은 빌드 밖에서, 상태가 바뀐 뒤에 리스너를 실행해요. `flutter_hooks`는 `useEffect` 콜백을 빌드하는 동안 실행해요. 빌드하는 동안에는 스낵바를 띄우거나 화면을 이동하면 실패해요. [useEffect에서 스낵바와 화면 이동](../guides/hooks/#useeffect에서-스낵바와-화면-이동)을 참고하세요.
 
 ### 포커스와 재연결 때 다시 가져오기
 
-- 포커스는 앱이 포그라운드에 있다는 뜻이에요(`AppLifecycleState.resumed`). Fuery 위젯, 훅, `FueryProvider`가 앱 생명주기를 연결하므로 `refetchOnFocus`는 따로 설정하지 않아도 돼요. 쿼리를 Bloc에서만 사용하는 앱은 `FueryBinding.ensureInitialized()`를 한 번 호출해요.
+- 포커스는 앱이 포그라운드에 있다는 뜻이에요(`AppLifecycleState.resumed`). Fuery 위젯, 훅, `FueryProvider`가 앱 생명주기를 연결해서 `refetchOnFocus`는 따로 설정하지 않아도 돼요. 쿼리를 Bloc에서만 사용하는 앱은 `FueryBinding.ensureInitialized()`를 한 번 호출해요.
 - Fuery는 소스가 다르게 알리기 전까지 기기를 온라인으로 봐요. `connectivity_plus` 같은 소스를 `onlineManager.setEventListener`로 연결하세요. 그러면 쿼리는 오프라인인 동안 멈추고, 네트워크가 다시 연결되면 다시 가져와요.
 - 쿼리에 `refetchIntervalInBackground`를 설정하지 않으면, 앱이 백그라운드에 있는 동안 폴링이 멈춰요.
 
@@ -496,7 +496,7 @@ useOnQueryChange(
 
 ### 코드 생성 없이, 타입은 함수가 정해요
 
-- `api.getTodos()`가 `Future<List<Todo>>`를 반환하므로 위의 `todosQuery`는 `Query<List<Todo>>`예요. 타입 인수를 적지 않아도 위젯, 결과, 콜백까지 그 타입이 이어져요.
+- `api.getTodos()`가 `Future<List<Todo>>`를 반환해서 위의 `todosQuery`는 `Query<List<Todo>>`예요. 타입 인수를 적지 않아도 위젯, 결과, 콜백까지 그 타입이 이어져요.
 - 뮤테이션은 `(int id) => api.deleteTodo(id)`처럼 `mutationFn`의 매개변수와 `onMutate`의 반환값에서 타입을 얻어요.
 - 타입을 적어야 하는 경우는 두 가지예요. `getQueryData<List<Todo>>(['todos'])`처럼 키만으로 읽거나 쓸 때, 그리고 첫 페이지 파라미터가 `null`인 무한 쿼리예요.
 - 생성되는 코드가 없어요. `build_runner` 단계도, 어노테이션도 없어요.

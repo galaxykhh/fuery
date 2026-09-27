@@ -21,7 +21,7 @@ Query<Todo> todoQuery(int id) => Query(
 
 ## 쿼리 키
 
-키는 캐시 항목의 이름을 정하는 리스트예요. Fuery는 키를 값으로 비교해요. 그래서 두 위젯이 각각 `['todos', 1]`을 만들어도 캐시 항목은 하나이고 요청도 하나예요.
+키는 캐시 항목의 이름을 정하는 리스트예요. Fuery는 키를 값으로 비교해요. 그래서 두 위젯에서 `['todos', 1]`을 따로 만들어도 캐시 항목은 하나이고 요청도 하나예요.
 
 키의 요소는 일반적인 것부터 구체적인 것 순서로 놓으세요. `['todos']`, `['todos', 1]`, `['todos', 1, 'comments']`처럼요. 그러면 `['todos']`를 무효화할 때 Fuery가 `['todos']`로 시작하는 키를 모두 새로고침해요.
 
@@ -70,7 +70,7 @@ Fuery는 `null`로 "아직 데이터 없음"을 나타내요. 그래서 쿼리 �
 
 - `Duration(minutes: 1)`은 데이터를 가져올 때마다 1분 동안 fresh 상태로 유지해요. 그 1분 안에는 위젯이나 스트림이 쿼리를 사용하기 시작하거나, 앱이 포그라운드로 돌아오거나, 네트워크가 다시 연결돼도 Fuery가 데이터를 다시 가져오지 않아요. 쿼리를 무효화하면 그 1분 안에도 다시 가져와요.
 - `infiniteDuration`은 쿼리를 무효화할 때까지 데이터를 fresh 상태로 유지해요.
-- `staticStaleTime`은 바뀌지 않는 데이터에 써요. 데이터가 stale 상태가 되지 않고, Fuery가 알아서 다시 가져오지도 않아요. 쿼리를 무효화해도 다시 가져오지 않아요.
+- `staticStaleTime`은 바뀌지 않는 데이터에 사용해요. 데이터가 stale 상태가 되지 않고, Fuery가 알아서 다시 가져오지도 않아요. 쿼리를 무효화해도 다시 가져오지 않아요.
 
 두 화면이 같은 키를 서로 다른 `staleTime`으로 보여줄 수 있어요. 화면마다 자기 `staleTime`으로 fresh 상태인지 판단해요. 30초 전에 가져온 데이터라면, 쿼리의 `staleTime`이 10초인 화면은 열릴 때 데이터를 다시 가져와요. `staleTime`이 1분인 화면은 다시 가져오지 않고 캐시된 데이터를 보여줘요.
 
@@ -168,7 +168,7 @@ QueryBuilder(
 
 다음 페이지를 불러오는 동안 `state.isPlaceholderData`는 `true`예요. 이 값으로 목록을 흐리게 하거나 다음 버튼을 비활성화하세요. 끝없이 스크롤하는 목록에는 [무한 쿼리](../infinite-queries/)를 사용하세요.
 
-`keepPreviousData`는 `postsQuery`의 반환 타입처럼 주변 코드에서 데이터 타입을 알아내야 해요. Dart가 타입을 추론하는 `Query(...)`에서는 그 대신 `(previous, client) => previous`를 쓰세요. 이런 곳에 `keepPreviousData`를 쓰면 Dart가 데이터 타입을 `queryFn`에서 추론하지 않고 `Object`로 추론해요.
+`keepPreviousData`는 `postsQuery`의 반환 타입처럼 주변 코드에서 데이터 타입을 알아내야 해요. Dart가 타입을 추론하는 `Query(...)`에서는 그 대신 `(previous, client) => previous`를 쓰세요. 이런 곳에 `keepPreviousData`를 사용하면 Dart가 데이터 타입을 `queryFn`에서 추론하지 않고 `Object`로 추론해요.
 
 ## 스피너 없이 상세 화면 열기
 
@@ -248,7 +248,7 @@ queryFn: (context) {
 
 `signal`을 읽지 않으면 요청은 끝까지 실행돼요. Fuery는 그 결과를 캐시해 뒀다가 다음에 사용해요.
 
-`context.signal`은 `AbortSignal`이에요. 여러 단계로 나눠 동작하는 쿼리 함수는 단계 사이에 `signal.aborted`를 확인할 수 있어요. `signal.throwIfAborted()`를 호출해 취소를 나타내는 `CancelledError`로 멈추거나, 자기 작업과 `signal.whenAborted` 중 먼저 끝나는 쪽을 기다릴 수도 있어요. Fuery가 `signal`을 중단할 때는 항상 그 `CancelledError`를 쓰고, `AbortedException`은 쓰지 않아요.
+`context.signal`은 `AbortSignal`이에요. 여러 단계로 나눠 동작하는 쿼리 함수는 단계 사이에 `signal.aborted`를 확인할 수 있어요. `signal.throwIfAborted()`를 호출해 취소를 나타내는 `CancelledError`로 멈추거나, 자기 작업과 `signal.whenAborted` 중 먼저 끝나는 쪽을 기다릴 수도 있어요. Fuery는 `signal`을 항상 그 `CancelledError`로 중단해요. `AbortedException`으로 중단하지 않아요.
 
 Fuery는 취소를 실패로 다루지 않아요.
 

@@ -11,7 +11,7 @@ sourceHash: 6b3b19657ff1
 | 옵션 | 타입 | 기본값 | 하는 일 |
 |---|---|---|---|
 | `mutationFn` | `Future<TData> Function(TVariables variables)` | 필수 | 바꿀 내용을 서버에 보내요. 매개변수 타입이 `TVariables`가 되고, 반환 타입이 `TData`가 돼요. |
-| `mutationKey` | `List<Object?>` | 없음 | 실행(`mutate` 호출 한 번)을 구분해요. MutationState 위젯, `useMutationState`, `MutationFilters`, `restore`는 이 키로 실행을 찾아요. `setMutationDefaults`는 키가 받은 키로 시작하는 모든 뮤테이션에 기본값을 적용해요. |
+| `mutationKey` | `List<Object?>` | 없음 | 실행(`mutate` 호출 한 번)을 구분해요. MutationState 위젯, `useMutationState`, `MutationFilters`, `restore`는 이 키로 실행을 찾아요. `setMutationDefaults`는 자신이 받은 키로 `mutationKey`가 시작하는 뮤테이션에 모두 기본값을 적용해요. |
 | `gcTime` | `Duration` | 5분 | 실행이 끝나고 따라가는 옵저버가 없을 때, 실행이 뮤테이션 캐시에 남는 시간이에요. `infiniteDuration`이면 `clear()`까지 남아요. |
 | `retry` | `RetryPolicy` | `RetryPolicy.never()` | 실패한 시도를 얼마나 재시도할지 정해요. `.count(n)`, `.always()`, `.when((count, error) => ...)` 중 하나예요. |
 | `retryDelay` | `Duration Function(int failureCount, Object error)` | 1초, 2초, 4초, … 최대 30초 | 재시도하기 전에 기다리는 시간 |
@@ -32,7 +32,7 @@ sourceHash: 6b3b19657ff1
 |---|---|---|
 | `mutate(variables, [client])` | `void` | 실행을 시작하고 기다리지 않아요. 에러는 호출한 쪽이 아니라 실행의 상태와 콜백으로 전달돼요. |
 | `mutateAsync(variables, [client])` | `Future<TData>` | 실행을 시작하고 그 데이터를 반환해요. 실행이 실패하면 에러가 발생해요. |
-| `observe({client})` | `MutationObserver<TData, TVariables, TContext>` | 뮤테이션을 실행하고 마지막 실행을 알리는 새 옵저버를 반환해요. [옵저버 하나 공유하기](../../guides/mutations/#옵저버-하나-공유하기)를 참고하세요. |
+| `observe({client})` | `MutationObserver<TData, TVariables, TContext>` | 뮤테이션을 실행하고 가장 최근 실행을 알리는 새 옵저버를 반환해요. [옵저버 하나 공유하기](../../guides/mutations/#옵저버-하나-공유하기)를 참고하세요. |
 
 - 정의는 상태를 담지 않아요. `mutate`나 `mutateAsync`로 시작한 실행은 클라이언트의 뮤테이션 캐시에 속하고, 어떤 옵저버도 그 실행을 담지 않아요. 실행은 끝나고 `gcTime`이 지나면 캐시에서 사라져요.
 - MutationState 위젯, `useMutationState`, `isMutating`은 `mutationKey`로 그 실행을 찾아요. `MutationResult`에는 나타나지 않아요.
@@ -94,9 +94,9 @@ sourceHash: 6b3b19657ff1
 | `onSettled` | `TData? data, Object? error, TVariables variables, TContext? context, QueryClient client` | 성공이나 실패 뒤 |
 
 - 실행이 끝나면 뮤테이션 자체의 콜백 뒤에 실행돼요. Fuery는 이 콜백을 기다리지 않아요.
-- 같은 옵저버에서 다시 호출하면 콜백이 바뀌어요. 그래서 마지막 호출의 콜백만 실행돼요.
+- 같은 옵저버에서 다시 호출하면 콜백이 바뀌어요. 그래서 가장 최근 호출의 콜백만 실행돼요.
 - `reset()`을 호출하면 콜백을 버려요. 옵저버를 소유한 위젯이 언마운트되거나, 훅이나 슬롯이 해제될 때도 버려요.
-- 공유한 옵저버는 구독하는 것이 있든 없든 이 콜백을 실행해요. 콜백에서 `BuildContext`를 사용하기 전에 `context.mounted`를 확인하세요.
+- 공유하는 옵저버는 구독하는 것이 있든 없든 이 콜백을 실행해요. 콜백에서 `BuildContext`를 사용하기 전에 `context.mounted`를 확인하세요.
 - 이 콜백에서 발생한 에러는 `onUncaughtError`로 전달돼요.
 
 ## MutationPersist

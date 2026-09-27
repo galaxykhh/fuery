@@ -75,7 +75,7 @@ await tester.pumpWidget(const SizedBox());
 client.clear();
 ```
 
-직접 구독한 옵저버는 `clear()` 전에 구독을 해제하세요. `clear()`는 아직 구독 중인 옵저버를 새 쿼리로 옮기고, 새 쿼리는 다시 로딩을 시작해요.
+직접 구독한 옵저버는 `clear()` 전에 구독을 해제하세요. `clear()`는 아직 구독 중인 옵저버를 새 쿼리로 옮기고, 새 쿼리는 데이터를 다시 불러오기 시작해요.
 
 `addTearDown(Fuery.client.clear)`는 너무 늦게 실행돼요. 테스트 본문이 끝나면 `testWidgets`가 트리를 언마운트하고, 이때 타이머가 시작돼요. 그다음 정리 함수가 실행되기 전에 남은 타이머를 확인해요. 두 줄을 테스트 본문 끝에 두세요.
 
@@ -85,9 +85,9 @@ client.clear();
 
 대신 쿼리를 최상위에 두고 위젯에 넘기세요. 위젯은 현재 클라이언트를 사용해요. `observe()`는 Cubit 안처럼 옵저버를 사용하는 곳에서 호출하세요. 그러면 테스트마다 자기 클라이언트의 옵저버를 받아요. [쿼리가 사용하는 클라이언트](../guides/client-setup/#쿼리가-사용하는-클라이언트)를 참고하세요.
 
-### await subscription.cancel()에서 멈춰요
+### 테스트가 await subscription.cancel()에서 멈춰요
 
-`testWidgets`와 `fakeAsync` 안에서는 `cancel()`이 반환하는 future가 끝내 완료되지 않아요. `await` 없이 호출하세요.
+`testWidgets`와 `fakeAsync` 안에서는 `cancel()`이 반환하는 `Future`가 끝내 완료되지 않아요. `await` 없이 호출하세요.
 
 ```dart
 @override
@@ -187,13 +187,13 @@ void main() {
 
 [앱이 포그라운드로 돌아올 때](../guides/lifecycle/#앱이-포그라운드로-돌아올-때)를 참고하세요.
 
-### 기기가 오프라인이어도 멈추지 않아요
+### 기기가 오프라인이어도 가져오기가 멈추지 않아요
 
 `onlineManager.setEventListener`로 네트워크 연결 상태를 알려주기 전까지 Fuery는 기기가 온라인이라고 가정해요. [네트워크가 다시 연결될 때](../guides/lifecycle/#네트워크가-다시-연결될-때)를 참고하세요.
 
 ## 뮤테이션
 
-### 낙관적 업데이트가 되돌려져요
+### 낙관적 업데이트가 원래대로 돌아가요
 
 이미 실행 중이던 다시 가져오기가 캐시를 바꾼 뒤에 끝나서, 바꾼 내용을 덮어썼어요. `onMutate`에서 캐시를 바꾸기 전에 실행 중인 가져오기를 취소하세요.
 
@@ -206,7 +206,7 @@ onMutate: (id, client) async {
 
 ### 요청 뒤에도 뮤테이션이 pending 상태로 남아요
 
-콜백이 future를 반환하면 그 future가 완료될 때까지 뮤테이션은 `pending` 상태예요. `onSuccess: (_, __, ___, client) => client.invalidateQueries(...)`는 무효화의 future를 반환해요. 그래서 다시 가져오기가 끝날 때까지 뮤테이션이 `pending` 상태로 남아요. 목록을 다시 가져올 때까지 스피너를 보여줘야 하는 저장 버튼에는 이 동작이 맞아요. 화면이 기다리지 않아야 하면 아무것도 반환하지 않는 블록 본문을 사용하세요.
+콜백이 `Future`를 반환하면 그 `Future`가 완료될 때까지 뮤테이션은 `pending` 상태예요. `onSuccess: (_, __, ___, client) => client.invalidateQueries(...)`는 무효화의 `Future`를 반환해요. 그래서 다시 가져오기가 끝날 때까지 뮤테이션이 `pending` 상태로 남아요. 목록을 다시 가져올 때까지 스피너를 보여줘야 하는 저장 버튼에는 이 동작이 맞아요. 화면이 기다리지 않아야 하면 아무것도 반환하지 않는 블록 본문을 사용하세요.
 
 ```dart
 onSuccess: (post, _, __, client) {
@@ -218,7 +218,7 @@ onSuccess: (post, _, __, client) {
 
 ### MutationListener가 한 번도 실행되지 않아요
 
-`MutationListener`가 리스너를 한 번도 호출하지 않아요. 또는 상태만 보여주는 `MutationBuilder`나 `MutationSelector`가, 버튼의 뮤테이션이 실행되는 동안에도 `idle` 상태에 머물러요. 이 위젯은 자기 옵저버의 실행(`mutate` 호출 한 번)만 보여줘요. `MutationListener(mutation: addTodo)`처럼 정의를 받은 위젯은 자기 옵저버를 따로 만들어요. 그 옵저버로 뮤테이션을 실행하는 코드는 없어요. `addTodo.mutate`로 시작했거나 다른 위젯이 시작한 실행은 이 옵저버에 닿지 않아요.
+`MutationListener`가 리스너를 한 번도 호출하지 않아요. 또는 상태만 보여주는 `MutationBuilder`나 `MutationSelector`가, 버튼의 뮤테이션이 실행되는 동안에도 `idle` 상태에 머물러요. 이 위젯은 자기 옵저버의 실행(`mutate` 호출 한 번)만 보여줘요. `MutationListener(mutation: addTodo)`처럼 정의를 받은 위젯은 자기 옵저버를 따로 만들어요. 그 옵저버로 뮤테이션을 실행하는 코드는 없어요. `addTodo.mutate`로 시작했거나 다른 위젯이 시작한 실행은 이 옵저버에 전달되지 않아요.
 
 어디서 시작했든 뮤테이션의 모든 실행의 변화를 받으려면 정의에 `mutationKey`를 주고 `MutationStateListener`를 사용하세요.
 
@@ -262,13 +262,13 @@ MutationState 위젯과 `useMutationState`는 자기가 사용하는 클라이�
 - **정의에 `mutationKey`가 없어요.** `mutationKey: const ['todos', 'add']`처럼 키를 주세요. 디버그 빌드에서는 위젯의 assert가 실패하며 이 원인을 알려줘요.
 - **타입이 다른 정의가 같은 키를 사용해요.** Fuery는 그 정의의 실행을 빼고, [`onUncaughtError`](../guides/client-setup/#콜백에서-발생한-에러-잡기)로 한 번 전달해요. 정의마다 다른 키를 주세요.
 - **실행이 다른 클라이언트에 있어요.** `client:` 없이 `observe()`로 만든 옵저버와, 클라이언트 없이 정의의 `mutate`로 시작한 실행은 `FueryProvider`의 클라이언트가 아니라 `Fuery.client`에서 실행돼요. [화면이 다른 클라이언트의 캐시를 읽어요](#화면이-다른-클라이언트의-캐시를-읽어요)를 참고하세요.
-- **실행이 사라졌어요.** 옵저버가 담고 있지 않은 끝난 실행은 `gcTime`(기본값: 5분)이 지나면 캐시에서 사라져요. `client.clear()`는 모든 실행을 제거해요.
+- **실행이 사라졌어요.** 옵저버가 담고 있지 않은 끝난 실행은 `gcTime`(가비지 컬렉션 시간, 기본값: 5분)이 지나면 캐시에서 사라져요. `client.clear()`는 모든 실행을 제거해요.
 
 ## 클라이언트와 에러 보고
 
 ### 화면이 다른 클라이언트의 캐시를 읽어요
 
-뮤테이션의 콜백이 쿼리를 무효화하는데도 화면이 업데이트되지 않아요. 옵저버는 만들어질 때 받은 클라이언트를 유지해요. `client:` 없이 호출한 `observe()`는 `Fuery.client`를 사용해요. 별도 클라이언트가 있는 `FueryProvider` 아래에서, `final adding = addTodo.observe();`처럼 `State` 필드에 둔 옵저버는 `Fuery.client`를 읽고 써요. 그 주변에서 정의를 받은 위젯은 프로바이더의 클라이언트를 사용하므로, 콜백이 엉뚱한 캐시를 무효화해요.
+뮤테이션의 콜백이 쿼리를 무효화하는데도 화면이 업데이트되지 않아요. 옵저버는 만들어질 때 받은 클라이언트를 유지해요. `client:` 없이 호출한 `observe()`는 `Fuery.client`를 사용해요. 별도 클라이언트가 있는 `FueryProvider` 아래에서, `final adding = addTodo.observe();`처럼 `State` 필드에 둔 옵저버는 `Fuery.client`를 읽고 써요. 그 주변에서 정의를 받은 위젯은 프로바이더의 클라이언트를 사용해요. 그래서 콜백이 엉뚱한 캐시를 무효화해요.
 
 대신 정의를 넘기세요. 그러면 위젯이 자기 클라이언트로 정의를 관찰해요. 코드에서 공유하는 옵저버가 필요하면 위젯이 사용하는 클라이언트로 옵저버를 만드세요.
 
@@ -282,11 +282,11 @@ late final adding = addTodo.observe(client: context.queryClient);
 
 디버그 빌드에서는 다른 클라이언트의 옵저버를 받은 Fuery 위젯이나 훅이 이 항목의 링크가 담긴 경고를 출력해요. 경고는 위젯이나 훅과 키의 조합마다 한 번 출력해요.
 
-### 리스너의 에러가 zone에 닿지 않아요
+### 리스너의 에러가 zone으로 전달되지 않아요
 
-리스너에서 발생한 에러가 `runZonedGuarded`나 `PlatformDispatcher.onError`에 닿지 않아요. 클라이언트에 `onUncaughtError`가 있으면 Fuery는 에러를 zone 대신 `onUncaughtError`로 전달해요.
+리스너에서 발생한 에러가 `runZonedGuarded`나 `PlatformDispatcher.onError`로 전달되지 않아요. 클라이언트에 `onUncaughtError`가 있으면 Fuery는 에러를 zone 대신 `onUncaughtError`로 전달해요.
 
-리스너 위젯, 컨슈머, 훅의 `listener`와 슬롯의 `listen`이나 `subscribeToRuns`에 넘긴 함수가 여기에 해당해요. 위젯은 그대로 다시 빌드하고, 다른 리스너도 그대로 실행돼요.
+리스너 위젯, 컨슈머, 훅의 `listener`와 슬롯의 `listen`이나 `subscribeToRuns`에 넘긴 함수가 여기에 해당해요. 위젯은 그대로 다시 빌드되고, 다른 리스너도 그대로 실행돼요.
 
 콜백에서 발생한 다른 에러처럼, 이 에러도 `onUncaughtError`에서 보고하세요.
 

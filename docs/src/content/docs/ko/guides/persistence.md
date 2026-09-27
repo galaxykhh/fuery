@@ -182,7 +182,7 @@ await Fuery.client.restore(mutations: [addCommentMutation()]);
 - `mutations`는 `AnyMutation`의 리스트예요. 모든 `Mutation`은 `AnyMutation`이에요. 그래서 타입이 다른 정의를 한 리스트에 넣을 수 있어요.
 - Fuery는 `mutationKey`를 쿼리 키와 같은 방식으로 저장해요. 그래서 키에 enum과 `DateTime`을 넣을 수 있어요.
 - `toJson()`이 없는 객체를 담은 키처럼 저장할 수 없는 키는 Fuery가 `onUncaughtError`로 한 번 전달해요. 실행은 저장되지 않은 채 계속돼요.
-- 키에서 enum 타입만 다른 정의 두 개가 있으면, `restore`는 두 정의를 알리고 둘 다 복원하지 않아요.
+- 키에서 enum 타입만 다른 정의 두 개가 있으면, `restore`는 이 문제를 알리고, 두 정의 모두 복원하지 않아요.
 
 ### 저장된 실행 복원하기
 

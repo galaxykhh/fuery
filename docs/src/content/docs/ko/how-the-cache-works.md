@@ -34,7 +34,7 @@ Query<Todo> todoQuery(int id) => Query(
     );
 ```
 
-`todoQuery(1)`을 두 번 호출하면 객체가 두 개 생겨요. 두 객체의 키는 모두 `['todos', 1]`이에요. Fuery는 키를 값으로 비교하므로 두 객체는 캐시 항목 하나를 사용해요. 키에 담을 수 있는 값은 [쿼리 키](../guides/queries/#쿼리-키)에 있어요.
+`todoQuery(1)`을 두 번 호출하면 객체가 두 개 생겨요. 두 객체의 키는 모두 `['todos', 1]`이에요. Fuery는 키를 값으로 비교해서 두 객체는 캐시 항목 하나를 사용해요. 키에 담을 수 있는 값은 [쿼리 키](../guides/queries/#쿼리-키)에 있어요.
 
 ## 클라이언트와 캐시
 
@@ -102,7 +102,7 @@ Query<Todo> todoQuery(int id) => Query(
 - **실행을 따로 둬요.** 같은 뮤테이션의 `MutationBuilder` 두 개는 저마다 옵저버를 유지하고, 자기가 시작한 실행만 보여줘요. 여러 위젯이 옵저버 하나를 사용해야 하는 경우는 [옵저버 하나 공유하기](../guides/mutations/#옵저버-하나-공유하기)에 있어요.
 - **모든 실행을 찾아요.** `MutationStateBuilder`, `MutationStateListener`, `MutationStateSelector`, `useMutationState`는 정의의 `mutationKey`로, 또는 `MutationFilters` 조건으로 실행을 모두 찾아요. 실행을 어디서 시작했든 상관없어요. [뮤테이션의 모든 실행 보여주기](../guides/mutations/#뮤테이션의-모든-실행-보여주기)를 참고하세요.
 - **재시도해요.** 실행은 뮤테이션이나 클라이언트의 뮤테이션 기본값(`DefaultOptions`, `setMutationDefaults`)이 `retry`를 설정할 때만 재시도해요.
-- **캐시에서 사라져요.** 옵저버가 보여주는 동안 실행은 캐시에 남아요. 실행이 끝나고 보여주는 옵저버가 없으면 Fuery는 `gcTime`(기본값: 5분)이 지난 뒤 실행을 제거해요. 정의에서 시작한 실행은 옵저버가 없으므로 끝나고 `gcTime`이 지나면 사라져요. `client.clear()`는 모든 실행을 바로 제거해요.
+- **캐시에서 사라져요.** 옵저버가 보여주는 동안 실행은 캐시에 남아요. 실행이 끝나고 보여주는 옵저버가 없으면 Fuery는 `gcTime`(기본값: 5분)이 지난 뒤 실행을 제거해요. 정의에서 시작한 실행은 옵저버가 없어서 끝나고 `gcTime`이 지나면 사라져요. `client.clear()`는 모든 실행을 바로 제거해요.
 
 `MutationResult`와 `MutationState`의 필드는 [뮤테이션 결과](../reference/mutation-results/)에 있어요.
 

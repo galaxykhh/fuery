@@ -29,7 +29,7 @@ enum 두 개가 상태를 담고, 나머지 필드는 데이터와 마지막 가
 | `isFetchedAfterMount` | `bool` | 위와 같지만, 이 옵저버에 첫 리스너가 생긴 뒤부터 따져요. |
 | `isPlaceholderData` | `bool` | `data`가 `placeholderData`에서 왔어요. 그동안 `status`는 `success`예요. |
 | `isStale` | `bool` | 데이터가 `staleTime`보다 오래됐거나, 무효화됐거나, 없어요. 그래서 다음 트리거에서 다시 가져와요. 꺼진 쿼리에서는 항상 `false`예요. |
-| `isEnabled` | `bool` | `enabled`가 `false`가 아니에요. 그래서 쿼리가 스스로 데이터를 가져와요. |
+| `isEnabled` | `bool` | `enabled`가 `false`가 아니에요. 그래서 쿼리가 알아서 데이터를 가져와요. |
 | `observer` | `QueryObserver<TData>?` | 이 결과를 알린 옵저버. 테스트에서처럼 `QueryResult` 생성자로 만든 결과에서는 `null`이에요. |
 
 나머지 멤버는 이 필드를 바탕으로 한 질문이에요.

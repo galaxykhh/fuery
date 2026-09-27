@@ -4,7 +4,7 @@ description: Flutter 앱에 Fuery를 설치하고, 첫 API 요청을 캐시해 �
 sourceHash: 325411dab737
 ---
 
-다섯 단계를 마치면 화면 하나가 API의 목록을 로딩 상태와 에러 상태까지 포함해 보여줘요. 다른 화면은 모두 캐시된 목록을 다시 사용하고, 위젯 테스트가 이 동작을 확인해요.
+다섯 단계를 마치면 화면 하나가 API에서 가져온 목록을 보여줘요. 로딩 상태와 에러 상태도 보여줘요. 다른 화면은 모두 캐시된 목록을 다시 사용하고, 위젯 테스트가 이 동작을 확인해요.
 
 ## 시작하기 전에
 
@@ -105,13 +105,13 @@ void main() {
 }
 ```
 
-마지막 두 줄은 화면을 언마운트하고 캐시를 비워요. 그래서 가비지 컬렉션 타이머가 테스트보다 오래 남아 테스트를 실패시키지 않아요. 이 두 줄은 테스트 본문에 두세요. `addTearDown`은 `testWidgets`가 타이머를 확인한 뒤에 실행돼요.
+마지막 두 줄은 화면을 언마운트하고 캐시를 비워요. 그래서 가비지 컬렉션 타이머가 테스트보다 오래 남아 테스트를 실패시키지 않아요. 이 두 줄은 테스트 본문에 두세요. `addTearDown`은 `testWidgets`가 타이머를 확인한 뒤에 실행되기 때문이에요.
 
 테스트마다 새 클라이언트를 주는 방법, 재시도를 끄는 방법, Cubit과 순수 Dart 코드를 테스트하는 방법은 [테스트](../guides/testing/)에 있어요.
 
 ## Fuery가 해준 일
 
-- **타입은 함수가 정해요.** `api.getTodos()`가 `Future<List<Todo>>`를 반환하므로 `todosQuery`는 `Query<List<Todo>>`예요. 빌더의 `state`는 `QueryResult<List<Todo>>`예요. 타입을 직접 적는 경우는 두 가지예요. `client.getQueryData<List<Todo>>(['todos'])`처럼 키만으로 읽거나 쓸 때, 그리고 첫 페이지 파라미터가 `null`인 무한 쿼리예요([커서 기반 페이지](../guides/infinite-queries/#커서-기반-페이지) 참고).
+- **타입은 함수가 정해요.** `api.getTodos()`가 `Future<List<Todo>>`를 반환해서 `todosQuery`는 `Query<List<Todo>>`예요. 빌더의 `state`는 `QueryResult<List<Todo>>`예요. 타입을 직접 적는 경우는 두 가지예요. `client.getQueryData<List<Todo>>(['todos'])`처럼 키만으로 읽거나 쓸 때, 그리고 첫 페이지 파라미터가 `null`인 무한 쿼리예요([커서 기반 페이지](../guides/infinite-queries/#커서-기반-페이지) 참고).
 - **null을 검사하지 않아도 돼요.** `QueryResult(:final data?)`는 데이터가 있을 때만 일치해요. 그래서 그 분기에서 `data`는 `List<Todo>`예요.
 - **화면은 키로 데이터를 공유해요.** `['todos']`를 사용하는 화면은 모두 캐시 항목 하나를 읽어요. 데이터를 가져오는 동안 마운트된 화면은 그 요청을 공유해요.
 - **stale 데이터는 Fuery가 알아서 다시 가져와요.** 데이터는 도착하자마자 stale 상태예요(`staleTime` 기본값: 0). 다른 화면이 데이터를 사용하기 시작하거나 앱이 포그라운드로 돌아오면 Fuery가 백그라운드에서 다시 가져와요. 그동안 이전 목록은 화면에 그대로 있어요.

@@ -7,7 +7,7 @@ head:
     content: Flutter의 무한 스크롤과 페이지네이션 | Fuery
 ---
 
-무한 쿼리는 키 하나에 페이지 리스트를 담아요. 요청하면 다음 페이지를 불러와요. 피드나 끝없는 목록에 사용하세요. 번호가 붙은 페이지가 서로를 대신하는 화면에는 [플레이스홀더 데이터](../queries/#이전-페이지를-화면에-유지하기)를 쓰는 일반 쿼리가 더 잘 맞아요.
+무한 쿼리는 키 하나에 페이지 리스트를 담아요. 요청하면 다음 페이지를 불러와요. 피드나 끝없는 목록에 사용하세요. 번호가 붙은 페이지가 서로를 대신하는 화면에는 [플레이스홀더 데이터](../queries/#이전-페이지를-화면에-유지하기)를 사용하는 일반 쿼리가 더 잘 맞아요.
 
 ```dart
 final posts = InfiniteQuery(
@@ -75,7 +75,7 @@ Fuery는 `fetchNextPage()`나 `fetchPreviousPage()`가 페이지를 불러오는
 
 ## 무한 쿼리를 함수에 두기
 
-`InfiniteQuery<TPage, TParam>`은 첫째에 페이지 타입을, 둘째에 페이지 파라미터 타입을 적어요. Fuery는 페이지 타입을 `queryFn`에서, 페이지 파라미터 타입을 `initialPageParam`에서 추론해요. [쿼리 정리하기](../organizing-queries/)에서 권하는 것처럼 쿼리를 함수로 옮길 때는 두 타입을 모두 반환 타입에 적으세요.
+`InfiniteQuery<TPage, TParam>`에는 첫 번째 자리에 페이지 타입을, 두 번째 자리에 페이지 파라미터 타입을 적어요. Fuery는 페이지 타입을 `queryFn`에서, 페이지 파라미터 타입을 `initialPageParam`에서 추론해요. [쿼리 정리하기](../organizing-queries/)에서 권하는 것처럼 쿼리를 함수로 옮길 때는 두 타입을 모두 반환 타입에 적으세요.
 
 ```dart
 // lib/data/post_queries.dart
@@ -92,7 +92,7 @@ InfiniteQuery<PostPage, int> postsQuery() => InfiniteQuery(
 
 ## 커서 기반 페이지
 
-다음 페이지의 커서를 반환하는 API도 같은 방식으로 동작해요. 첫 요청에 커서가 없으면 `initialPageParam`은 `null`이에요. 이 값으로는 커서의 타입을 알 수 없어요. 그 대신 타입을 선언하세요. 첫째에 페이지 타입, 둘째에 커서 타입을 적은 `InfiniteQuery<ItemPage, String?>`을 반환하는 함수에 쿼리를 두세요.
+다음 페이지의 커서를 반환하는 API도 같은 방식으로 동작해요. 첫 요청에 커서가 없으면 `initialPageParam`은 `null`이에요. 이 값으로는 커서의 타입을 알 수 없어요. 그 대신 타입을 선언하세요. 첫 번째 자리에 페이지 타입, 두 번째 자리에 커서 타입을 적은 `InfiniteQuery<ItemPage, String?>`을 반환하는 함수에 쿼리를 두세요.
 
 ```dart
 InfiniteQuery<ItemPage, String?> itemsQuery() => InfiniteQuery(

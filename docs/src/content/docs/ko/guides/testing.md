@@ -30,7 +30,7 @@ testWidgets('shows todos', (tester) async {
 - **가짜 API가 응답하는 데 걸리는 시간만큼 `pump`하세요.** 바로 응답하는 가짜 API에는 `await tester.pump()`만 있으면 돼요.
 - **테스트마다 마지막에 위젯을 언마운트하고 `client.clear()`를 호출하세요.** 그러지 않으면 캐시의 가비지 컬렉션 타이머가 남아 있어서 [테스트가 실패해요](../../troubleshooting/#a-timer-is-still-pending-even-after-the-widget-tree-was-disposed).
 - **재시도는 쿼리만 끄면 돼요.** 뮤테이션은 `retry`를 설정하지 않으면 재시도하지 않아요. 그래서 `QueryDefaults`로 충분해요. 테스트에 뮤테이션 기본값이 따로 필요할 때만 `mutations: MutationDefaults(...)`를 추가하세요.
-- **`FueryProvider`를 써도 돼요.** 위젯은 가장 가까운 `FueryProvider`의 클라이언트를 사용해요. 그래서 `Fuery.client`에 할당하는 대신 `FueryProvider(client: client, child: const App())`을 쓸 수 있어요. 하지만 `observe()`와 정의의 `mutate`, `mutateAsync`는 클라이언트를 넘기지 않으면 여전히 `Fuery.client`를 사용해요. 그러니 테스트나 Cubit이 만드는 옵저버에는 `observe(client: client)`가 필요하고, 정의에서 뮤테이션을 실행하는 위젯은 `context.queryClient`를 넘겨야 해요.
+- **`FueryProvider`를 사용해도 돼요.** 위젯은 가장 가까운 `FueryProvider`의 클라이언트를 사용해요. 그래서 `Fuery.client`에 할당하는 대신 `FueryProvider(client: client, child: const App())`을 사용할 수 있어요. 하지만 `observe()`와 정의의 `mutate`, `mutateAsync`는 클라이언트를 넘기지 않으면 여전히 `Fuery.client`를 사용해요. 그러니 테스트나 Cubit이 만드는 옵저버에는 `observe(client: client)`가 필요하고, 정의에서 뮤테이션을 실행하는 위젯은 `context.queryClient`를 넘겨야 해요.
 - **옵저버는 테스트 안에서 만드세요.** 옵저버는 자기 클라이언트를 유지해요. 그래서 파일의 최상위에서 만든 옵저버는 [첫 테스트의 클라이언트를 계속 유지해요](../../troubleshooting/#테스트가-맨-처음-실행될-때만-통과해요).
 
 ## 위젯 트리 없이 테스트하기
