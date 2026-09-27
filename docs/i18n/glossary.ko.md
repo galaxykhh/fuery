@@ -36,6 +36,11 @@ Fuery 문서를 한국어로 옮길 때 쓰는 용어와 문장 규칙이에요.
 | Built the Flutter way | Flutter 방식 그대로 | 홈 카드 제목 |
 | Fuery is built the Flutter way. | Fuery는 Flutter 방식을 그대로 따라요. | 문장 |
 | Nothing beyond Dart and Flutter | Dart와 Flutter만 있으면 돼요 | 홈 카드 제목 |
+| Cached and fresh | 캐시하고, fresh 상태로 유지해요 | 홈 카드 제목 |
+| Types from your functions, Types come from your functions. | 타입은 함수가 정해요 | 홈 카드 제목, 시작하기의 "Fuery가 해준 일" |
+| Built for real networks | 실제 네트워크에 맞춰 만들었어요 | 홈 카드 제목 |
+| Persisted and inspectable | 기기에 저장하고, 살펴볼 수 있어요 | 홈 카드 제목 |
+| Tested. | 테스트를 거쳤어요. | 홈 |
 | Fuery depends on nothing beyond Dart and Flutter. | Fuery는 Dart와 Flutter에만 의존해요. | 문장. 주어가 패키지면 "`fuery`는 Dart와 Flutter에만 의존해요." |
 | Fuery's caching and refetching model is inspired by TanStack Query. | Fuery의 캐싱과 다시 가져오기 모델은 TanStack Query에서 영감을 받았어요. | 홈, TanStack Query에서 넘어왔다면 |
 | Why Fuery | Fuery를 쓰는 이유 | 홈 제목 |
@@ -94,6 +99,7 @@ Fuery 문서를 한국어로 옮길 때 쓰는 용어와 문장 규칙이에요.
 | placeholder data | 플레이스홀더 데이터 | `placeholderData` |
 | initial data | 초기 데이터 | `initialData` |
 | structural sharing | 구조적 공유 | `structuralSharing` |
+| static | static | `staleTime: staticStaleTime`을 설정한 쿼리. "static 쿼리"처럼 써요. |
 | default, defaults | 기본값 | "per-key defaults"는 "키별 기본값"이에요. |
 | option | 옵션 | |
 | filter | 필터 | "query filters"는 "쿼리 필터"예요. |
@@ -101,6 +107,7 @@ Fuery 문서를 한국어로 옮길 때 쓰는 용어와 문장 규칙이에요.
 | match | 조건에 맞는 캐시 항목 | "the matches"는 "조건에 맞는 캐시 항목", 뮤테이션이면 "조건에 맞는 실행"이에요. 동사는 "일치하다", "조건에 맞다"예요. |
 | predicate | `predicate`, 조건 함수 | |
 | retry | 재시도 | "retry policy"는 "재시도 정책"이에요. |
+| backoff | 간격을 늘려가며 | "retries 3 times with backoff"는 "간격을 늘려가며 3번 재시도해요"예요. |
 | attempt | 시도 | "failed attempt"는 "실패한 시도"예요. |
 | failure | 실패 | |
 | error | 에러 | "오류"로 쓰지 않아요. |
@@ -157,6 +164,9 @@ Fuery 문서를 한국어로 옮길 때 쓰는 용어와 문장 규칙이에요.
 | frame | 프레임 | "first frame"은 "첫 프레임"이에요. |
 | build | 빌드 | "during a build"는 "빌드하는 동안"이에요. `build` 메서드는 코드로 써요. |
 | screen | 화면 | "on screen"은 "화면에"예요. |
+| route | 라우트 | |
+| row | 행 | 목록이나 표의 한 줄. "list rows"는 "목록 행"이에요. |
+| controller | 컨트롤러 | `TextEditingController` 같은 객체. |
 | snackbar | 스낵바 | |
 | navigation | 화면 이동 | 동사 navigate는 "화면을 이동하다"예요. |
 | dialog | 다이얼로그 | |
@@ -248,6 +258,16 @@ Fuery 문서를 한국어로 옮길 때 쓰는 용어와 문장 규칙이에요.
 | hash | 해시 | |
 | deprecated | 지원 중단된 | |
 | alias | 별칭 | |
+| singleton | 싱글턴 | |
+| cast | 캐스팅하다 | "nothing to cast"는 "캐스팅할 필요가 없어요"예요. |
+| wrapper, unwrap | 래퍼, 풀다 | `Result`, `Either` 같은 결과 객체. "unwrap the result"는 "결과를 풀다"예요. |
+| annotation | 어노테이션 | |
+| timestamp | 타임스탬프 | |
+| nest | 중첩하다 | |
+| hierarchy | 계층 | 키의 계층. |
+| convention | 관례 | "Flutter's conventions"는 "Flutter의 관례"예요. |
+| snippet | 코드 예시 | |
+| error boundary, server render | 에러 바운더리, 서버 렌더링 | React의 개념. TanStack Query에서 넘어왔다면에서만 써요. |
 | milliseconds since epoch | epoch 이후 밀리초 | |
 | batch | 묶음 | `notifyManager.batch`. "once per batch"는 "묶음마다 한 번"이에요. |
 | user | 사용자 | 앱을 쓰는 사람. 문서를 읽는 개발자는 "사용자"라고 부르지 않고 주어를 생략해요. |
@@ -351,6 +371,8 @@ Fuery 문서를 한국어로 옮길 때 쓰는 용어와 문장 규칙이에요.
 | meanwhile | 그동안 | |
 | for good | 계속 | |
 | wherever it started | 어디서 시작했든 | |
+| See [page]. | [page]를 참고하세요. | 링크 앞뒤 문장을 바꾸지 않고 끝에 붙여요. |
+| [page] lists X, [page] covers X | X는 [page]에 있어요 | "[Query options] lists every option"은 "모든 옵션은 [쿼리 옵션]에 있어요"예요. |
 
 ## 페이지 제목
 
