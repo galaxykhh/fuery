@@ -1,6 +1,9 @@
 ---
 title: Mutations
 description: Create, update, and delete server data in Flutter, with optimistic updates and rollback.
+head:
+  - tag: title
+    content: Mutations and optimistic updates in Flutter | Fuery
 ---
 
 A mutation sends a change to the server, such as a new todo. Run it from a button, show its progress on any screen, tell the user when it fails, and update the cache before the server answers.

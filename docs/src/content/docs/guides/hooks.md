@@ -1,6 +1,9 @@
 ---
 title: Hooks
 description: Render queries and mutations from inside build with fuery_hooks and flutter_hooks.
+head:
+  - tag: title
+    content: useQuery and useMutation for flutter_hooks | Fuery
 ---
 
 `fuery_hooks` reads Fuery's queries and mutations inside `build`, with one call per query and no builders. It works in a [`flutter_hooks`](https://pub.dev/packages/flutter_hooks) `HookWidget`.

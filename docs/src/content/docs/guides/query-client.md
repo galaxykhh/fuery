@@ -1,6 +1,9 @@
 ---
 title: Reading and updating the cache
 description: Read, write, invalidate, and watch cached data in Flutter, fetch outside widgets, and clear the cache at logout.
+head:
+  - tag: title
+    content: Invalidate, update, and read cached data in Flutter | Fuery
 ---
 
 With the `QueryClient`, you update what every screen shows without a new request, refetch data after a change on the server, and fetch before a screen opens. In a widget, `context.queryClient` returns the client the widgets use. Elsewhere, use the client you configured: `Fuery.client`, or the one you passed to `FueryProvider`. See [Which client a query uses](../client-setup/#which-client-a-query-uses).

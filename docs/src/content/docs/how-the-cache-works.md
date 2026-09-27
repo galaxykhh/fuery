@@ -1,6 +1,6 @@
 ---
 title: How the cache works
-description: Why two screens share one request, when cached data refetches, and when it leaves memory.
+description: "How Fuery caches server data in a Flutter app: why two screens share one request, when cached data refetches, and when it leaves memory."
 ---
 
 Two screens share one request, stale data refetches on its own, and unused data leaves memory after 5 minutes by default. These parts work together to produce that behavior:

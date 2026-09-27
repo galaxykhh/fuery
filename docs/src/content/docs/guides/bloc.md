@@ -1,6 +1,9 @@
 ---
 title: Bloc and cubits
-description: Read cached queries and run mutations from cubits and blocs, sharing one cache with Fuery's widgets.
+description: Read cached queries and run mutations from cubits and blocs in a Flutter app, sharing one cache with Fuery's widgets and keeping the state management you have.
+head:
+  - tag: title
+    content: Caching API data in a Flutter bloc or cubit | Fuery
 ---
 
 Cubits and blocs use the same queries, mutations, and cache as Fuery's widgets, so you keep the state management you have. An observer's `stream` emits the current result, then every change. Listening subscribes the observer, which fetches as a mounted widget would. Cancelling the subscription unsubscribes it.

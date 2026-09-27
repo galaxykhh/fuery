@@ -1,6 +1,9 @@
 ---
 title: Persistence
 description: Keep cached server data across app restarts in Flutter, with any key-value storage.
+head:
+  - tag: title
+    content: Offline cache persistence in Flutter | Fuery
 ---
 
 Store query data and pending mutations on the device, and they survive an app restart:

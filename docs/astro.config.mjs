@@ -9,23 +9,12 @@ export default defineConfig({
 		starlight({
 			title: 'Fuery',
 			description: 'Fetch, cache, and keep server data fresh in Flutter.',
+			// Page titles and structured data: see src/routeData.ts.
+			routeMiddleware: './src/routeData.ts',
 			head: [
-				{
-					tag: 'script',
-					attrs: { type: 'application/ld+json' },
-					content: JSON.stringify({
-						'@context': 'https://schema.org',
-						'@type': 'SoftwareSourceCode',
-						name: 'Fuery',
-						description:
-							'Server data caching for Flutter and Dart: queries, mutations, pagination, and offline support.',
-						codeRepository: 'https://github.com/galaxykhh/fuery',
-						programmingLanguage: 'Dart',
-						license: 'https://github.com/galaxykhh/fuery/blob/main/LICENSE',
-						url: 'https://galaxykhh.github.io/fuery/',
-					}),
-				},
 				{ tag: 'meta', attrs: { property: 'og:image', content: 'https://galaxykhh.github.io/fuery/og.png' } },
+				{ tag: 'meta', attrs: { property: 'og:image:width', content: '1280' } },
+				{ tag: 'meta', attrs: { property: 'og:image:height', content: '640' } },
 				{ tag: 'meta', attrs: { property: 'og:image:alt', content: 'Fuery: server state for Flutter' } },
 			],
 			logo: {
