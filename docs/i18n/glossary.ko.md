@@ -140,9 +140,11 @@ Fuery 문서를 한국어로 옮길 때 쓰는 용어와 문장 규칙이에요.
 |---|---|---|
 | widget | 위젯 | |
 | builder | 빌더 | |
+| branch | 분기 | `switch`나 `if`로 나눈 경우 하나. "error branch"는 "에러 분기", "data branch"는 "데이터 분기"예요. |
 | listener | 리스너 | "listener widget"은 "리스너 위젯"이에요. |
 | consumer | 컨슈머 | |
 | selector | 셀렉터 | "선택자"로 쓰지 않아요. |
+| flag | 플래그 | `isFetchingNextPage`처럼 결과에 있는 `bool` 필드. |
 | hook | 훅 | |
 | reading hook | 읽기 훅 | `useQuery`처럼 값을 읽는 훅. |
 | change hook | 변화 훅 | `useOnQueryChange`, `useOnMutationChange`, `useOnMutationStateChange` |
@@ -162,6 +164,7 @@ Fuery 문서를 한국어로 옮길 때 쓰는 용어와 문장 규칙이에요.
 | dialog | 다이얼로그 | |
 | pull to refresh | 당겨서 새로고침 | |
 | loading indicator | 로딩 표시 | |
+| refresh indicator | 새로고침 표시 | `RefreshIndicator`가 보여주는 표시. |
 | spinner | 스피너 | |
 | progress bar | 진행 표시줄 | |
 | footer, header | 푸터, 헤더 | |
@@ -263,6 +266,8 @@ Fuery 문서를 한국어로 옮길 때 쓰는 용어와 문장 규칙이에요.
 | feed | 피드 |
 | notification | 알림 |
 | search term | 검색어 |
+| list screen, detail screen | 목록 화면, 상세 화면 |
+| the search screen, the compose screen, the post screen | 검색 화면, 글쓰기 화면, 게시물 화면 |
 | draft | 초안 |
 | cart, product, price | 장바구니, 상품, 가격 |
 | job | 작업 |
