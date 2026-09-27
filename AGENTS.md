@@ -6,7 +6,7 @@ Server state caching for Flutter: queries, infinite queries, and mutations, with
 - `packages/fuery`: Flutter widgets, app lifecycle binding, `FueryProvider`, and the in-app devtools. Re-exports `fuery_core`.
 - `packages/fuery_hooks`: `useQuery`, `useInfiniteQuery`, `useMutation`, `useQueries`, and `useMutationState` for `flutter_hooks`, and `useOnQueryChange`, `useOnMutationChange`, and `useOnMutationStateChange` for side effects. Re-exports `fuery`.
 - `packages/fuery/example`: a social feed app (feed, post, compose, search, notifications) whose README maps each screen to the Fuery features it shows. Show a new feature of `fuery` or `fuery_core` where it belongs in that app, with a widget test. `fuery_hooks` has its own example in `packages/fuery_hooks/example`, so the app depends on nothing but Fuery.
-- `docs`: the documentation site (Astro Starlight), deployed to https://galaxykhh.github.io/fuery/
+- `docs`: the documentation site (Astro Starlight) in English, Korean, Japanese, and Simplified Chinese, deployed to https://galaxykhh.github.io/fuery/
 
 Each package and `docs/` has its own `AGENTS.md` with package-specific rules.
 
@@ -47,11 +47,12 @@ Release and docs checks:
 ```bash
 python3 tool/check_versions.py                    # same version everywhere; fuery and fuery_hooks depend on ^<version>
 python3 tool/check_doc_links.py                   # docs links in lib/, READMEs, and pubspecs resolve to a page and heading
+python3 tool/check_translations.py                # every docs page has a ko, ja, and zh-cn translation of its current text
 ```
 
 `coverage/` is gitignored.
 
-CI (`.github/workflows/ci.yml`) runs the version and docs link checks, a `pub publish --dry-run` of every package, format, analyze, the `dart fix` goldens, all four test suites, and the coverage check on the latest stable Flutter, and analyze, the goldens, and the tests on the oldest supported version (Flutter 3.27, Dart 3.6). It runs for every pull request, every push to `main`, weekly (it follows the latest stable Flutter and resolves dependencies fresh, so a new release can break `main` without a commit), and when started by hand. Raise the pubspec constraints and that CI version together. `.github/workflows/docs.yml` builds the example for the web into `docs/public/demo`, builds the docs site, and deploys both to GitHub Pages from `main`. It runs on pull requests that touch the docs, the example, or the `lib/` of `fuery` or `fuery_core`, which the demo is built from. The demo passes `--dart-define=fuery.demo=true`, which turns the devtools on in that release build.
+CI (`.github/workflows/ci.yml`) runs the version, docs link, and translation checks, a `pub publish --dry-run` of every package, format, analyze, the `dart fix` goldens, all four test suites, and the coverage check on the latest stable Flutter, and analyze, the goldens, and the tests on the oldest supported version (Flutter 3.27, Dart 3.6). It runs for every pull request, every push to `main`, weekly (it follows the latest stable Flutter and resolves dependencies fresh, so a new release can break `main` without a commit), and when started by hand. Raise the pubspec constraints and that CI version together. `.github/workflows/docs.yml` builds the example for the web into `docs/public/demo`, builds the docs site, and deploys both to GitHub Pages from `main`. It runs on pull requests that touch the docs, the example, or the `lib/` of `fuery` or `fuery_core`, which the demo is built from. The demo passes `--dart-define=fuery.demo=true`, which turns the devtools on in that release build.
 
 ## Rules for every change
 
@@ -73,6 +74,7 @@ CI (`.github/workflows/ci.yml`) runs the version and docs link checks, a `pub pu
 - The logo, README banner, GitHub social preview, and icon live in `assets/brand/`. Edit the SVGs, then run `python3 assets/brand/render.py` to regenerate the PNGs. Palette: violet `#6B4EFF`, lime `#C6F542`, lavender `#C9BEFF`, ink `#14112B`.
 - Keep README examples short and runnable against the real API.
 - READMEs and the docs site describe the current API only. Don't add upgrade or migration guides.
+- Every docs page has a Korean, Japanese, and Simplified Chinese translation. A change to an English page updates its three translations in the same change, following the rules under Translations in `docs/AGENTS.md`.
 
 ## Commits
 
