@@ -102,6 +102,7 @@ Use the same Japanese term on every page. Where a note says "first use", write t
 | page, page param | ページ, ページパラメーター | `pageParam` |
 | cursor | カーソル | |
 | item (of a list or page) | 項目 | |
+| todo (the example data) | Todo | 「Todo のリスト」, 「タイトルが「Buy milk」の Todo」 |
 | streamed query | ストリーミングクエリ | `streamedQuery` |
 | filter | フィルター | `QueryFilters`, `MutationFilters` |
 | key prefix | キーのプレフィックス | "Starts with" is 「〜で始まる」. |
@@ -204,6 +205,7 @@ Use the same Japanese term on every page. Where a note says "first use", write t
 | select | 選択する | |
 | provider | プロバイダー | `FueryProvider` stays code. |
 | hook | フック | `fuery_hooks` stays code. |
+| change hook | 変更に反応するフック | `useOnQueryChange`, `useOnMutationChange`, and `useOnMutationStateChange` |
 | build | ビルドする | The method is 「`build` メソッド」. |
 | rebuild | リビルドする | Not 再ビルド |
 | mount, unmount | マウントする, アンマウントする | |
@@ -237,6 +239,7 @@ Use the same Japanese term on every page. Where a note says "first use", write t
 | subscribe, unsubscribe | 購読する, 購読を解除する | |
 | subscription | 購読 | |
 | stream | ストリーム | `Stream` in code |
+| chunk | チャンク | What a streamed query receives from its stream |
 | emit | 流す | 「まず現在の結果を流します」. Bloc's `emit` stays code. |
 | future | Future | |
 | throw | スローする | 「`StateError` をスローします」 |
