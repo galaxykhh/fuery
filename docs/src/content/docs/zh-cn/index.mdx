@@ -1,0 +1,89 @@
+---
+title: 适用于 Flutter 的服务端状态
+description: Fuery 在 Flutter 中获取、缓存和重新获取服务端数据。支持查询、变更、无限滚动、离线持久化和开发者工具，无须代码生成。
+sourceHash: 5313571a1cb6
+template: splash
+hero:
+  title: Fuery
+  tagline: 在 Flutter 中获取、缓存服务端数据，并让它保持<strong>新鲜</strong>。
+  image:
+    alt: Fuery 标志，三块圆角方块组成字母 F
+    light: ../../../assets/mark.svg
+    dark: ../../../assets/mark-dark.svg
+  actions:
+    - text: 开始使用
+      link: getting-started/
+      icon: right-arrow
+    - text: 试用演示
+      link: /fuery/demo/
+      icon: laptop
+      variant: secondary
+    - text: 在 GitHub 上查看
+      link: https://github.com/galaxykhh/fuery
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+```dart
+// A Query<List<Todo>>, with no type arguments.
+final todos = Query(
+  queryKey: ['todos'],
+  queryFn: (_) => api.getTodos(),
+);
+
+QueryBuilder(
+  query: todos,
+  builder: (context, state) => switch (state.data) {
+    final data? => TodoList(data), // a List<Todo>
+    null => const CircularProgressIndicator(),
+  },
+)
+```
+
+[Flutter 中的服务端状态](server-state/)解释服务端数据为什么需要缓存。[变更](guides/mutations/)创建、更新和删除服务端数据，并支持乐观更新。
+
+## 为什么选择 Fuery
+
+<CardGrid>
+	<Card title="以 Flutter 的方式构建" icon="puzzle">
+		显示查询的界面仍然是 `StatelessWidget`。查询定义在 `build` 之外，widget 像
+		`StreamBuilder` 渲染 stream 那样渲染查询：构建器负责 UI，监听器负责副作用。逐个界面引入
+		Fuery，无须替换任何东西。使用 hook 时，独立的包
+		<a href="guides/hooks/">fuery_hooks</a> 用 `useQuery` 渲染同样的查询。
+	</Card>
+	<Card title="只需 Dart 和 Flutter" icon="code-branch">
+		没有代码生成，没有原生代码，也没有平台配置。核心是纯 Dart 代码，只依赖 Dart 团队的
+		`clock`、`collection` 和 `meta`。widget、cubit、bloc、服务、CLI 和服务器使用同一个查询对象。
+	</Card>
+	<Card title="有缓存，也保持新鲜" icon="database">
+		使用同一个键的所有 widget 共享<a href="how-the-cache-works/">一个缓存条目和一个请求</a>。Fuery
+		在后台重新获取过期数据时，过期数据仍然显示在屏幕上。重新获取返回的列表项按 `==`
+		相等时，Fuery 保留之前的对象，因此这些列表行不会重建。
+	</Card>
+	<Card title="类型来自你的函数" icon="approve-check">
+		查询、变更和无限查询从各自的函数获得类型。widget、结果和回调无须类型参数就带有这些类型。有两种情况需要写明类型：只按键读取或写入，例如
+		`getQueryData<List<Todo>>(['todos'])`；以及<a href="guides/infinite-queries/#基于游标的分页">第一个页参数为
+		`null` 的无限查询</a>。
+	</Card>
+	<Card title="为真实网络而构建" icon="rocket">
+		屏幕上的查询在获取失败时以退避方式重试 3 次，并在应用回到前台时重新获取。接入<a href="guides/lifecycle/#网络重新连接时">网络状态来源</a>后，查询在设备离线时暂停，在网络重新连接时重新获取。对于读取
+		`context.signal` 的查询函数，Fuery 在不再有地方使用它时取消它，并且不把这次取消报告为错误。查询可以一直轮询到某个条件成立，也可以把
+		stream 累积到缓存中。
+	</Card>
+	<Card title="可持久化，可检查" icon="magnifier">
+		<a href="guides/persistence/">持久化的查询</a>在应用重启后依然保留，可以使用任何键值存储。<a href="guides/devtools/">开发者工具</a>在设备上运行的应用中显示缓存。
+	</Card>
+</CardGrid>
+
+<p style="margin-top: 3rem;">
+	<strong>经过测试。</strong>每个包都有 100% 的行覆盖率，任何一行失去覆盖时 CI 都会失败。测试在支持的最低
+	Flutter 版本（3.27）和最新版本上运行。核心的测试在模拟时间下运行。回归测试套件让已修复的边界情况保持修复状态。Fuery
+	在销毁路径上取消所有计时器，并从 <code>package:clock</code> 读取时间，因此你自己的 <code>fake_async</code> 测试和
+	widget 测试不会泄漏计时器。参见<a href="guides/testing/">测试</a>。
+</p>
+
+<p style="font-size: var(--sl-text-sm); color: var(--sl-color-gray-3);">
+	Fuery 的缓存和重新获取模型受 <a href="https://tanstack.com/query">TanStack Query</a> 启发。<a href="coming-from-tanstack-query/">写给 TanStack Query 用户</a>列出了它的每个概念在 Fuery 中的名称。
+</p>
