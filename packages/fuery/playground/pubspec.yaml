@@ -1,0 +1,38 @@
+name: playground
+description: "The Fuery playground: each scenario shows a query or mutation next to its live state and the code that drives it."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+resolution: workspace
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  fuery:
+    path: ../
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+
+flutter:
+
+  uses-material-design: true
+
+  # The code panel reads each scenario's own source file and shows the
+  # regions marked `// #region snippet`, so what it shows is what runs.
+  assets:
+    - lib/scenarios/
+
+  # The code panel's font. The web renders only the fonts an app bundles.
+  fonts:
+    - family: RobotoMono
+      fonts:
+        - asset: fonts/RobotoMono-Regular.ttf

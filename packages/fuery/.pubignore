@@ -1,0 +1,4 @@
+# The playground is the web demo of the docs site, not part of the package.
+# A .pubignore replaces this folder's .gitignore for pub; this folder has
+# none, so it only adds this rule.
+/playground/
