@@ -57,4 +57,32 @@ void main() {
 
     await closePlayground(tester);
   });
+
+  testWidgets('reset and leaving the scenario put the device back online',
+      (tester) async {
+    await pumpPlayground(tester, '/offline');
+    await tester.pump(const Duration(seconds: 1));
+
+    await choose(tester, 'offline');
+    await tester.tap(find.text('Reset scenario'));
+    await tester.pump();
+    expect(onlineManager.isOnline, isTrue);
+    expect(stateValue('fetchStatus', 'fetching'), findsOneWidget);
+    final online = tester.widget<SegmentedButton<bool>>(
+      find.byType(SegmentedButton<bool>),
+    );
+    expect(online.selected, {true});
+    await tester.pump(const Duration(seconds: 1));
+
+    // The next scenario starts online, not paused.
+    await choose(tester, 'offline');
+    await tester.tap(find.text('1. Query lifecycle'));
+    await tester.pump();
+    expect(onlineManager.isOnline, isTrue);
+    expect(stateValue('fetchStatus', 'fetching'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('12 likes'), findsOneWidget);
+
+    await closePlayground(tester);
+  });
 }

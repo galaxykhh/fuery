@@ -79,6 +79,9 @@ class _ScenarioHostState extends State<ScenarioHost> implements Session {
   void reset() {
     final old = [..._retired, client];
     _retired.clear();
+    // Before the widgets start over, so they read the device as it will be.
+    // The server's reset then drops what the old client fetches meanwhile.
+    _restoreDevice();
     server.reset(latency: scenario.latency);
     timeline.clear();
     setState(() {
@@ -92,7 +95,6 @@ class _ScenarioHostState extends State<ScenarioHost> implements Session {
       for (final client in old) {
         client.clear();
       }
-      _restoreDevice();
     });
   }
 
@@ -120,6 +122,14 @@ class _ScenarioHostState extends State<ScenarioHost> implements Session {
     focusManager.setFocused(null);
   }
 
+  // Another scenario's host starts after this one deactivates, and before
+  // it is disposed, so it finds the device online and in the foreground.
+  @override
+  void deactivate() {
+    _restoreDevice();
+    super.deactivate();
+  }
+
   @override
   void dispose() {
     server.removeRequestListener(timeline.request);
@@ -129,7 +139,6 @@ class _ScenarioHostState extends State<ScenarioHost> implements Session {
       client.clear();
     }
     timeline.dispose();
-    _restoreDevice();
     super.dispose();
   }
 
