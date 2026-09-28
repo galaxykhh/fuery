@@ -44,7 +44,7 @@ final addTodo = Mutation(
     // The other callbacks get this as their context.
     return draft;
   },
-  onError: (error, title, draft, client) {
+  onError: (error, String title, draft, client) {
     // Roll back: take the draft out again.
     client.updateData(
       todosQuery,

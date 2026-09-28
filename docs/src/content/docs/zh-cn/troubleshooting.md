@@ -1,7 +1,7 @@
 ---
 title: 问题排查
 description: 在 Flutter 中使用 Fuery 时遇到的错误和意外行为、它们的原因，以及修复方法。
-sourceHash: 9cc86044231d
+sourceHash: 40cf8f7390a7
 ---
 
 本页按领域分组，列出在 Flutter 中使用 Fuery 时可能遇到的错误和意外行为的修复方法。每个标题写的是你看到的现象。
@@ -193,12 +193,32 @@ void main() {
 
 ## 变更
 
+### onMutate 或 onError 因 Object? 构建失败
+
+`flutter analyze` 没有报告问题，但构建时在 `onMutate` 或 `onError` 中报错，例如 `The method 'trim' isn't defined for the type 'Object?'`。
+
+这些回调中的变量没有标注类型。Dart 可能在读取 `mutationFn` 的参数类型之前就推断这些变量的类型，于是它们成了 `Object?`。`onSuccess` 和 `onSettled` 会等待 `mutationFn` 的数据，因此能得到这个类型。分析器推断这些类型的方式与编译器不同，所以 `flutter analyze` 不会报错。
+
+像 `mutationFn` 一样，为变量标注类型：
+
+```dart
+final addTodo = Mutation(
+  mutationFn: (String title) => api.addTodo(title),
+  onMutate: (String title, client) {
+    debugPrint('Adding ${title.trim()}');
+  },
+  onError: (error, String title, context, client) {
+    debugPrint('Could not add ${title.trim()}: $error');
+  },
+);
+```
+
 ### 乐观更新消失了
 
 一个已经在进行的重新获取在你更改之后才结束，覆盖了你的更改。在 `onMutate` 中，更改缓存之前，先取消正在进行的获取：
 
 ```dart
-onMutate: (id, client) async {
+onMutate: (int id, client) async {
   await client.cancelQueries(queryKey: ['todos']);
   // ... snapshot and update the cache
 },

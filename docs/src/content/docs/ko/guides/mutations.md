@@ -1,7 +1,7 @@
 ---
 title: 뮤테이션
 description: Flutter에서 서버 데이터를 만들고, 업데이트하고, 삭제해요. 낙관적 업데이트와 롤백도 할 수 있어요.
-sourceHash: 0c544eeebc13
+sourceHash: 2e5b7c9050c8
 head:
   - tag: title
     content: Flutter의 뮤테이션과 낙관적 업데이트 | Fuery
@@ -21,7 +21,7 @@ final addTodo = Mutation(
 );
 ```
 
-`mutationFn`의 매개변수에 위 코드의 `String title`처럼 타입을 적으세요. 그러면 Dart가 그 타입에서 나머지 타입을 추론해요. 어떤 위젯이든 `mutationKey`로 뮤테이션의 실행을 찾을 수 있어요. 실행은 `mutate` 호출 한 번이에요([뮤테이션 실행](../../how-the-cache-works/#뮤테이션-실행)). 모든 옵션은 [뮤테이션 옵션](../../reference/mutation-options/)에 있어요.
+`mutationFn`의 매개변수에 위 코드의 `String title`처럼 타입을 적으세요. 그러면 Dart가 그 타입에서 나머지 타입을 추론해요. 예외는 `onMutate`와 `onError`예요. 이 두 콜백에서는 `onMutate: (String title, client)`처럼 변수에도 타입을 적으세요. 적지 않으면 변수가 `Object?`가 될 수 있고, 이 에러는 빌드할 때만 나타나요([onMutate나 onError에서 Object? 때문에 빌드가 실패해요](../../troubleshooting/#onmutate나-onerror에서-object-때문에-빌드가-실패해요)). 어떤 위젯이든 `mutationKey`로 뮤테이션의 실행을 찾을 수 있어요. 실행은 `mutate` 호출 한 번이에요([뮤테이션 실행](../../how-the-cache-works/#뮤테이션-실행)). 모든 옵션은 [뮤테이션 옵션](../../reference/mutation-options/)에 있어요.
 
 ## 뮤테이션 실행하기
 
@@ -205,7 +205,7 @@ state.mutate(
 ```dart
 final deleteTodo = Mutation(
   mutationFn: (int id) => api.deleteTodo(id),
-  onMutate: (id, client) async {
+  onMutate: (int id, client) async {
     // Keep a refetch in flight from overwriting the optimistic update.
     await client.cancelQueries(queryKey: todosKey);
     final previous = client.getData(todosQuery);
@@ -215,7 +215,7 @@ final deleteTodo = Mutation(
     );
     return previous;
   },
-  onError: (error, id, previous, client) {
+  onError: (error, int id, previous, client) {
     if (previous != null) client.setData(todosQuery, previous);
   },
   onSettled: (_, __, ___, ____, client) {

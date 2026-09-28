@@ -1,7 +1,7 @@
 ---
 title: 문제 해결
 description: Flutter에서 Fuery를 사용할 때 만나는 에러와 예상 밖의 동작, 그 원인과 해결 방법.
-sourceHash: 9cc86044231d
+sourceHash: 40cf8f7390a7
 ---
 
 Flutter에서 Fuery를 사용하다 만날 수 있는 에러와 예상 밖의 동작을 해결하는 방법을 영역별로 모았어요. 제목에는 겪는 증상을 그대로 적었어요.
@@ -193,12 +193,32 @@ void main() {
 
 ## 뮤테이션
 
+### onMutate나 onError에서 Object? 때문에 빌드가 실패해요
+
+`flutter analyze`는 통과하는데, 빌드하면 `onMutate`나 `onError` 안에서 `The method 'trim' isn't defined for the type 'Object?'` 같은 에러가 나요.
+
+이 콜백의 변수에 타입이 없어서 생기는 문제예요. Dart는 `mutationFn`의 매개변수 타입을 읽기 전에 이 변수의 타입을 추론할 수 있어서, 변수가 `Object?`가 돼요. `onSuccess`와 `onSettled`는 `mutationFn`의 데이터를 기다리기 때문에 타입을 받아요. 분석기는 이 타입을 컴파일러와 다르게 추론해서, `flutter analyze`는 통과해요.
+
+`mutationFn`처럼 변수에 타입을 적으세요.
+
+```dart
+final addTodo = Mutation(
+  mutationFn: (String title) => api.addTodo(title),
+  onMutate: (String title, client) {
+    debugPrint('Adding ${title.trim()}');
+  },
+  onError: (error, String title, context, client) {
+    debugPrint('Could not add ${title.trim()}: $error');
+  },
+);
+```
+
 ### 낙관적 업데이트가 원래대로 돌아가요
 
 이미 실행 중이던 다시 가져오기가 캐시를 바꾼 뒤에 끝나서, 바꾼 내용을 덮어썼어요. `onMutate`에서 캐시를 바꾸기 전에 실행 중인 가져오기를 취소하세요.
 
 ```dart
-onMutate: (id, client) async {
+onMutate: (int id, client) async {
   await client.cancelQueries(queryKey: ['todos']);
   // ... snapshot and update the cache
 },

@@ -250,6 +250,7 @@ Use the same Japanese term on every page. Where a note says "first use", write t
 | emit | 流す | 「まず現在の結果を流します」. Bloc's `emit` stays code. |
 | future | Future | |
 | throw | スローする | 「`StateError` をスローします」 |
+| analyzer, compiler | アナライザー, コンパイラー | The Dart analyzer that `flutter analyze` runs, and the compiler a build runs |
 | catch | キャッチする | |
 | uncaught error | キャッチされないエラー | |
 | zone | ゾーン | |
@@ -473,6 +474,7 @@ To change one of these headings, change this table and every link to its anchor 
 |  | A test passes only when it runs first | 最初に実行したときだけテストが通る | `#最初に実行したときだけテストが通る` |
 |  | A MutationListener never runs | MutationListener が反応しない | `#mutationlistener-が反応しない` |
 |  | A screen reads another client's cache | 画面が別のクライアントのキャッシュを読んでいる | `#画面が別のクライアントのキャッシュを読んでいる` |
+|  | The build fails with Object? in onMutate or onError | onMutate や onError で Object? によりビルドが失敗する | `#onmutate-や-onerror-で-object-によりビルドが失敗する` |
 
 ## Example sentences
 

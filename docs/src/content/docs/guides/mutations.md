@@ -20,7 +20,7 @@ final addTodo = Mutation(
 );
 ```
 
-Type the parameter of `mutationFn`, like `String title` above, and Dart infers the other types from it. The `mutationKey` lets any widget find the mutation's runs. A run is one `mutate` call ([Mutation runs](../../how-the-cache-works/#mutation-runs)). [Mutation options](../../reference/mutation-options/) lists every option.
+Type the parameter of `mutationFn`, like `String title` above, and Dart infers the other types from it. The exception is `onMutate` and `onError`: type their variables too, as in `onMutate: (String title, client)`. Otherwise the variables can be `Object?`, and only the build reports it ([The build fails with Object? in onMutate or onError](../../troubleshooting/#the-build-fails-with-object-in-onmutate-or-onerror)). The `mutationKey` lets any widget find the mutation's runs. A run is one `mutate` call ([Mutation runs](../../how-the-cache-works/#mutation-runs)). [Mutation options](../../reference/mutation-options/) lists every option.
 
 ## Running a mutation
 
@@ -204,7 +204,7 @@ An optimistic update changes the cache before the server answers, so the screen 
 ```dart
 final deleteTodo = Mutation(
   mutationFn: (int id) => api.deleteTodo(id),
-  onMutate: (id, client) async {
+  onMutate: (int id, client) async {
     // Keep a refetch in flight from overwriting the optimistic update.
     await client.cancelQueries(queryKey: todosKey);
     final previous = client.getData(todosQuery);
@@ -214,7 +214,7 @@ final deleteTodo = Mutation(
     );
     return previous;
   },
-  onError: (error, id, previous, client) {
+  onError: (error, int id, previous, client) {
     if (previous != null) client.setData(todosQuery, previous);
   },
   onSettled: (_, __, ___, ____, client) {

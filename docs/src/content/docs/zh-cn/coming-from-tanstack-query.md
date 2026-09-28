@@ -1,7 +1,7 @@
 ---
 title: 写给 TanStack Query 用户
 description: 在 Flutter 应用中，每个 TanStack Query（React Query）v5 概念在 Fuery 中的名称：客户端、查询键、useQuery 的选项和结果、变更、无限查询、持久化和开发者工具。
-sourceHash: 4c2d28d32c2b
+sourceHash: 5f46e16eded3
 head:
   - tag: title
     content: 从 TanStack Query（React Query）转向 Flutter | Fuery
@@ -280,7 +280,7 @@ class Feed extends StatelessWidget {
 
 | TanStack Query | Fuery |
 |---|---|
-| `useMutation({ ... })`、`mutationOptions({ ... })` | `Mutation(...)`，一个定义。为 `mutationFn` 的参数写明类型，Dart 会推断其他类型。 |
+| `useMutation({ ... })`、`mutationOptions({ ... })` | `Mutation(...)`，一个定义。为 `mutationFn`、`onMutate` 和 `onError` 的变量写明类型，Dart 会推断其他类型。 |
 | `mutationFn: (variables, context) => ...` | `mutationFn: (int id) => ...`。不接收变量的变更是 `NoVariablesMutation`。 |
 | `mutation.mutate(variables)` | 在任何 widget 中调用 `deleteTodo.mutate(id, context.queryClient)`，或者在 `MutationBuilder` 或 `useMutation` 的结果上调用 `state.mutate(id)` |
 | `mutate(variables, { onSuccess, onError, onSettled })` | 在 `MutationBuilder` 或 `useMutation` 的结果上调用 `state.mutate(variables, MutateOptions(onSuccess: ...))` |
@@ -328,7 +328,7 @@ function DeleteTodoButton({ todo }: { todo: Todo }) {
 final deleteTodo = Mutation(
   mutationKey: const ['todos', 'delete'],
   mutationFn: (int id) => api.deleteTodo(id),
-  onMutate: (id, client) async {
+  onMutate: (int id, client) async {
     await client.cancelQueries(queryKey: ['todos']);
     final previous = client.getData(todosQuery);
     client.updateData(
@@ -337,7 +337,7 @@ final deleteTodo = Mutation(
     );
     return previous;
   },
-  onError: (error, id, previous, client) {
+  onError: (error, int id, previous, client) {
     if (previous != null) client.setData(todosQuery, previous);
   },
   onSettled: (data, error, id, previous, client) {

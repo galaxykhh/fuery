@@ -1,7 +1,7 @@
 ---
 title: 变更
 description: 在 Flutter 中创建、更新和删除服务端数据，支持乐观更新和回滚。
-sourceHash: 0c544eeebc13
+sourceHash: 2e5b7c9050c8
 head:
   - tag: title
     content: Flutter 中的变更和乐观更新 | Fuery
@@ -21,7 +21,7 @@ final addTodo = Mutation(
 );
 ```
 
-为 `mutationFn` 的参数标注类型（例如上面的 `String title`），Dart 就会据此推断其他类型。`mutationKey` 让任何 widget 都能找到这个变更的执行。一次执行（`CachedMutation`）就是一次 `mutate` 调用（[变更的执行](../../how-the-cache-works/#变更的执行)）。[变更选项](../../reference/mutation-options/)列出了所有选项。
+为 `mutationFn` 的参数标注类型（例如上面的 `String title`），Dart 就会据此推断其他类型。`onMutate` 和 `onError` 是例外：它们的变量也要标注类型，例如 `onMutate: (String title, client)`。否则变量可能成为 `Object?`，而且只有构建时才会报错（[onMutate 或 onError 因 Object? 构建失败](../../troubleshooting/#onmutate-或-onerror-因-object-构建失败)）。`mutationKey` 让任何 widget 都能找到这个变更的执行。一次执行（`CachedMutation`）就是一次 `mutate` 调用（[变更的执行](../../how-the-cache-works/#变更的执行)）。[变更选项](../../reference/mutation-options/)列出了所有选项。
 
 ## 执行变更
 
@@ -205,7 +205,7 @@ state.mutate(
 ```dart
 final deleteTodo = Mutation(
   mutationFn: (int id) => api.deleteTodo(id),
-  onMutate: (id, client) async {
+  onMutate: (int id, client) async {
     // Keep a refetch in flight from overwriting the optimistic update.
     await client.cancelQueries(queryKey: todosKey);
     final previous = client.getData(todosQuery);
@@ -215,7 +215,7 @@ final deleteTodo = Mutation(
     );
     return previous;
   },
-  onError: (error, id, previous, client) {
+  onError: (error, int id, previous, client) {
     if (previous != null) client.setData(todosQuery, previous);
   },
   onSettled: (_, __, ___, ____, client) {
