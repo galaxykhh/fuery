@@ -241,6 +241,7 @@ Fuery 문서를 한국어로 옮길 때 쓰는 용어와 문장 규칙이에요.
 | type | 타입 | "data type"은 "데이터 타입"이에요. |
 | type argument, type parameter | 타입 인수, 타입 매개변수 | |
 | type inference | 타입 추론 | 동사는 "추론하다"예요. |
+| analyzer, compiler | 분석기, 컴파일러 | `flutter analyze`가 쓰는 Dart 분석기와, 빌드할 때 쓰는 컴파일러 |
 | generic | 제네릭 | |
 | supertype | 상위 타입 | |
 | parameter | 매개변수 | |
@@ -504,6 +505,7 @@ Fuery 문서를 한국어로 옮길 때 쓰는 용어와 문장 규칙이에요.
 | A test passes only when it runs first | 테스트가 맨 처음 실행될 때만 통과해요 | `#테스트가-맨-처음-실행될-때만-통과해요` | `troubleshooting` |
 | A MutationListener never runs | MutationListener가 한 번도 실행되지 않아요 | `#mutationlistener가-한-번도-실행되지-않아요` | `troubleshooting` |
 | A screen reads another client's cache | 화면이 다른 클라이언트의 캐시를 읽어요 | `#화면이-다른-클라이언트의-캐시를-읽어요` | `troubleshooting` |
+| The build fails with Object? in onMutate or onError | onMutate나 onError에서 Object? 때문에 빌드가 실패해요 | `#onmutate나-onerror에서-object-때문에-빌드가-실패해요` | `troubleshooting` |
 
 ## 문장 규칙
 

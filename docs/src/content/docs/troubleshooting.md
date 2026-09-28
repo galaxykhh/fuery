@@ -192,12 +192,32 @@ Fuery assumes the device is online until you report connectivity with `onlineMan
 
 ## Mutations
 
+### The build fails with Object? in onMutate or onError
+
+`flutter analyze` passes, but the build reports an error such as `The method 'trim' isn't defined for the type 'Object?'` inside `onMutate` or `onError`.
+
+The variables in these callbacks have no type. Dart can type them before it reads the parameter type of `mutationFn`, so they become `Object?`. `onSuccess` and `onSettled` wait for the data of `mutationFn`, so they get the type. The analyzer infers these types differently from the compiler, which is why `flutter analyze` passes.
+
+Type the variables, as in `mutationFn`:
+
+```dart
+final addTodo = Mutation(
+  mutationFn: (String title) => api.addTodo(title),
+  onMutate: (String title, client) {
+    debugPrint('Adding ${title.trim()}');
+  },
+  onError: (error, String title, context, client) {
+    debugPrint('Could not add ${title.trim()}: $error');
+  },
+);
+```
+
 ### An optimistic update is undone
 
 A refetch that was already running finished after your change and overwrote it. Cancel running fetches in `onMutate`, before you change the cache:
 
 ```dart
-onMutate: (id, client) async {
+onMutate: (int id, client) async {
   await client.cancelQueries(queryKey: ['todos']);
   // ... snapshot and update the cache
 },

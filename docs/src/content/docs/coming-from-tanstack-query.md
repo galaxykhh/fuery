@@ -279,7 +279,7 @@ A first page param of `null`, as with cursors, needs a declared type. See [Curso
 
 | TanStack Query | Fuery |
 |---|---|
-| `useMutation({ ... })`, `mutationOptions({ ... })` | `Mutation(...)`, a definition. Type the parameter of `mutationFn`, and Dart infers the other types. |
+| `useMutation({ ... })`, `mutationOptions({ ... })` | `Mutation(...)`, a definition. Type the variables in `mutationFn`, `onMutate`, and `onError`, and Dart infers the other types. |
 | `mutationFn: (variables, context) => ...` | `mutationFn: (int id) => ...`. A mutation that takes nothing is a `NoVariablesMutation`. |
 | `mutation.mutate(variables)` | `deleteTodo.mutate(id, context.queryClient)` from any widget, or `state.mutate(id)` on the result of a `MutationBuilder` or `useMutation` |
 | `mutate(variables, { onSuccess, onError, onSettled })` | `state.mutate(variables, MutateOptions(onSuccess: ...))` on the result of a `MutationBuilder` or `useMutation` |
@@ -327,7 +327,7 @@ function DeleteTodoButton({ todo }: { todo: Todo }) {
 final deleteTodo = Mutation(
   mutationKey: const ['todos', 'delete'],
   mutationFn: (int id) => api.deleteTodo(id),
-  onMutate: (id, client) async {
+  onMutate: (int id, client) async {
     await client.cancelQueries(queryKey: ['todos']);
     final previous = client.getData(todosQuery);
     client.updateData(
@@ -336,7 +336,7 @@ final deleteTodo = Mutation(
     );
     return previous;
   },
-  onError: (error, id, previous, client) {
+  onError: (error, int id, previous, client) {
     if (previous != null) client.setData(todosQuery, previous);
   },
   onSettled: (data, error, id, previous, client) {

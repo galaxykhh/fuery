@@ -206,6 +206,7 @@ Status and enum values stay code: a query 处于 `pending` 状态, a fetch is `p
 | type, data type | 类型、数据类型 | |
 | type argument | 类型参数 | |
 | infer, type inference | 推断、类型推断 | |
+| analyzer, compiler | 分析器、编译器 | The Dart analyzer that `flutter analyze` runs, and the compiler a build runs |
 | nullable, non-nullable | 可空、不可空 | |
 | parameter, argument | 参数 | |
 | constructor | 构造函数 | |

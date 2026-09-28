@@ -1,7 +1,7 @@
 ---
 title: TanStack Query에서 넘어왔다면
 description: "Flutter 앱에서 TanStack Query(React Query) v5의 개념마다 대응하는 Fuery 이름: 클라이언트, 쿼리 키, useQuery 옵션과 결과, 뮤테이션, 무한 쿼리, 캐시를 기기에 저장하기, 개발자 도구."
-sourceHash: 4c2d28d32c2b
+sourceHash: 5f46e16eded3
 head:
   - tag: title
     content: TanStack Query(React Query)에서 Flutter로 넘어왔다면 | Fuery
@@ -280,7 +280,7 @@ class Feed extends StatelessWidget {
 
 | TanStack Query | Fuery |
 |---|---|
-| `useMutation({ ... })`, `mutationOptions({ ... })` | `Mutation(...)` 정의. `mutationFn`의 매개변수에 타입을 적으면 나머지 타입은 Dart가 추론해요. |
+| `useMutation({ ... })`, `mutationOptions({ ... })` | `Mutation(...)` 정의. `mutationFn`, `onMutate`, `onError`의 변수에 타입을 적으면 나머지 타입은 Dart가 추론해요. |
 | `mutationFn: (variables, context) => ...` | `mutationFn: (int id) => ...`. 아무것도 받지 않는 뮤테이션은 `NoVariablesMutation`이에요. |
 | `mutation.mutate(variables)` | 모든 위젯에서 `deleteTodo.mutate(id, context.queryClient)`, 또는 `MutationBuilder`나 `useMutation`의 결과에서 `state.mutate(id)` |
 | `mutate(variables, { onSuccess, onError, onSettled })` | `MutationBuilder`나 `useMutation`의 결과에서 `state.mutate(variables, MutateOptions(onSuccess: ...))` |
@@ -328,7 +328,7 @@ function DeleteTodoButton({ todo }: { todo: Todo }) {
 final deleteTodo = Mutation(
   mutationKey: const ['todos', 'delete'],
   mutationFn: (int id) => api.deleteTodo(id),
-  onMutate: (id, client) async {
+  onMutate: (int id, client) async {
     await client.cancelQueries(queryKey: ['todos']);
     final previous = client.getData(todosQuery);
     client.updateData(
@@ -337,7 +337,7 @@ final deleteTodo = Mutation(
     );
     return previous;
   },
-  onError: (error, id, previous, client) {
+  onError: (error, int id, previous, client) {
     if (previous != null) client.setData(todosQuery, previous);
   },
   onSettled: (data, error, id, previous, client) {

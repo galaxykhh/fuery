@@ -75,9 +75,10 @@ class TodoListScreen extends StatelessWidget {
 
 The query fetches when `QueryBuilder` mounts. `QueryResult(:final data?)` matches only when there is data, and it comes before the error case. So a list that fails to refresh stays on screen, and the error shows only while there is no data.
 
-`todosQuery` is a `Query<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`, so `data` is a `List<Todo>`. Mutations, infinite queries, widgets, results, and callbacks infer their types the same way. You name a type in two cases:
+`todosQuery` is a `Query<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`, so `data` is a `List<Todo>`. Mutations, infinite queries, widgets, results, and callbacks infer their types the same way. You name a type in three cases:
 
 - A read or write by key alone, as a key carries no type: `client.getQueryData<List<Todo>>(['todos'])`.
+- The variables in a mutation's `onMutate` and `onError`, as Dart doesn't always infer them there: `onMutate: (String title, client)`.
 - An [infinite query whose first page param is `null`](https://galaxykhh.github.io/fuery/guides/infinite-queries/#cursor-based-pages).
 
 ## Widgets

@@ -1,7 +1,7 @@
 ---
 title: TanStack Query を使ってきた方へ
 description: TanStack Query（React Query）v5 の各概念に対応する、Flutter アプリでの Fuery の名前を紹介します。クライアント、クエリキー、useQuery のオプションと結果、ミューテーション、無限クエリ、永続化、devtools を扱います。
-sourceHash: 4c2d28d32c2b
+sourceHash: 5f46e16eded3
 head:
   - tag: title
     content: TanStack Query（React Query）から Flutter に移る方へ | Fuery
@@ -280,7 +280,7 @@ class Feed extends StatelessWidget {
 
 | TanStack Query | Fuery |
 |---|---|
-| `useMutation({ ... })`、`mutationOptions({ ... })` | `Mutation(...)`（定義）。`mutationFn` のパラメーターに型を付けると、ほかの型は Dart が推論します。 |
+| `useMutation({ ... })`、`mutationOptions({ ... })` | `Mutation(...)`（定義）。`mutationFn`、`onMutate`、`onError` の変数に型を付けると、ほかの型は Dart が推論します。 |
 | `mutationFn: (variables, context) => ...` | `mutationFn: (int id) => ...`。何も受け取らないミューテーションは `NoVariablesMutation` です。 |
 | `mutation.mutate(variables)` | 任意のウィジェットから `deleteTodo.mutate(id, context.queryClient)`、または `MutationBuilder` や `useMutation` の結果で `state.mutate(id)` |
 | `mutate(variables, { onSuccess, onError, onSettled })` | `MutationBuilder` や `useMutation` の結果で `state.mutate(variables, MutateOptions(onSuccess: ...))` |
@@ -328,7 +328,7 @@ function DeleteTodoButton({ todo }: { todo: Todo }) {
 final deleteTodo = Mutation(
   mutationKey: const ['todos', 'delete'],
   mutationFn: (int id) => api.deleteTodo(id),
-  onMutate: (id, client) async {
+  onMutate: (int id, client) async {
     await client.cancelQueries(queryKey: ['todos']);
     final previous = client.getData(todosQuery);
     client.updateData(
@@ -337,7 +337,7 @@ final deleteTodo = Mutation(
     );
     return previous;
   },
-  onError: (error, id, previous, client) {
+  onError: (error, int id, previous, client) {
     if (previous != null) client.setData(todosQuery, previous);
   },
   onSettled: (data, error, id, previous, client) {

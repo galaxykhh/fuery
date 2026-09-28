@@ -1,7 +1,7 @@
 ---
 title: トラブルシューティング
 description: Flutter で Fuery を使うときに起きるエラーや予想外の動作と、その原因と解決方法を説明します。
-sourceHash: 9cc86044231d
+sourceHash: 40cf8f7390a7
 ---
 
 Flutter で Fuery を使うときに起こりうるエラーや予想外の動作の解決方法を、分野ごとにまとめています。各見出しは、実際に目にする症状を表しています。
@@ -193,12 +193,32 @@ void main() {
 
 ## ミューテーション
 
+### onMutate や onError で Object? によりビルドが失敗する
+
+`flutter analyze` は通るのに、ビルドすると `onMutate` や `onError` の中で `The method 'trim' isn't defined for the type 'Object?'` のようなエラーになります。
+
+これらのコールバックの変数に型がないためです。Dart は `mutationFn` のパラメーターの型を読む前にこの変数の型を推論することがあり、その場合、変数は `Object?` になります。`onSuccess` と `onSettled` は `mutationFn` のデータを待つので、型を受け取れます。アナライザーはこの型をコンパイラーとは異なる方法で推論するため、`flutter analyze` は通ります。
+
+`mutationFn` と同じように、変数に型を付けてください。
+
+```dart
+final addTodo = Mutation(
+  mutationFn: (String title) => api.addTodo(title),
+  onMutate: (String title, client) {
+    debugPrint('Adding ${title.trim()}');
+  },
+  onError: (error, String title, context, client) {
+    debugPrint('Could not add ${title.trim()}: $error');
+  },
+);
+```
+
 ### 楽観的更新が元に戻る
 
 すでに実行中だった再取得が変更の後に完了し、変更を上書きしました。`onMutate` の中で、キャッシュを変更する前に実行中の取得をキャンセルしてください。
 
 ```dart
-onMutate: (id, client) async {
+onMutate: (int id, client) async {
   await client.cancelQueries(queryKey: ['todos']);
   // ... snapshot and update the cache
 },

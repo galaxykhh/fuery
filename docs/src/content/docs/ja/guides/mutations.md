@@ -1,7 +1,7 @@
 ---
 title: ミューテーション
 description: Flutter でサーバーデータを作成、更新、削除します。楽観的更新とロールバックも扱います。
-sourceHash: 0c544eeebc13
+sourceHash: 2e5b7c9050c8
 head:
   - tag: title
     content: Flutter のミューテーションと楽観的更新 | Fuery
@@ -21,7 +21,7 @@ final addTodo = Mutation(
 );
 ```
 
-上の `String title` のように `mutationFn` のパラメーターに型を付けると、Dart はほかの型をそこから推論します。`mutationKey` があれば、どのウィジェットでもミューテーションの実行を見つけられます。1 回の `mutate` 呼び出しが 1 つの実行です（[ミューテーションの実行](../../how-the-cache-works/#ミューテーションの実行)）。すべてのオプションの一覧は[ミューテーションのオプション](../../reference/mutation-options/)にあります。
+上の `String title` のように `mutationFn` のパラメーターに型を付けると、Dart はほかの型をそこから推論します。例外は `onMutate` と `onError` で、`onMutate: (String title, client)` のように変数にも型を付けてください。付けないと変数が `Object?` になることがあり、そのエラーはビルドでしか報告されません（[onMutate や onError で Object? によりビルドが失敗する](../../troubleshooting/#onmutate-や-onerror-で-object-によりビルドが失敗する)）。`mutationKey` があれば、どのウィジェットでもミューテーションの実行を見つけられます。1 回の `mutate` 呼び出しが 1 つの実行です（[ミューテーションの実行](../../how-the-cache-works/#ミューテーションの実行)）。すべてのオプションの一覧は[ミューテーションのオプション](../../reference/mutation-options/)にあります。
 
 ## ミューテーションを実行する
 
@@ -205,7 +205,7 @@ state.mutate(
 ```dart
 final deleteTodo = Mutation(
   mutationFn: (int id) => api.deleteTodo(id),
-  onMutate: (id, client) async {
+  onMutate: (int id, client) async {
     // Keep a refetch in flight from overwriting the optimistic update.
     await client.cancelQueries(queryKey: todosKey);
     final previous = client.getData(todosQuery);
@@ -215,7 +215,7 @@ final deleteTodo = Mutation(
     );
     return previous;
   },
-  onError: (error, id, previous, client) {
+  onError: (error, int id, previous, client) {
     if (previous != null) client.setData(todosQuery, previous);
   },
   onSettled: (_, __, ___, ____, client) {

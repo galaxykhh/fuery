@@ -59,9 +59,10 @@ await subscription.cancel(); // stops observing; the cache entry is removed afte
 
 The stream sends the current `QueryResult` first, then every change. `todos.result` reads the latest one at any time, and `subscribe(listener)` returns an unsubscribe function.
 
-`todosQuery` is a `Query<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`. Mutations, infinite queries, results, and callbacks infer their types the same way. You name a type in two cases:
+`todosQuery` is a `Query<List<Todo>>` because `api.getTodos()` returns a `Future<List<Todo>>`. Mutations, infinite queries, results, and callbacks infer their types the same way. You name a type in three cases:
 
 - A read or write by key alone, as a key carries no type: `Fuery.client.getQueryData<List<Todo>>(['todos'])`.
+- The variables in a mutation's `onMutate` and `onError`, as Dart doesn't always infer them there: `onMutate: (String title, client)`.
 - An [infinite query whose first page param is `null`](https://galaxykhh.github.io/fuery/guides/infinite-queries/#cursor-based-pages).
 
 ## Mutations
