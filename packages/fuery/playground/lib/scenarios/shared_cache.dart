@@ -108,15 +108,20 @@ class _SharedCacheScenarioState extends State<SharedCacheScenario> {
           ),
         ],
       ),
-      controls: ControlBar(
-        children: [
-          for (final spot in _Spot.values)
-            FilterChip(
-              label: Text(_labels[spot]!),
-              selected: _mounted.contains(spot),
-              onSelected: (mounted) => _toggle(spot, mounted),
-            ),
-        ],
+      controls: ControlGroup(
+        label: 'mounted widgets',
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final spot in _Spot.values)
+              FilterChip(
+                label: Text(_labels[spot]!),
+                selected: _mounted.contains(spot),
+                onSelected: (mounted) => _toggle(spot, mounted),
+              ),
+          ],
+        ),
       ),
       stateTitle: 'Cache entry',
       state: CacheEntryPanel(query: userQuery),

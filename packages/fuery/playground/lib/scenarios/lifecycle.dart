@@ -30,11 +30,13 @@ const lifecycleScenario = Scenario(
 );
 
 // #region snippet
-Query<Post> postQuery({required Duration staleTime}) => Query(
-      queryKey: ['post'],
-      queryFn: (_) => server.getPost(),
-      staleTime: staleTime,
-    );
+Query<Post> postQuery({required Duration staleTime}) {
+  return Query(
+    queryKey: ['post'],
+    queryFn: (_) => server.getPost(),
+    staleTime: staleTime,
+  );
+}
 // #endregion
 
 class LifecycleScenario extends StatefulWidget {

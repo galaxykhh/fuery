@@ -5,7 +5,6 @@ import '../fake_server.dart';
 import '../scenario.dart';
 import '../session.dart';
 import '../theme.dart';
-import '../timeline.dart';
 import '../widgets/basics.dart';
 import '../widgets/query_log.dart';
 import '../widgets/scenario_page.dart';
@@ -72,10 +71,9 @@ Future<QueryClient> startApp(QueryStorage storage) async {
 class PersistenceScenario extends StatelessWidget {
   const PersistenceScenario({super.key});
 
-  void _restart(BuildContext context) {
-    Timeline.of(context).action('The app closed. Starting it again…');
-    Session.of(context).restart(startApp);
-  }
+  // The playground drops the requests in flight, as a closed app would, and
+  // builds the scenario again on the client that startApp returns.
+  void _restart(BuildContext context) => Session.of(context).restart(startApp);
 
   @override
   Widget build(BuildContext context) {

@@ -28,13 +28,14 @@ const paginationScenario = Scenario(
 );
 
 // #region snippet
-Query<ProjectPage> projectsQuery(int page, {required bool keepPrevious}) =>
-    Query(
-      queryKey: ['projects', page],
-      queryFn: (_) => server.getProjects(page),
-      // While the next page loads, show the page before it.
-      placeholderData: keepPrevious ? keepPreviousData : null,
-    );
+Query<ProjectPage> projectsQuery(int page, {required bool keepPrevious}) {
+  return Query(
+    queryKey: ['projects', page],
+    queryFn: (_) => server.getProjects(page),
+    // While the next page loads, show the page before it.
+    placeholderData: keepPrevious ? keepPreviousData : null,
+  );
+}
 // #endregion
 
 class PaginationScenario extends StatefulWidget {
