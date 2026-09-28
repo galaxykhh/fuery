@@ -16,7 +16,8 @@ const optimisticScenario = Scenario(
       'answers, so the list changes at once. If the server fails, the '
       'mutation takes the todo out again.',
   tryThis: [
-    'Add a todo. It shows at once, in italics, until the server has it.',
+    'Add a todo. It shows at once, in italics, until the refetch brings the '
+        "server's copy.",
     'Add two quickly. The counter above the list shows both runs pending.',
     'Set "fail next" to 1 request and add one. It shows, then disappears, '
         'and a snackbar says why.',
