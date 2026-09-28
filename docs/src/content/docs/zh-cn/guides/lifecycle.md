@@ -1,7 +1,7 @@
 ---
 title: 重新获取和离线
 description: Flutter 应用回到前台时重新获取过期数据，离线时暂停，网络重新连接时继续。
-sourceHash: 6f8b1b989a7f
+sourceHash: 95f912881c45
 ---
 
 应用回到前台和网络重新连接时，Fuery 重新获取过期数据，因此界面无须下拉刷新就能更新到最新。Fuery 的 widget、hook 和 `FueryProvider` 会替你接入应用生命周期。网络连接状态则用 `onlineManager.setEventListener` 接入一个来源。
@@ -20,6 +20,8 @@ Fuery 把每个 `AppLifecycleState` 映射为焦点状态：
 - 应用未获得焦点时，重试会等待。
 - 在后台时轮询也会停止，除非查询设置了 `refetchIntervalInBackground`。
 - `refetchOnFocus` 按查询设置应用重新获得焦点时是否重新获取：`RefetchMode.ifStale`（默认）、`RefetchMode.always` 或 `RefetchMode.never`。
+
+[在演练场中试试](/fuery/demo/#/lifecycle)：分别在数据新鲜和过期时，把应用切到后台再切回来。
 
 `focusManager`（一个 `FueryFocusManager`）保存焦点状态。它跟踪的是应用是否处于前台，而不是键盘焦点：
 
@@ -59,6 +61,8 @@ onlineManager.setEventListener((setOnline) {
 - 离线时开始的变更会等待，并在连接恢复后执行。
 
 连接恢复时，Fuery 先继续执行暂停的变更。它在变更完成后再重新获取查询，因此重新获取不会覆盖乐观更新。仍在加载首批数据的查询不会等待，而是立即继续。应用回到前台时，Fuery 按相同的步骤处理。
+
+[在演练场中试试](/fuery/demo/#/offline)：切换到离线，发送一条消息，再恢复在线。
 
 `onlineManager` 保存网络连接状态：
 

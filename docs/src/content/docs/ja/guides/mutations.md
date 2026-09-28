@@ -1,7 +1,7 @@
 ---
 title: ミューテーション
 description: Flutter でサーバーデータを作成、更新、削除します。楽観的更新とロールバックも扱います。
-sourceHash: 9a0946e72979
+sourceHash: 0c544eeebc13
 head:
   - tag: title
     content: Flutter のミューテーションと楽観的更新 | Fuery
@@ -223,6 +223,8 @@ final deleteTodo = Mutation(
   },
 );
 ```
+
+[プレイグラウンドで試す](/fuery/demo/#/optimistic)：Todo を追加し、リクエストを失敗させてロールバックを確認してください。
 
 ## 変数のないミューテーション
 

@@ -1,7 +1,7 @@
 ---
 title: 무한 쿼리
 description: 캐시된 페이지로 만드는 Flutter의 페이지네이션 목록과 무한 스크롤 목록
-sourceHash: fa6d6ed43171
+sourceHash: 65b525494abc
 head:
   - tag: title
     content: Flutter의 무한 스크롤과 페이지네이션 | Fuery
@@ -20,6 +20,8 @@ final posts = InfiniteQuery(
 ```
 
 `queryFn`은 `context.pageParam`이 가리키는 페이지를 불러와요. 첫 페이지 파라미터는 `initialPageParam`이에요. `getNextPageParam`은 마지막 페이지 다음 페이지의 파라미터를 반환하고, 페이지가 더 없으면 `null`을 반환해요. 나머지 옵션과, 페이지 파라미터 함수가 실패했을 때 Fuery가 하는 일은 [InfiniteQuery 옵션](../../reference/query-options/#infinitequery-옵션)에 있어요.
+
+[플레이그라운드에서 해보기](/fuery/demo/#/infinite): 페이지를 하나씩 불러오면서 `hasNextPage`와 `isFetchingNextPage`를 확인해보세요.
 
 ## 페이지 보여주기
 

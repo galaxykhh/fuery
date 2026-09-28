@@ -75,6 +75,8 @@ Two screens can show one key with different `staleTime` values, and each screen 
 
 Data that no widget or stream uses stays in memory for `gcTime` (garbage collection time, default: 5 minutes). A screen opened again within that time shows the data at once.
 
+[Try it in the playground](/fuery/demo/#/lifecycle): set `staleTime`, and watch the data go stale and refetch.
+
 ## Which errors to retry
 
 A failed fetch retries three times by default, waiting 1s, 2s, then 4s. A request that can never succeed therefore takes about seven seconds to reach the error branch. Retry only the errors worth retrying:
@@ -94,6 +96,8 @@ Fuery.client = QueryClient(
 In `RetryPolicy.when`, `failureCount` is 0 for the first failure, so `failureCount < 3` allows three retries. `QueryResult.failureCount` is the number of failed attempts instead, so it is 1 after the first failure.
 
 `RetryPolicy.count(3)` is the default, and `RetryPolicy.never()` and `RetryPolicy.always()` are the other shorthands. A single query can set its own `retry`. `client.query` and mutations retry only when a `retry` is set, on the definition or in the defaults.
+
+[Try it in the playground](/fuery/demo/#/retries): fail a few requests, and watch `failureCount` rise until the query succeeds or gives up.
 
 ## Changing what a query asks for
 
@@ -168,6 +172,8 @@ The widget keeps its observer when `_page` changes, so the observer still has th
 While the next page loads, `state.isPlaceholderData` is `true`. Use it to dim the list or disable the next button. For endless scrolling, use an [infinite query](../infinite-queries/) instead.
 
 `keepPreviousData` needs the data type from its surroundings, such as the return type of `postsQuery`. In a `Query(...)` whose type Dart infers, write `(previous, client) => previous` instead. There, `keepPreviousData` makes Dart infer the data type as `Object` rather than take it from `queryFn`.
+
+[Try it in the playground](/fuery/demo/#/pagination): page through a list with and without `keepPreviousData`.
 
 ## Opening a detail screen without a spinner
 

@@ -1,7 +1,7 @@
 ---
 title: 查询
 description: "在 Flutter 中获取和缓存服务端数据：查询键、新鲜度、重试、依赖查询、轮询和取消。"
-sourceHash: 064d08f77dd2
+sourceHash: 24ea69d0d7f9
 head:
   - tag: title
     content: 在 Flutter 中获取和缓存 API 数据 | Fuery
@@ -76,6 +76,8 @@ Fuery 用 `null` 表示“尚无数据”，因此查询函数返回不可空类
 
 没有 widget 或 stream 使用的数据，会在垃圾回收时间（`gcTime`，默认值：5 分钟）内留在内存中。在这段时间内再次打开的界面会立即显示数据。
 
+[在演练场中试试](/fuery/demo/#/lifecycle)：设置 `staleTime`，观察数据变为过期并重新获取。
+
 ## 重试哪些错误
 
 获取失败时，默认重试 3 次，依次等待 1 秒、2 秒和 4 秒。因此，一个永远不会成功的请求大约要 7 秒才会进入错误分支。只重试值得重试的错误：
@@ -95,6 +97,8 @@ Fuery.client = QueryClient(
 在 `RetryPolicy.when` 中，第一次失败时 `failureCount` 为 0，因此 `failureCount < 3` 允许重试 3 次。`QueryResult.failureCount` 则是失败的尝试次数，因此第一次失败后它为 1。
 
 默认值是 `RetryPolicy.count(3)`，另外两个简写是 `RetryPolicy.never()` 和 `RetryPolicy.always()`。单个查询可以设置自己的 `retry`。`client.query` 和变更只在设置了 `retry` 时重试，无论设置在定义上还是默认值中。
+
+[在演练场中试试](/fuery/demo/#/retries)：让几个请求失败，观察 `failureCount` 不断增加，直到查询成功或放弃。
 
 ## 更改查询要获取的内容
 
@@ -169,6 +173,8 @@ QueryBuilder(
 下一页加载期间，`state.isPlaceholderData` 为 `true`。用它把列表调暗，或者禁用下一页按钮。无限滚动请改用[无限查询](../infinite-queries/)。
 
 `keepPreviousData` 需要从周围的代码获得数据类型，例如 `postsQuery` 的返回类型。在由 Dart 推断类型的 `Query(...)` 中，改写为 `(previous, client) => previous`。在那里，`keepPreviousData` 会让 Dart 把数据类型推断为 `Object`，而不是取自 `queryFn`。
+
+[在演练场中试试](/fuery/demo/#/pagination)：分别在使用和不使用 `keepPreviousData` 时翻页。
 
 ## 打开详情界面时不显示加载指示器
 

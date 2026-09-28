@@ -1,7 +1,7 @@
 ---
 title: 캐시를 기기에 저장하기
 description: Flutter 앱을 다시 시작해도 캐시된 서버 데이터를 유지해요. 어떤 키-값 스토리지든 사용할 수 있어요.
-sourceHash: 8e8642971351
+sourceHash: 93eaeb03f82e
 head:
   - tag: title
     content: Flutter에서 오프라인 캐시를 기기에 저장하기 | Fuery
@@ -78,6 +78,8 @@ final todosQuery = Query(
 - **복원:** 쿼리를 처음 사용할 때 Fuery가 저장된 데이터와 그 데이터를 가져온 시각을 복원해요. 그다음 쿼리를 다시 가져올지는 `staleTime`이 정해요. 그래서 fresh 데이터는 다시 가져오지 않아요. 복원할 때는 네트워크가 필요 없어요.
 - **저장:** Fuery는 데이터가 바뀔 때마다, 가져오는 중이 아니면 데이터를 저장해요. `setData`로 바꾼 데이터도 마찬가지예요. `client.setData(todosQuery, todos)`는 쿼리를 사용하는 곳이 아직 없어도 데이터를 저장해요. `setData`가 만드는 쿼리가 정의의 `persist`를 받기 때문이에요. [스트림 쿼리](../streaming/)는 스트림이 끝나면 저장해요.
 - **enum이 들어간 키:** Fuery는 키에 있는 enum을 타입 없이 이름으로만 저장해요. 난독화하거나 축소한 빌드에서는 앱을 업데이트할 때 타입 이름이 바뀔 수 있어요. 이름만 저장하면 타입 이름이 바뀌어도 여전히 일치해요. 그래서 저장하는 쿼리 두 개의 키가 같은 이름의 enum에서 타입만 다르면, 두 쿼리가 저장된 항목 하나를 공유해요. `['todos', Filter.done]`과 `['todos', Status.done]`은 서로의 데이터를 덮어써요. `['todos', 'filter', Filter.done]`처럼 둘을 구분하는 문자열을 추가하세요.
+
+[플레이그라운드에서 해보기](/fuery/demo/#/persistence): 앱을 다시 시작하면 저장된 데이터가 가져온 시각과 함께 바로 돌아와요.
 
 ## 무한 쿼리 저장하기
 

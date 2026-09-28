@@ -115,6 +115,8 @@ The last two lines unmount the screen and empty the cache, so no garbage collect
 - **Screens share data by key.** Every screen that uses `['todos']` reads one cache entry, and screens that mount while a fetch runs share that request.
 - **Stale data refreshes itself.** Data is stale as soon as it arrives (`staleTime` defaults to zero). Fuery refetches it in the background when another screen starts using it and when the app returns to the foreground, and the old list stays on screen meanwhile.
 
+[Try it in the playground](/fuery/demo/#/shared-cache): three widgets show one query, and one request fills all three.
+
 [How the cache works](../how-the-cache-works/) explains when data refetches and when it leaves memory.
 
 ## Next steps

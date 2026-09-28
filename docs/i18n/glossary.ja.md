@@ -346,10 +346,11 @@ When the English link text is the title of the page or heading it opens, the Jap
 | | Example app | サンプルアプリ |
 | `src/routeData.ts` title suffix | Fuery for Flutter | Flutter 向け Fuery |
 | `index.mdx` hero actions | Get started | はじめる |
-| | Try the demo | デモを試す |
+| | Try the playground | プレイグラウンドを試す |
 | | View on GitHub | GitHub で見る |
 | Headings that end many pages | Next steps | 次のステップ |
 | | In the example app | サンプルアプリでは |
+| Links from the guides to the playground | Try it in the playground | プレイグラウンドで試す |
 
 ## Page titles
 

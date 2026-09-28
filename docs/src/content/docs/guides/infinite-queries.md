@@ -23,6 +23,8 @@ final posts = InfiniteQuery(
 
 `queryFn` loads the page that `context.pageParam` names, starting with `initialPageParam`. `getNextPageParam` returns the param of the page after the last one, or `null` when there are no more pages. [InfiniteQuery options](../../reference/query-options/#infinitequery-options) lists the other options and what Fuery does when a page param function fails.
 
+[Try it in the playground](/fuery/demo/#/infinite): load the pages one at a time, and watch `hasNextPage` and `isFetchingNextPage`.
+
 ## Showing pages
 
 `InfiniteQueryBuilder` gives its builder the loaded pages and the flags a footer needs:

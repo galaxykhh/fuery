@@ -1,7 +1,7 @@
 ---
 title: 쿼리
 description: "Flutter에서 서버 데이터를 가져오고 캐시해요. 쿼리 키, fresh 상태, 재시도, 다른 쿼리에 의존하는 쿼리, 폴링, 취소를 다뤄요."
-sourceHash: 064d08f77dd2
+sourceHash: 24ea69d0d7f9
 head:
   - tag: title
     content: Flutter에서 API 데이터 가져오고 캐시하기 | Fuery
@@ -76,6 +76,8 @@ Fuery는 `null`로 "아직 데이터 없음"을 나타내요. 그래서 쿼리 �
 
 어떤 위젯이나 스트림도 사용하지 않는 데이터는 `gcTime`(가비지 컬렉션 시간, 기본값: 5분) 동안 메모리에 남아요. 그 안에 화면을 다시 열면 데이터를 바로 보여줘요.
 
+[플레이그라운드에서 해보기](/fuery/demo/#/lifecycle): `staleTime`을 설정하고, 데이터가 stale 상태가 되어 다시 가져오는 과정을 확인해보세요.
+
 ## 재시도할 에러 고르기
 
 데이터를 가져오다 실패하면 Fuery가 기본으로 3번 재시도해요. 재시도 사이에는 1초, 2초, 4초를 기다려요. 그래서 절대 성공할 수 없는 요청도 에러 분기에 이르기까지 7초쯤 걸려요. 재시도할 만한 에러만 재시도하세요.
@@ -95,6 +97,8 @@ Fuery.client = QueryClient(
 `RetryPolicy.when`에서 `failureCount`는 첫 실패일 때 0이에요. 그래서 `failureCount < 3`은 재시도를 3번 허용해요. 반면 `QueryResult.failureCount`는 실패한 시도의 횟수라서 첫 실패 뒤에 1이에요.
 
 기본값은 `RetryPolicy.count(3)`이에요. 그 밖의 단축 표현은 `RetryPolicy.never()`와 `RetryPolicy.always()`예요. 쿼리 하나에 `retry`를 따로 설정할 수도 있어요. `client.query`와 뮤테이션은 정의나 기본값에 `retry`를 설정했을 때만 재시도해요.
+
+[플레이그라운드에서 해보기](/fuery/demo/#/retries): 요청 몇 개를 실패하게 하고, 쿼리가 성공하거나 포기할 때까지 `failureCount`가 늘어나는 과정을 확인해보세요.
 
 ## 쿼리가 요청하는 데이터 바꾸기
 
@@ -169,6 +173,8 @@ QueryBuilder(
 다음 페이지를 불러오는 동안 `state.isPlaceholderData`는 `true`예요. 이 값으로 목록을 흐리게 하거나 다음 버튼을 비활성화하세요. 끝없이 스크롤하는 목록에는 [무한 쿼리](../infinite-queries/)를 사용하세요.
 
 `keepPreviousData`는 `postsQuery`의 반환 타입처럼 주변 코드에서 데이터 타입을 알아내야 해요. Dart가 타입을 추론하는 `Query(...)`에서는 그 대신 `(previous, client) => previous`를 쓰세요. 이런 곳에 `keepPreviousData`를 사용하면 Dart가 데이터 타입을 `queryFn`에서 추론하지 않고 `Object`로 추론해요.
+
+[플레이그라운드에서 해보기](/fuery/demo/#/pagination): `keepPreviousData`를 쓸 때와 쓰지 않을 때 목록의 페이지를 넘겨보세요.
 
 ## 스피너 없이 상세 화면 열기
 

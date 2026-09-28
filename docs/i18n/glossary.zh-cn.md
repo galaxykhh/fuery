@@ -276,7 +276,8 @@ Say what the English says about another library, and nothing more. Never call Fu
 | Fuery for Flutter (title suffix) | 适用于 Flutter 的 Fuery |
 | Getting started | 快速开始 |
 | Get started | 开始使用 |
-| Try the demo | 试用演示 |
+| Try the playground | 试用演练场 |
+| Try it in the playground | 在演练场中试试 |
 | View on GitHub | 在 GitHub 上查看 |
 | Coming from TanStack Query | 写给 TanStack Query 用户 |
 | Troubleshooting | 问题排查 |

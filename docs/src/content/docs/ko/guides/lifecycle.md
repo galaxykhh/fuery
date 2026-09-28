@@ -1,7 +1,7 @@
 ---
 title: 다시 가져오기와 오프라인
 description: Flutter 앱이 포그라운드로 돌아오면 stale 데이터를 다시 가져와요. 오프라인이면 멈추고, 네트워크가 다시 연결되면 이어서 실행해요.
-sourceHash: 6f8b1b989a7f
+sourceHash: 95f912881c45
 ---
 
 앱이 포그라운드로 돌아오거나 네트워크가 다시 연결되면 Fuery가 stale 데이터를 다시 가져와요. 그래서 당겨서 새로고침하지 않아도 화면이 바뀐 데이터를 보여줘요. Fuery 위젯, 훅, `FueryProvider`가 앱 생명주기를 대신 연결해요. 네트워크 연결 상태를 반영하려면 `onlineManager.setEventListener`로 연결 상태 소스를 연결하세요.
@@ -20,6 +20,8 @@ Fuery는 `AppLifecycleState` 값을 포커스 상태로 바꿔요.
 - 앱에 포커스가 없는 동안에는 Fuery가 재시도를 미뤄요.
 - 쿼리에 `refetchIntervalInBackground`를 설정하지 않았다면 백그라운드에서는 폴링도 멈춰요.
 - `refetchOnFocus`는 앱이 다시 포커스를 얻을 때 쿼리마다 다시 가져올지 정해요. 값은 `RefetchMode.ifStale`(기본값), `RefetchMode.always`, `RefetchMode.never`예요.
+
+[플레이그라운드에서 해보기](/fuery/demo/#/lifecycle): 데이터가 fresh 상태일 때와 stale 상태일 때, 앱을 백그라운드로 보냈다가 다시 돌아오게 해보세요.
 
 포커스 상태는 `FueryFocusManager`인 `focusManager`가 담고 있어요. `focusManager`는 키보드 포커스가 아니라 앱이 포그라운드에 있는지를 추적해요.
 
@@ -59,6 +61,8 @@ onlineManager.setEventListener((setOnline) {
 - 오프라인에서 시작한 뮤테이션은 기다렸다가 네트워크가 다시 연결되면 실행돼요.
 
 네트워크가 다시 연결되면 Fuery는 멈춘 뮤테이션을 먼저 이어서 실행해요. 쿼리는 뮤테이션이 끝난 뒤에 다시 가져와요. 그래서 다시 가져온 데이터가 낙관적 업데이트를 덮어쓸 수 없어요. 첫 데이터를 아직 불러오는 쿼리는 기다리지 않고 바로 이어서 가져와요. 앱이 포그라운드로 돌아올 때도 Fuery는 같은 순서로 동작해요.
+
+[플레이그라운드에서 해보기](/fuery/demo/#/offline): 오프라인으로 바꾸고 메시지를 보낸 다음, 다시 온라인으로 돌아와보세요.
 
 네트워크 연결 상태는 `onlineManager`가 담고 있어요.
 

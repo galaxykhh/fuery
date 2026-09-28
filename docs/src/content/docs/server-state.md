@@ -62,4 +62,4 @@ Fuery doesn't replace the state management you already use. [Bloc and cubits](..
 - [How the cache works](../how-the-cache-works/): definitions, clients, observers, and the lifecycle of cached data.
 - [Getting started](../getting-started/): install Fuery and cache your first request.
 - [Queries](../guides/queries/): keys, freshness, and the options.
-- [Try the demo](/fuery/demo/): the example app in a browser, with the devtools.
+- [Try the playground](/fuery/demo/): each idea of Fuery in the browser, next to its state and its code.

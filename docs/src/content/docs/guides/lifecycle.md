@@ -20,6 +20,8 @@ Fuery maps each `AppLifecycleState` to focus:
 - Polling stops in the background too, unless the query sets `refetchIntervalInBackground`.
 - `refetchOnFocus` sets, per query, whether it refetches when the app is focused again: `RefetchMode.ifStale` (default), `RefetchMode.always`, or `RefetchMode.never`.
 
+[Try it in the playground](/fuery/demo/#/lifecycle): send the app to the background and back, with fresh and with stale data.
+
 `focusManager`, a `FueryFocusManager`, holds the focus state. It tracks whether the app is in the foreground, not keyboard focus:
 
 | Member | What it does |
@@ -58,6 +60,8 @@ While the device is offline:
 - A mutation started offline waits, and runs when the connection returns.
 
 When the connection returns, Fuery resumes the paused mutations first. It refetches queries after the mutations finish, so a refetch can't overwrite an optimistic update. A query still loading its first data doesn't wait: it resumes right away. Fuery runs the same steps when the app returns to the foreground.
+
+[Try it in the playground](/fuery/demo/#/offline): go offline, send a message, and come back online.
 
 `onlineManager` holds the connectivity state:
 

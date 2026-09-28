@@ -1,7 +1,7 @@
 ---
 title: 뮤테이션
 description: Flutter에서 서버 데이터를 만들고, 업데이트하고, 삭제해요. 낙관적 업데이트와 롤백도 할 수 있어요.
-sourceHash: 9a0946e72979
+sourceHash: 0c544eeebc13
 head:
   - tag: title
     content: Flutter의 뮤테이션과 낙관적 업데이트 | Fuery
@@ -223,6 +223,8 @@ final deleteTodo = Mutation(
   },
 );
 ```
+
+[플레이그라운드에서 해보기](/fuery/demo/#/optimistic): 할 일을 추가하고, 요청을 실패하게 해서 롤백을 확인해보세요.
 
 ## 변수 없는 뮤테이션
 

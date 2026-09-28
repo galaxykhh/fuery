@@ -1,7 +1,7 @@
 ---
 title: 快速开始
 description: 在 Flutter 应用中安装 Fuery，显示第一个带缓存的 API 请求，并测试它。
-sourceHash: 325411dab737
+sourceHash: fa4345dc8bbf
 ---
 
 完成 5 个步骤后，一个界面会显示来自 API 的列表，并带有加载状态和错误状态；其他界面都复用缓存的列表；一个 widget 测试检查这些行为。
@@ -115,6 +115,8 @@ void main() {
 - **无须检查 null**。`QueryResult(:final data?)` 只在有数据时匹配，因此在这个分支中 `data` 是 `List<Todo>`。
 - **界面按键共享数据**。使用 `['todos']` 的所有界面读取同一个缓存条目（`CachedQuery`），在获取进行中挂载的界面共享这个请求。
 - **过期数据自动刷新**。数据一到达就已过期（`staleTime` 默认为 0）。另一个界面开始使用数据时，以及应用回到前台时，Fuery 在后台重新获取数据，同时旧列表仍然留在屏幕上。
+
+[在演练场中试试](/fuery/demo/#/shared-cache)：三个 widget 显示同一个查询，一次请求为三者提供数据。
 
 [缓存的工作原理](../how-the-cache-works/)解释数据何时重新获取、何时从内存中移除。
 
