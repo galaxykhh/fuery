@@ -1,7 +1,7 @@
 ---
 title: 变更
 description: 在 Flutter 中创建、更新和删除服务端数据，支持乐观更新和回滚。
-sourceHash: 9a0946e72979
+sourceHash: 0c544eeebc13
 head:
   - tag: title
     content: Flutter 中的变更和乐观更新 | Fuery
@@ -223,6 +223,8 @@ final deleteTodo = Mutation(
   },
 );
 ```
+
+[在演练场中试试](/fuery/demo/#/optimistic)：添加待办事项，并让一个请求失败来查看回滚。
 
 ## 不带变量的变更
 

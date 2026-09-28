@@ -1,7 +1,7 @@
 ---
 title: 無限クエリ
 description: Flutter で、ページをキャッシュしながら、ページネーションと無限スクロールのリストを作ります。
-sourceHash: fa6d6ed43171
+sourceHash: 65b525494abc
 head:
   - tag: title
     content: Flutter の無限スクロールとページネーション | Fuery
@@ -20,6 +20,8 @@ final posts = InfiniteQuery(
 ```
 
 `queryFn` は、`context.pageParam` が指すページを読み込みます。最初のページパラメーターは `initialPageParam` です。`getNextPageParam` は、最後のページの次のページのパラメーターを返します。それ以上ページがない場合は `null` を返します。ほかのオプションと、ページパラメーターの関数が失敗したときの Fuery の動作は、[InfiniteQuery のオプション](../../reference/query-options/#infinitequery-のオプション)にあります。
+
+[プレイグラウンドで試す](/fuery/demo/#/infinite)：ページを 1 つずつ読み込み、`hasNextPage` と `isFetchingNextPage` を確認してください。
 
 ## ページを表示する
 

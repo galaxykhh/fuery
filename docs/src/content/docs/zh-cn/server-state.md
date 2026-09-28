@@ -1,7 +1,7 @@
 ---
 title: Flutter 中的服务端状态
 description: 服务端数据为什么需要缓存而不是另一个状态类，以及 Fuery 的缓存为 Flutter 应用做了什么。
-sourceHash: 5ba12ba3aea8
+sourceHash: 43c3b6d2de76
 ---
 
 服务端数据需要的是缓存，而不是另一个状态类：缓存为每个界面提供同一份数据，跟踪加载和错误，并刷新已经过时的数据。
@@ -63,4 +63,4 @@ Fuery 不会取代你已经在用的状态管理方案。[Bloc 和 cubit](../gui
 - [缓存的工作原理](../how-the-cache-works/)：定义、客户端、观察者和缓存数据的生命周期。
 - [快速开始](../getting-started/)：安装 Fuery，缓存第一个请求。
 - [查询](../guides/queries/)：键、新鲜度和各个选项。
-- [试用演示](/fuery/demo/)：在浏览器中运行示例应用，附带开发者工具。
+- [试用演练场](/fuery/demo/)：在浏览器中逐一体验 Fuery 的每个概念，并对照它的状态和代码。

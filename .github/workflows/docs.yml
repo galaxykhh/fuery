@@ -5,14 +5,14 @@ on:
     branches: [main]
     paths:
       - docs/**
-      - packages/fuery/example/**
+      - packages/fuery/playground/**
       - packages/fuery/lib/**
       - packages/fuery_core/lib/**
       - .github/workflows/docs.yml
   pull_request:
     paths:
       - docs/**
-      - packages/fuery/example/**
+      - packages/fuery/playground/**
       - packages/fuery/lib/**
       - packages/fuery_core/lib/**
       - .github/workflows/docs.yml
@@ -35,17 +35,15 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      # The example runs at /fuery/demo/, with the devtools turned on so they
-      # can be tried in the browser.
-      - name: Build the demo
-        run: flutter build web --release --base-href /fuery/demo/ --dart-define=fuery.demo=true
-        working-directory: packages/fuery/example
+      # The playground runs at /fuery/demo/. It turns the devtools on itself.
+      - name: Build the playground
+        run: flutter build web --release --base-href /fuery/demo/
+        working-directory: packages/fuery/playground
       # Astro copies public/ into the site as it is.
-      - run: cp -r packages/fuery/example/build/web docs/public/demo
-      # The demo draws on a canvas, so search engines find no text on it.
-      # Keep it out of their index here rather than in the example, which
-      # apps copy. grep fails the build if the tag didn't go in.
-      - name: Keep the demo out of search results
+      - run: cp -r packages/fuery/playground/build/web docs/public/demo
+      # The playground draws on a canvas, so search engines find no text on
+      # it. grep fails the build if the tag didn't go in.
+      - name: Keep the playground out of search results
         run: |
           sed -i 's|<head>|<head><meta name="robots" content="noindex">|' docs/public/demo/index.html
           grep -q '<meta name="robots" content="noindex">' docs/public/demo/index.html

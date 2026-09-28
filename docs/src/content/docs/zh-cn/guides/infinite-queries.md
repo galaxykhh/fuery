@@ -1,7 +1,7 @@
 ---
 title: 无限查询
 description: Flutter 中的分页列表和无限滚动列表，已加载的页都会缓存。
-sourceHash: fa6d6ed43171
+sourceHash: 65b525494abc
 head:
   - tag: title
     content: Flutter 中的无限滚动和分页 | Fuery
@@ -20,6 +20,8 @@ final posts = InfiniteQuery(
 ```
 
 `queryFn` 加载 `context.pageParam` 指定的页，从 `initialPageParam` 开始。`getNextPageParam` 返回最后一页之后那一页的页参数；没有更多页时返回 `null`。[InfiniteQuery 选项](../../reference/query-options/#infinitequery-选项)列出了其他选项，以及页参数函数失败时 Fuery 的处理方式。
+
+[在演练场中试试](/fuery/demo/#/infinite)：逐页加载，观察 `hasNextPage` 和 `isFetchingNextPage`。
 
 ## 显示各页
 

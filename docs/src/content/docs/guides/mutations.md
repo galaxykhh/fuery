@@ -223,6 +223,8 @@ final deleteTodo = Mutation(
 );
 ```
 
+[Try it in the playground](/fuery/demo/#/optimistic): add todos, and fail a request to see the rollback.
+
 ## Mutations without variables
 
 Use `NoVariablesMutation` for a mutation that takes nothing, such as logging out. Its `mutationFn` and callbacks leave out the variables ([NoVariablesMutation](../../reference/mutation-options/#novariablesmutation)):

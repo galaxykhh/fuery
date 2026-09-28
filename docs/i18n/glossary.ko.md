@@ -45,7 +45,8 @@ Fuery 문서를 한국어로 옮길 때 쓰는 용어와 문장 규칙이에요.
 | Fuery's caching and refetching model is inspired by TanStack Query. | Fuery의 캐싱과 다시 가져오기 모델은 TanStack Query에서 영감을 받았어요. | 홈, TanStack Query에서 넘어왔다면 |
 | Why Fuery | Fuery를 쓰는 이유 | 홈 제목 |
 | Get started | 시작하기 | 홈 버튼 |
-| Try the demo | 데모 사용해보기 | 홈 버튼, 다음 단계 |
+| Try the playground | 플레이그라운드 사용해보기 | 홈 버튼, 다음 단계 |
+| Try it in the playground | 플레이그라운드에서 해보기 | 가이드에서 시나리오로 가는 링크 |
 | View on GitHub | GitHub에서 보기 | 홈 버튼 |
 | Next steps | 다음 단계 | 페이지 끝 제목 |
 | In the example app | 예제 앱에서 | 페이지 끝 제목 |
@@ -231,7 +232,7 @@ Fuery 문서를 한국어로 옮길 때 쓰는 용어와 문장 규칙이에요.
 | line coverage | 라인 커버리지 | |
 | regression suite | 회귀 테스트 | |
 | edge case | 엣지 케이스 | |
-| demo | 데모 | |
+| playground | 플레이그라운드 | 문서 사이트의 `/fuery/demo/`에서 실행하는 앱 |
 
 ### Dart와 Flutter 일반 용어
 

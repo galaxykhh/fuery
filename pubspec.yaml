@@ -8,4 +8,5 @@ workspace:
   - packages/fuery_core
   - packages/fuery
   - packages/fuery/example
+  - packages/fuery/playground
   - packages/fuery_hooks

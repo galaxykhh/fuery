@@ -1,7 +1,7 @@
 ---
 title: 持久化
 description: 在 Flutter 中用任意键值存储，让缓存的服务端数据在应用重启后仍然保留。
-sourceHash: 8e8642971351
+sourceHash: 93eaeb03f82e
 head:
   - tag: title
     content: Flutter 离线缓存持久化 | Fuery
@@ -78,6 +78,8 @@ final todosQuery = Query(
 - **恢复**：首次使用查询时，Fuery 恢复它存储的数据以及数据的获取时间。然后由 `staleTime` 决定查询是否重新获取，因此新鲜的数据不会再次获取。恢复不需要网络。
 - **存储**：每当数据变化且没有获取在进行时，Fuery 存储数据，包括用 `setData` 做的更改。即使还没有任何东西使用这个查询，`client.setData(todosQuery, todos)` 也会存储，因为它创建的查询带有定义的 `persist`。Fuery 在[流式查询](../streaming/)的 stream 结束后存储它。
 - **包含枚举的键**：Fuery 按名称存储键中的枚举，不包含它的类型。混淆和压缩的构建可能在应用更新时重命名类型，而只看名称仍然能匹配。因此，如果两个持久化查询的键只在同名枚举的类型上不同，它们会共用一个存储条目：`['todos', Filter.done]` 和 `['todos', Status.done]` 会互相覆盖数据。添加一个字符串来区分它们：`['todos', 'filter', Filter.done]`。
+
+[在演练场中试试](/fuery/demo/#/persistence)：重启应用，存储的数据会立即恢复，并带有获取时的时间。
 
 ## 持久化无限查询
 

@@ -1,7 +1,7 @@
 ---
 title: クエリ
 description: Flutter でサーバーデータを取得し、キャッシュします。クエリキー、鮮度、再試行、依存するクエリ、ポーリング、キャンセルを扱います。
-sourceHash: 064d08f77dd2
+sourceHash: 24ea69d0d7f9
 head:
   - tag: title
     content: Flutter で API データを取得してキャッシュする | Fuery
@@ -76,6 +76,8 @@ Fuery は「まだデータがない」ことを `null` で表します。その
 
 どのウィジェットもストリームも使っていないデータは、`gcTime`（ガベージコレクション時間、デフォルトは 5 分）の間メモリに残ります。その間にもう一度開いた画面は、データをすぐに表示します。
 
+[プレイグラウンドで試す](/fuery/demo/#/lifecycle)：`staleTime` を設定して、データが古くなり、再取得される様子を確認してください。
+
 ## 再試行するエラーを選ぶ
 
 取得が失敗すると、デフォルトでは 1 秒、2 秒、4 秒と待ちながら 3 回再試行します。そのため、決して成功しないリクエストは、エラーの分岐にたどり着くまで約 7 秒かかります。再試行する価値のあるエラーだけを再試行してください。
@@ -95,6 +97,8 @@ Fuery.client = QueryClient(
 `RetryPolicy.when` では、最初の失敗の `failureCount` が 0 です。そのため、`failureCount < 3` で 3 回再試行します。一方、`QueryResult.failureCount` は失敗した試行の回数なので、最初の失敗の後は 1 です。
 
 デフォルトは `RetryPolicy.count(3)` です。ほかの省略形として `RetryPolicy.never()` と `RetryPolicy.always()` があります。クエリごとに独自の `retry` も設定できます。`client.query` とミューテーションは、定義かデフォルトで `retry` が設定されている場合にだけ再試行します。
+
+[プレイグラウンドで試す](/fuery/demo/#/retries)：いくつかのリクエストを失敗させ、クエリが成功するか諦めるまで `failureCount` が増えていく様子を確認してください。
 
 ## クエリが取得する内容を変える
 
@@ -169,6 +173,8 @@ QueryBuilder(
 次のページを読み込む間、`state.isPlaceholderData` は `true` です。この値を使って、リストを薄く表示したり、次へボタンを無効にしたりしてください。無限スクロールには、代わりに[無限クエリ](../infinite-queries/)を使ってください。
 
 `keepPreviousData` には、`postsQuery` の戻り値の型など、周囲からデータ型が与えられている必要があります。Dart が型を推論する `Query(...)` では、代わりに `(previous, client) => previous` と書いてください。そこで `keepPreviousData` を使うと、Dart はデータ型を `queryFn` から取らずに `Object` と推論します。
+
+[プレイグラウンドで試す](/fuery/demo/#/pagination)：`keepPreviousData` を使う場合と使わない場合で、リストのページを切り替えてみてください。
 
 ## スピナーなしで詳細画面を開く
 

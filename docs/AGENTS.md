@@ -14,7 +14,7 @@ npm run build    # must succeed before a pull request
 - Pages live in `src/content/docs/`. The sidebar is declared in `astro.config.mjs`, so a new page has to be added there to appear.
 - The English pages are the source, served at `/fuery/`. Their translations live in `ko/`, `ja/`, and `zh-cn/` inside `src/content/docs/`, at the same paths, and are served at `/fuery/ko/` and so on. `i18n/locales.json` lists the languages; `astro.config.mjs` and the checks in `tool/` read it. See [Translations](#translations).
 - The site is served from `/fuery`, set by `base` in `astro.config.mjs`. Link between pages with relative paths ending in a slash (`../queries/`), never with `/fuery/...`.
-- `public/demo/` is the example app built for the web. CI builds it in `.github/workflows/docs.yml`; it does not exist locally, so a local build reports `/fuery/demo/` as missing.
+- `public/demo/` is the playground (`packages/fuery/playground`) built for the web. CI builds it in `.github/workflows/docs.yml`; it does not exist locally, so a local build reports `/fuery/demo/` as missing. A page links a scenario by its route, as in `/fuery/demo/#/lifecycle`.
 - Sections: Getting started, Concepts (what server state is and how the cache works), Guides (one page per task, from queries to building an adapter), Reference (every option, result field, and client method in a table), Troubleshooting (symptom, cause, fix).
 
 ## How to write

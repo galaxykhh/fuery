@@ -78,6 +78,8 @@ final todosQuery = Query(
 - **Storing:** Fuery stores the data whenever it changes and no fetch is running, including changes made with `setData`. `client.setData(todosQuery, todos)` stores even before anything uses the query, because the query it creates gets the definition's `persist`. Fuery stores a [streamed query](../streaming/) once its stream is done.
 - **Keys with enums:** Fuery stores an enum in a key by its name, without its type. Obfuscated and minified builds can rename types in an app update, and the name alone still matches. Two persisted queries whose keys differ only in the type of a same-named enum therefore share one stored entry: `['todos', Filter.done]` and `['todos', Status.done]` overwrite each other's data. Add a string that tells them apart: `['todos', 'filter', Filter.done]`.
 
+[Try it in the playground](/fuery/demo/#/persistence): restart the app, and the stored data is back at once, with the time it was fetched.
+
 ## Persisting infinite queries
 
 Convert one page, and Fuery stores the list of pages:
