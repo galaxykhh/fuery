@@ -23,6 +23,8 @@ export default defineConfig({
 				{ tag: 'meta', attrs: { property: 'og:image:width', content: '1280' } },
 				{ tag: 'meta', attrs: { property: 'og:image:height', content: '640' } },
 				{ tag: 'meta', attrs: { property: 'og:image:alt', content: 'Fuery: server state for Flutter' } },
+				// Google Search Console verification. Keep it: Google checks it again from time to time.
+				{ tag: 'meta', attrs: { name: 'google-site-verification', content: 'EnDzzZDMSzPuXJGM6ci-SDxS16D-31F1VjM2Kwr8FCI' } },
 			],
 			logo: {
 				light: './src/assets/mark.svg',
