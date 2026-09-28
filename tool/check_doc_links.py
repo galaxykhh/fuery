@@ -17,7 +17,7 @@ check fails if it finds no link with an #anchor in packages/*/lib, or finds
 an anchor after an interpolation it can't fill in, so a refactor that hides
 the warnings' links from it fails instead of passing.
 
-The site root and the web demo (demo/, built only in CI) aren't checked.
+The site root and the playground (demo/, built only in CI) aren't checked.
 """
 
 import json

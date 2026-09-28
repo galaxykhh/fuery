@@ -82,6 +82,8 @@ jobs:
         working-directory: packages/fuery
       - run: flutter test
         working-directory: packages/fuery/example
+      - run: flutter test
+        working-directory: packages/fuery/playground
       - run: flutter test --coverage
         working-directory: packages/fuery_hooks
       # Every package stays at 100% line coverage.
