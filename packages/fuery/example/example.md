@@ -73,6 +73,8 @@ class _Api {
 
 ## The full app
 
-[Try the demo](https://galaxykhh.github.io/fuery/demo/) in the browser: a social feed with infinite scrolling, likes that show before the server answers, comments written offline, and the devtools. [Its source](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) has a README that maps each screen to the Fuery features it shows.
+[The example app](https://github.com/galaxykhh/fuery/tree/main/packages/fuery/example) is a social feed with infinite scrolling, likes that show before the server answers, comments written offline, and the devtools. Its README maps each screen to the Fuery features it shows.
+
+[Try the playground](https://galaxykhh.github.io/fuery/demo/) in the browser: each scenario shows a query or a mutation next to its live state and the code that drives it.
 
 **[Read the documentation →](https://galaxykhh.github.io/fuery/)**

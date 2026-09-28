@@ -8,7 +8,7 @@ Fetch, cache, and keep server data fresh in Flutter.
 
 Screens that use the same key share one request, and cached data stays on screen while Fuery refetches it. Retries, pagination, optimistic updates, persistence, and devtools are built in. With a [connectivity source](https://galaxykhh.github.io/fuery/guides/lifecycle/#when-the-network-reconnects), queries and mutations pause while the device is offline and resume when it reconnects.
 
-**[Read the documentation →](https://galaxykhh.github.io/fuery/)** · **[Try the demo →](https://galaxykhh.github.io/fuery/demo/)**
+**[Read the documentation →](https://galaxykhh.github.io/fuery/)** · **[Try the playground →](https://galaxykhh.github.io/fuery/demo/)**
 
 ## Why Fuery
 

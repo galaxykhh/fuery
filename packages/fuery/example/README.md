@@ -1,16 +1,16 @@
 # Fuery example
 
 A small social feed: posts, likes, comments, search, and notifications,
-against an in-memory server with real delays. It is the app behind
-[the web demo](https://galaxykhh.github.io/fuery/demo/). Every screen is one
-you would ship, and each shows a part of Fuery in the place it belongs.
+against an in-memory server with real delays. Every screen is one you would
+ship, and each shows a part of Fuery in the place it belongs. To try one idea
+at a time in the browser, with its state and code beside it, open
+[the playground](https://galaxykhh.github.io/fuery/demo/).
 
 ```bash
 flutter run
 ```
 
-The devtools button is on in debug and profile builds, and on the web demo
-through `--dart-define=fuery.demo=true`.
+The devtools button is on in debug and profile builds.
 
 ## Screens
 

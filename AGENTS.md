@@ -6,6 +6,7 @@ Server state caching for Flutter: queries, infinite queries, and mutations, with
 - `packages/fuery`: Flutter widgets, app lifecycle binding, `FueryProvider`, and the in-app devtools. Re-exports `fuery_core`.
 - `packages/fuery_hooks`: `useQuery`, `useInfiniteQuery`, `useMutation`, `useQueries`, and `useMutationState` for `flutter_hooks`, and `useOnQueryChange`, `useOnMutationChange`, and `useOnMutationStateChange` for side effects. Re-exports `fuery`.
 - `packages/fuery/example`: a social feed app (feed, post, compose, search, notifications) whose README maps each screen to the Fuery features it shows. Show a new feature of `fuery` or `fuery_core` where it belongs in that app, with a widget test. `fuery_hooks` has its own example in `packages/fuery_hooks/example`, so the app depends on nothing but Fuery.
+- `packages/fuery/playground`: the web app on the docs site at `/fuery/demo/`, with one scenario per idea (lifecycle, one key and one request, retries, offline, optimistic updates, keeping the previous page, infinite queries, persistence). Each scenario shows a query or mutation next to its live state, a timeline, and its own code. It depends only on `fuery`, isn't published, and `packages/fuery/.pubignore` keeps it out of the `fuery` archive.
 - `docs`: the documentation site (Astro Starlight) in English, Korean, Japanese, and Simplified Chinese, deployed to https://galaxykhh.github.io/fuery/
 
 Each package and `docs/` has its own `AGENTS.md` with package-specific rules.
@@ -21,6 +22,7 @@ dart format packages                              # keep formatting clean
 (cd packages/fuery_core && dart test)
 (cd packages/fuery && flutter test)
 (cd packages/fuery/example && flutter test)
+(cd packages/fuery/playground && flutter test)
 (cd packages/fuery_hooks && flutter test)
 for p in fuery_core fuery; do (cd packages/$p/test_fixes && dart fix --compare-to-golden); done  # dart fix goldens
 ```
@@ -52,12 +54,12 @@ python3 tool/check_translations.py                # every docs page has a ko, ja
 
 `coverage/` is gitignored.
 
-CI (`.github/workflows/ci.yml`) runs the version, docs link, and translation checks, a `pub publish --dry-run` of every package, format, analyze, the `dart fix` goldens, all four test suites, and the coverage check on the latest stable Flutter, and analyze, the goldens, and the tests on the oldest supported version (Flutter 3.27, Dart 3.6). It runs for every pull request, every push to `main`, weekly (it follows the latest stable Flutter and resolves dependencies fresh, so a new release can break `main` without a commit), and when started by hand. Raise the pubspec constraints and that CI version together. `.github/workflows/docs.yml` builds the example for the web into `docs/public/demo`, builds the docs site, and deploys both to GitHub Pages from `main`. It runs on pull requests that touch the docs, the example, or the `lib/` of `fuery` or `fuery_core`, which the demo is built from. The demo passes `--dart-define=fuery.demo=true`, which turns the devtools on in that release build.
+CI (`.github/workflows/ci.yml`) runs the version, docs link, and translation checks, a `pub publish --dry-run` of every package, format, analyze, the `dart fix` goldens, all five test suites, and the coverage check on the latest stable Flutter, and analyze, the goldens, and the tests on the oldest supported version (Flutter 3.27, Dart 3.6). It runs for every pull request, every push to `main`, weekly (it follows the latest stable Flutter and resolves dependencies fresh, so a new release can break `main` without a commit), and when started by hand. Raise the pubspec constraints and that CI version together. `.github/workflows/docs.yml` builds the playground for the web into `docs/public/demo`, builds the docs site, and deploys both to GitHub Pages from `main`. It runs on pull requests that touch the docs, the playground, or the `lib/` of `fuery` or `fuery_core`, which the playground is built from. The playground turns the devtools on in its release build itself.
 
 ## Rules for every change
 
 - Keep `flutter analyze packages` at zero issues and `dart format` clean.
-- Keep the `analyzer: exclude:` lists in the `analysis_options.yaml` of `fuery`, `fuery_hooks`, and the example. The latest `flutter pub get` adds any that are missing, and the modified checked-in file fails the publish dry-run.
+- Keep the `analyzer: exclude:` lists in the `analysis_options.yaml` of `fuery`, `fuery_hooks`, the example, and the playground. The latest `flutter pub get` adds any that are missing, and the modified checked-in file fails the publish dry-run.
 - Keep 100% line coverage in every package. Mark truly unreachable defensive code with `// coverage:ignore-start` / `// coverage:ignore-end` and a comment explaining why it can't run.
 - For a bug fix, write the failing test first and confirm it fails before fixing.
 - Public entry points (the `Query`, `InfiniteQuery`, `Mutation`, and `NoVariablesMutation` constructors, their `observe()`, `QuerySlot`, `InfiniteQuerySlot`, `MutationSlot`, `QueriesSlot`, `MutationStateSlot`, `QueryClient.getData`/`setData`/`updateData`, `streamedQuery`, `QueryClient.watch`, `QueryPersist`, `InfiniteQueryPersist`, the widgets, and the hooks of `fuery_hooks`) must work without explicit type arguments. This includes apps that enable `strict-inference`: give a type parameter that only optional arguments use a bound, such as `TContext extends Object?`, so it falls back to the bound instead of failing inference. Both packages enable `strict-casts`, `strict-inference`, and `strict-raw-types`, so `packages/fuery_core/test/inference_test.dart` fails analysis or stops compiling if inference breaks; extend it for new entry points. The hooks are checked in `packages/fuery_hooks/test/hooks_test.dart`, which infers each hook's result without a context type and then assigns it to the expected type, and passes the change hooks untyped closures whose parameters it assigns to the expected types.

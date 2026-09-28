@@ -27,7 +27,7 @@ QueryBuilder(
 
 Fuery caches server data and sends one request per key, however many screens use it. It retries failures, paginates, and refetches stale data in the background.
 
-**[Read the documentation →](https://galaxykhh.github.io/fuery/)** · **[Try the demo →](https://galaxykhh.github.io/fuery/demo/)**
+**[Read the documentation →](https://galaxykhh.github.io/fuery/)** · **[Try the playground →](https://galaxykhh.github.io/fuery/demo/)**
 
 ## Tested
 
@@ -53,6 +53,7 @@ flutter analyze packages
 (cd packages/fuery_core && dart test)
 (cd packages/fuery && flutter test)
 (cd packages/fuery/example && flutter test)
+(cd packages/fuery/playground && flutter test)
 (cd packages/fuery_hooks && flutter test)
 ```
 
@@ -67,6 +68,8 @@ Benchmarks live in the `benchmark/` folder of every package, with a README of wh
 The documentation site lives in [`docs/`](docs) and is built with Astro Starlight.
 
 The example app in [`packages/fuery/example`](packages/fuery/example) is a social feed that shows queries, mutations with optimistic updates, and the widgets together.
+
+The playground in [`packages/fuery/playground`](packages/fuery/playground) runs [in the browser](https://galaxykhh.github.io/fuery/demo/) on the docs site. Each scenario shows a query or a mutation next to its live state, a timeline, and the code that drives it.
 
 ## Acknowledgements
 
